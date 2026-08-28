@@ -1,0 +1,13 @@
+if (typeof URL !== "undefined" && typeof URL.createObjectURL !== "function") {
+  const urls = new Map<string, Blob>();
+  let n = 0;
+  URL.createObjectURL = (blob: Blob) => {
+    n += 1;
+    const url = "blob:v5-test:" + n;
+    urls.set(url, blob);
+    return url;
+  };
+  URL.revokeObjectURL = (url: string) => {
+    urls.delete(url);
+  };
+}

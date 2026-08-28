@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+import {
+  audioClipsAt,
+  clipEndMs,
+  defaultTracks,
+  kindOfTrack,
+  projectDurationMs,
+  topVideoClipAt,
+} from "../../src/core/models";
+import { createEmptyProject } from "../../src/core/project";
+import { clip, projectWith } from "../helpers";
+
+describe("foundation models", () => {
+  it("creates V1 V2 A1 A2 only", () => {
+    const p = createEmptyProject();
+    expect(p.schemaVersion).toBe(5);
+    expect(p.tracks.map((t) => t.id)).toEqual(["V1", "V2", "A1", "A2"]);
+    expect(defaultTracks().every((t) => t.kind === kindOfTrack(t.id))).toBe(true);
+    expect(p.clips).toEqual([]);
+    expect(p.inPointMs).toBeNull();
+    expect(p.outPointMs).toBeNull();
+  });
+
+  it("computes duration from clips and out point", () => {
+    const p = projectWith([clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 200, durationMs: 800 })]);
+    expect(clipEndMs(p.clips[0]!)).toBe(1000);
+    expect(projectDurationMs(p)).toBe(1000);
+    expect(projectDurationMs({ ...p, outPointMs: 2500 })).toBe(2500);
+  });
+
+  it("picks V2 over V1 under playhead", () => {
+    const p = projectWith([
+      clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
+      clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 500, durationMs: 500 }),
+    ]);
+    expect(topVideoClipAt(p, 600)?.id).toBe("v2");
+    expect(topVideoClipAt(p, 100)?.id).toBe("v1");
+    expect(topVideoClipAt(p, 3000)).toBeUndefined();
+  });
+
+  it("finds up to two audio clips", () => {
+    const p = projectWith([
+      clip({ id: "a1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "a2", assetId: "b", trackId: "A2", startMs: 0, durationMs: 1000 }),
+    ]);
+    expect(audioClipsAt(p, 100).map((c) => c.id).sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("empty project has zero duration", () => {
+    expect(projectDurationMs(createEmptyProject())).toBe(0);
+  });
+});

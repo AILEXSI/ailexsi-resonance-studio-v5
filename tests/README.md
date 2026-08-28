@@ -1,2 +1,1 @@
-Reserved for later V5 tests. No tests in Phase 0.
-foundation/ media/ timeline/ preview/ persistence/ export/
+V5 tests live under foundation media timeline persistence preview export.
