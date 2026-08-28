@@ -57,6 +57,10 @@ export function Preview({ project, playing }: Props) {
 
   return (
     <section className="preview-wrap" data-testid="preview">
+      <div className="preview-chrome">
+        <span>Preview</span>
+        <span>{playing ? "Live" : "Paused"}</span>
+      </div>
       <div className="preview-stage">
         {videoAsset?.objectUrl && videoClip ? (
           <video
@@ -76,7 +80,7 @@ export function Preview({ project, playing }: Props) {
       </div>
       <audio ref={a1Ref} className="hidden-audio" data-testid="preview-a1" />
       <audio ref={a2Ref} className="hidden-audio" data-testid="preview-a2" />
-      <div style={{ padding: 8, fontSize: 12, color: "var(--muted)" }}>
+      <div className="preview-meta">
         Active: {videoClip ? videoClip.trackId : "—"} · audio{" "}
         {audios.filter((c) => kindOfTrack(c.trackId) === "audio").map((c) => c.trackId).join(" ") || "—"}
       </div>

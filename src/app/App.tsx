@@ -14,6 +14,8 @@ import { Preview } from "../ui/preview/Preview";
 import { Inspector } from "../ui/inspector/Inspector";
 import { Transport } from "../ui/transport/Transport";
 import { Timeline } from "../ui/timeline/Timeline";
+import { Toolbar } from "../ui/toolbar/Toolbar";
+import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
 import {
   applyClearInOut,
   applyCopy,
@@ -49,6 +51,7 @@ export function App() {
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const lastTs = useRef<number | null>(null);
 
   useEffect(() => {
@@ -98,6 +101,11 @@ export function App() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       const s = sessionRef.current;
+      if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsOpen((open) => !open);
+        return;
+      }
       if (e.code === "Space") {
         e.preventDefault();
         if (s.playing) pause();
@@ -258,47 +266,19 @@ export function App() {
 
   return (
     <div className="app" data-testid="app">
-      <header className="toolbar">
-        <strong>AILEXSI Resonance Studio V5</strong>
-        <button type="button" onClick={() => setSession(newProject(session))}>
-          New
-        </button>
-        <button type="button" onClick={saveProject}>
-          Save
-        </button>
-        <label>
-          Open
-          <input
-            type="file"
-            accept=".json,application/json"
-            hidden
-            data-testid="open-input"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void openProject(file);
-              e.target.value = "";
-            }}
-          />
-        </label>
-        <button type="button" onClick={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}>
-          Import
-        </button>
-        <button type="button" onClick={() => setSession(applyUndo(session))}>
-          Undo
-        </button>
-        <button type="button" onClick={() => setSession(applyRedo(session))}>
-          Redo
-        </button>
-        <button type="button" onClick={() => setSession(applySplit(session))}>
-          Split
-        </button>
-        <button type="button" className={session.project.snap ? "active" : ""} onClick={() => setSession(applyToggleSnap(session))}>
-          Snap
-        </button>
-        <button type="button" onClick={() => void runExport()} disabled={exporting}>
-          Export MP4
-        </button>
-      </header>
+      <Toolbar
+        snap={session.project.snap}
+        exporting={exporting}
+        onNew={() => setSession(newProject(session))}
+        onSave={saveProject}
+        onOpenFile={(file) => void openProject(file)}
+        onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
+        onExport={() => void runExport()}
+        onUndo={() => setSession(applyUndo(session))}
+        onRedo={() => setSession(applyRedo(session))}
+        onSplit={() => setSession(applySplit(session))}
+        onToggleSnap={() => setSession(applyToggleSnap(session))}
+      />
 
       <div className="workspace">
         <MediaBrowser
@@ -378,6 +358,8 @@ export function App() {
         onZoom={(z) => setSession(applyZoom(session, z))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
       />
+
+      <ShortcutsOverlay open={shortcutsOpen} />
 
       <footer className="status" data-testid="status">
         <span>{session.status}</span>

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { clipById, kindOfTrack, type Clip, type Project, type TrackId } from "../../core/models";
+import { clipById, formatTimecode, kindOfTrack, type Clip, type Project, type TrackId } from "../../core/models";
 
 interface Props {
   project: Project;
@@ -19,6 +19,27 @@ function Field({
       <dt>{label}</dt>
       <dd>{children}</dd>
     </>
+  );
+}
+
+function MsField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <Field label={label}>
+      <input
+        type="number"
+        value={Math.round(value)}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span className="tc">{formatTimecode(value)}</span>
+    </Field>
   );
 }
 
@@ -45,34 +66,10 @@ export function Inspector({ project, selectedClipId, onChange }: Props) {
               ))}
             </select>
           </Field>
-          <Field label="Start (ms)">
-            <input
-              type="number"
-              value={Math.round(clip.startMs)}
-              onChange={(e) => onChange(clip.id, { startMs: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Duration (ms)">
-            <input
-              type="number"
-              value={Math.round(clip.durationMs)}
-              onChange={(e) => onChange(clip.id, { durationMs: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Source In">
-            <input
-              type="number"
-              value={Math.round(clip.sourceInMs)}
-              onChange={(e) => onChange(clip.id, { sourceInMs: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Source Out">
-            <input
-              type="number"
-              value={Math.round(clip.sourceOutMs)}
-              onChange={(e) => onChange(clip.id, { sourceOutMs: Number(e.target.value) })}
-            />
-          </Field>
+          <MsField label="Start (ms)" value={clip.startMs} onChange={(v) => onChange(clip.id, { startMs: v })} />
+          <MsField label="Duration (ms)" value={clip.durationMs} onChange={(v) => onChange(clip.id, { durationMs: v })} />
+          <MsField label="Source In" value={clip.sourceInMs} onChange={(v) => onChange(clip.id, { sourceInMs: v })} />
+          <MsField label="Source Out" value={clip.sourceOutMs} onChange={(v) => onChange(clip.id, { sourceOutMs: v })} />
           <Field label="Gain">
             <input
               type="number"
@@ -83,13 +80,7 @@ export function Inspector({ project, selectedClipId, onChange }: Props) {
               onChange={(e) => onChange(clip.id, { gain: Number(e.target.value) })}
             />
           </Field>
-          <Field label="Asset">{asset?.name ?? "—"}</Field>
-          <Field label="Blend">
-            <span className="ni">not-implemented</span>
-          </Field>
-          <Field label="Speed">
-            <span className="ni">not-implemented</span>
-          </Field>
+          <Field label="Asset">{asset?.missing ? <span className="err">{asset.name}</span> : (asset?.name ?? "—")}</Field>
         </dl>
       )}
     </aside>

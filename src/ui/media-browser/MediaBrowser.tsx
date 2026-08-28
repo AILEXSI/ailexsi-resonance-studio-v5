@@ -60,7 +60,7 @@ export function MediaBrowser({
               onDoubleClick={() => onPlace(asset.id)}
             >
               <strong>{asset.missing ? describeMissing(asset) : asset.name}</strong>
-              <div style={{ fontSize: 11, color: "var(--muted)" }}>
+              <div className="media-meta">
                 {asset.kind} · {(asset.durationMs / 1000).toFixed(2)}s
               </div>
             </div>
