@@ -82,6 +82,67 @@ export function moveClip(
   };
 }
 
+export function trimClip(
+  project: Project,
+  clipId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): { project: Project; error?: string } {
+  const clip = clipById(project, clipId);
+  if (!clip) return { project, error: "Clip not found" };
+
+  const asset = project.assets.find((a) => a.id === clip.assetId);
+  let edgeMs = Math.max(0, nextEdgeMs);
+  if (project.snap) {
+    edgeMs = snapTime(edgeMs, collectSnapTargets(project, clipId)).timeMs;
+    edgeMs = Math.max(0, edgeMs);
+  }
+
+  let next: Clip;
+  if (edge === "in") {
+    const newStart = edgeMs;
+    const newSourceIn = clip.sourceInMs + (newStart - clip.startMs);
+    const newDuration = clipEndMs(clip) - newStart;
+    if (newSourceIn < 0) {
+      return { project, error: "sourceIn cannot go below 0" };
+    }
+    if (newDuration < SPLIT_EDGE_GUARD_MS) {
+      return { project, error: "Trim would leave less than 50ms" };
+    }
+    if (newSourceIn > clip.sourceOutMs - SPLIT_EDGE_GUARD_MS) {
+      return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
+    }
+    next = {
+      ...clip,
+      startMs: newStart,
+      sourceInMs: newSourceIn,
+      durationMs: newDuration,
+    };
+  } else {
+    const newDuration = edgeMs - clip.startMs;
+    const newSourceOut = clip.sourceInMs + newDuration;
+    if (newDuration < SPLIT_EDGE_GUARD_MS) {
+      return { project, error: "Trim would leave less than 50ms" };
+    }
+    if (asset && newSourceOut > asset.durationMs) {
+      return { project, error: "sourceOut cannot exceed asset duration" };
+    }
+    next = {
+      ...clip,
+      durationMs: newDuration,
+      sourceOutMs: newSourceOut,
+    };
+  }
+
+  return {
+    project: {
+      ...project,
+      updatedAt: new Date().toISOString(),
+      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+    },
+  };
+}
+
 export function splitClipAt(
   project: Project,
   clipId: string,
@@ -217,6 +278,16 @@ export function toggleLoop(project: Project): Project {
 
 export function toggleSnap(project: Project): Project {
   return { ...project, snap: !project.snap };
+}
+
+export function toggleTrackMute(project: Project, trackId: TrackId): Project {
+  return {
+    ...project,
+    tracks: project.tracks.map((t) =>
+      t.id === trackId ? { ...t, muted: !t.muted } : t,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function addMarker(project: Project, timeMs: number, label?: string): Project {

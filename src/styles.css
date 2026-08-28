@@ -72,3 +72,23 @@ input[type="number"] { width: 88px; }
 .marker-flag { position: absolute; top: 2px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 8px solid #c4b5fd; }
 .in-out { position: absolute; top: 0; bottom: 0; background: rgba(110, 231, 183, 0.08); pointer-events: none; }
 .hidden-audio { display: none; }
+
+.lane-label { gap: 4px; flex-direction: column; }
+.mute-btn { padding: 0 5px; font-size: 10px; line-height: 16px; }
+.lane.muted .lane-label { color: var(--danger); }
+.clip { position: absolute; }
+.clip-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trim-handle {
+  position: absolute; top: 0; bottom: 0; width: 8px; z-index: 2;
+  background: rgba(255,255,255,0.35); cursor: ew-resize;
+}
+.trim-handle.in { left: 0; }
+.trim-handle.out { right: 0; }
+.clip-menu {
+  position: fixed; z-index: 20; display: flex; flex-direction: column; gap: 2px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px;
+  min-width: 120px;
+}
+.clip-menu button { text-align: left; }
+.timeline-tools { display: flex; gap: 8px; padding: 6px 10px; font-size: 12px; align-items: center; }
+.timeline-zoom { color: var(--muted); }

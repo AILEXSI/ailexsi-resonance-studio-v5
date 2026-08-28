@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FRAME_MS, clipById, type TrackId } from "../core/models";
+import { FRAME_MS, assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveClip, placeAsset, snapTime } from "../core/timeline";
+import { collectSnapTargets, moveClip, placeAsset, snapTime, trimClip } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
 import {
   downloadMp4,
@@ -15,6 +15,7 @@ import { Inspector } from "../ui/inspector/Inspector";
 import { Transport } from "../ui/transport/Transport";
 import { Timeline } from "../ui/timeline/Timeline";
 import {
+  applyClearInOut,
   applyCopy,
   applyDelete,
   applyIn,
@@ -27,6 +28,7 @@ import {
   applySelect,
   applySplit,
   applyToggleLoop,
+  applyToggleMute,
   applyToggleSnap,
   applyUndo,
   applyUpdateClip,
@@ -108,6 +110,11 @@ export function App() {
       }
       if (e.key === "m" || e.key === "M") {
         setSession(applyMarker(s));
+        return;
+      }
+      if (e.key === "x" || e.key === "X" || ((e.key === "i" || e.key === "I") && e.shiftKey)) {
+        e.preventDefault();
+        setSession(applyClearInOut(s));
         return;
       }
       if (e.key === "i" || e.key === "I") {
@@ -228,6 +235,27 @@ export function App() {
     }));
   };
 
+  const onTrimLive = (clipId: string, edge: "in" | "out", nextEdgeMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const result = trimClip(s.project, clipId, edge, nextEdgeMs);
+      if (result.error) return { ...s, error: result.error };
+      return { ...s, project: result.project, selectedClipId: clipId, error: null };
+    });
+  };
+
+  const onTrimCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Trimmed clip",
+      error: null,
+    }));
+  };
+
   return (
     <div className="app" data-testid="app">
       <header className="toolbar">
@@ -326,6 +354,7 @@ export function App() {
         onToggleLoop={() => setSession(applyToggleLoop(session))}
         onIn={() => setSession(applyIn(session))}
         onOut={() => setSession(applyOut(session))}
+        onClear={() => setSession(applyClearInOut(session))}
         onMarker={() => setSession(applyMarker(session))}
         onSplit={() => setSession(applySplit(session))}
       />
@@ -337,6 +366,15 @@ export function App() {
         onPlayhead={(ms) => setSession(applyPlayhead(session, ms))}
         onMoveLive={onMoveLive}
         onMoveCommit={onMoveCommit}
+        onTrimLive={onTrimLive}
+        onTrimCommit={onTrimCommit}
+        onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+        onSplitHere={(clipId, timeMs) => {
+          setSession((s) => applySplit(applyPlayhead(applySelect(s, clipId), timeMs)));
+        }}
+        onCopy={() => setSession(applyCopy(session))}
+        onPaste={() => setSession(applyPaste(session))}
+        onDelete={() => setSession(applyDelete(session))}
         onZoom={(z) => setSession(applyZoom(session, z))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
       />
@@ -344,9 +382,12 @@ export function App() {
       <footer className="status" data-testid="status">
         <span>{session.status}</span>
         {session.error ? <span className="err">{session.error}</span> : null}
-        {clipById(session.project, session.selectedClipId ?? "") ? (
-          <span>clip {session.selectedClipId}</span>
-        ) : null}
+        {(() => {
+          const selected = clipById(session.project, session.selectedClipId ?? "");
+          if (!selected) return null;
+          const asset = assetById(session.project, selected.assetId);
+          return <span>{asset?.name ?? selected.id}</span>;
+        })()}
       </footer>
     </div>
   );

@@ -28,6 +28,9 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   }
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const tracks: ExportTrack[] = project.tracks.map((track) => {
+    if (track.muted) {
+      return { id: track.id, kind: track.kind, clips: [] };
+    }
     const clips: ExportClip[] = project.clips
       .filter((c) => c.trackId === track.id)
       .filter((c) => clipEndMs(c) > startMs && c.startMs < endMs)

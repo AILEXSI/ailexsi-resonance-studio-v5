@@ -73,6 +73,18 @@ export const SPLIT_EDGE_GUARD_MS = 50;
 export const SNAP_THRESHOLD_MS = 80;
 export const FRAME_MS = 1000 / 30;
 
+/** mm:ss.cc (centiseconds). */
+export function formatTimecode(ms: number): string {
+  const s = Math.max(0, ms) / 1000;
+  const m = Math.floor(s / 60);
+  const rem = s - m * 60;
+  return `${String(m).padStart(2, "0")}:${rem.toFixed(2).padStart(5, "0")}`;
+}
+
+export function isTrackMuted(project: Project, trackId: TrackId): boolean {
+  return project.tracks.find((t) => t.id === trackId)?.muted === true;
+}
+
 export function clipEndMs(clip: Clip): number {
   return clip.startMs + clip.durationMs;
 }
@@ -114,6 +126,7 @@ export function topVideoClipAt(project: Project, timeMs: number): Clip | undefin
   const hits = project.clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "video" &&
+      !isTrackMuted(project, c.trackId) &&
       timeMs >= c.startMs &&
       timeMs < clipEndMs(c),
   );
@@ -124,6 +137,7 @@ export function audioClipsAt(project: Project, timeMs: number): Clip[] {
   return project.clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "audio" &&
+      !isTrackMuted(project, c.trackId) &&
       timeMs >= c.startMs &&
       timeMs < clipEndMs(c),
   );

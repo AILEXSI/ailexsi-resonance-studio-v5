@@ -1,4 +1,4 @@
-import { FRAME_MS, type Project } from "../../core/models";
+import { FRAME_MS, formatTimecode, type Project } from "../../core/models";
 
 interface Props {
   project: Project;
@@ -10,15 +10,9 @@ interface Props {
   onToggleLoop: () => void;
   onIn: () => void;
   onOut: () => void;
+  onClear: () => void;
   onMarker: () => void;
   onSplit: () => void;
-}
-
-function fmt(ms: number): string {
-  const s = Math.max(0, ms) / 1000;
-  const m = Math.floor(s / 60);
-  const rem = s - m * 60;
-  return `${String(m).padStart(2, "0")}:${rem.toFixed(2).padStart(5, "0")}`;
 }
 
 export function Transport(props: Props) {
@@ -48,16 +42,19 @@ export function Transport(props: Props) {
       <button type="button" onClick={props.onOut}>
         OUT
       </button>
+      <button type="button" onClick={props.onClear}>
+        Clear
+      </button>
       <button type="button" onClick={props.onMarker}>
         Marker
       </button>
       <button type="button" onClick={props.onSplit}>
         Split
       </button>
-      <span data-testid="timecode">{fmt(props.project.playheadMs)}</span>
+      <span data-testid="timecode">{formatTimecode(props.project.playheadMs)}</span>
       <span style={{ color: "var(--muted)", fontSize: 12 }}>
-        IN {props.project.inPointMs == null ? "—" : fmt(props.project.inPointMs)} · OUT{" "}
-        {props.project.outPointMs == null ? "—" : fmt(props.project.outPointMs)}
+        IN {props.project.inPointMs == null ? "—" : formatTimecode(props.project.inPointMs)} · OUT{" "}
+        {props.project.outPointMs == null ? "—" : formatTimecode(props.project.outPointMs)}
       </span>
     </div>
   );

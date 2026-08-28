@@ -10,6 +10,7 @@ import {
 import { createEmptyProject, deserializeProject, serializeProject } from "../core/project";
 import {
   addMarker,
+  clearInOut,
   collectSnapTargets,
   createHistory,
   deleteClip,
@@ -25,6 +26,8 @@ import {
   splitAtPlayhead,
   toggleLoop,
   toggleSnap,
+  toggleTrackMute,
+  trimClip,
   undo as undoHistory,
   updateClip,
   type HistoryStack,
@@ -151,6 +154,17 @@ export function applyMove(
   return withHistory(session, result.project, "Moved clip");
 }
 
+export function applyTrim(
+  session: Session,
+  clipId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): Session {
+  const result = trimClip(session.project, clipId, edge, nextEdgeMs);
+  if (result.error) return { ...session, error: result.error };
+  return withHistory(session, result.project, "Trimmed clip");
+}
+
 export function applySplit(session: Session): Session {
   const result = splitAtPlayhead(session.project);
   if (result.error) return { ...session, error: result.error, status: "Split rejected" };
@@ -179,6 +193,10 @@ export function applyOut(session: Session): Session {
   const result = setOutPoint(session.project, session.project.playheadMs);
   if (result.error) return { ...session, error: result.error };
   return { ...session, project: result.project, status: "OUT set", error: null };
+}
+
+export function applyClearInOut(session: Session): Session {
+  return { ...session, project: clearInOut(session.project), status: "IN/OUT cleared", error: null };
 }
 
 export function applyMarker(session: Session): Session {
@@ -245,6 +263,13 @@ export function applyToggleLoop(session: Session): Session {
 
 export function applyToggleSnap(session: Session): Session {
   return { ...session, project: toggleSnap(session.project) };
+}
+
+export function applyToggleMute(session: Session, trackId: TrackId): Session {
+  const next = toggleTrackMute(session.project, trackId);
+  const track = next.tracks.find((t) => t.id === trackId);
+  const verb = track?.muted ? "Muted" : "Unmuted";
+  return { ...session, project: next, status: `${verb} ${trackId}`, error: null };
 }
 
 export function applySelect(session: Session, clipId: string | null): Session {
