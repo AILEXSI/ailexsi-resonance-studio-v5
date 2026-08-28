@@ -9,7 +9,7 @@ import { placeAsset, splitClipAt } from "../../src/core/timeline";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "../fixtures");
 const videoPath = join(fixturesDir, "user-video.mp4");
-const audioPath = join(fixturesDir, "tone.wav");
+const audioPath = join(fixturesDir, "user-audio.mp3");
 
 function fileFromDisk(path: string, name: string, type: string): File {
   const buf = readFileSync(path);
@@ -25,21 +25,21 @@ function ffprobeDurationMs(path: string): number {
   return Math.round(Number(out.trim()) * 1000);
 }
 
-describe("user fixtures video + wav", () => {
+describe("user fixtures video + mp3", () => {
   it("both files exist and classify correctly", () => {
     const video = fileFromDisk(videoPath, "user-video.mp4", "video/mp4");
-    const audio = fileFromDisk(audioPath, "tone.wav", "audio/wav");
+    const audio = fileFromDisk(audioPath, "user-audio.mp3", "audio/mpeg");
     expect(video.size).toBeGreaterThan(1000);
     expect(audio.size).toBeGreaterThan(1000);
     expect(classifyFile(video)).toBe("video");
     expect(classifyFile(audio)).toBe("audio");
     expect(readFileSync(videoPath).subarray(4, 8).toString("ascii")).toBe("ftyp");
-    expect(readFileSync(audioPath).subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(readFileSync(audioPath).subarray(0, 3).toString("ascii")).toBe("ID3");
   });
 
-  it("imports video to V1 and wav to A1 then splits video", async () => {
+  it("imports video to V1 and mp3 to A1 then splits video", async () => {
     const videoFile = fileFromDisk(videoPath, "user-video.mp4", "video/mp4");
-    const audioFile = fileFromDisk(audioPath, "tone.wav", "audio/wav");
+    const audioFile = fileFromDisk(audioPath, "user-audio.mp3", "audio/mpeg");
     const videoMs = ffprobeDurationMs(videoPath);
     const audioMs = ffprobeDurationMs(audioPath);
     expect(videoMs).toBeGreaterThan(4000);
