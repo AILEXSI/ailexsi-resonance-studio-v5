@@ -5,6 +5,7 @@ import {
 } from "../../src/core/models";
 import { createEmptyProject } from "../../src/core/project";
 import {
+  clearInOut,
   createHistory,
   moveClip,
   pushHistory,
@@ -13,9 +14,11 @@ import {
   setOutPoint,
   snapTime,
   splitClipAt,
+  toggleTrackMute,
+  trimClip,
   undo,
 } from "../../src/core/timeline";
-import { clip, projectWith } from "../helpers";
+import { asset, clip, projectWith } from "../helpers";
 
 function base(): Project {
   return projectWith([
@@ -87,5 +90,72 @@ describe("timeline move/split/snap/undo", () => {
     const p = { ...createEmptyProject(), outPointMs: 1000 };
     expect(setInPoint(p, 1500).error).toMatch(/IN cannot/);
     expect(setOutPoint({ ...createEmptyProject(), inPointMs: 2000 }, 500).error).toMatch(/OUT cannot/);
+  });
+});
+
+describe("timeline trim", () => {
+  it("trims in by 500ms on a 2000ms clip", () => {
+    const result = trimClip(base(), "c1", "in", 1500);
+    expect(result.error).toBeUndefined();
+    const c = result.project.clips[0]!;
+    expect(c.startMs).toBe(1500);
+    expect(c.durationMs).toBe(1500);
+    expect(c.sourceInMs).toBe(500);
+    expect(c.sourceOutMs).toBe(2000);
+  });
+
+  it("trims out by 500ms and shrinks sourceOut", () => {
+    const result = trimClip(base(), "c1", "out", 2500);
+    expect(result.error).toBeUndefined();
+    const c = result.project.clips[0]!;
+    expect(c.startMs).toBe(1000);
+    expect(c.durationMs).toBe(1500);
+    expect(c.sourceInMs).toBe(0);
+    expect(c.sourceOutMs).toBe(1500);
+  });
+
+  it("rejects trim that would leave less than 50ms", () => {
+    const tooShortIn = trimClip(base(), "c1", "in", 2960);
+    expect(tooShortIn.error).toMatch(/50ms/);
+    expect(tooShortIn.project.clips[0]!.durationMs).toBe(2000);
+    const tooShortOut = trimClip(base(), "c1", "out", 1040);
+    expect(tooShortOut.error).toMatch(/50ms/);
+    expect(tooShortOut.project.clips[0]!.durationMs).toBe(2000);
+  });
+
+  it("rejects sourceIn below 0", () => {
+    const result = trimClip(base(), "c1", "in", 500);
+    expect(result.error).toMatch(/sourceIn/);
+    expect(result.project.clips[0]!.sourceInMs).toBe(0);
+    expect(result.project.clips[0]!.startMs).toBe(1000);
+  });
+
+  it("rejects sourceOut past asset duration", () => {
+    const p = projectWith(
+      [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 1000, durationMs: 2000, sourceInMs: 0, sourceOutMs: 2000 })],
+      [asset({ id: "a", kind: "video", durationMs: 2000 })],
+    );
+    const result = trimClip(p, "c1", "out", 3500);
+    expect(result.error).toMatch(/asset duration/);
+    expect(result.project.clips[0]!.sourceOutMs).toBe(2000);
+    expect(result.project.clips[0]!.durationMs).toBe(2000);
+  });
+
+  it("clears IN/OUT points", () => {
+    const p = { ...base(), inPointMs: 200, outPointMs: 800 };
+    const cleared = clearInOut(p);
+    expect(cleared.inPointMs).toBeNull();
+    expect(cleared.outPointMs).toBeNull();
+  });
+});
+
+describe("timeline mute", () => {
+  it("toggles track muted flag", () => {
+    const p = base();
+    expect(p.tracks.find((t) => t.id === "V1")!.muted).toBe(false);
+    const muted = toggleTrackMute(p, "V1");
+    expect(muted.tracks.find((t) => t.id === "V1")!.muted).toBe(true);
+    const unmuted = toggleTrackMute(muted, "V1");
+    expect(unmuted.tracks.find((t) => t.id === "V1")!.muted).toBe(false);
   });
 });

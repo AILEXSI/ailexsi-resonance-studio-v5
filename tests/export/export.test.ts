@@ -81,3 +81,22 @@ describe("export planner + fail path", () => {
     expect(String.fromCharCode(bytes[4]!, bytes[5]!, bytes[6]!, bytes[7]!)).toBe("ftyp");
   });
 });
+
+describe("export mute skip", () => {
+  it("omits clips on muted tracks from the job", () => {
+    const p = projectWith(
+      [
+        clip({ id: "v1", assetId: "a1", trackId: "V1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "a1", assetId: "a2", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "a1", kind: "video", durationMs: 1000, objectUrl: "blob:v", missing: false }),
+        asset({ id: "a2", kind: "audio", durationMs: 1000, objectUrl: "blob:a", missing: false }),
+      ],
+    );
+    p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, muted: true } : t));
+    const job = jobFromProject(p);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(0);
+    expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
+  });
+});

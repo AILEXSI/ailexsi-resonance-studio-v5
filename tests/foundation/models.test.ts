@@ -3,6 +3,7 @@ import {
   audioClipsAt,
   clipEndMs,
   defaultTracks,
+  formatTimecode,
   kindOfTrack,
   projectDurationMs,
   topVideoClipAt,
@@ -48,5 +49,35 @@ describe("foundation models", () => {
 
   it("empty project has zero duration", () => {
     expect(projectDurationMs(createEmptyProject())).toBe(0);
+  });
+});
+
+describe("mute skip", () => {
+  it("skips muted video tracks and still prefers V2 over V1", () => {
+    const p = projectWith([
+      clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
+      clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 0, durationMs: 2000 }),
+    ]);
+    expect(topVideoClipAt(p, 100)?.id).toBe("v2");
+    p.tracks = p.tracks.map((t) => (t.id === "V2" ? { ...t, muted: true } : t));
+    expect(topVideoClipAt(p, 100)?.id).toBe("v1");
+    p.tracks = p.tracks.map((t) => (t.id === "V1" || t.id === "V2" ? { ...t, muted: true } : t));
+    expect(topVideoClipAt(p, 100)).toBeUndefined();
+  });
+
+  it("skips muted A1/A2", () => {
+    const p = projectWith([
+      clip({ id: "a1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "a2", assetId: "b", trackId: "A2", startMs: 0, durationMs: 1000 }),
+    ]);
+    expect(audioClipsAt(p, 100)).toHaveLength(2);
+    p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, muted: true } : t));
+    expect(audioClipsAt(p, 100).map((c) => c.id)).toEqual(["a2"]);
+  });
+
+  it("formats mm:ss.cc", () => {
+    expect(formatTimecode(0)).toBe("00:00.00");
+    expect(formatTimecode(1500)).toBe("00:01.50");
+    expect(formatTimecode(61_230)).toBe("01:01.23");
   });
 });
