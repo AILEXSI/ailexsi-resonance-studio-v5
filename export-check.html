@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>export-check pending</title></head>
+  <body>
+    <pre id="out">starting</pre>
+    <script type="module">
+      import { createEmptyProject } from "/src/core/project.ts";
+      import { placeAsset } from "/src/core/timeline.ts";
+      import { jobFromProject, exportTimeline, hexHeader } from "/src/core/exporter/index.ts";
+
+      const out = document.getElementById("out");
+      function show(t) { out.textContent = t; document.title = t.split("\\n")[0]; }
+
+      try {
+        let project = createEmptyProject("ExportCheck");
+        const asset = {
+          id: "slate",
+          name: "slate",
+          kind: "video",
+          mimeType: "video/mp4",
+          durationMs: 400,
+          blobId: "slate",
+          missing: true,
+          width: 320,
+          height: 180,
+        };
+        project = { ...project, assets: [asset], inPointMs: 0, outPointMs: 400 };
+        const placed = placeAsset(project, "slate", "V1", 0);
+        if (placed.error) throw new Error(placed.error);
+        const job = jobFromProject(placed.project, { width: 320, height: 180, fps: 15, fileName: "v5-check.mp4" });
+        const result = await exportTimeline(job);
+        if (!result.success || !result.blob) {
+          show("FAIL\\n" + (result.error || "no blob"));
+        } else {
+          const buf = new Uint8Array(await result.blob.arrayBuffer());
+          const hex = hexHeader(buf, 16);
+          let b64 = "";
+          for (let i = 0; i < buf.length; i += 8192) {
+            b64 += String.fromCharCode(...buf.subarray(i, i + 8192));
+          }
+          b64 = btoa(b64);
+          show(
+            "SUCCESS\\nsize=" + buf.length + "\\nhex=" + hex + "\\nmime=" + result.mimeType + "\\nbrands=" + (result.brands || []).join(",") + "\\nbase64=" + b64
+          );
+        }
+      } catch (e) {
+        show("FAIL\\n" + (e && e.message ? e.message : String(e)));
+      }
+    </script>
+  </body>
+</html>
