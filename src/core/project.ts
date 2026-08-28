@@ -1,12 +1,15 @@
 import { createId } from "./ids";
 import {
   defaultTracks,
+  defaultVisualizer,
   isTrackId,
+  isVisualizerSceneId,
   type Clip,
   type MediaAsset,
   type MediaKind,
   type Project,
   type Track,
+  type VisualizerState,
 } from "./models";
 
 export const PROJECT_SCHEMA_VERSION = 5;
@@ -31,6 +34,7 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     snap: true,
     zoomPxPerSec: 80,
     scrollMs: 0,
+    visualizer: defaultVisualizer(),
   };
 }
 
@@ -100,6 +104,17 @@ function sanitizeTracks(raw: unknown): Track[] {
       | undefined;
     return found ? { ...track, muted: Boolean(found.muted) } : track;
   });
+}
+
+function sanitizeVisualizer(raw: unknown): VisualizerState {
+  const fallback = defaultVisualizer();
+  if (!raw || typeof raw !== "object") return fallback;
+  const v = raw as Record<string, unknown>;
+  return {
+    enabled: v.enabled !== false,
+    muted: v.muted === true,
+    sceneId: isVisualizerSceneId(v.sceneId) ? v.sceneId : fallback.sceneId,
+  };
 }
 
 export class ProjectFormatError extends Error {
@@ -178,6 +193,7 @@ export function deserializeProject(text: string): Project {
     snap: raw.snap !== false,
     zoomPxPerSec: Math.max(10, Number(raw.zoomPxPerSec) || 80),
     scrollMs: Math.max(0, Number(raw.scrollMs) || 0),
+    visualizer: sanitizeVisualizer(raw.visualizer),
   };
 }
 

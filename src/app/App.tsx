@@ -31,6 +31,8 @@ import {
   applySplit,
   applyToggleLoop,
   applyToggleMute,
+  applyToggleVisualizerMute,
+  applyCycleVisualizerScene,
   applyToggleSnap,
   applyUndo,
   applyUpdateClip,
@@ -349,6 +351,8 @@ export function App() {
         onTrimLive={onTrimLive}
         onTrimCommit={onTrimCommit}
         onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+        onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
+        onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applySplit(applyPlayhead(applySelect(s, clipId), timeMs)));
         }}

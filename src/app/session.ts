@@ -32,6 +32,7 @@ import {
   updateClip,
   type HistoryStack,
 } from "../core/timeline";
+import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
 
 export interface Session {
   project: Project;
@@ -270,6 +271,22 @@ export function applyToggleMute(session: Session, trackId: TrackId): Session {
   const track = next.tracks.find((t) => t.id === trackId);
   const verb = track?.muted ? "Muted" : "Unmuted";
   return { ...session, project: next, status: `${verb} ${trackId}`, error: null };
+}
+
+export function applyToggleVisualizerMute(session: Session): Session {
+  const next = toggleVisualizerMute(session.project);
+  const verb = next.visualizer.muted ? "Muted" : "Unmuted";
+  return { ...session, project: next, status: `${verb} VIS`, error: null };
+}
+
+export function applyCycleVisualizerScene(session: Session): Session {
+  const next = cycleVisualizerScene(session.project);
+  return {
+    ...session,
+    project: next,
+    status: `Visualizer ${next.visualizer.sceneId}`,
+    error: null,
+  };
 }
 
 export function applySelect(session: Session, clipId: string | null): Session {

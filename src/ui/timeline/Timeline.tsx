@@ -8,6 +8,7 @@ import {
   type Project,
   type TrackId,
 } from "../../core/models";
+import { sceneShortName } from "../../core/visualizer";
 
 interface Props {
   project: Project;
@@ -19,6 +20,8 @@ interface Props {
   onTrimLive: (clipId: string, edge: "in" | "out", nextEdgeMs: number) => void;
   onTrimCommit: () => void;
   onToggleMute: (trackId: TrackId) => void;
+  onToggleVisualizerMute: () => void;
+  onCycleVisualizerScene: () => void;
   onSplitHere: (clipId: string, timeMs: number) => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -52,6 +55,8 @@ export function Timeline({
   onTrimLive,
   onTrimCommit,
   onToggleMute,
+  onToggleVisualizerMute,
+  onCycleVisualizerScene,
   onSplitHere,
   onCopy,
   onPaste,
@@ -211,6 +216,57 @@ export function Timeline({
           className="playhead"
           style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
         />
+      </div>
+      <div
+        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
+        data-testid="lane-VIS"
+      >
+        <div className="lane-label">
+          <span>VIS</span>
+          <div className="vis-lane-btns">
+            <button
+              type="button"
+              className={project.visualizer.muted ? "active mute-btn" : "mute-btn"}
+              title={project.visualizer.muted ? "Unmute VIS" : "Mute VIS"}
+              data-testid="mute-VIS"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleVisualizerMute();
+              }}
+            >
+              M
+            </button>
+            <button
+              type="button"
+              className="scene-btn"
+              title={project.visualizer.sceneId}
+              data-testid="visualizer-scene"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCycleVisualizerScene();
+              }}
+            >
+              {sceneShortName(project.visualizer.sceneId)}
+            </button>
+          </div>
+        </div>
+        <div
+          className="lane-body vis-body"
+          data-testid="lane-VIS-body"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            setMenu(null);
+            onSelect(null);
+            onPlayhead(timeFromEvent(e.clientX));
+          }}
+        >
+          {range ? <div className="in-out" style={{ left: range.left, width: range.width }} /> : null}
+          <div className="vis-lane-fill" aria-hidden="true" />
+          <div
+            className="playhead"
+            style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
+          />
+        </div>
       </div>
       {TRACK_IDS.map((id) => {
         const track = project.tracks.find((t) => t.id === id);

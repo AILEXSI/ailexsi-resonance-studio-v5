@@ -1,5 +1,20 @@
 export type MediaKind = "video" | "audio";
 export type TrackId = "V1" | "V2" | "A1" | "A2";
+export type VisualizerSceneId = "spectrum-bars" | "pulse-orb";
+
+export interface VisualizerState {
+  enabled: boolean;
+  muted: boolean;
+  sceneId: VisualizerSceneId;
+}
+
+export function defaultVisualizer(): VisualizerState {
+  return { enabled: true, muted: false, sceneId: "spectrum-bars" };
+}
+
+export function isVisualizerSceneId(value: unknown): value is VisualizerSceneId {
+  return value === "spectrum-bars" || value === "pulse-orb";
+}
 
 export const TRACK_IDS: TrackId[] = ["V1", "V2", "A1", "A2"];
 
@@ -67,6 +82,7 @@ export interface Project {
   snap: boolean;
   zoomPxPerSec: number;
   scrollMs: number;
+  visualizer: VisualizerState;
 }
 
 export const SPLIT_EDGE_GUARD_MS = 50;

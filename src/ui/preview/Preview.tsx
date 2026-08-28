@@ -2,10 +2,16 @@ import { useEffect, useRef } from "react";
 import {
   audioClipsAt,
   kindOfTrack,
+  projectDurationMs,
   sourceTimeAt,
   topVideoClipAt,
   type Project,
 } from "../../core/models";
+import {
+  featuresAt,
+  renderVisualizerScene,
+  shouldShowVisualizer,
+} from "../../core/visualizer";
 
 interface Props {
   project: Project;
@@ -16,12 +22,15 @@ export function Preview({ project, playing }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const a1Ref = useRef<HTMLAudioElement>(null);
   const a2Ref = useRef<HTMLAudioElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lastPlayheadRef = useRef(project.playheadMs);
 
   const videoClip = topVideoClipAt(project, project.playheadMs);
   const videoAsset = videoClip
     ? project.assets.find((a) => a.id === videoClip.assetId)
     : undefined;
   const audios = audioClipsAt(project, project.playheadMs);
+  const showViz = shouldShowVisualizer(project, project.playheadMs);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -55,6 +64,45 @@ export function Preview({ project, playing }: Props) {
     bind(a2Ref.current, "A2");
   }, [audios, playing, project.assets, project.playheadMs]);
 
+  useEffect(() => {
+    if (!showViz) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const paint = (dt: number) => {
+      const parent = canvas.parentElement;
+      const cssW = parent?.clientWidth || canvas.clientWidth || 640;
+      const cssH = parent?.clientHeight || canvas.clientHeight || 360;
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.floor(cssW * dpr));
+      const h = Math.max(1, Math.floor(cssH * dpr));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const durationMs = Math.max(projectDurationMs(project), 10_000);
+      const features = featuresAt(project.playheadMs, durationMs);
+      renderVisualizerScene(ctx, canvas.width, canvas.height, project.visualizer.sceneId, features, dt);
+    };
+
+    const dt = Math.max(0, (project.playheadMs - lastPlayheadRef.current) / 1000);
+    lastPlayheadRef.current = project.playheadMs;
+    paint(dt);
+
+    const target = canvas.parentElement ?? canvas;
+    const ro = new ResizeObserver(() => paint(0));
+    ro.observe(target);
+    return () => ro.disconnect();
+  }, [showViz, project]);
+
+  const activeLabel = videoClip
+    ? videoClip.trackId
+    : showViz
+      ? "VIS"
+      : "—";
+
   return (
     <section className="preview-wrap" data-testid="preview">
       <div className="preview-chrome">
@@ -70,6 +118,8 @@ export function Preview({ project, playing }: Props) {
             playsInline
             data-testid="preview-video"
           />
+        ) : showViz ? (
+          <canvas ref={canvasRef} data-testid="visualizer-canvas" />
         ) : (
           <div className="preview-empty">
             {videoClip && videoAsset?.missing
@@ -81,7 +131,7 @@ export function Preview({ project, playing }: Props) {
       <audio ref={a1Ref} className="hidden-audio" data-testid="preview-a1" />
       <audio ref={a2Ref} className="hidden-audio" data-testid="preview-a2" />
       <div className="preview-meta">
-        Active: {videoClip ? videoClip.trackId : "—"} · audio{" "}
+        Active: {activeLabel} · audio{" "}
         {audios.filter((c) => kindOfTrack(c.trackId) === "audio").map((c) => c.trackId).join(" ") || "—"}
       </div>
     </section>
