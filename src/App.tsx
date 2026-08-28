@@ -15,7 +15,7 @@ export function App() {
         AILEXSI Resonance Studio
       </h1>
       <p style={{ margin: "12px 0 0", color: "#8b93a7" }}>V5 Baseline</p>
-      <p style={{ margin: "8px 0 0", color: "#8b93a7" }}>Runtime: Browser</p>
+      <p style={{ margin: "8px 0 0", color: "#8b93a7" }}>Runtime: Standalone</p>
       <p style={{ margin: "8px 0 0", color: "#8b93a7" }}>
         Architecture: Local-first
       </p>

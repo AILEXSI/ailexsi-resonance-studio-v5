@@ -3,8 +3,10 @@
 AILEXSI/ailexsi-resonance-studio-v5
 ## Baseline
 Status: IMPLEMENTED
-## Browser Host
+## Standalone Host
 Status: IMPLEMENTED
+## Browser Host
+Status: REMOVED
 ## Runtime
 Status: NOT VERIFIED
 ## Import
