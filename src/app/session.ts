@@ -15,7 +15,9 @@ import {
   createHistory,
   deleteClip,
   duplicateClip,
+  maybeScrollToOrigin,
   moveClip,
+  moveInOut,
   placeAsset,
   pushHistory,
   redo as redoHistory,
@@ -89,6 +91,8 @@ export async function importFiles(
   let next = session;
   const errors: string[] = [];
   let imported = 0;
+  const prevScrollMs = session.project.scrollMs;
+  const prevClipCount = session.project.clips.length;
   for (const file of list) {
     try {
       const asset = await importMediaFile(file, probe);
@@ -136,8 +140,35 @@ export async function importFiles(
   }
   return {
     ...next,
+    project: maybeScrollToOrigin(next.project, { prevScrollMs, prevClipCount }),
     error: errors.length ? errors.join(" · ") : null,
     status: errors.length ? `Imported ${imported}, ${errors.length} failed` : `Imported ${imported} file(s)`,
+  };
+}
+
+export function applyPlaceAsset(
+  session: Session,
+  assetId: string,
+  trackId: TrackId,
+  startMs?: number,
+): Session {
+  const prevScrollMs = session.project.scrollMs;
+  const prevClipCount = session.project.clips.length;
+  const result = placeAsset(
+    session.project,
+    assetId,
+    trackId,
+    startMs ?? session.project.playheadMs,
+  );
+  if (result.error || !result.clip) {
+    return { ...session, error: result.error ?? "Place failed", status: "Place failed" };
+  }
+  const project = maybeScrollToOrigin(result.project, { prevScrollMs, prevClipCount });
+  const asset = project.assets.find((a) => a.id === assetId);
+  return {
+    ...withHistory(session, project, `Placed ${asset?.name ?? "clip"}`),
+    selectedClipId: result.clip.id,
+    error: null,
   };
 }
 
@@ -194,6 +225,68 @@ export function applyOut(session: Session): Session {
   const result = setOutPoint(session.project, session.project.playheadMs);
   if (result.error) return { ...session, error: result.error };
   return { ...session, project: result.project, status: "OUT set", error: null };
+}
+
+export function applyInAt(session: Session, ms: number): Session {
+  const bothSet = session.project.inPointMs != null && session.project.outPointMs != null;
+  const base = bothSet
+    ? { ...session.project, inPointMs: null, outPointMs: null }
+    : session.project;
+  const result = setInPoint(base, ms);
+  if (result.error) return { ...session, error: result.error };
+  return { ...session, project: result.project, status: "IN set", error: null };
+}
+
+export function applyOutAt(session: Session, ms: number): Session {
+  const t = Math.max(0, ms);
+  if (session.project.inPointMs != null && t < session.project.inPointMs) {
+    return applyLoopRange(session, session.project.inPointMs, t);
+  }
+  const result = setOutPoint(session.project, t);
+  if (result.error) return { ...session, error: result.error };
+  const complete = result.project.inPointMs != null && result.project.outPointMs != null;
+  return {
+    ...session,
+    project: complete ? { ...result.project, loop: true } : result.project,
+    status: complete ? "Loop range set" : "OUT set",
+    error: null,
+  };
+}
+
+export function applyLoopRange(session: Session, aMs: number, bMs: number): Session {
+  const a = Math.max(0, aMs);
+  const b = Math.max(0, bMs);
+  const inMs = Math.min(a, b);
+  const outMs = Math.max(a, b);
+  const cleared = { ...session.project, inPointMs: null, outPointMs: null };
+  const withIn = setInPoint(cleared, inMs);
+  if (withIn.error) return { ...session, error: withIn.error };
+  const withOut = setOutPoint(withIn.project, outMs);
+  if (withOut.error) return { ...session, error: withOut.error };
+  return {
+    ...session,
+    project: { ...withOut.project, loop: true },
+    status: "Loop range set",
+    error: null,
+  };
+}
+
+export function applyMoveInOut(session: Session, deltaMs: number): Session {
+  const result = moveInOut(session.project, deltaMs);
+  if (result.error) return { ...session, error: result.error };
+  return { ...session, project: result.project, status: "Loop range moved", error: null };
+}
+
+export function applyInPointReplace(session: Session, ms: number): Session {
+  const result = setInPoint(session.project, ms, { replace: true });
+  if (result.error) return { ...session, error: result.error };
+  return { ...session, project: result.project, error: null };
+}
+
+export function applyOutPointReplace(session: Session, ms: number): Session {
+  const result = setOutPoint(session.project, ms, { replace: true });
+  if (result.error) return { ...session, error: result.error };
+  return { ...session, project: result.project, error: null };
 }
 
 export function applyClearInOut(session: Session): Session {

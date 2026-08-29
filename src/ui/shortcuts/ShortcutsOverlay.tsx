@@ -7,6 +7,7 @@ const ROWS: { key: string; action: string }[] = [
   { key: "V", action: "Split (cut)" },
   { key: "I", action: "Set IN" },
   { key: "O", action: "Set OUT" },
+  { key: "Right-click ruler", action: "IN then OUT" },
   { key: "X", action: "Clear IN/OUT" },
   { key: "M", action: "Add marker" },
   { key: "Del", action: "Delete clip" },

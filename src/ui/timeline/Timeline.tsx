@@ -8,7 +8,11 @@ import {
   type Project,
   type TrackId,
 } from "../../core/models";
+import { collectSnapTargets, snapTime } from "../../core/timeline";
 import { sceneShortName } from "../../core/visualizer";
+
+/** Inset of t=0 from the lane-body / ruler-body left edge. */
+export const RULER_PAD_PX = 56;
 
 interface Props {
   project: Project;
@@ -28,14 +32,23 @@ interface Props {
   onDelete: () => void;
   onZoom: (zoom: number) => void;
   onScroll: (ms: number) => void;
+  onLoopClick: (ms: number) => void;
+  onLoopInLive: (ms: number) => void;
+  onLoopOutLive: (ms: number) => void;
+  onLoopMoveLive: (deltaMs: number) => void;
+  onLoopCommit: () => void;
 }
 
 function msToX(ms: number, zoom: number, scrollMs: number): number {
-  return ((ms - scrollMs) / 1000) * zoom;
+  return RULER_PAD_PX + ((ms - scrollMs) / 1000) * zoom;
 }
 
 function xToMs(x: number, zoom: number, scrollMs: number): number {
-  return scrollMs + (x / zoom) * 1000;
+  return scrollMs + ((x - RULER_PAD_PX) / zoom) * 1000;
+}
+
+function msToWidth(ms: number, zoom: number): number {
+  return (ms / 1000) * zoom;
 }
 
 interface ClipMenu {
@@ -63,9 +76,14 @@ export function Timeline({
   onDelete,
   onZoom,
   onScroll,
+  onLoopClick,
+  onLoopInLive,
+  onLoopOutLive,
+  onLoopMoveLive,
+  onLoopCommit,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const dragKindRef = useRef<"move" | "trim" | null>(null);
+  const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
 
@@ -76,16 +94,36 @@ export function Timeline({
     return out;
   }, [duration, project.zoomPxPerSec]);
 
-  const timeFromEvent = (clientX: number): number => {
-    const el = bodyRef.current;
+  const timeFromEvent = (clientX: number, contentEl?: HTMLElement | null): number => {
+    const el = contentEl ?? bodyRef.current;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
     return Math.max(0, xToMs(clientX - rect.left, project.zoomPxPerSec, project.scrollMs));
   };
 
-  const onRulerPointer = (e: ReactPointerEvent) => {
+  const snapIf = (ms: number, ignore: Array<"in" | "out"> = []): number => {
+    if (!project.snap) return Math.max(0, ms);
+    const targets = collectSnapTargets(project).filter((t) => !ignore.includes(t.kind as "in" | "out"));
+    return Math.max(0, snapTime(ms, targets).timeMs);
+  };
+
+  const onRulerPointer = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
     setMenu(null);
-    onPlayhead(timeFromEvent(e.clientX));
+    onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
+  };
+
+  const onEmptyContext = (e: ReactMouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setMenu(null);
+    onLoopClick(snapIf(timeFromEvent(e.clientX, e.currentTarget)));
+  };
+
+  const onLaneBodyPointer = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    setMenu(null);
+    onSelect(null);
+    onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
   };
 
   const onClipPointerDown = (e: ReactPointerEvent, clip: Clip) => {
@@ -148,6 +186,66 @@ export function Timeline({
     window.addEventListener("pointerup", up);
   };
 
+  const onLoopHandlePointerDown = (e: ReactPointerEvent, edge: "in" | "out") => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    const originX = e.clientX;
+    const origin = edge === "in" ? project.inPointMs : project.outPointMs;
+    if (origin == null) return;
+    dragKindRef.current = edge === "in" ? "loop-in" : "loop-out";
+    const kind = dragKindRef.current;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== kind) return;
+      const dx = ev.clientX - originX;
+      const next = origin + (dx / project.zoomPxPerSec) * 1000;
+      const snapped = snapIf(next, [edge]);
+      if (edge === "in") onLoopInLive(snapped);
+      else onLoopOutLive(snapped);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      onLoopCommit();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onLoopRangePointerDown = (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    if (project.inPointMs == null || project.outPointMs == null) return;
+    dragKindRef.current = "loop-move";
+    const originX = e.clientX;
+    const originIn = project.inPointMs;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "loop-move") return;
+      const dx = ev.clientX - originX;
+      let delta = (dx / project.zoomPxPerSec) * 1000;
+      let nextIn = originIn + delta;
+      if (project.snap) {
+        nextIn = snapIf(nextIn, ["in", "out"]);
+        delta = nextIn - originIn;
+      }
+      onLoopMoveLive(delta);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      onLoopCommit();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   const onClipContext = (e: ReactMouseEvent, clip: Clip) => {
     e.preventDefault();
     e.stopPropagation();
@@ -156,16 +254,44 @@ export function Timeline({
       x: e.clientX,
       y: e.clientY,
       clipId: clip.id,
-      timeMs: timeFromEvent(e.clientX),
+      timeMs: timeFromEvent(e.clientX, bodyRef.current),
     });
   };
 
   const range = project.inPointMs != null && project.outPointMs != null
     ? {
         left: msToX(project.inPointMs, project.zoomPxPerSec, project.scrollMs),
-        width: msToX(project.outPointMs - project.inPointMs, project.zoomPxPerSec, 0),
+        width: msToWidth(project.outPointMs - project.inPointMs, project.zoomPxPerSec),
       }
     : null;
+
+  const loopOverlay = (interactive: boolean) =>
+    range ? (
+      <>
+        <div
+          className={interactive ? "in-out interactive" : "in-out"}
+          data-testid={interactive ? "loop-range" : undefined}
+          style={{ left: range.left, width: range.width }}
+          onPointerDown={interactive ? onLoopRangePointerDown : undefined}
+        />
+        {interactive ? (
+          <>
+            <div
+              className="loop-handle in"
+              data-testid="loop-handle-in"
+              style={{ left: range.left }}
+              onPointerDown={(e) => onLoopHandlePointerDown(e, "in")}
+            />
+            <div
+              className="loop-handle out"
+              data-testid="loop-handle-out"
+              style={{ left: range.left + range.width }}
+              onPointerDown={(e) => onLoopHandlePointerDown(e, "out")}
+            />
+          </>
+        ) : null}
+      </>
+    ) : null;
 
   return (
     <section className="timeline" data-testid="timeline">
@@ -188,34 +314,38 @@ export function Timeline({
           />
         </label>
       </div>
-      <div
-        className="ruler"
-        ref={bodyRef}
-        onPointerDown={onRulerPointer}
-        data-testid="ruler"
-      >
-        {ticks.map((t) => (
-          <div
-            key={t}
-            className="ruler-tick"
-            style={{ left: msToX(t, project.zoomPxPerSec, project.scrollMs) }}
-          >
-            {(t / 1000).toFixed(t % 1000 === 0 ? 0 : 1)}s
-          </div>
-        ))}
-        {project.markers.map((m) => (
-          <div
-            key={m.id}
-            className="marker-flag"
-            title={m.label}
-            style={{ left: msToX(m.timeMs, project.zoomPxPerSec, project.scrollMs) }}
-          />
-        ))}
-        {range ? <div className="in-out" style={{ left: range.left, width: range.width }} /> : null}
+      <div className="ruler">
+        <div className="ruler-gutter" aria-hidden="true" />
         <div
-          className="playhead"
-          style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
-        />
+          className="ruler-body"
+          ref={bodyRef}
+          onPointerDown={onRulerPointer}
+          onContextMenu={onEmptyContext}
+          data-testid="ruler"
+        >
+          {ticks.map((t) => (
+            <div
+              key={t}
+              className="ruler-tick"
+              style={{ left: msToX(t, project.zoomPxPerSec, project.scrollMs) }}
+            >
+              {(t / 1000).toFixed(t % 1000 === 0 ? 0 : 1)}s
+            </div>
+          ))}
+          {project.markers.map((m) => (
+            <div
+              key={m.id}
+              className="marker-flag"
+              title={m.label}
+              style={{ left: msToX(m.timeMs, project.zoomPxPerSec, project.scrollMs) }}
+            />
+          ))}
+          {loopOverlay(true)}
+          <div
+            className="playhead"
+            style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
+          />
+        </div>
       </div>
       <div
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
@@ -253,14 +383,10 @@ export function Timeline({
         <div
           className="lane-body vis-body"
           data-testid="lane-VIS-body"
-          onPointerDown={(e) => {
-            if (e.button !== 0) return;
-            setMenu(null);
-            onSelect(null);
-            onPlayhead(timeFromEvent(e.clientX));
-          }}
+          onPointerDown={onLaneBodyPointer}
+          onContextMenu={onEmptyContext}
         >
-          {range ? <div className="in-out" style={{ left: range.left, width: range.width }} /> : null}
+          {loopOverlay(false)}
           <div className="vis-lane-fill" aria-hidden="true" />
           <div
             className="playhead"
@@ -290,14 +416,10 @@ export function Timeline({
             </div>
             <div
               className="lane-body"
-              onPointerDown={(e) => {
-                if (e.button !== 0) return;
-                setMenu(null);
-                onSelect(null);
-                onPlayhead(timeFromEvent(e.clientX));
-              }}
+              onPointerDown={onLaneBodyPointer}
+              onContextMenu={onEmptyContext}
             >
-              {range ? <div className="in-out" style={{ left: range.left, width: range.width }} /> : null}
+              {loopOverlay(false)}
               {project.clips
                 .filter((c) => c.trackId === id)
                 .map((clip) => {
@@ -310,7 +432,7 @@ export function Timeline({
                       className={`clip ${kindOfTrack(clip.trackId)}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}`}
                       style={{
                         left: msToX(clip.startMs, project.zoomPxPerSec, project.scrollMs),
-                        width: Math.max(8, msToX(clip.durationMs, project.zoomPxPerSec, 0)),
+                        width: Math.max(8, msToWidth(clip.durationMs, project.zoomPxPerSec)),
                       }}
                       title={label}
                       onPointerDown={(e) => onClipPointerDown(e, clip)}

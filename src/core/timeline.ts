@@ -245,8 +245,22 @@ export function snapTime(
 export function setInPoint(
   project: Project,
   timeMs: number,
+  opts?: { replace?: boolean },
 ): { project: Project; error?: string } {
   const t = Math.max(0, timeMs);
+  if (opts?.replace) {
+    if (project.outPointMs != null && t > project.outPointMs) {
+      return {
+        project: {
+          ...project,
+          inPointMs: project.outPointMs,
+          outPointMs: t,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+    return { project: { ...project, inPointMs: t, updatedAt: new Date().toISOString() } };
+  }
   if (project.outPointMs != null && t > project.outPointMs) {
     return { project, error: "IN cannot be after OUT" };
   }
@@ -256,12 +270,71 @@ export function setInPoint(
 export function setOutPoint(
   project: Project,
   timeMs: number,
+  opts?: { replace?: boolean },
 ): { project: Project; error?: string } {
   const t = Math.max(0, timeMs);
+  if (opts?.replace) {
+    if (project.inPointMs != null && t < project.inPointMs) {
+      return {
+        project: {
+          ...project,
+          inPointMs: t,
+          outPointMs: project.inPointMs,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+    return { project: { ...project, outPointMs: t, updatedAt: new Date().toISOString() } };
+  }
   if (project.inPointMs != null && t < project.inPointMs) {
     return { project, error: "OUT cannot be before IN" };
   }
   return { project: { ...project, outPointMs: t, updatedAt: new Date().toISOString() } };
+}
+
+export function moveInOut(
+  project: Project,
+  deltaMs: number,
+): { project: Project; error?: string } {
+  if (project.inPointMs == null || project.outPointMs == null) {
+    return { project, error: "No loop range" };
+  }
+  const duration = project.outPointMs - project.inPointMs;
+  const inMs = Math.max(0, project.inPointMs + deltaMs);
+  return {
+    project: {
+      ...project,
+      inPointMs: inMs,
+      outPointMs: inMs + duration,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/** VIS-only (no clips) is 0. Origin is the earliest clip start when clips exist. */
+export function earliestClipStartMs(project: Project): number {
+  if (project.clips.length === 0) return 0;
+  let min = project.clips[0]!.startMs;
+  for (const clip of project.clips) {
+    if (clip.startMs < min) min = clip.startMs;
+  }
+  return min;
+}
+
+export const ORIGIN_LEAD_MS = 250;
+
+export function originScrollMs(project: Project): number {
+  return Math.max(0, earliestClipStartMs(project) - ORIGIN_LEAD_MS);
+}
+
+export function maybeScrollToOrigin(
+  project: Project,
+  opts: { prevScrollMs: number; prevClipCount: number },
+): Project {
+  if (project.clips.length === 0) return project;
+  const firstPlace = opts.prevClipCount === 0;
+  if (opts.prevScrollMs !== 0 && !firstPlace) return project;
+  return { ...project, scrollMs: originScrollMs(project) };
 }
 
 export function clearInOut(project: Project): Project {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FRAME_MS, assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveClip, placeAsset, snapTime, trimClip } from "../core/timeline";
+import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
 import {
   downloadMp4,
@@ -21,9 +21,12 @@ import {
   applyCopy,
   applyDelete,
   applyIn,
+  applyInAt,
   applyMarker,
   applyOut,
+  applyOutAt,
   applyPaste,
+  applyPlaceAsset,
   applyPlayhead,
   applyRedo,
   applyScroll,
@@ -266,6 +269,54 @@ export function App() {
     }));
   };
 
+  const onLoopClick = (ms: number) => {
+    setSession((s) => {
+      if (s.project.inPointMs != null && s.project.outPointMs == null) {
+        return applyOutAt(s, ms);
+      }
+      return applyInAt(s, ms);
+    });
+  };
+
+  const onLoopInLive = (ms: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const result = setInPoint(s.project, ms, { replace: true });
+      if (result.error) return s;
+      return { ...s, project: result.project, error: null };
+    });
+  };
+
+  const onLoopOutLive = (ms: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const result = setOutPoint(s.project, ms, { replace: true });
+      if (result.error) return s;
+      return { ...s, project: result.project, error: null };
+    });
+  };
+
+  const onLoopMoveLive = (deltaMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const result = moveInOut(dragBaseRef.current.project, deltaMs);
+      if (result.error) return s;
+      return { ...s, project: result.project, error: null };
+    });
+  };
+
+  const onLoopCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Loop range",
+      error: null,
+    }));
+  };
+
   return (
     <div className="app" data-testid="app">
       <Toolbar
@@ -303,19 +354,7 @@ export function App() {
                 : session.targetTrackId === "A2"
                   ? "A2"
                   : "A1";
-            const result = placeAsset(session.project, assetId, trackId, session.project.playheadMs);
-            if (result.error || !result.clip) {
-              setSession((s) => ({ ...s, error: result.error ?? "Place failed" }));
-              return;
-            }
-            setSession((s) => ({
-              ...s,
-              history: { past: [...s.history.past, structuredClone(s.project)], future: [] },
-              project: result.project,
-              selectedClipId: result.clip!.id,
-              status: `Placed ${asset.name}`,
-              error: null,
-            }));
+            setSession((s) => applyPlaceAsset(s, assetId, trackId));
           }}
         />
         <Preview project={session.project} playing={session.playing} />
@@ -361,6 +400,11 @@ export function App() {
         onDelete={() => setSession(applyDelete(session))}
         onZoom={(z) => setSession(applyZoom(session, z))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
+        onLoopClick={onLoopClick}
+        onLoopInLive={onLoopInLive}
+        onLoopOutLive={onLoopOutLive}
+        onLoopMoveLive={onLoopMoveLive}
+        onLoopCommit={onLoopCommit}
       />
 
       <ShortcutsOverlay open={shortcutsOpen} />
