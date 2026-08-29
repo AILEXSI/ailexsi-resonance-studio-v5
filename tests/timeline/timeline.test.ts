@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { applyInAt, applyOutAt, createSession } from "../../src/app/session";
 import {
   SPLIT_EDGE_GUARD_MS,
   type Project,
 } from "../../src/core/models";
+import { createMemoryBlobStore } from "../../src/core/persistence";
 import { createEmptyProject } from "../../src/core/project";
 import {
   clearInOut,
   createHistory,
   moveClip,
+  moveInOut,
   pushHistory,
   redo,
   setInPoint,
@@ -157,5 +160,42 @@ describe("timeline mute", () => {
     expect(muted.tracks.find((t) => t.id === "V1")!.muted).toBe(true);
     const unmuted = toggleTrackMute(muted, "V1");
     expect(unmuted.tracks.find((t) => t.id === "V1")!.muted).toBe(false);
+  });
+});
+
+function rightClickSequence(t1: number, t2: number) {
+  const session = createSession(createMemoryBlobStore());
+  return applyOutAt(applyInAt(session, t1), t2);
+}
+
+describe("loop range", () => {
+  it("sets IN then OUT via rightClickSequence; second < first swaps", () => {
+    const ordered = rightClickSequence(1000, 3000);
+    expect(ordered.project.inPointMs).toBe(1000);
+    expect(ordered.project.outPointMs).toBe(3000);
+    expect(ordered.project.loop).toBe(true);
+    expect(ordered.error).toBeNull();
+
+    const swapped = rightClickSequence(3000, 1000);
+    expect(swapped.project.inPointMs).toBe(1000);
+    expect(swapped.project.outPointMs).toBe(3000);
+    expect(swapped.project.loop).toBe(true);
+    expect(swapped.error).toBeNull();
+  });
+
+  it("moveInOut +200ms keeps duration", () => {
+    const ranged = rightClickSequence(200, 800);
+    const moved = moveInOut(ranged.project, 200);
+    expect(moved.error).toBeUndefined();
+    expect(moved.project.inPointMs).toBe(400);
+    expect(moved.project.outPointMs).toBe(1000);
+  });
+
+  it("IN cannot go below 0 when dragging", () => {
+    const ranged = rightClickSequence(100, 500);
+    const moved = moveInOut(ranged.project, -400);
+    expect(moved.error).toBeUndefined();
+    expect(moved.project.inPointMs).toBe(0);
+    expect(moved.project.outPointMs).toBe(400);
   });
 });
