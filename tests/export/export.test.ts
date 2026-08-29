@@ -5,6 +5,7 @@ import { exportTimeline, canUseWebCodecs, webCodecsUnavailableMessage } from "..
 import { hexHeader, looksLikeWebm, validateMp4Ftyp } from "../../src/core/exporter/ftyp";
 import { muxAvcToMp4 } from "../../src/core/exporter/mp4";
 import { asset, clip, projectWith } from "../helpers";
+import type { ExportJob } from "../../src/core/exporter/types";
 
 function projectReady() {
   return projectWith(
@@ -13,9 +14,35 @@ function projectReady() {
   );
 }
 
+function emptyJob(partial: Partial<ExportJob> = {}): ExportJob {
+  return {
+    id: "empty",
+    projectId: "p",
+    projectName: "empty",
+    startMs: 0,
+    endMs: 0,
+    durationMs: 0,
+    width: 16,
+    height: 16,
+    fps: 30,
+    fileName: "empty.mp4",
+    tracks: [],
+    visualizer: { enabled: false, muted: false, sceneId: "spectrum-bars" },
+    ...partial,
+  };
+}
+
 describe("export planner + fail path", () => {
   it("fails empty project before encode", () => {
     expect(() => jobFromProject(createEmptyProject())).toThrow(ExportPlanError);
+  });
+
+  it("empty job FAIL", async () => {
+    const result = await exportTimeline(emptyJob());
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/empty|no clips/i);
+    expect(result.fileSizeBytes).toBe(0);
+    expect(result.blob).toBeFalsy();
   });
 
   it("fails when IN >= OUT", () => {
@@ -49,6 +76,19 @@ describe("export planner + fail path", () => {
       expect(result.error).toBe(webCodecsUnavailableMessage());
       expect(result.error).toMatch(/WebM is not a fallback/);
     }
+  });
+
+  it("fails when the only video clip is missing", async () => {
+    const p = projectWith(
+      [clip({ id: "c1", assetId: "a1", trackId: "V1", startMs: 0, durationMs: 1000 })],
+      [asset({ id: "a1", name: "user-video.mp4", kind: "video", durationMs: 1000, missing: true })],
+    );
+    const job = jobFromProject(p);
+    const result = await exportTimeline(job);
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/missing:user-video\.mp4/);
+    expect(result.blob).toBeFalsy();
+    expect(result.fileSizeBytes).toBe(0);
   });
 
   it("rejects WebM bytes as MP4", () => {
@@ -98,5 +138,22 @@ describe("export mute skip", () => {
     const job = jobFromProject(p);
     expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(0);
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
+  });
+
+  it("omits muted A1 from the job", () => {
+    const p = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "a1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 1000, objectUrl: "blob:v", missing: false }),
+        asset({ id: "aa", kind: "audio", durationMs: 1000, objectUrl: "blob:a", missing: false }),
+      ],
+    );
+    p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, muted: true } : t));
+    const job = jobFromProject(p);
+    expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(0);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(1);
   });
 });
