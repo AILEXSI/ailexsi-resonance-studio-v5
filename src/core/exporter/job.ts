@@ -54,7 +54,8 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   });
 
   const hasClips = tracks.some((t) => t.clips.length > 0);
-  if (!hasClips) {
+  const visOnly = project.visualizer.enabled && !project.visualizer.muted;
+  if (!hasClips && !visOnly) {
     throw new ExportPlanError("Nothing to export in the IN/OUT range");
   }
 
@@ -71,6 +72,11 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
     fps: opts.fps ?? 30,
     fileName: safe.endsWith(".mp4") ? safe : `${safe}.mp4`,
     tracks,
+    visualizer: {
+      enabled: project.visualizer.enabled,
+      muted: project.visualizer.muted,
+      sceneId: project.visualizer.sceneId,
+    },
   };
 }
 
@@ -80,6 +86,21 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
     .flatMap((t) => t.clips)
     .filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
   return hits.find((c) => c.trackId === "V2") ?? hits.find((c) => c.trackId === "V1");
+}
+
+export function audioClipsForMix(job: ExportJob): ExportClip[] {
+  return job.tracks
+    .filter((t) => t.kind === "audio")
+    .flatMap((t) => t.clips)
+    .filter((c) => !c.missing);
+}
+
+export function missingOnlyVideoLabel(job: ExportJob): string | undefined {
+  const videos = job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
+  if (videos.length === 0) return undefined;
+  const present = videos.filter((c) => !c.missing && Boolean(c.sourceUrl));
+  if (present.length > 0) return undefined;
+  return videos[0]?.label || "media";
 }
 
 export function summarizeJob(job: ExportJob): {

@@ -1,10 +1,22 @@
 import { canUseWebCodecs, exportWithWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
+import { missingOnlyVideoLabel } from "./job";
 import type { ExportHooks, ExportJob, ExportResult } from "./types";
 
-export type { ExportHooks, ExportJob, ExportProgress, ExportResult } from "./types";
-export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt } from "./job";
+export type { ExportHooks, ExportJob, ExportProgress, ExportResult, ExportAudioKind } from "./types";
+export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnlyVideoLabel } from "./job";
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
+export { mp4HasAudioTrack } from "./mp4";
+
+function fail(job: ExportJob | undefined, error: string): ExportResult {
+  return {
+    success: false,
+    error,
+    fileName: job?.fileName ?? "export.mp4",
+    durationMs: job?.durationMs ?? 0,
+    fileSizeBytes: 0,
+  };
+}
 
 export async function exportTimeline(
   job: ExportJob,
@@ -12,31 +24,18 @@ export async function exportTimeline(
 ): Promise<ExportResult> {
   hooks.onProgress?.({ percent: 0, stage: "Validating" });
   if (!job || job.durationMs <= 0) {
-    return {
-      success: false,
-      error: "FAIL: empty export job",
-      fileName: job?.fileName ?? "export.mp4",
-      durationMs: job?.durationMs ?? 0,
-      fileSizeBytes: 0,
-    };
+    return fail(job, "FAIL: empty export job");
   }
-  if (!job.tracks.some((t) => t.clips.length > 0)) {
-    return {
-      success: false,
-      error: "FAIL: no clips in export range",
-      fileName: job.fileName,
-      durationMs: job.durationMs,
-      fileSizeBytes: 0,
-    };
+  const visOnly = job.visualizer?.enabled && !job.visualizer?.muted;
+  if (!job.tracks.some((t) => t.clips.length > 0) && !visOnly) {
+    return fail(job, "FAIL: no clips in export range");
+  }
+  const missingName = missingOnlyVideoLabel(job);
+  if (missingName) {
+    return fail(job, `FAIL: missing:${missingName}`);
   }
   if (!canUseWebCodecs()) {
-    return {
-      success: false,
-      error: webCodecsUnavailableMessage(),
-      fileName: job.fileName,
-      durationMs: job.durationMs,
-      fileSizeBytes: 0,
-    };
+    return fail(job, webCodecsUnavailableMessage());
   }
   return exportWithWebCodecs(job, hooks);
 }
@@ -52,4 +51,3 @@ export function downloadMp4(result: ExportResult): void {
   a.click();
   URL.revokeObjectURL(url);
 }
-

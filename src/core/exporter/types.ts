@@ -1,4 +1,4 @@
-import type { MediaKind, TrackId } from "../models";
+import type { MediaKind, TrackId, VisualizerSceneId } from "../models";
 
 export interface ExportClip {
   id: string;
@@ -20,6 +20,12 @@ export interface ExportTrack {
   clips: ExportClip[];
 }
 
+export interface ExportVisualizer {
+  enabled: boolean;
+  muted: boolean;
+  sceneId: VisualizerSceneId;
+}
+
 export interface ExportJob {
   id: string;
   projectId: string;
@@ -32,6 +38,7 @@ export interface ExportJob {
   fps: number;
   fileName: string;
   tracks: ExportTrack[];
+  visualizer: ExportVisualizer;
 }
 
 export interface ExportProgress {
@@ -39,6 +46,8 @@ export interface ExportProgress {
   stage: string;
   currentTimeMs?: number;
 }
+
+export type ExportAudioKind = "aac" | "none";
 
 export interface ExportResult {
   success: boolean;
@@ -49,6 +58,7 @@ export interface ExportResult {
   mimeType?: string;
   blob?: Blob;
   brands?: string[];
+  audio?: ExportAudioKind;
 }
 
 export interface ExportHooks {
