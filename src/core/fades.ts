@@ -7,6 +7,10 @@ export type Fadeable = {
   durationMs: number;
   fadeInMs?: number;
   fadeOutMs?: number;
+  /** Factor at local 0 when the export window starts mid fade-in (default 0). */
+  fadeInFrom?: number;
+  /** Factor at local duration when the export window ends mid fade-out (default 0). */
+  fadeOutTo?: number;
 };
 
 export type GainFadeable = Fadeable & { gain: number };
@@ -52,14 +56,60 @@ export function fadeFactorAt(clip: Fadeable, localMs: number): number {
   if (durationMs <= 0 || !Number.isFinite(localMs)) return 0;
   if (localMs < 0 || localMs > durationMs) return 0;
 
+  const from = clip.fadeInFrom != null ? clampFadeUnit(clip.fadeInFrom) : fadeInMs > 0 ? 0 : 1;
+  const to = clip.fadeOutTo != null ? clampFadeUnit(clip.fadeOutTo) : fadeOutMs > 0 ? 0 : 1;
   let factor = 1;
-  if (fadeInMs > 0 && localMs < fadeInMs) {
-    factor = localMs / fadeInMs;
-  }
-  if (fadeOutMs > 0 && localMs > durationMs - fadeOutMs) {
-    factor = Math.min(factor, (durationMs - localMs) / fadeOutMs);
+  if (fadeInMs > 0 && fadeOutMs <= 0 && fadeInMs >= durationMs) {
+    factor = from + (to - from) * (localMs / durationMs);
+  } else if (fadeInMs <= 0 && fadeOutMs >= durationMs) {
+    factor = from + (to - from) * (localMs / durationMs);
+  } else {
+    if (fadeInMs > 0 && localMs < fadeInMs) {
+      factor = from + (1 - from) * (localMs / fadeInMs);
+    }
+    if (fadeOutMs > 0 && localMs > durationMs - fadeOutMs) {
+      const u = (durationMs - localMs) / fadeOutMs;
+      factor = Math.min(factor, to + (1 - to) * u);
+    }
   }
   return Math.max(0, Math.min(1, factor));
+}
+
+function clampFadeUnit(value: number | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Shift/trim clip fades onto a visible [headTrim, headTrim+visibleDur) window
+ * so export t=0 matches preview at IN (and the last frame matches preview at OUT).
+ */
+export function remapClipFadesForWindow(
+  fadeInMs: number,
+  fadeOutMs: number,
+  clipDurationMs: number,
+  headTrimMs: number,
+  visibleDurationMs: number,
+): { fadeInMs: number; fadeOutMs: number; fadeInFrom: number; fadeOutTo: number } {
+  const clipDur = Math.max(0, clipDurationMs);
+  const vis = Math.max(0, visibleDurationMs);
+  const head = Math.max(0, Math.min(clipDur, headTrimMs));
+  const orig = {
+    durationMs: clipDur,
+    ...normalizeClipFades(fadeInMs, fadeOutMs, clipDur),
+  };
+  const fadeInFrom = vis <= 0 ? 0 : fadeFactorAt(orig, head);
+  const fadeOutTo = vis <= 0 ? 0 : fadeFactorAt(orig, Math.min(clipDur, head + vis));
+  const tail = Math.max(0, clipDur - head - vis);
+  const remainingIn = Math.max(0, orig.fadeInMs - head);
+  const remainingOut = Math.max(0, orig.fadeOutMs - tail);
+  const trimmed = normalizeClipFades(remainingIn, remainingOut, vis);
+  return {
+    fadeInMs: trimmed.fadeInMs,
+    fadeOutMs: trimmed.fadeOutMs,
+    fadeInFrom,
+    fadeOutTo,
+  };
 }
 
 /** Fade factor times existing clip gain. Mute/solo/track fader are applied by the caller. */
@@ -80,6 +130,7 @@ export function clipGainEnvelope(
   fadeInMs: number,
   fadeOutMs: number,
   peak: number,
+  opts?: { startFactor?: number; endFactor?: number },
 ): GainEnvelopePoint[] {
   const { fadeInMs: fadeIn, fadeOutMs: fadeOut } = normalizeClipFades(
     fadeInMs,
@@ -87,16 +138,18 @@ export function clipGainEnvelope(
     durationMs,
   );
   const p = Math.max(0, Number.isFinite(peak) ? peak : 0);
-  const points: GainEnvelopePoint[] = [{ tMs: 0, value: fadeIn > 0 ? 0 : p }];
-  if (fadeIn > 0) points.push({ tMs: fadeIn, value: p });
-  if (fadeOut > 0) {
-    const outStart = durationMs - fadeOut;
-    if (outStart > fadeIn) points.push({ tMs: outStart, value: p });
-    points.push({ tMs: durationMs, value: 0 });
-  } else {
-    points.push({ tMs: durationMs, value: p });
-  }
-  return points;
+  const fadeable: Fadeable = {
+    durationMs,
+    fadeInMs: fadeIn,
+    fadeOutMs: fadeOut,
+    fadeInFrom: opts?.startFactor,
+    fadeOutTo: opts?.endFactor,
+  };
+  const times = [0, fadeIn, durationMs - fadeOut, durationMs]
+    .filter((t) => Number.isFinite(t) && t >= 0 && t <= durationMs)
+    .sort((a, b) => a - b)
+    .filter((t, i, all) => i === 0 || t !== all[i - 1]);
+  return times.map((tMs) => ({ tMs, value: fadeFactorAt(fadeable, tMs) * p }));
 }
 
 export function scheduleGainEnvelope(
@@ -106,8 +159,9 @@ export function scheduleGainEnvelope(
   fadeInMs: number,
   fadeOutMs: number,
   peak: number,
+  opts?: { startFactor?: number; endFactor?: number },
 ): void {
-  const points = clipGainEnvelope(durationMs, fadeInMs, fadeOutMs, peak);
+  const points = clipGainEnvelope(durationMs, fadeInMs, fadeOutMs, peak, opts);
   points.forEach((point, i) => {
     const t = (startMs + point.tMs) / 1000;
     if (i === 0) param.setValueAtTime(point.value, t);

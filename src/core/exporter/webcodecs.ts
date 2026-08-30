@@ -155,6 +155,8 @@ function exportClipVideoAlpha(clip: ExportClip, timeMs: number): number {
       gain: clip.gain,
       fadeInMs: clip.fadeInMs,
       fadeOutMs: clip.fadeOutMs,
+      fadeInFrom: clip.fadeInFrom,
+      fadeOutTo: clip.fadeOutTo,
     },
     exportClipLocalMs(clip, timeMs),
   );

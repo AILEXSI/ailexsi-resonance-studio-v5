@@ -13,6 +13,10 @@ export interface ExportClip {
   gain: number;
   fadeInMs: number;
   fadeOutMs: number;
+  /** Factor at job-local 0 when IN starts mid fade-in (omit = classic 0). */
+  fadeInFrom?: number;
+  /** Factor at job-local end when OUT ends mid fade-out (omit = classic 0). */
+  fadeOutTo?: number;
   rate: number;
   missing: boolean;
   label: string;

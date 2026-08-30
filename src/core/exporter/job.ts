@@ -1,3 +1,4 @@
+import { remapClipFadesForWindow } from "../fades";
 import { createId } from "../ids";
 import {
   TRACK_IDS,
@@ -51,6 +52,13 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
         const asset = assets.get(c.assetId);
         const visibleStart = Math.max(c.startMs, startMs);
         const visibleEnd = Math.min(clipEndMs(c), endMs);
+        const fades = remapClipFadesForWindow(
+          c.fadeInMs ?? 0,
+          c.fadeOutMs ?? 0,
+          c.durationMs,
+          visibleStart - c.startMs,
+          visibleEnd - visibleStart,
+        );
         return {
           id: c.id,
           trackId: c.trackId,
@@ -61,8 +69,10 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           sourceInMs: sourceTimeAt(c, visibleStart),
           sourceOutMs: sourceTimeAt(c, visibleEnd),
           gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, !audible),
-          fadeInMs: c.fadeInMs,
-          fadeOutMs: c.fadeOutMs,
+          fadeInMs: fades.fadeInMs,
+          fadeOutMs: fades.fadeOutMs,
+          fadeInFrom: fades.fadeInFrom,
+          fadeOutTo: fades.fadeOutTo,
           rate: c.rate ?? 1,
           missing: !asset || asset.missing || !asset.objectUrl,
           label: asset?.name ?? c.id,

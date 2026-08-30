@@ -7,7 +7,9 @@ import {
   fadeFactorAt,
   gainAtClipTime,
   normalizeClipFades,
+  remapClipFadesForWindow,
   videoAlphaAtClipTime,
+  type Fadeable,
 } from "../../src/core/fades";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
@@ -112,6 +114,14 @@ describe("clipGainEnvelope (mix helper)", () => {
       { tMs: 2000, value: 0 },
     ]);
   });
+
+  it("starts at startFactor when the window is mid fade-in", () => {
+    expect(clipGainEnvelope(800, 200, 0, 1, { startFactor: 0.5 })).toEqual([
+      { tMs: 0, value: 0.5 },
+      { tMs: 200, value: 1 },
+      { tMs: 800, value: 1 },
+    ]);
+  });
 });
 
 describe("setClipFades command + persist", () => {
@@ -164,5 +174,133 @@ describe("setClipFades command + persist", () => {
     const exp = job.tracks.find((t) => t.id === "A1")!.clips[0]!;
     expect(exp.fadeInMs).toBe(120);
     expect(exp.fadeOutMs).toBe(80);
+  });
+
+  it("IN mid fade-in: export t=0 matches preview-at-IN, not a restarted fade (P99)", () => {
+    const orig: Fadeable = { durationMs: 2000, fadeInMs: 400, fadeOutMs: 0 };
+    const head = 200;
+    const vis = 1800;
+    const remapped = remapClipFadesForWindow(400, 0, 2000, head, vis);
+    expect(remapped.fadeInFrom).toBeCloseTo(0.5, 8);
+    expect(fadeFactorAt(orig, head)).toBeCloseTo(0.5, 8);
+    const jobFade: Fadeable = {
+      durationMs: vis,
+      fadeInMs: remapped.fadeInMs,
+      fadeOutMs: remapped.fadeOutMs,
+      fadeInFrom: remapped.fadeInFrom,
+      fadeOutTo: remapped.fadeOutTo,
+    };
+    expect(fadeFactorAt(jobFade, 0)).toBeCloseTo(fadeFactorAt(orig, head), 8);
+    expect(fadeFactorAt(jobFade, 0)).not.toBe(0);
+
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a1",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          fadeInMs: 400,
+          fadeOutMs: 0,
+          gain: 1,
+        }),
+      ],
+      [asset({ id: "a1", kind: "video", durationMs: 2000, objectUrl: "blob:t", missing: false })],
+    );
+    p.inPointMs = 200;
+    p.outPointMs = 2000;
+    const preview = p.clips[0]!;
+    const job = jobFromProject(p);
+    const exp = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    expect(exp.fadeInMs).toBe(200);
+    expect(exp.fadeInFrom).toBeCloseTo(0.5, 8);
+    expect(
+      videoAlphaAtClipTime(
+        {
+          durationMs: exp.endMs - exp.startMs,
+          gain: exp.gain,
+          fadeInMs: exp.fadeInMs,
+          fadeOutMs: exp.fadeOutMs,
+          fadeInFrom: exp.fadeInFrom,
+          fadeOutTo: exp.fadeOutTo,
+        },
+        0,
+      ),
+    ).toBeCloseTo(videoAlphaAtClipTime(preview, 200), 8);
+  });
+
+  it("OUT mid fade-out: last export frame matches preview-at-OUT, not 0 (P99)", () => {
+    const orig: Fadeable = { durationMs: 2000, fadeInMs: 0, fadeOutMs: 400 };
+    const remapped = remapClipFadesForWindow(0, 400, 2000, 0, 1800);
+    expect(remapped.fadeOutTo).toBeCloseTo(0.5, 8);
+    const jobFade: Fadeable = {
+      durationMs: 1800,
+      fadeInMs: remapped.fadeInMs,
+      fadeOutMs: remapped.fadeOutMs,
+      fadeInFrom: remapped.fadeInFrom,
+      fadeOutTo: remapped.fadeOutTo,
+    };
+    expect(fadeFactorAt(jobFade, 1800)).toBeCloseTo(fadeFactorAt(orig, 1800), 8);
+    expect(fadeFactorAt(jobFade, 1800)).not.toBe(0);
+
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a1",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          fadeInMs: 0,
+          fadeOutMs: 400,
+          gain: 1,
+        }),
+      ],
+      [asset({ id: "a1", kind: "video", durationMs: 2000, objectUrl: "blob:t", missing: false })],
+    );
+    p.inPointMs = 0;
+    p.outPointMs = 1800;
+    const preview = p.clips[0]!;
+    const job = jobFromProject(p);
+    const exp = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    expect(exp.fadeOutMs).toBe(200);
+    expect(exp.fadeOutTo).toBeCloseTo(0.5, 8);
+    expect(
+      videoAlphaAtClipTime(
+        {
+          durationMs: exp.endMs - exp.startMs,
+          gain: exp.gain,
+          fadeInMs: exp.fadeInMs,
+          fadeOutMs: exp.fadeOutMs,
+          fadeInFrom: exp.fadeInFrom,
+          fadeOutTo: exp.fadeOutTo,
+        },
+        exp.endMs - exp.startMs,
+      ),
+    ).toBeCloseTo(videoAlphaAtClipTime(preview, 1800), 8);
+  });
+
+  it("remapped job fade matches preview at 0 / mid / end of the window (P99)", () => {
+    const windows = [
+      { fadeIn: 400, fadeOut: 0, head: 200, vis: 800 },
+      { fadeIn: 0, fadeOut: 400, head: 0, vis: 1800 },
+      { fadeIn: 300, fadeOut: 300, head: 100, vis: 1600 },
+      { fadeIn: 1000, fadeOut: 0, head: 0, vis: 2000 },
+    ];
+    for (const w of windows) {
+      const orig: Fadeable = { durationMs: 2000, fadeInMs: w.fadeIn, fadeOutMs: w.fadeOut };
+      const remapped = remapClipFadesForWindow(w.fadeIn, w.fadeOut, 2000, w.head, w.vis);
+      const jobFade: Fadeable = {
+        durationMs: w.vis,
+        fadeInMs: remapped.fadeInMs,
+        fadeOutMs: remapped.fadeOutMs,
+        fadeInFrom: remapped.fadeInFrom,
+        fadeOutTo: remapped.fadeOutTo,
+      };
+      for (const tau of [0, w.vis / 2, w.vis]) {
+        expect(fadeFactorAt(jobFade, tau)).toBeCloseTo(fadeFactorAt(orig, w.head + tau), 8);
+      }
+    }
   });
 });

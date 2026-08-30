@@ -119,6 +119,7 @@ export async function mixJobAudio(
         clip.fadeInMs ?? 0,
         clip.fadeOutMs ?? 0,
         peak,
+        { startFactor: clip.fadeInFrom, endFactor: clip.fadeOutTo },
       );
       src.connect(gain);
       const transitions = job.transitions ?? [];
