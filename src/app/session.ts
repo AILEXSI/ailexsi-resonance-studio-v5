@@ -725,7 +725,7 @@ function shouldPasteVisEvent(session: Session): boolean {
   return session.lastClipboardKind === "vis";
 }
 
-/** Copy the selection plus living unlocked mates (same expand as delete). */
+/** Copy the selection plus living unlocked enabled mates (same expand as delete). */
 export function applyCopy(session: Session): Session {
   const vis = selectedVisEvent(session);
   if (vis) {

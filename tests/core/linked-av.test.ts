@@ -270,6 +270,46 @@ describe("linked A/V", () => {
     expect(v.linkId).not.toBe("lnk1");
   });
 
+  it("copy/cut of an unlocked clip skips a disabled mate (P143)", () => {
+    const start = linkedPair();
+    const dimmed = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+    };
+    const session = { ...start, project: dimmed, selectedClipId: "v1", selectedClipIds: ["v1"] };
+    const copied = applyCommand(session, { type: "copy" });
+    expect(copied.clipboard.map((c) => c.id)).toEqual(["v1"]);
+    expect(copied.clipboard[0]!.enabled).not.toBe(false);
+
+    const cut = applyCommand(session, { type: "cut" });
+    expect(cut.clipboard.map((c) => c.id)).toEqual(["v1"]);
+    expect(cut.project.clips).toHaveLength(1);
+    const parked = cut.project.clips.find((c) => c.id === "a1")!;
+    expect(parked.enabled).toBe(false);
+    expect(parked.startMs).toBe(0);
+    expect(parked.linkId).toBeUndefined();
+  });
+
+  it("duplicate of an unlocked clip skips a disabled mate (P143)", () => {
+    const start = linkedPair();
+    start.project = {
+      ...start.project,
+      playheadMs: 3000,
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+    };
+    const next = applyCommand(start, { type: "duplicate" });
+    expect(next.project.clips).toHaveLength(3);
+    const parked = next.project.clips.find((c) => c.id === "a1")!;
+    expect(parked.enabled).toBe(false);
+    expect(parked.startMs).toBe(0);
+    expect(parked.linkId).toBe("lnk1");
+    const clone = next.project.clips.find((c) => c.id !== "v1" && c.id !== "a1")!;
+    expect(clone.trackId).toBe("V1");
+    expect(clone.startMs).toBe(3000);
+    expect(clone.enabled).not.toBe(false);
+    expect(clone.linkId).toBeUndefined();
+  });
+
   it("copy/cut of an unlocked clip skips a locked mate (P131)", () => {
     const start = linkedPair();
     const locked = {

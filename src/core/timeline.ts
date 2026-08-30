@@ -434,15 +434,16 @@ export function resolveRippleTrimToPlayheadClip(
 }
 
 /**
- * Linked-pair expand, but an unselected locked mate is skipped
- * (same as split/slip/rate). A locked clip that is itself selected still deletes.
+ * Linked-pair expand, but an unselected locked or disabled mate is skipped
+ * (same as split/slip/rate / delete). A locked or disabled clip that is
+ * itself selected still copies, cuts, or deletes.
  */
 export function expandDeletableClipIds(project: Project, clipIds: readonly string[]): string[] {
   const explicit = new Set(clipIds.filter(Boolean));
   return expandLinkedClipIds(project, clipIds).filter((id) => {
     const clip = clipById(project, id);
     if (!clip) return false;
-    if (clipIsLocked(clip) && !explicit.has(id)) return false;
+    if (!explicit.has(id) && (clipIsLocked(clip) || !clipIsEnabled(clip))) return false;
     return true;
   });
 }
@@ -462,16 +463,8 @@ function dropClipsAndOrphanLinks(project: Project, dropIds: ReadonlySet<string>)
   };
 }
 
-function expandDroppableClipIds(project: Project, clipIds: readonly string[]): string[] {
-  const explicit = new Set(clipIds.filter(Boolean));
-  return expandDeletableClipIds(project, clipIds).filter((id) => {
-    const clip = clipById(project, id);
-    return clip != null && (clipIsEnabled(clip) || explicit.has(id));
-  });
-}
-
 export function deleteClips(project: Project, clipIds: readonly string[]): Project {
-  const drop = new Set(expandDroppableClipIds(project, clipIds));
+  const drop = new Set(expandDeletableClipIds(project, clipIds));
   if (drop.size === 0) return project;
   return dropClipsAndOrphanLinks(project, drop);
 }
@@ -487,7 +480,7 @@ export function rippleDeleteClips(
   project: Project,
   clipIds: readonly string[],
 ): { project: Project; error?: string } {
-  const selected = expandDroppableClipIds(project, clipIds)
+  const selected = expandDeletableClipIds(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   const order = [...selected].sort((a, b) => {
