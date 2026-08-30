@@ -898,6 +898,19 @@ describe("group slide", () => {
     expect(next.error).toMatch(/track/i);
   });
 
+  it("group slide skips a disabled member (P145)", () => {
+    const p = fiveAbuttingA1();
+    const dimmed = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "B" ? { ...c, enabled: false } : c)),
+    };
+    const next = slideClips(dimmed, ["A", "B"], 200);
+    expect(next.project.clips.find((c) => c.id === "B")!.startMs).toBe(2000);
+    expect(next.project.clips.find((c) => c.id === "B")!.durationMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "B")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "A")!.startMs).toBe(1000);
+  });
+
   it("single selection still matches slideClip", () => {
     const p = threeAbuttingA1();
     const one = slideClip(p, "M", 200);
@@ -1027,6 +1040,20 @@ describe("group slip", () => {
     const clamped = slipClips(p, ["c1"], 2000);
     expect(clamped.project.clips[0]!.sourceInMs).toBe(1000);
     expect(clamped.project.clips[0]!.sourceOutMs).toBe(3000);
+  });
+
+  it("group slip skips a disabled member (P145)", () => {
+    const p = fiveAbuttingA1();
+    const dimmed = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "B" ? { ...c, enabled: false } : c)),
+    };
+    const next = slipClips(dimmed, ["A", "B"], 200);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "A")!.sourceInMs).toBe(300);
+    expect(next.project.clips.find((c) => c.id === "B")!.sourceInMs).toBe(200);
+    expect(next.project.clips.find((c) => c.id === "B")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "B")!.startMs).toBe(2000);
   });
 });
 

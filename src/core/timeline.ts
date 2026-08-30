@@ -1272,7 +1272,16 @@ export function resolveSlideBlock(
 }
 
 export function isSlideBlock(project: Project, clipIds: readonly string[]): boolean {
-  return clipIds.length >= 2 && !("error" in resolveSlideBlock(project, clipIds));
+  const living = enabledSelectedIds(project, clipIds);
+  return living.length >= 2 && !("error" in resolveSlideBlock(project, living));
+}
+
+/** 2+ selection: only enabled members participate (same as multi-select S). */
+function enabledSelectedIds(project: Project, clipIds: readonly string[]): string[] {
+  return [...new Set(clipIds.filter(Boolean))].filter((id) => {
+    const clip = clipById(project, id);
+    return clip != null && clipIsEnabled(clip);
+  });
 }
 
 function applySlideThroughNeighbors(
@@ -1388,8 +1397,10 @@ export function slideClips(
 ): { project: Project; error?: string } {
   const unique = [...new Set(clipIds.filter(Boolean))];
   if (unique.length <= 1) return slideClip(project, unique[0] ?? "", deltaMs);
+  const living = enabledSelectedIds(project, unique);
+  if (living.length <= 1) return slideClip(project, living[0] ?? "", deltaMs);
   if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
-  const block = resolveSlideBlock(project, unique);
+  const block = resolveSlideBlock(project, living);
   if ("error" in block) return { project, error: block.error };
   if (
     block.mids.some(clipIsLocked) ||
@@ -1445,7 +1456,8 @@ export function resolveSlipBlock(
 }
 
 export function isSlipBlock(project: Project, clipIds: readonly string[]): boolean {
-  return clipIds.length >= 2 && !("error" in resolveSlipBlock(project, clipIds));
+  const living = enabledSelectedIds(project, clipIds);
+  return living.length >= 2 && !("error" in resolveSlipBlock(project, living));
 }
 
 function applySlipSourceDelta(
@@ -1551,8 +1563,10 @@ export function slipClips(
 ): { project: Project; error?: string } {
   const unique = [...new Set(clipIds.filter(Boolean))];
   if (unique.length <= 1) return slipClip(project, unique[0] ?? "", deltaMs);
+  const living = enabledSelectedIds(project, unique);
+  if (living.length <= 1) return slipClip(project, living[0] ?? "", deltaMs);
   if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
-  const block = resolveSlipBlock(project, unique);
+  const block = resolveSlipBlock(project, living);
   if ("error" in block) return { project, error: block.error };
   const primary = clipById(project, unique[0]!) ?? block.clips[0]!;
   const sourceDelta = timelineDeltaToSource(primary, deltaMs);
