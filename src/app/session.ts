@@ -747,7 +747,9 @@ export function applySetTransition(
   session: Session,
   patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audio" | "audioDurationMs" | "startMs" | "source">>,
 ): Session {
-  const pair = resolveEditPair(session.project, selectionOf(session));
+  const pair =
+    resolveEditPair(session.project, selectionOf(session)) ??
+    editPairAt(session.project, session.project.playheadMs);
   if (!pair) return session;
   const mapped = {
     ...patch,

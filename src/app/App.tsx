@@ -777,6 +777,76 @@ export function App() {
     }));
   };
 
+  const onTransitionDurationLive = (durationMs: number, clipIds: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        {
+          ...dragBaseRef.current,
+          history: { past: [], future: [] },
+          selectedClipIds: [...clipIds],
+          selectedClipId: clipIds[0] ?? null,
+        },
+        { type: "setTransition", durationMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipIds[0] ?? s.selectedClipId,
+        selectedClipIds: [...clipIds],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onTransitionAudioDurationLive = (audioDurationMs: number, clipIds: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        {
+          ...dragBaseRef.current,
+          history: { past: [], future: [] },
+          selectedClipIds: [...clipIds],
+          selectedClipId: clipIds[0] ?? null,
+        },
+        { type: "setTransitionAudioDuration", audioDurationMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipIds[0] ?? s.selectedClipId,
+        selectedClipIds: [...clipIds],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onTransitionDurationCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Set transition",
+      error: null,
+    }));
+  };
+
+  const onTransitionAudioDurationCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Audio duration",
+      error: null,
+    }));
+  };
+
   const onLoopClick = (ms: number) => {
     setSession((s) => {
       if (s.project.inPointMs != null && s.project.outPointMs == null) {
@@ -1128,6 +1198,10 @@ export function App() {
         onSlideCommit={onSlideCommit}
         onFadesLive={onFadesLive}
         onFadesCommit={onFadesCommit}
+        onTransitionDurationLive={onTransitionDurationLive}
+        onTransitionDurationCommit={onTransitionDurationCommit}
+        onTransitionAudioDurationLive={onTransitionAudioDurationLive}
+        onTransitionAudioDurationCommit={onTransitionAudioDurationCommit}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}

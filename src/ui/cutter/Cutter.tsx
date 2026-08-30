@@ -12,6 +12,7 @@ import {
 } from "../../core/transition";
 import type { Project } from "../../core/models";
 import { AudioButtons } from "./AudioButtons";
+import { DurationHandles } from "./DurationHandles";
 import { SourceButtons } from "./SourceButtons";
 
 function assetLabel(project: Project, assetId: string): string {
@@ -87,11 +88,21 @@ export function Cutter({
             <input
               data-testid="cutter-duration"
               type="number"
-              min={1}
+              min={0}
               value={durationMs}
               onChange={(e) => apply({ type: "setTransition", durationMs: Number(e.target.value) })}
             />
           </label>
+          <DurationHandles
+            project={project}
+            startMs={stored?.startMs ?? pair.overlapStartMs}
+            videoDurationMs={durationMs}
+            audioDurationMs={audioDurationMs}
+            showAudio
+            testIdPrefix="cutter"
+            onVideo={(ms) => apply({ type: "setTransition", durationMs: ms })}
+            onAudio={(ms) => apply({ type: "setTransitionAudioDuration", audioDurationMs: ms })}
+          />
         </div>
       )}
     </div>

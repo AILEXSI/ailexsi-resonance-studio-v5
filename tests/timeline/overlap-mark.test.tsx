@@ -51,7 +51,16 @@ describe("Arrange overlap mark", () => {
     root = undefined;
   });
 
-  function mount(project: ReturnType<typeof projectWith>, onSelectClips?: (ids: readonly string[]) => void) {
+  function mount(
+    project: ReturnType<typeof projectWith>,
+    onSelectClips?: (ids: readonly string[]) => void,
+    extra?: {
+      onTransitionDurationLive?: (durationMs: number, clipIds: readonly string[]) => void;
+      onTransitionDurationCommit?: () => void;
+      onTransitionAudioDurationLive?: (audioDurationMs: number, clipIds: readonly string[]) => void;
+      onTransitionAudioDurationCommit?: () => void;
+    },
+  ) {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -61,6 +70,10 @@ describe("Arrange overlap mark", () => {
           {...baseProps()}
           project={project}
           onSelectClips={(ids) => onSelectClips?.(ids)}
+          onTransitionDurationLive={extra?.onTransitionDurationLive}
+          onTransitionDurationCommit={extra?.onTransitionDurationCommit}
+          onTransitionAudioDurationLive={extra?.onTransitionAudioDurationLive}
+          onTransitionAudioDurationCommit={extra?.onTransitionAudioDurationCommit}
         />,
       );
     });
@@ -119,7 +132,7 @@ describe("Arrange overlap mark", () => {
     const picks: string[][] = [];
     mount(project, (ids) => picks.push([...ids]));
     act(() => {
-      host!.querySelector<HTMLButtonElement>('[data-testid="overlap-mark"]')!.click();
+      host!.querySelector<HTMLElement>('[data-testid="overlap-mark"]')!.click();
     });
     expect(picks[0]?.slice().sort()).toEqual(["v1", "v2"]);
   });
@@ -144,4 +157,137 @@ describe("Arrange overlap mark", () => {
     expect(mark?.textContent).toMatch(/crossfade/);
     expect(mark?.textContent).toMatch(/400/);
   });
+
+  it("exposes a video duration handle that is not a clip fade handle", () => {
+    const project = {
+      ...projectWith(
+        [
+          clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+          clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+        ],
+        [
+          asset({ id: "va", kind: "video", durationMs: 4000 }),
+          asset({ id: "vb", kind: "video", durationMs: 4000 }),
+        ],
+      ),
+      snap: false,
+    };
+    mount(project);
+    const video = host!.querySelector('[data-testid="overlap-duration-handle-video"]');
+    expect(video).toBeTruthy();
+    expect(video?.className).toContain("transition-duration-handle");
+    expect(video?.className).not.toContain("fade-handle");
+    expect(host!.querySelector('[data-testid="overlap-duration-handle-audio"]')).toBeNull();
+  });
+
+  it("shows an audio duration handle when audio is crossfade", () => {
+    let project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    const pair = resolveEditPair(project, ["v1"]);
+    project = upsertTransition(project, pair!, {
+      type: "cut",
+      durationMs: 400,
+      audio: "crossfade",
+      audioDurationMs: 200,
+    }).project;
+    mount({ ...project, snap: false });
+    expect(host!.querySelector('[data-testid="overlap-duration-handle-audio"]')).toBeTruthy();
+  });
+
+  it("drag video duration handle live+commit writes durationMs only", () => {
+    let project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    const pair = resolveEditPair(project, ["v1"]);
+    project = upsertTransition(project, pair!, {
+      type: "crossfade",
+      durationMs: 400,
+      audio: "crossfade",
+      audioDurationMs: 200,
+    }).project;
+    project = { ...project, snap: false, zoomPxPerSec: 80 };
+    const video: number[] = [];
+    const audio: number[] = [];
+    let commits = 0;
+    mount(project, undefined, {
+      onTransitionDurationLive: (ms) => video.push(ms),
+      onTransitionDurationCommit: () => {
+        commits += 1;
+      },
+      onTransitionAudioDurationLive: (ms) => audio.push(ms),
+    });
+    const handle = host!.querySelector('[data-testid="overlap-duration-handle-video"]')!;
+    act(() => {
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 40 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointermove", { clientX: 48 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointerup", { clientX: 48 }));
+    });
+    expect(video.at(-1)).toBe(500);
+    expect(audio).toEqual([]);
+    expect(commits).toBe(1);
+  });
+
+  it("drag audio duration handle live+commit writes audioDurationMs only", () => {
+    let project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    const pair = resolveEditPair(project, ["v1"]);
+    project = upsertTransition(project, pair!, {
+      type: "cut",
+      durationMs: 800,
+      audio: "crossfade",
+      audioDurationMs: 200,
+    }).project;
+    project = { ...project, snap: false, zoomPxPerSec: 80 };
+    const video: number[] = [];
+    const audio: number[] = [];
+    mount(project, undefined, {
+      onTransitionDurationLive: (ms) => video.push(ms),
+      onTransitionAudioDurationLive: (ms) => audio.push(ms),
+      onTransitionAudioDurationCommit: () => {},
+    });
+    const handle = host!.querySelector('[data-testid="overlap-duration-handle-audio"]')!;
+    act(() => {
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 20 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointermove", { clientX: 28 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointerup", { clientX: 28 }));
+    });
+    expect(audio.at(-1)).toBe(300);
+    expect(video).toEqual([]);
+  });
 });
+
+function pointer(type: string, init: MouseEventInit = {}): Event {
+  const Ctor = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
+  return new Ctor(type, { bubbles: true, cancelable: true, ...init });
+}

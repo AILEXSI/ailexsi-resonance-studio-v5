@@ -11,6 +11,8 @@ import {
   type VisualizerEvent,
 } from "../../core/models";
 import { fadeHandlesVisible, fadesFromHandleDrag } from "../../core/fade-handles";
+import { durationMsFromHandleDrag, transitionDurationSnapTargets } from "../../core/transition-handles";
+import { listStackedEditPairs, type StackedOverlapMark } from "../../core/transition";
 import { normalizeClipFades } from "../../core/fades";
 import {
   MARQUEE_CLICK_SLOP_PX,
@@ -23,7 +25,6 @@ import { RULER_PAD_PX } from "../../core/zoom";
 import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
-import { listStackedEditPairs } from "../../core/transition";
 import { buildRulerTicks } from "../../core/ruler";
 
 export { RULER_PAD_PX };
@@ -70,6 +71,10 @@ interface Props {
   onSlideCommit?: () => void;
   onFadesLive?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onFadesCommit?: () => void;
+  onTransitionDurationLive?: (durationMs: number, clipIds: readonly string[]) => void;
+  onTransitionDurationCommit?: () => void;
+  onTransitionAudioDurationLive?: (audioDurationMs: number, clipIds: readonly string[]) => void;
+  onTransitionAudioDurationCommit?: () => void;
   onSelectClips?: (clipIds: readonly string[], opts?: { union?: boolean }) => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
@@ -160,6 +165,10 @@ export function Timeline({
   onSlideCommit,
   onFadesLive,
   onFadesCommit,
+  onTransitionDurationLive,
+  onTransitionDurationCommit,
+  onTransitionAudioDurationLive,
+  onTransitionAudioDurationCommit,
   onSelectClips,
   onToggleMute,
   onToggleSolo,
@@ -210,6 +219,7 @@ export function Timeline({
     | "marker"
     | "vis-move"
     | "vis-trim"
+    | "transition-duration"
     | null
   >(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
@@ -620,6 +630,46 @@ export function Timeline({
       window.removeEventListener("pointerup", up);
       dragKindRef.current = null;
       onFadesCommit?.();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onTransitionDurationPointerDown = (
+    e: ReactPointerEvent,
+    mark: StackedOverlapMark,
+    kind: "video" | "audio",
+  ) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    dragKindRef.current = "transition-duration";
+    const clipIds = [mark.sourceA.id, mark.sourceB.id];
+    onSelectClips?.(clipIds);
+    const originX = e.clientX;
+    const originMs = kind === "video" ? mark.durationMs : mark.audioDurationMs;
+    const targets = project.snap ? transitionDurationSnapTargets(project) : [];
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "transition-duration") return;
+      const next = durationMsFromHandleDrag({
+        originDurationMs: originMs,
+        startMs: mark.startMs,
+        deltaPx: ev.clientX - originX,
+        zoomPxPerSec: project.zoomPxPerSec,
+        snap: project.snap,
+        snapTargets: targets,
+      });
+      if (kind === "video") onTransitionDurationLive?.(next, clipIds);
+      else onTransitionAudioDurationLive?.(next, clipIds);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      if (kind === "video") onTransitionDurationCommit?.();
+      else onTransitionAudioDurationCommit?.();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -1115,9 +1165,10 @@ export function Timeline({
                 ? overlapMarks
                     .filter((m) => m.sourceA.trackId === id)
                     .map((m) => (
-                      <button
+                      <div
                         key={`${m.sourceA.id}:${m.sourceB.id}`}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         className="overlap-mark"
                         data-testid="overlap-mark"
                         data-type={m.type}
@@ -1139,7 +1190,25 @@ export function Timeline({
                         }}
                       >
                         {m.type} {m.durationMs}ms
-                      </button>
+                        <div
+                          className="transition-duration-handle video"
+                          data-testid="overlap-duration-handle-video"
+                          title="Video duration"
+                          onPointerDown={(e) => onTransitionDurationPointerDown(e, m, "video")}
+                        />
+                        {m.audio === "crossfade" || m.audioDurationMs > 0 ? (
+                          <div
+                            className="transition-duration-handle audio"
+                            data-testid="overlap-duration-handle-audio"
+                            title="Audio duration"
+                            style={{
+                              left: Math.max(0, msToWidth(m.audioDurationMs, project.zoomPxPerSec) - 3),
+                              right: "auto",
+                            }}
+                            onPointerDown={(e) => onTransitionDurationPointerDown(e, m, "audio")}
+                          />
+                        ) : null}
+                      </div>
                     ))
                 : null}
               <div

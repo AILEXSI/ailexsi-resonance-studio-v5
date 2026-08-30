@@ -1087,7 +1087,48 @@ input[type="range"] { accent-color: var(--accent-2); }
   line-height: 12px;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
+  overflow: visible;
+}
+.cutter-duration-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 48px;
+}
+.cutter-duration-video,
+.cutter-duration-audio {
+  position: relative;
+  height: 12px;
+  min-width: 8px;
+  border-radius: 2px;
+  background: rgba(240, 210, 122, 0.18);
+  border: 1px solid rgba(240, 210, 122, 0.4);
+}
+.cutter-duration-audio {
+  height: 8px;
+  background: rgba(240, 210, 122, 0.1);
+}
+.cutter-duration-label {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  line-height: 12px;
+  padding-left: 4px;
+  pointer-events: none;
+}
+.transition-duration-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  z-index: 3;
+  border-radius: 1px;
+  background: rgba(240, 210, 122, 0.92);
+  cursor: ew-resize;
+}
+.transition-duration-handle.audio {
+  background: rgba(212, 180, 90, 0.75);
 }
 
 .vis-span {

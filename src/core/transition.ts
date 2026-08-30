@@ -208,6 +208,9 @@ export interface StackedOverlapMark {
   overlapDurationMs: number;
   type: TransitionType;
   durationMs: number;
+  startMs: number;
+  audio: TransitionAudioMode;
+  audioDurationMs: number;
 }
 
 /** Every stacked video overlap (any two video tracks). Implicit = cut. */
@@ -234,6 +237,9 @@ export function listStackedEditPairs(project: Project): StackedOverlapMark[] {
         overlapDurationMs: overlap.durationMs,
         type: stored?.type ?? "cut",
         durationMs: stored?.durationMs ?? Math.max(1, overlap.durationMs),
+        startMs: stored?.startMs ?? overlap.startMs,
+        audio: transitionAudioOf(stored),
+        audioDurationMs: transitionAudioDurationMs(stored),
       });
     }
   }
@@ -617,10 +623,8 @@ export function upsertTransition(
     pair.sourceA.id,
     pair.sourceB.id,
   );
-  const durationMs = Math.max(
-    1,
-    patch.durationMs ?? existing?.durationMs ?? Math.max(1, Math.min(1000, pair.overlapDurationMs)),
-  );
+  const rawDur = patch.durationMs ?? existing?.durationMs ?? Math.max(1, Math.min(1000, pair.overlapDurationMs));
+  const durationMs = Math.max(0, rawDur);
   const audio = transitionAudioOf({
     audio: patch.audio ?? existing?.audio,
     audioMode: patch.audioMode ?? existing?.audioMode ?? "cut",
@@ -680,7 +684,7 @@ export function sanitizeTransitions(raw: unknown): Transition[] {
     if (typeof r.id !== "string" || !r.id) continue;
     if (typeof r.sourceAClipId !== "string" || typeof r.sourceBClipId !== "string") continue;
     if (!isTransitionType(r.type)) continue;
-    const durationMs = Math.max(1, Number(r.durationMs) || 1);
+    const durationMs = r.durationMs == null ? 1 : Math.max(0, Number(r.durationMs) || 0);
     const audio = isTransitionAudioMode(r.audio)
       ? r.audio
       : isTransitionAudioMode(r.audioMode)

@@ -78,4 +78,101 @@ describe("Cutter", () => {
     expect(cmds[2]).toEqual({ type: "setTransitionAudio", audio: "keepA" });
     expect(host!.querySelector("[data-testid=cutter-audio-cut]")?.classList.contains("on")).toBe(true);
   });
+
+  it("video duration handle writes setTransition on pointerup only", () => {
+    const project = {
+      ...projectWith(
+        [
+          clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+          clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+        ],
+        [
+          asset({ id: "va", kind: "video", name: "Outgoing", durationMs: 4000 }),
+          asset({ id: "vb", kind: "video", name: "Incoming", durationMs: 4000 }),
+        ],
+      ),
+      snap: false,
+      zoomPxPerSec: 80,
+    };
+    const cmds: EditorCommand[] = [];
+    render(
+      <Cutter
+        project={project}
+        selectedClipId="v2"
+        selectedClipIds={["v2"]}
+        apply={(c) => cmds.push(c)}
+      />,
+    );
+    const handle = host!.querySelector("[data-testid=cutter-duration-handle-video]")!;
+    expect(handle.className).toContain("transition-duration-handle");
+    expect(handle.className).not.toContain("fade-handle");
+    act(() => {
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 40 }));
+    });
+    expect(cmds).toEqual([]);
+    act(() => {
+      window.dispatchEvent(pointer("pointermove", { clientX: 48 }));
+    });
+    expect(cmds).toEqual([]);
+    act(() => {
+      window.dispatchEvent(pointer("pointerup", { clientX: 48 }));
+    });
+    expect(cmds).toEqual([{ type: "setTransition", durationMs: 1100 }]);
+  });
+
+  it("audio duration handle writes setTransitionAudioDuration and not video duration", () => {
+    const project = {
+      ...projectWith(
+        [
+          clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+          clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+        ],
+        [
+          asset({ id: "va", kind: "video", durationMs: 4000 }),
+          asset({ id: "vb", kind: "video", durationMs: 4000 }),
+        ],
+      ),
+      snap: false,
+      zoomPxPerSec: 80,
+      transitions: [
+        {
+          id: "tr1",
+          type: "cut" as const,
+          startMs: 1000,
+          durationMs: 800,
+          sourceAClipId: "v1",
+          sourceBClipId: "v2",
+          audio: "crossfade" as const,
+          audioMode: "crossfade" as const,
+          audioDurationMs: 200,
+          source: "auto" as const,
+        },
+      ],
+    };
+    const cmds: EditorCommand[] = [];
+    render(
+      <Cutter
+        project={project}
+        selectedClipId="v1"
+        selectedClipIds={["v1"]}
+        apply={(c) => cmds.push(c)}
+      />,
+    );
+    const handle = host!.querySelector("[data-testid=cutter-duration-handle-audio]")!;
+    act(() => {
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 20 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointermove", { clientX: 28 }));
+    });
+    act(() => {
+      window.dispatchEvent(pointer("pointerup", { clientX: 28 }));
+    });
+    expect(cmds).toEqual([{ type: "setTransitionAudioDuration", audioDurationMs: 300 }]);
+  });
 });
+
+function pointer(type: string, init: MouseEventInit = {}): Event {
+  const Ctor = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
+  return new Ctor(type, { bubbles: true, cancelable: true, ...init });
+}
