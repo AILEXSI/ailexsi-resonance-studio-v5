@@ -80,7 +80,7 @@ import { applyCommand, type EditorCommand } from "./commands";
 import { dispatchEditorKey } from "./keys";
 import {
   cycleProductionScreen,
-  isFormFocus,
+  editorFormFocus,
   tracksForScreen,
   type ProductionScreen,
 } from "./screens";
@@ -215,7 +215,7 @@ export function App() {
         setProjectPanelOpen(false);
         return;
       }
-      const formFocus = isFormFocus(e.target);
+      const formFocus = editorFormFocus(e.target);
       if (formFocus && e.key !== "Tab") return;
       const s = sessionRef.current;
       const action = dispatchEditorKey(s, s.playing, {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PRODUCTION_SCREENS,
   cycleProductionScreen,
+  editorFormFocus,
   isFormFocus,
   tracksForScreen,
 } from "../../src/app/screens";
@@ -37,5 +38,17 @@ describe("production screens", () => {
     expect(isFormFocus(edit)).toBe(true);
     expect(isFormFocus(div)).toBe(false);
     expect(isFormFocus(null)).toBe(false);
+  });
+
+  it("editorFormFocus treats a focused inspector number field as form focus even if the event target is body", () => {
+    const input = document.createElement("input");
+    input.type = "number";
+    document.body.appendChild(input);
+    input.focus();
+    expect(editorFormFocus(document.body)).toBe(true);
+    expect(editorFormFocus(input)).toBe(true);
+    input.blur();
+    input.remove();
+    expect(editorFormFocus(document.body)).toBe(false);
   });
 });

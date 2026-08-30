@@ -35,3 +35,14 @@ export function isFormFocus(target: EventTarget | null): boolean {
   if (el.closest("[contenteditable='true'],[contenteditable=true],[role=spinbutton]")) return true;
   return false;
 }
+
+/** Event target or the real active field (injected keys often hit body). */
+export function editorFormFocus(target: EventTarget | null): boolean {
+  if (isFormFocus(target)) return true;
+  try {
+    if (typeof document !== "undefined") return isFormFocus(document.activeElement);
+  } catch {
+    /* no document */
+  }
+  return false;
+}

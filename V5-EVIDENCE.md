@@ -56,7 +56,7 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **372 passed / 53 files**. Start 09:08:41 UTC. Duration 9.05s.
+exit 0. vitest 3.2.7. **373 passed / 53 files**. Start 09:21:47 UTC. Duration 8.93s.
 
 P27: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor.
 
@@ -130,9 +130,9 @@ Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-an
 
 ## Edit-point jump
 
-Status: TEST-VERIFIED. Live Chromium ArrowUp/Down: pending this follow-up.
+Status: TEST-VERIFIED. Live Chromium ArrowUp/Down: RUNTIME-VERIFIED (IN → marker → OUT; inspector number field does not jump).
 
-`collectEditPoints` is the sorted unique union of clip start/end (V1 V2 A1 A2), marker times, IN/OUT when set, and a finite VIS overlay window (`durationMs > 0`). Linked A/V times collapse. Next = smallest point > playhead; prev = largest < playhead. No point → same session, no history. Playing stays playing. Loop IN/OUT are not rewritten. Keys: **ArrowDown** next, **ArrowUp** prev. TAB / S / I / O / ; / ' / Ctrl+C/X/V untouched. ArrowLeft/Right still `nudgePlayhead` ±1 frame.
+`collectEditPoints` is the sorted unique union of clip start/end (V1 V2 A1 A2), marker times, IN/OUT when set, and a finite VIS overlay window (`durationMs > 0`). Linked A/V times collapse. Next = smallest point > playhead; prev = largest < playhead. No point → same session, no history. Playing stays playing. Loop IN/OUT are not rewritten. Keys: **ArrowDown** next, **ArrowUp** prev. Guard uses event target **or** `document.activeElement` so an inspector number field wins even when the key event hits `body`. TAB / S / I / O / ; / ' / Ctrl+C/X/V untouched. ArrowLeft/Right still `nudgePlayhead` ±1 frame.
 
 ## Ruler
 
