@@ -82,6 +82,8 @@ import {
   hydrateSession,
   importFiles,
   ingestRelinkFile,
+  isProjectDirty,
+  markProjectClean,
   newProject,
   withClipSelection,
   openSerialized,
@@ -342,19 +344,26 @@ export function App() {
     runner: typeof runSave | typeof runSaveAs,
   ) => {
     void (async () => {
+      const snapshot = sessionRef.current;
       try {
         const result = await runner({
           host: pickerHost,
           store: projectFileStore,
           memory: projectFileRef.current,
-          filename: projectFilename(sessionRef.current.project),
-          json: projectJson(sessionRef.current),
+          filename: projectFilename(snapshot.project),
+          json: projectJson(snapshot),
           fallbackDownload: downloadText,
         });
         if (result.cancelled) return;
         setProjectFile(result.memory);
         if (!result.usedFallback) setProjectPanelOpen(false);
-        setSession((s) => ({ ...s, status: result.status, error: null }));
+        setSession((s) => {
+          const sameStack =
+            s.history.past.length === snapshot.history.past.length &&
+            s.history.future.length === snapshot.history.future.length;
+          const next = sameStack ? markProjectClean(s) : s;
+          return { ...next, status: result.status, error: null };
+        });
       } catch (e) {
         setSession((s) => ({
           ...s,
@@ -1090,6 +1099,7 @@ export function App() {
         onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
         projectName={session.project.name}
+        projectDirty={isProjectDirty(session)}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
       />
       <input

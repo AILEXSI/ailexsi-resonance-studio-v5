@@ -24,6 +24,7 @@ interface Props {
   onToggleSnap: () => void;
   projectName?: string;
   onRenameProject?: (name: string) => void;
+  projectDirty?: boolean;
 }
 
 export function Toolbar({
@@ -48,6 +49,7 @@ export function Toolbar({
   onToggleSnap,
   projectName = "Untitled Resonance",
   onRenameProject,
+  projectDirty = false,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -154,6 +156,16 @@ export function Toolbar({
           defaultValue={projectName}
           onBlur={(e) => onRenameProject?.(e.target.value)}
         />
+        {projectDirty ? (
+          <span
+            className="project-dirty"
+            data-testid="project-dirty"
+            aria-label="Unsaved changes"
+            title="Unsaved changes"
+          >
+            *
+          </span>
+        ) : null}
         <span className="version">5.0.0</span>
       </div>
     </header>

@@ -157,6 +157,9 @@ export interface Session {
   /** When true, applyPlayhead pages scroll so the needle stays in view. */
   followPlayhead: boolean;
   store: BlobStore;
+  /** History lengths at last save / open / new. Dirty when they differ. */
+  savedPastLength: number;
+  savedFutureLength: number;
 }
 
 export function createSession(store?: BlobStore): Session {
@@ -182,6 +185,25 @@ export function createSession(store?: BlobStore): Session {
     timelineLaneLabelPx: LANE_LABEL_PX,
     followPlayhead: true,
     store: store ?? createIndexedDbBlobStore(),
+    savedPastLength: 0,
+    savedFutureLength: 0,
+  };
+}
+
+/** True when undo/redo stacks differ from the last clean checkpoint. */
+export function isProjectDirty(session: Session): boolean {
+  return (
+    session.history.past.length !== session.savedPastLength ||
+    session.history.future.length !== session.savedFutureLength
+  );
+}
+
+/** Mark the current history stack as saved (clean). */
+export function markProjectClean(session: Session): Session {
+  return {
+    ...session,
+    savedPastLength: session.history.past.length,
+    savedFutureLength: session.history.future.length,
   };
 }
 
@@ -1514,6 +1536,8 @@ export function openSerialized(session: Session, text: string): Session {
     error: null,
     playing: false,
     shuttleRate: 0,
+    savedPastLength: 0,
+    savedFutureLength: 0,
   };
 }
 
