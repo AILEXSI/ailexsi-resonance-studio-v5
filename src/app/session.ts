@@ -24,6 +24,7 @@ import {
 import {
   clipById,
   clipIsEnabled,
+  clipIsLocked,
   clipOnTrackAt,
   kindOfTrack,
   type Clip,
@@ -638,7 +639,7 @@ export function applyDuplicate(session: Session): Session {
   const ids = selectionOf(session);
   const clips = ids
     .map((id) => clipById(session.project, id))
-    .filter((c): c is Clip => Boolean(c));
+    .filter((c): c is Clip => Boolean(c) && !clipIsLocked(c));
   if (clips.length === 0) return session;
   const result = pasteClips(
     session.project,
@@ -757,6 +758,24 @@ export function applySetClipsEnabled(session: Session, enabled: boolean): Sessio
   if (changed === 0 || nextProject === session.project) return session;
   const noun = changed === 1 ? "Clip" : "Clips";
   return withHistory(session, nextProject, enabled ? `${noun} enabled` : `${noun} disabled`);
+}
+
+export function applySetClipsLocked(session: Session, locked: boolean): Session {
+  const ids = selectionOf(session);
+  if (ids.length === 0) return session;
+  let nextProject = session.project;
+  let changed = 0;
+  for (const id of ids) {
+    const existing = clipById(nextProject, id);
+    if (!existing || clipIsLocked(existing) === locked) continue;
+    const result = updateClip(nextProject, id, { locked: locked ? true : undefined });
+    if (result.error) continue;
+    nextProject = result.project;
+    changed += 1;
+  }
+  if (changed === 0 || nextProject === session.project) return session;
+  const noun = changed === 1 ? "Clip" : "Clips";
+  return withHistory(session, nextProject, locked ? `${noun} locked` : `${noun} unlocked`);
 }
 
 export function applySetClipFades(

@@ -13,6 +13,7 @@ import {
   clampClipRate,
   clipById,
   clipEndMs,
+  clipIsLocked,
   clipOnTrackAt,
   isTrackId,
   kindOfTrack,
@@ -83,6 +84,7 @@ export function moveClip(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
 
   const trackId = nextTrackId ?? clip.trackId;
   if (!isTrackId(trackId) || kindOfTrack(trackId) !== kindOfTrack(clip.trackId)) {
@@ -98,7 +100,9 @@ export function moveClip(
       updatedAt: new Date().toISOString(),
       clips: project.clips.map((c) => {
         if (c.id === clipId) return { ...c, startMs, trackId };
-        if (mate && c.id === mate.id) return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        if (mate && c.id === mate.id && !clipIsLocked(mate)) {
+          return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        }
         return c;
       }),
     },
@@ -163,11 +167,12 @@ export function trimClip(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const one = trimOneClip(project, clip, edge, nextEdgeMs);
   if ("error" in one) return { project, error: one.error };
   const mate = livingLinkedMate(project, clipId);
   let two: { clip: Clip } | undefined;
-  if (mate) {
+  if (mate && !clipIsLocked(mate)) {
     const mateTrim = trimOneClip(project, mate, edge, nextEdgeMs);
     if ("error" in mateTrim) return { project, error: mateTrim.error };
     two = mateTrim;
@@ -224,7 +229,21 @@ export function rippleTrimClip(
 ): { project: Project; error?: string } {
   const before = clipById(project, clipId);
   if (!before) return { project, error: "Clip not found" };
+  if (clipIsLocked(before)) return { project, error: "Clip is locked" };
   const mate = livingLinkedMate(project, clipId);
+  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
+  const laterLocked = project.clips.some((c) => {
+    if (c.id === clipId || c.id === mate?.id) return false;
+    if (!clipIsLocked(c)) return false;
+    const laterPrimary =
+      c.trackId === before.trackId && c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(before);
+    const laterMate =
+      Boolean(mate) &&
+      c.trackId === mate!.trackId &&
+      c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(mate!);
+    return laterPrimary || laterMate;
+  });
+  if (laterLocked) return { project, error: "Clip is locked" };
   const oldEnd = clipEndMs(before);
   const mateOldEnd = mate ? clipEndMs(mate) : 0;
   const oldDur = before.durationMs;
@@ -266,10 +285,12 @@ export function moveClipsByDelta(
   opts?: { skipLink?: boolean },
 ): { project: Project; error?: string } {
   const ids = opts?.skipLink ? [...new Set(clipIds)] : expandLinkedClipIds(project, clipIds);
-  const targets = ids
+  const found = ids
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
-  if (targets.length === 0) return { project, error: "No clip selected" };
+  if (found.length === 0) return { project, error: "No clip selected" };
+  const targets = found.filter((c) => !clipIsLocked(c));
+  if (targets.length === 0) return { project, error: "Clip is locked" };
   const minStart = Math.min(...targets.map((c) => c.startMs));
   const delta = Math.max(deltaMs, -minStart);
   if (delta === 0) return { project };
@@ -413,6 +434,7 @@ export function rollEdit(
   const left = clipById(project, leftId);
   const right = clipById(project, rightId);
   if (!left || !right) return { project, error: "Clip not found" };
+  if (clipIsLocked(left) || clipIsLocked(right)) return { project, error: "Clip is locked" };
   if (left.trackId !== right.trackId) {
     return { project, error: "Roll requires two clips on the same track" };
   }
@@ -536,9 +558,11 @@ export function splitClipAt(
 ): { project: Project; leftId?: string; rightId?: string; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const first = splitOneClip(clip, timeMs, edgeGuardMs);
   if ("error" in first) return { project, error: first.error };
   const mate = livingLinkedMate(project, clipId);
+  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
   let mateParts: { left: Clip; right: Clip } | undefined;
   if (mate) {
     const second = splitOneClip(mate, timeMs, edgeGuardMs);
@@ -1140,6 +1164,7 @@ export function slideClip(
 ): { project: Project; error?: string } {
   const mid = clipById(project, clipId);
   if (!mid) return { project, error: "Clip not found" };
+  if (clipIsLocked(mid)) return { project, error: "Clip is locked" };
   if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
 
   const left = abuttingNeighbor(project, clipId, "in");
@@ -1147,6 +1172,7 @@ export function slideClip(
   if (!left || !right) {
     return { project, error: "Slide requires abutting clips on both sides" };
   }
+  if (clipIsLocked(left) || clipIsLocked(right)) return { project, error: "Clip is locked" };
   return applySlideThroughNeighbors(project, [mid], left, right, deltaMs);
 }
 
@@ -1165,6 +1191,13 @@ export function slideClips(
   if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
   const block = resolveSlideBlock(project, unique);
   if ("error" in block) return { project, error: block.error };
+  if (
+    block.mids.some(clipIsLocked) ||
+    clipIsLocked(block.left) ||
+    clipIsLocked(block.right)
+  ) {
+    return { project, error: "Clip is locked" };
+  }
   return applySlideThroughNeighbors(project, block.mids, block.left, block.right, deltaMs);
 }
 
@@ -1222,8 +1255,10 @@ function applySlipSourceDelta(
 ): { project: Project; error?: string } {
   const targets = new Map<string, Clip>();
   for (const clip of clips) {
+    if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
     targets.set(clip.id, clip);
     const mate = livingLinkedMate(project, clip.id);
+    if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
     if (mate) targets.set(mate.id, mate);
   }
   const nextById = new Map<string, Clip>();
@@ -1258,11 +1293,13 @@ export function slipClip(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const asset = project.assets.find((a) => a.id === clip.assetId);
   const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
   const span = sourceSpanMs(clip);
   const sourceDelta = timelineDeltaToSource(clip, deltaMs);
   const mate = livingLinkedMate(project, clipId);
+  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
   if (!mate) {
     const maxIn = maxOut - span;
     const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
@@ -1349,10 +1386,17 @@ export function duplicateClip(
 export function updateClip(
   project: Project,
   clipId: string,
-    patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "fadeInMs" | "fadeOutMs" | "enabled">>,
+    patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "fadeInMs" | "fadeOutMs" | "enabled" | "locked">>,
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  const relocates =
+    patch.startMs != null ||
+    patch.durationMs != null ||
+    patch.sourceInMs != null ||
+    patch.sourceOutMs != null ||
+    patch.trackId != null;
+  if (clipIsLocked(clip) && relocates) return { project, error: "Clip is locked" };
   if (
     patch.trackId &&
     (!isTrackId(patch.trackId) || kindOfTrack(patch.trackId) !== kindOfTrack(clip.trackId))
@@ -1430,9 +1474,11 @@ export function setClipRate(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
+  if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const one = planClipRate(project, clip, rate);
   if ("error" in one) return { project, error: one.error };
   const mate = livingLinkedMate(project, clipId);
+  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
   if (!mate) {
     if ("unchanged" in one) return { project };
     return {

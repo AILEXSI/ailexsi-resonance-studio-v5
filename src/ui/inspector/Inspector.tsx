@@ -4,6 +4,7 @@ import { firstClipIdWithLivingMate } from "../../core/link";
 import {
   VISUALIZER_SCENE_IDS,
   clipById,
+  clipIsLocked,
   formatTimecode,
   kindOfTrack,
   type Clip,
@@ -32,8 +33,9 @@ interface Props {
   selectedClipIds?: string[];
   selectedVis?: boolean;
   selectedVisEventId?: string | null;
-  onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "enabled">>) => void;
+  onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "enabled" | "locked">>) => void;
   onSetEnabled?: (enabled: boolean) => void;
+  onSetLocked?: (locked: boolean) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
@@ -69,11 +71,13 @@ function MsField({
   value,
   onChange,
   testId,
+  disabled,
 }: {
   label: string;
   value: number;
   onChange: (next: number) => void;
   testId?: string;
+  disabled?: boolean;
 }) {
   return (
     <Field label={label}>
@@ -81,6 +85,7 @@ function MsField({
         type="number"
         data-testid={testId}
         value={Math.round(value)}
+        disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <span className="tc">{formatTimecode(value)}</span>
@@ -96,6 +101,7 @@ export function Inspector({
   selectedVisEventId,
   onChange,
   onSetEnabled,
+  onSetLocked,
   onFades,
   onRate,
   onUnlink,
@@ -171,22 +177,44 @@ export function Inspector({
           <p data-testid="inspector-selection-count" style={{ color: "var(--muted)" }}>
             {ids.length} clips
           </p>
-          {onSetEnabled ? (
+          {onSetEnabled || onSetLocked ? (
             <div className="inspector-clip-actions">
-              <button
-                type="button"
-                data-testid="inspector-enable-clips"
-                onClick={() => onSetEnabled(true)}
-              >
-                Enable
-              </button>
-              <button
-                type="button"
-                data-testid="inspector-disable-clips"
-                onClick={() => onSetEnabled(false)}
-              >
-                Disable
-              </button>
+              {onSetEnabled ? (
+                <>
+                  <button
+                    type="button"
+                    data-testid="inspector-enable-clips"
+                    onClick={() => onSetEnabled(true)}
+                  >
+                    Enable
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="inspector-disable-clips"
+                    onClick={() => onSetEnabled(false)}
+                  >
+                    Disable
+                  </button>
+                </>
+              ) : null}
+              {onSetLocked ? (
+                <>
+                  <button
+                    type="button"
+                    data-testid="inspector-lock-clips"
+                    onClick={() => onSetLocked(true)}
+                  >
+                    Lock
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="inspector-unlock-clips"
+                    onClick={() => onSetLocked(false)}
+                  >
+                    Unlock
+                  </button>
+                </>
+              ) : null}
             </div>
           ) : null}
         </>
@@ -198,6 +226,7 @@ export function Inspector({
             <select
               data-testid="inspector-track"
               value={clip.trackId}
+              disabled={clipIsLocked(clip)}
               onChange={(e) => onChange(clip.id, { trackId: e.target.value as TrackId })}
             >
               {(kindOfTrack(clip.trackId) === "video" ? ["V1", "V2"] : ["A1", "A2"]).map((id) => (
@@ -207,10 +236,30 @@ export function Inspector({
               ))}
             </select>
           </Field>
-          <MsField label="Start (ms)" value={clip.startMs} onChange={(v) => onChange(clip.id, { startMs: v })} />
-          <MsField label="Duration (ms)" value={clip.durationMs} onChange={(v) => onChange(clip.id, { durationMs: v })} />
-          <MsField label="Source In" value={clip.sourceInMs} onChange={(v) => onChange(clip.id, { sourceInMs: v })} />
-          <MsField label="Source Out" value={clip.sourceOutMs} onChange={(v) => onChange(clip.id, { sourceOutMs: v })} />
+          <MsField
+            label="Start (ms)"
+            value={clip.startMs}
+            disabled={clipIsLocked(clip)}
+            onChange={(v) => onChange(clip.id, { startMs: v })}
+          />
+          <MsField
+            label="Duration (ms)"
+            value={clip.durationMs}
+            disabled={clipIsLocked(clip)}
+            onChange={(v) => onChange(clip.id, { durationMs: v })}
+          />
+          <MsField
+            label="Source In"
+            value={clip.sourceInMs}
+            disabled={clipIsLocked(clip)}
+            onChange={(v) => onChange(clip.id, { sourceInMs: v })}
+          />
+          <MsField
+            label="Source Out"
+            value={clip.sourceOutMs}
+            disabled={clipIsLocked(clip)}
+            onChange={(v) => onChange(clip.id, { sourceOutMs: v })}
+          />
           <Field label="Gain">
             <input
               type="number"
@@ -229,6 +278,7 @@ export function Inspector({
               max={4}
               data-testid="inspector-rate"
               value={clip.rate}
+              disabled={clipIsLocked(clip)}
               onChange={(e) => onRate?.(clip.id, Number(e.target.value))}
             />
           </Field>
@@ -254,6 +304,19 @@ export function Inspector({
                 const next = e.target.checked;
                 if (onSetEnabled) onSetEnabled(next);
                 else onChange(clip.id, { enabled: next });
+              }}
+            />
+          </Field>
+          <Field label="Locked">
+            <input
+              type="checkbox"
+              aria-label="clip-locked"
+              data-testid="inspector-clip-locked"
+              checked={clipIsLocked(clip)}
+              onChange={(e) => {
+                const next = e.target.checked;
+                if (onSetLocked) onSetLocked(next);
+                else onChange(clip.id, { locked: next || undefined });
               }}
             />
           </Field>

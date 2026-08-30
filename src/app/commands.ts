@@ -33,6 +33,7 @@ import {
   applySelectClips,
   applySelectVisEvent,
   applySetClipsEnabled,
+  applySetClipsLocked,
   applySetFrontVideoTrack,
   applyInsertVisEvent,
   applyMoveVisEvent,
@@ -96,6 +97,7 @@ export type EditorCommand =
   | { type: "selectAll" }
   | { type: "selectAllOnTrack" }
   | { type: "setClipsEnabled"; enabled: boolean }
+  | { type: "setClipsLocked"; locked: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
   | { type: "slideClip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
@@ -193,6 +195,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySelectAllOnTrack(session);
     case "setClipsEnabled":
       return applySetClipsEnabled(session, command.enabled);
+    case "setClipsLocked":
+      return applySetClipsLocked(session, command.locked);
     case "moveClips":
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
     case "slip":

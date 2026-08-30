@@ -1143,6 +1143,7 @@ export function App() {
             selectedVisEventId={session.selectedVisEventId}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
             onSetEnabled={(enabled) => runCommand({ type: "setClipsEnabled", enabled })}
+            onSetLocked={(locked) => runCommand({ type: "setClipsLocked", locked })}
             onFades={(clipId, fadeInMs, fadeOutMs) =>
               setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
             }
@@ -1262,6 +1263,7 @@ export function App() {
         onSelectAll={() => runCommand({ type: "selectAll" })}
         onSelectAllOnTrack={() => runCommand({ type: "selectAllOnTrack" })}
         onSetClipsEnabled={(enabled) => runCommand({ type: "setClipsEnabled", enabled })}
+        onSetClipsLocked={(locked) => runCommand({ type: "setClipsLocked", locked })}
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
         }}

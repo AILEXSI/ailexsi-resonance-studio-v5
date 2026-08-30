@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEve
 import {
   TRACK_IDS,
   clipEndMs,
+  clipIsLocked,
   isTrackId,
   kindOfTrack,
   projectDurationMs,
@@ -116,6 +117,7 @@ interface Props {
   onSelectAll?: () => void;
   onSelectAllOnTrack?: () => void;
   onSetClipsEnabled?: (enabled: boolean) => void;
+  onSetClipsLocked?: (locked: boolean) => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onViewport?: (timelineWidthPx: number) => void;
@@ -220,6 +222,7 @@ export function Timeline({
   onSelectAll,
   onSelectAllOnTrack,
   onSetClipsEnabled,
+  onSetClipsLocked,
   onZoom,
   onFit,
   onViewport,
@@ -460,6 +463,10 @@ export function Timeline({
     setMenu(null);
     setMarkerMenu(null);
     if ((e.ctrlKey || e.metaKey) && e.altKey) {
+      if (clipIsLocked(clip)) {
+        if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+        return;
+      }
       if (dragKindRef.current) return;
       const inSelectedBlock = selectedIds.includes(clip.id) && isSlideBlock(project, selectedIds);
       if (!inSelectedBlock && !selectedIds.includes(clip.id)) onSelect(clip.id);
@@ -490,6 +497,10 @@ export function Timeline({
       return;
     }
     if (e.altKey) {
+      if (clipIsLocked(clip)) {
+        if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+        return;
+      }
       if (dragKindRef.current) return;
       if (!selectedIds.includes(clip.id)) onSelect(clip.id);
       const slippingIds =
@@ -514,6 +525,7 @@ export function Timeline({
     if (dragKindRef.current) return;
     const inGroup = selectedIds.includes(clip.id);
     if (!inGroup) onSelect(clip.id);
+    if (clipIsLocked(clip)) return;
     const movingIds = inGroup ? selectedIds : [clip.id];
     dragKindRef.current = "move";
     const originX = e.clientX;
@@ -552,6 +564,10 @@ export function Timeline({
     e.stopPropagation();
     e.preventDefault();
     setMenu(null);
+    if (clipIsLocked(clip)) {
+      onSelect(clip.id);
+      return;
+    }
     if (dragKindRef.current) return;
     dragKindRef.current = "trim";
     onSelect(clip.id);
@@ -1226,10 +1242,11 @@ export function Timeline({
                   return (
                     <div
                       key={clip.id}
-                      className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}${clip.enabled === false ? " disabled" : ""}`}
+                      className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}${clip.enabled === false ? " disabled" : ""}${clipIsLocked(clip) ? " locked" : ""}`}
                       data-testid={`clip-${clip.id}`}
                       data-selected={selected ? "true" : "false"}
                       data-enabled={clip.enabled === false ? "false" : "true"}
+                      data-locked={clipIsLocked(clip) ? "true" : "false"}
                       style={{
                         left: msToX(clip.startMs, project.zoomPxPerSec, project.scrollMs),
                         width: clipW,
@@ -1496,6 +1513,23 @@ export function Timeline({
                 {project.clips.find((c) => c.id === menu.clipId)?.enabled === false
                   ? "Enable"
                   : "Disable"}
+              </span>
+            </button>
+          ) : null}
+          {onSetClipsLocked ? (
+            <button
+              type="button"
+              data-testid="clip-menu-toggle-locked"
+              onClick={() => {
+                const target = project.clips.find((c) => c.id === menu.clipId);
+                onSetClipsLocked(!clipIsLocked(target ?? {}));
+                setMenu(null);
+              }}
+            >
+              <span>
+                {clipIsLocked(project.clips.find((c) => c.id === menu.clipId) ?? {})
+                  ? "Unlock"
+                  : "Lock"}
               </span>
             </button>
           ) : null}

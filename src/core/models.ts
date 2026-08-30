@@ -111,10 +111,20 @@ export interface Clip {
   linkId?: string;
   /** False = skip picture and mix. Missing = enabled. */
   enabled?: boolean;
+  /**
+   * True = skip move, trim, slip, rate, relocate-duplicate, and drag.
+   * Missing = unlocked (same pattern as enabled).
+   * Independent of linkId — locking one side of an A/V pair does not lock the mate.
+   */
+  locked?: boolean;
 }
 
 export function clipIsEnabled(clip: { enabled?: boolean }): boolean {
   return clip.enabled !== false;
+}
+
+export function clipIsLocked(clip: { locked?: boolean }): boolean {
+  return clip.locked === true;
 }
 
 export interface Track {
