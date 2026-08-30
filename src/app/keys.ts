@@ -110,19 +110,7 @@ export function dispatchEditorKey(
     if (e.formFocus) return { type: "none" };
     return { type: "cycleScreen", dir: e.shiftKey ? -1 : 1, preventDefault: true };
   }
-  if (e.formFocus && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
-    return { type: "none" };
-  }
-  if (e.formFocus && (e.key === "g" || e.key === "G")) {
-    return { type: "none" };
-  }
-  if (e.formFocus && (e.key === "q" || e.key === "Q" || e.key === "w" || e.key === "W")) {
-    return { type: "none" };
-  }
-  const formLetter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  if (e.formFocus && (e.ctrlKey || e.metaKey) && formLetter === "a") {
-    return { type: "none" };
-  }
+  if (e.formFocus) return { type: "none" };
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };

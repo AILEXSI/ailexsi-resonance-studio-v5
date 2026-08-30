@@ -1190,6 +1190,7 @@ export function App() {
         onClear={() => runCommand({ type: "clearInOut" })}
         onMarker={() => runCommand({ type: "addMarker" })}
         onSplit={() => runCommand({ type: "split" })}
+        onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
       />
 
       {screen === "cutter" ? (

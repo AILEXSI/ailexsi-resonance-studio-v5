@@ -1,5 +1,6 @@
 import { FRAME_MS, formatTimecode, type Project } from "../../core/models";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
+import { TimecodeField } from "./TimecodeField";
 
 interface Props {
   project: Project;
@@ -16,6 +17,7 @@ interface Props {
   onClear: () => void;
   onMarker: () => void;
   onSplit: () => void;
+  onSeek?: (ms: number) => void;
 }
 
 export function Transport(props: Props) {
@@ -66,7 +68,7 @@ export function Transport(props: Props) {
         Split
         <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
       </button>
-      <span data-testid="timecode">{formatTimecode(props.project.playheadMs)}</span>
+      <TimecodeField playheadMs={props.project.playheadMs} onSeek={props.onSeek} />
       <span style={{ color: "var(--muted)", fontSize: 12 }}>
         IN {props.project.inPointMs == null ? "—" : formatTimecode(props.project.inPointMs)} · OUT{" "}
         {props.project.outPointMs == null ? "—" : formatTimecode(props.project.outPointMs)}

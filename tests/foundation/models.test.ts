@@ -6,6 +6,7 @@ import {
   clipEndMs,
   defaultTracks,
   formatTimecode,
+  parseTimecode,
   isTrackAudible,
   isTrackId,
   kindOfTrack,
@@ -137,5 +138,17 @@ describe("mute skip", () => {
     expect(formatTimecode(0)).toBe("00:00.00");
     expect(formatTimecode(1500)).toBe("00:01.50");
     expect(formatTimecode(61_230)).toBe("01:01.23");
+  });
+
+  it("parseTimecode round-trips the printed form and accepts m:ss / hours / ms", () => {
+    for (const ms of [0, 1500, 61_230, 62_000, 3_723_000]) {
+      expect(parseTimecode(formatTimecode(ms))).toBe(ms);
+    }
+    expect(parseTimecode("1:02.00")).toBe(62_000);
+    expect(parseTimecode("1:02")).toBe(62_000);
+    expect(parseTimecode("1:02:03")).toBe(3_723_000);
+    expect(parseTimecode("62000")).toBe(62_000);
+    expect(parseTimecode("abc")).toBeNull();
+    expect(parseTimecode("1:60")).toBeNull();
   });
 });

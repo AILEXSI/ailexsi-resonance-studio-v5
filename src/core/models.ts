@@ -204,6 +204,33 @@ export function formatTimecode(ms: number): string {
   return `${String(m).padStart(2, "0")}:${rem.toFixed(2).padStart(5, "0")}`;
 }
 
+/**
+ * Parse a Transport timecode. Accepts the printed `mm:ss.cc` form, `m:ss`,
+ * `m:ss.cs`, `h:m:ss` (optional fraction), and a raw integer millisecond value.
+ * Invalid → null (caller restores the current playhead display).
+ */
+export function parseTimecode(raw: string): number | null {
+  const text = raw.trim();
+  if (!text) return null;
+  if (/^\d+$/.test(text)) {
+    const ms = Number(text);
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.round(ms));
+  }
+  const parts = text.split(":");
+  if (parts.length !== 2 && parts.length !== 3) return null;
+  const nums = parts.map((p) => Number(p));
+  if (nums.some((n) => !Number.isFinite(n) || n < 0)) return null;
+  if (parts.length === 2) {
+    const [minutes, seconds] = nums as [number, number];
+    if (seconds >= 60) return null;
+    return Math.max(0, Math.round((minutes * 60 + seconds) * 1000));
+  }
+  const [hours, minutes, seconds] = nums as [number, number, number];
+  if (minutes >= 60 || seconds >= 60) return null;
+  return Math.max(0, Math.round((hours * 3600 + minutes * 60 + seconds) * 1000));
+}
+
 export function isTrackMuted(project: Project, trackId: TrackId): boolean {
   return project.tracks.find((t) => t.id === trackId)?.muted === true;
 }

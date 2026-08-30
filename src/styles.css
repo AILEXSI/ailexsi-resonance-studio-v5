@@ -451,6 +451,16 @@ body.media-asset-dragging .project-overlay-drawer {
   font-size: 16px;
   letter-spacing: 0.04em;
   min-width: 86px;
+  width: 7.5em;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  padding: 2px 4px;
+}
+.transport [data-testid="timecode"]:focus {
+  border-color: var(--line);
+  outline: none;
 }
 
 .timeline {
