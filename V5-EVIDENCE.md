@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:52 UTC. P27 flush Preview + 120px split floor on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 09:05 UTC. P27 flush Preview + 120px split floor, then P26 Shift+click range on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -56,9 +56,11 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **355 passed / 50 files**. Start 08:52:16 UTC. Duration 8.53s.
+exit 0. vitest 3.2.7. **365 passed / 52 files**. Start 09:03:03 UTC. Duration 8.89s.
 
-New this follow-up: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor. Prior P25 mux units stay green.
+P27: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor.
+
+P26: Shift+click inclusive same-track range via existing `select` / `selectClips`. Ctrl/Cmd+click toggle and Shift+marquee union stay. VIS is not in the range.
 
 ## Visualizer
 
@@ -331,7 +333,7 @@ Status: TEST-VERIFIED
 
 ## Chrome / Preview height (P27)
 
-Status: TEST-VERIFIED (120px floor + File-row ScreenNav). Live splitter drag this follow-up: NOT VERIFIED until Chromium pass.
+Status: TEST-VERIFIED (120px floor + File-row ScreenNav). Live Chromium this follow-up: RUNTIME-VERIFIED (flush Preview, drag-up to ~124px, Arrange/Cutter share the split).
 
 P24 put ScreenNav under New/Open as a File-group column and set `PREVIEW_MIN_PX` 360. That blocked dragging the yellow splitter up (Arrange/Cutter could not grow) and left a dark band under the first toolbar row.
 
@@ -417,7 +419,7 @@ Group move: same Δms for all selected; clamp so no start < 0 (shared delta); sn
 
 Group lift-delete: Delete/Backspace removes all selected (gaps remain). Group ripple-delete: Shift+Delete, per track later-first. Split (S): 0 or 1 selected → current split-all-under-playhead. 2+ selected → only those containing the playhead. One undo each.
 
-Marquee: empty-lane rubber-band (see Marquee). No Shift+click range. Ctrl/Cmd+click toggle stays.
+Marquee: empty-lane rubber-band (see Marquee). Shift+click is an inclusive same-track range from the last plain-click anchor (or the earliest selected clip if none). Different track or video-vs-audio is a no-op. Ctrl/Cmd+click toggle stays and does not move the anchor unless the selection was empty. VIS overlay is not a clip in the range. Undo is not required (view state). Live Shift+click: NOT VERIFIED.
 
 ## Group clipboard
 
@@ -753,7 +755,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P27 evidence (this commit). Layout `7f619a2` / `b306ccb`. P25 mux `c3487e8`. P24 `1be297d`.
+Tip after this follow-up: P26 Shift+click (this commit) after P27 layout. Layout `7f619a2` / `b306ccb` / `0df8458`. P25 mux `c3487e8`. P24 `1be297d`.
 
 ## Not added
 

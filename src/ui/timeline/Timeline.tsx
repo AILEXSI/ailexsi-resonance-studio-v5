@@ -47,7 +47,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   selectedMarkerId?: string | null;
-  onSelect: (clipId: string | null, opts?: { toggle?: boolean }) => void;
+  onSelect: (clipId: string | null, opts?: { toggle?: boolean; range?: boolean }) => void;
   onSelectMarker?: (markerId: string | null) => void;
   onMarkerMoveLive?: (markerId: string, timeMs: number) => void;
   onMarkerMoveCommit?: () => void;
@@ -397,6 +397,10 @@ export function Timeline({
     }
     if (e.ctrlKey || e.metaKey) {
       onSelect(clip.id, { toggle: true });
+      return;
+    }
+    if (e.shiftKey) {
+      onSelect(clip.id, { range: true });
       return;
     }
     if (e.altKey) {

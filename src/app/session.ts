@@ -1,7 +1,7 @@
 import { unlinkClips } from "../core/link";
 import { resolveEditPair, upsertTransition, type Transition } from "../core/transition";
 import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
-import { clipById, type Clip, type Project, type TrackId } from "../core/models";
+import { clipById, kindOfTrack, type Clip, type Project, type TrackId } from "../core/models";
 import {
   createIndexedDbBlobStore,
   hydrateProject,
@@ -77,6 +77,8 @@ export interface Session {
   selectedMarkerId: string | null;
   /** VIS overlay selected for inspector (not a TrackId / clip). */
   selectedVis: boolean;
+  /** Last plain-clicked clip. Shift+click ranges from here. View state only. */
+  selectionAnchorClipId: string | null;
   /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
   clipboard: Clip[];
   targetTrackId: TrackId;
@@ -96,6 +98,7 @@ export function createSession(store?: BlobStore): Session {
     selectedClipIds: [],
     selectedMarkerId: null,
     selectedVis: false,
+    selectionAnchorClipId: null,
     clipboard: [],
     targetTrackId: "V1",
     status: "New project",
@@ -718,6 +721,7 @@ export function applySelectVis(session: Session): Session {
     selectedClipIds: [],
     selectedMarkerId: null,
     selectedVis: true,
+    selectionAnchorClipId: null,
   };
 }
 
@@ -734,22 +738,73 @@ export function applySetVisualizer(
   };
 }
 
+function compareClipOrder(a: Clip, b: Clip): number {
+  return a.startMs - b.startMs || a.id.localeCompare(b.id);
+}
+
+function earliestSelectedClipId(session: Session): string | null {
+  const clips = selectionOf(session)
+    .map((id) => clipById(session.project, id))
+    .filter((c): c is Clip => !!c)
+    .sort(compareClipOrder);
+  return clips[0]?.id ?? null;
+}
+
+/** Inclusive same-track range. Empty when tracks/kinds differ. VIS is not a clip. */
+export function clipsInShiftRange(project: Project, fromId: string, toId: string): string[] {
+  const from = clipById(project, fromId);
+  const to = clipById(project, toId);
+  if (!from || !to) return [];
+  if (from.trackId !== to.trackId) return [];
+  if (kindOfTrack(from.trackId) !== kindOfTrack(to.trackId)) return [];
+  const onTrack = project.clips.filter((c) => c.trackId === from.trackId).sort(compareClipOrder);
+  const i = onTrack.findIndex((c) => c.id === from.id);
+  const j = onTrack.findIndex((c) => c.id === to.id);
+  if (i < 0 || j < 0) return [];
+  const lo = Math.min(i, j);
+  const hi = Math.max(i, j);
+  return onTrack.slice(lo, hi + 1).map((c) => c.id);
+}
+
 export function applySelect(
   session: Session,
   clipId: string | null,
-  opts?: { toggle?: boolean },
+  opts?: { toggle?: boolean; range?: boolean },
 ): Session {
   if (clipId == null) {
-    return { ...withClipSelection(session, []), selectedMarkerId: null };
+    return { ...withClipSelection(session, []), selectedMarkerId: null, selectionAnchorClipId: null };
+  }
+  if (opts?.range) {
+    const clicked = clipById(session.project, clipId);
+    if (!clicked) return session;
+    const stored = session.selectionAnchorClipId;
+    const anchorId =
+      stored && clipById(session.project, stored) ? stored : earliestSelectedClipId(session);
+    if (!anchorId) {
+      return {
+        ...withClipSelection(session, [clipId]),
+        selectedMarkerId: null,
+        selectionAnchorClipId: clipId,
+      };
+    }
+    const ids = clipsInShiftRange(session.project, anchorId, clipId);
+    if (ids.length === 0) return session;
+    return {
+      ...withClipSelection(session, ids),
+      selectedMarkerId: null,
+      selectionAnchorClipId: stored ?? anchorId,
+    };
   }
   if (opts?.toggle) {
     const current = selectionOf(session);
+    const hadNone = current.length === 0;
     const next = current.includes(clipId)
       ? current.filter((id) => id !== clipId)
       : [clipId, ...current];
-    return { ...withClipSelection(session, next), selectedMarkerId: null };
+    const anchor = hadNone ? clipId : session.selectionAnchorClipId;
+    return { ...withClipSelection(session, next), selectedMarkerId: null, selectionAnchorClipId: anchor };
   }
-  return { ...withClipSelection(session, [clipId]), selectedMarkerId: null };
+  return { ...withClipSelection(session, [clipId]), selectedMarkerId: null, selectionAnchorClipId: clipId };
 }
 
 /** Marquee / multi-select. Union keeps existing ids (Shift+marquee). */

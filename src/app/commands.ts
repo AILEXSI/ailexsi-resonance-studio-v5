@@ -69,7 +69,7 @@ export type EditorCommand =
   | { type: "liftTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
-  | { type: "select"; clipId: string | null; toggle?: boolean }
+  | { type: "select"; clipId: string | null; toggle?: boolean; range?: boolean }
   | { type: "selectClips"; clipIds: readonly string[]; union?: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
@@ -140,7 +140,7 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
     case "rollEdit":
       return applyRoll(session, command.clipId, command.edge, command.nextEdgeMs);
     case "select":
-      return applySelect(session, command.clipId, { toggle: command.toggle });
+      return applySelect(session, command.clipId, { toggle: command.toggle, range: command.range });
     case "selectClips":
       return applySelectClips(session, command.clipIds, { union: command.union });
     case "moveClips":
