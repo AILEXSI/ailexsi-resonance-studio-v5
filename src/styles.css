@@ -462,6 +462,24 @@ body.media-asset-dragging .project-overlay-drawer {
   border-color: var(--line);
   outline: none;
 }
+.transport-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.transport-marks button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0 2px;
+  cursor: pointer;
+}
+.transport-marks button:disabled {
+  cursor: default;
+}
 
 .timeline {
   --lane-label-px: 96px;

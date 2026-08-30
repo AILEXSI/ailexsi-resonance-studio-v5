@@ -69,9 +69,30 @@ export function Transport(props: Props) {
         <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
       </button>
       <TimecodeField playheadMs={props.project.playheadMs} onSeek={props.onSeek} />
-      <span style={{ color: "var(--muted)", fontSize: 12 }}>
-        IN {props.project.inPointMs == null ? "—" : formatTimecode(props.project.inPointMs)} · OUT{" "}
-        {props.project.outPointMs == null ? "—" : formatTimecode(props.project.outPointMs)}
+      <span className="transport-marks">
+        <button
+          type="button"
+          data-testid="goto-in"
+          title="Go to IN"
+          disabled={props.project.inPointMs == null}
+          onClick={() => {
+            if (props.project.inPointMs != null) props.onSeek?.(props.project.inPointMs);
+          }}
+        >
+          IN {props.project.inPointMs == null ? "—" : formatTimecode(props.project.inPointMs)}
+        </button>
+        <span aria-hidden="true">·</span>
+        <button
+          type="button"
+          data-testid="goto-out"
+          title="Go to OUT"
+          disabled={props.project.outPointMs == null}
+          onClick={() => {
+            if (props.project.outPointMs != null) props.onSeek?.(props.project.outPointMs);
+          }}
+        >
+          OUT {props.project.outPointMs == null ? "—" : formatTimecode(props.project.outPointMs)}
+        </button>
       </span>
     </div>
   );

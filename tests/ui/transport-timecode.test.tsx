@@ -156,4 +156,75 @@ describe("Transport jump-to-time (P47)", () => {
     expect(dispatchEditorKey(start, false, { key: " ", formFocus: true }).type).toBe("none");
     expect(dispatchEditorKey(start, false, { key: "s" }).type).toBe("session");
   });
+
+  it("click IN/OUT readout seeks via applyPlayhead; unset is a no-op", () => {
+    const seeks: number[] = [];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = {
+      ...createEmptyProject(),
+      playheadMs: 100,
+      inPointMs: 500,
+      outPointMs: 4000,
+    };
+    act(() => {
+      root!.render(
+        <Transport
+          project={project}
+          playing={false}
+          onPlay={noop}
+          onPause={noop}
+          onStop={noop}
+          onStep={noop}
+          onToggleLoop={noop}
+          onIn={noop}
+          onOut={noop}
+          onClear={noop}
+          onMarker={noop}
+          onSplit={noop}
+          onSeek={(ms) => seeks.push(ms)}
+        />,
+      );
+    });
+    const gotoIn = host.querySelector('[data-testid="goto-in"]') as HTMLButtonElement;
+    const gotoOut = host.querySelector('[data-testid="goto-out"]') as HTMLButtonElement;
+    expect(gotoIn.disabled).toBe(false);
+    expect(gotoOut.disabled).toBe(false);
+    expect(gotoIn.textContent).toContain(formatTimecode(500));
+    act(() => {
+      gotoIn.click();
+    });
+    act(() => {
+      gotoOut.click();
+    });
+    expect(seeks).toEqual([500, 4000]);
+
+    act(() => {
+      root!.render(
+        <Transport
+          project={{ ...createEmptyProject(), playheadMs: 100 }}
+          playing={false}
+          onPlay={noop}
+          onPause={noop}
+          onStop={noop}
+          onStep={noop}
+          onToggleLoop={noop}
+          onIn={noop}
+          onOut={noop}
+          onClear={noop}
+          onMarker={noop}
+          onSplit={noop}
+          onSeek={(ms) => seeks.push(ms)}
+        />,
+      );
+    });
+    expect((host.querySelector('[data-testid="goto-in"]') as HTMLButtonElement).disabled).toBe(true);
+    expect((host.querySelector('[data-testid="goto-out"]') as HTMLButtonElement).disabled).toBe(true);
+    act(() => {
+      (host!.querySelector('[data-testid="goto-in"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="goto-out"]') as HTMLButtonElement).click();
+    });
+    expect(seeks).toEqual([500, 4000]);
+  });
 });
