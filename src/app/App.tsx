@@ -755,8 +755,12 @@ export function App() {
           role="separator"
           aria-orientation="vertical"
           aria-label="Preview und Inspector teilen"
+          title="Preview / Inspector"
+          style={{ cursor: "ew-resize" }}
           onPointerDown={onHSplitPointerDown}
-        />
+        >
+          <span className="layout-split-v-grip" data-testid="layout-split-h-grip" aria-hidden="true" />
+        </div>
         <div
           className="workspace-inspector"
           data-testid="workspace-inspector"
@@ -776,9 +780,12 @@ export function App() {
         role="separator"
         aria-orientation="horizontal"
         aria-label="Preview und Arrange teilen"
+        title="Preview höher / niedriger"
         style={{ cursor: "ns-resize" }}
         onPointerDown={onSplitPointerDown}
-      />
+      >
+        <span className="layout-split-grip" data-testid="layout-split-grip" aria-hidden="true" />
+      </div>
 
       <div
         className="lower-stage"

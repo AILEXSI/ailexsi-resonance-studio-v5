@@ -62,34 +62,35 @@ input[type="range"] { accent-color: var(--accent-2); }
   overflow: hidden;
 }
 .layout-split {
-  flex: 0 0 12px;
+  flex: 0 0 18px;
   cursor: ns-resize;
   touch-action: none;
-  background: var(--panel-2);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  background: #1c2433;
+  border-top: 1px solid #4a5568;
+  border-bottom: 1px solid #4a5568;
   position: relative;
-  z-index: 6;
+  z-index: 8;
 }
-.layout-split::after {
-  content: "";
+.layout-split-grip {
   position: absolute;
   left: 50%;
-  top: 4px;
-  width: 48px;
-  height: 4px;
-  margin-left: -24px;
-  border-radius: 2px;
-  background: #6b778c;
+  top: 50%;
+  width: 72px;
+  height: 8px;
+  margin: -4px 0 0 -36px;
+  border-radius: 4px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px #2a2414;
+  pointer-events: none;
 }
 .layout-split:hover,
 .layout-split:active {
   cursor: ns-resize;
-  background: #2a3344;
+  background: #2d3a50;
 }
-.layout-split:hover::after,
-.layout-split:active::after {
-  background: #c5d0e0;
+.layout-split:hover .layout-split-grip,
+.layout-split:active .layout-split-grip {
+  background: #f0d27a;
 }
 .lower-stage {
   display: flex;
@@ -174,29 +175,35 @@ input[type="range"] { accent-color: var(--accent-2); }
   min-height: 0;
 }
 .layout-split-v {
-  flex: 0 0 8px;
+  flex: 0 0 14px;
   cursor: ew-resize;
   touch-action: none;
-  background: var(--panel-2);
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
+  background: #1c2433;
+  border-left: 1px solid #4a5568;
+  border-right: 1px solid #4a5568;
   position: relative;
-  z-index: 6;
+  z-index: 8;
 }
-.layout-split-v::after {
-  content: "";
+.layout-split-v-grip {
   position: absolute;
   top: 50%;
-  left: 2px;
-  width: 3px;
-  height: 36px;
-  margin-top: -18px;
-  border-radius: 2px;
-  background: #3a4454;
+  left: 50%;
+  width: 8px;
+  height: 72px;
+  margin: -36px 0 0 -4px;
+  border-radius: 4px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px #2a2414;
+  pointer-events: none;
 }
 .layout-split-v:hover,
 .layout-split-v:active {
-  background: #1d2430;
+  cursor: ew-resize;
+  background: #2d3a50;
+}
+.layout-split-v:hover .layout-split-v-grip,
+.layout-split-v:active .layout-split-v-grip {
+  background: #f0d27a;
 }
 .project-overlay {
   position: fixed;

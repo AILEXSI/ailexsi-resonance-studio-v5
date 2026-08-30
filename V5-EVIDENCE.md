@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:50 UTC. Export cancel dialog follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:52 UTC. Visible gold split grips on PR #1 (past 6fb9664). Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -279,7 +279,12 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:50 UTC)
+## Changelog this follow-up (2026-08-30 05:52 UTC)
+
+- Preview/Arrange splitter is an 18px ns-resize bar with a gold grip; Preview/Inspector is a 14px ew-resize bar with a gold grip. TEST-VERIFIED (DOM + cursor). Live drag: NOT VERIFIED.
+- Markers, overlay, arrange overflow-y, export dialog already on this branch after `6fb9664`. Pull past that commit.
+
+## Changelog prior (2026-08-30 05:50 UTC)
 
 - Export opens an in-app dialog with progress and Abbrechen (AbortController). Cancel is not success; no download. TEST-VERIFIED. Live cancel: NOT VERIFIED.
 

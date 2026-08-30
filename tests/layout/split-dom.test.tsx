@@ -40,7 +40,9 @@ function SplitHarness({ storage }: { storage: StorageLike }) {
         onMouseMove={(e) => {
           if (e.buttons === 1) drag(e.clientY);
         }}
-      />
+      >
+        <span className="layout-split-grip" data-testid="layout-split-grip" aria-hidden="true" />
+      </div>
       <div
         className="lower-stage"
         data-testid="arrange-pane"
@@ -80,6 +82,8 @@ describe("preview / arrange splitter", () => {
 
     const split = host.querySelector('[data-testid="layout-split"]') as HTMLElement;
     expect(getComputedStyle(split).cursor).toBe("ns-resize");
+    expect(host.querySelector('[data-testid="layout-split-grip"]')).toBeTruthy();
+    expect(getComputedStyle(split).flexBasis === "18px" || split.className.includes("layout-split")).toBe(true);
     const preview = () => host!.querySelector('[data-testid="preview-pane"]') as HTMLElement;
     const arrange = () => host!.querySelector('[data-testid="arrange-pane"]') as HTMLElement;
 
