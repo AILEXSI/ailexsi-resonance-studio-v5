@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 137 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-6-3iVymv.css 8.28 kB
-- dist/assets/index-Cs0RFzgY.js 630.61 kB
+- dist/assets/index-BdHTjWW8.js 631.23 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
