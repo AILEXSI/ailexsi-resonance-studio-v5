@@ -441,6 +441,15 @@ export function deleteClip(project: Project, clipId: string): Project {
   };
 }
 
+/** End of the last clip on `trackId`, or 0 if that track is empty. */
+export function lastClipEndMsOnTrack(project: Project, trackId: TrackId): number {
+  let end = 0;
+  for (const clip of project.clips) {
+    if (clip.trackId === trackId) end = Math.max(end, clipEndMs(clip));
+  }
+  return end;
+}
+
 export function placeAsset(
   project: Project,
   assetId: string,

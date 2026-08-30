@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { createSession, importFiles } from "../../src/app/session";
 import { classifyFile, importMediaFile, ImportError } from "../../src/core/media";
-import { placeAsset } from "../../src/core/timeline";
+import { clipEndMs } from "../../src/core/models";
+import { createMemoryBlobStore } from "../../src/core/persistence";
 import { createEmptyProject } from "../../src/core/project";
+import { lastClipEndMsOnTrack, placeAsset } from "../../src/core/timeline";
+import { asset, clip, projectWith } from "../helpers";
 
 function fakeFile(name: string, type: string, size = 128): File {
   const bytes = new Uint8Array(size);
@@ -81,3 +85,104 @@ describe("media import", () => {
     expect(result.error).toMatch(/cannot go on A1/);
   });
 });
+
+function probeByName(file: File) {
+  const m = file.name.match(/(\d+)ms/);
+  return Promise.resolve({ durationMs: m ? Number(m[1]) : 1000 });
+}
+
+async function importNamed(session: ReturnType<typeof createSession>, names: string[]) {
+  const files = names.map((name) =>
+    fakeFile(name, name.endsWith(".wav") ? "audio/wav" : "video/mp4", 256),
+  );
+  return importFiles(session, files, probeByName);
+}
+
+describe("import sequential placement", () => {
+  it("lastClipEndMsOnTrack is 0 on an empty track and follows the latest end", () => {
+    const empty = createEmptyProject();
+    expect(lastClipEndMsOnTrack(empty, "V1")).toBe(0);
+    const p = projectWith([
+      clip({ id: "a", assetId: "x", trackId: "V1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "b", assetId: "x", trackId: "V1", startMs: 2500, durationMs: 500 }),
+      clip({ id: "c", assetId: "y", trackId: "A1", startMs: 0, durationMs: 9000 }),
+    ]);
+    expect(lastClipEndMsOnTrack(p, "V1")).toBe(3000);
+    expect(lastClipEndMsOnTrack(p, "A1")).toBe(9000);
+    expect(lastClipEndMsOnTrack(p, "V2")).toBe(0);
+  });
+
+  it("two videos in one import sit end-to-end on V1", async () => {
+    const session = await importNamed(createSession(createMemoryBlobStore()), [
+      "one-1000ms.mp4",
+      "two-2000ms.mp4",
+    ]);
+    const clips = session.project.clips.filter((c) => c.trackId === "V1");
+    expect(clips).toHaveLength(2);
+    expect(clips[0]!.startMs).toBe(0);
+    expect(clips[0]!.durationMs).toBe(1000);
+    expect(clips[1]!.startMs).toBe(1000);
+    expect(clips[1]!.durationMs).toBe(2000);
+    expect(clipEndMs(clips[0]!)).toBe(clips[1]!.startMs);
+    expect(session.project.clips.filter((c) => c.trackId === "V2")).toHaveLength(0);
+  });
+
+  it("two audios in one import sit end-to-end on A1", async () => {
+    const session = await importNamed(createSession(createMemoryBlobStore()), [
+      "a-800ms.wav",
+      "b-400ms.wav",
+    ]);
+    const clips = session.project.clips.filter((c) => c.trackId === "A1");
+    expect(clips).toHaveLength(2);
+    expect(clips[0]!.startMs).toBe(0);
+    expect(clips[1]!.startMs).toBe(800);
+    expect(clipEndMs(clips[0]!)).toBe(clips[1]!.startMs);
+    expect(session.project.clips.filter((c) => c.trackId === "A2")).toHaveLength(0);
+  });
+
+  it("mixed video+audio stay on independent tracks", async () => {
+    const session = await importNamed(createSession(createMemoryBlobStore()), [
+      "v1-1000ms.mp4",
+      "a1-500ms.wav",
+      "v2-300ms.mp4",
+      "a2-200ms.wav",
+    ]);
+    const v = session.project.clips.filter((c) => c.trackId === "V1");
+    const a = session.project.clips.filter((c) => c.trackId === "A1");
+    expect(v.map((c) => [c.startMs, c.durationMs])).toEqual([
+      [0, 1000],
+      [1000, 300],
+    ]);
+    expect(a.map((c) => [c.startMs, c.durationMs])).toEqual([
+      [0, 500],
+      [500, 200],
+    ]);
+    expect(session.project.clips).toHaveLength(4);
+  });
+
+  it("appends after the last existing clip on that track", async () => {
+    let session = createSession(createMemoryBlobStore());
+    session.project = projectWith(
+      [clip({ id: "old", assetId: "kept", trackId: "V1", startMs: 200, durationMs: 800 })],
+      [asset({ id: "kept", kind: "video", durationMs: 800, missing: true })],
+    );
+    const oldStart = session.project.clips[0]!.startMs;
+    session = await importNamed(session, ["new-500ms.mp4"]);
+    const clips = session.project.clips.filter((c) => c.trackId === "V1");
+    expect(clips).toHaveLength(2);
+    const kept = clips.find((c) => c.id === "old")!;
+    const added = clips.find((c) => c.id !== "old")!;
+    expect(kept.startMs).toBe(oldStart);
+    expect(added.startMs).toBe(1000);
+    expect(clipEndMs(kept)).toBe(added.startMs);
+  });
+
+  it("single file on an empty track starts at 0", async () => {
+    const session = await importNamed(createSession(createMemoryBlobStore()), ["solo-1500ms.wav"]);
+    expect(session.project.clips).toHaveLength(1);
+    expect(session.project.clips[0]!.trackId).toBe("A1");
+    expect(session.project.clips[0]!.startMs).toBe(0);
+    expect(session.project.clips[0]!.durationMs).toBe(1500);
+  });
+});
+

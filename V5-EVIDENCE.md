@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 03:59 UTC. Commands and observations below are from this run only.
+Stand: 2026-08-30 04:05 UTC. Sequential-import follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 134 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-BqKW0e4x.css 8.00 kB
-- dist/assets/index-aYb5mCCW.js 628.13 kB
+- dist/assets/index-Dj5DKiIV.js 628.21 kB (this follow-up `npx vite build`, exit 0, 134 modules)
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -45,12 +45,18 @@ Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed buil
 Status: TEST-VERIFIED
 
 ```
+npx tsc --noEmit
+```
+
+exit 0 (this follow-up).
+
+```
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. 71 passed / 8 files. Start 03:59:55 UTC. Duration 1.38s.
+exit 0. vitest 3.2.7. **77 passed / 8 files**. Start 04:05:52 UTC. Duration 1.39s.
 
-Files: timeline 18, user-fixtures 2, visualizer 17, persistence 6, import 5, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -73,15 +79,22 @@ UI click-cycle this run: see UI chrome (VIS button only).
 
 ## Import
 
-Status: TEST-VERIFIED
+Status: TEST-VERIFIED (sequential place). Multi-file picker UI: NOT VERIFIED.
 
-`tests/media/import.test.ts`:
-- text/png throw `ImportError` WRONG_TYPE (message matches /only audio and video/)
+`importFiles` now places each new clip at `lastClipEndMsOnTrack` for the matching track (V1 or A1 unless the session target is already V2/A2). Same-kind files in one import sit end-to-end. Mixed picker: videos sequential on video track(s), audio sequential on audio track(s). Existing clips are not moved; new clips append after the last end on that track. Empty track → start 0. Media-browser Place-at-playhead is unchanged.
+
+`tests/media/import.test.ts` (11):
+- text/png throw `ImportError` WRONG_TYPE
 - wav → audio, mp4 → video
 - place video on V1 and V2, audio on A1 and A2
 - video on A1 rejected
+- two videos sequential on V1 (0 then 1000)
+- two audios sequential on A1
+- mixed video+audio independent tracks
+- append after an existing V1 clip (start 200 dur 800 → new at 1000; old start unchanged)
+- single file on empty A1 starts at 0
 
-No live file-picker click this run.
+No live multi-file picker this follow-up.
 
 ## Timeline
 
@@ -174,14 +187,19 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
+## Changelog this follow-up (2026-08-30 04:05 UTC)
+
+- Sequential multi-file Import: end-to-end on matching track. TEST-VERIFIED (5 cases).
+- Multi-file picker UI: NOT VERIFIED.
+
 ## Commits on this branch (tip)
 
+See git log after sequential-import commits. Prior tip included:
+
 ```
+b824fc6 docs(v5): rewrite V5-EVIDENCE from this verification run
 d552d82 test(v5): paint VIS pixels and close persist/import holes
 51d93dc feat(v5): Windows Start-V5.cmd app launcher
-ebff927 test(v5): fix Visualz engine types and synthetic spectrum assert
-a2770e9 test(v5): cover six Visualz scene ids and cycle
-47f3ef7 feat(v5): vendor Visualz engine and six VIS scenes
 ```
 
 ## Not added

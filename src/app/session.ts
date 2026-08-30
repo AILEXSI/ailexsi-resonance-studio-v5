@@ -18,6 +18,7 @@ import {
   maybeScrollToOrigin,
   moveClip,
   moveInOut,
+  lastClipEndMsOnTrack,
   placeAsset,
   pushHistory,
   redo as redoHistory,
@@ -113,7 +114,7 @@ export async function importFiles(
         projectWithAsset,
         asset.id,
         preferred,
-        next.project.playheadMs,
+        lastClipEndMsOnTrack(projectWithAsset, preferred),
       );
       if (placed.error || !placed.clip) {
         errors.push(placed.error ?? "Place failed");
