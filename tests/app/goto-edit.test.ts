@@ -137,4 +137,42 @@ describe("goto next/prev edit", () => {
     };
     expect(walkNext(withVis)).toEqual([500, 1000, 2000, 3000, 4500]);
   });
+
+  it("CutStrip/Arrow path visits VIS events and fadeBlack window ends (P55)", () => {
+    const start = editFixture();
+    const withCuts = {
+      ...start,
+      project: {
+        ...start.project,
+        visualizer: {
+          ...start.project.visualizer,
+          events: [
+            {
+              id: "e1",
+              sceneId: start.project.visualizer.sceneId,
+              startMs: 400,
+              durationMs: 800,
+            },
+          ],
+        },
+        transitions: [
+          {
+            id: "t1",
+            type: "fadeBlack" as const,
+            startMs: 3000,
+            durationMs: 600,
+            sourceAClipId: "c1",
+            sourceBClipId: "c2",
+            audio: "cut" as const,
+            audioMode: "cut" as const,
+            audioDurationMs: 250,
+          },
+        ],
+      },
+    };
+    expect(collectEditPoints(withCuts.project)).toEqual([
+      0, 400, 1000, 1200, 2000, 3000, 3250, 3600, 4500,
+    ]);
+    expect(walkNext(withCuts)).toEqual([400, 1000, 1200, 2000, 3000, 3250, 3600, 4500]);
+  });
 });

@@ -120,6 +120,22 @@ describe("Cutter cut strip", () => {
     expect(currentCutTickMs(project)).toBe(1000);
   });
 
+  it("ticks include VIS event edges (same collectEditPoints as ArrowUp/Down)", () => {
+    const project = {
+      ...mappedProject(),
+      visualizer: {
+        ...mappedProject().visualizer,
+        events: [
+          { id: "e1", sceneId: mappedProject().visualizer.sceneId, startMs: 1500, durationMs: 500 },
+        ],
+      },
+    };
+    expect(collectEditPoints(project)).toEqual([0, 200, 1000, 1500, 2000, 3000, 4500]);
+    render(<Cutter project={project} selectedClipId={null} selectedClipIds={[]} apply={() => {}} />);
+    const ticks = [...host!.querySelectorAll("[data-testid=cut-strip-tick]")];
+    expect(ticks.map((el) => Number(el.getAttribute("data-ms")))).toEqual(collectEditPoints(project));
+  });
+
   it("tick offset uses the live lane label width", () => {
     const project = { ...mappedProject(), zoomPxPerSec: 80, scrollMs: 0 };
     render(

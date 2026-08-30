@@ -737,7 +737,12 @@ export function collectVisEventSnapTargets(
   return targets;
 }
 
-/** Deduped clip/marker/IN/OUT/VIS-window times. durationMs<=0 VIS covers the whole timeline and is not a stop. */
+/**
+ * Deduped cut-list for CutStrip + ArrowUp/Down.
+ * Clip edges, markers, IN/OUT, finite VIS window, VIS events, stored
+ * fadeBlack/fadeWhite/crossfade/cut windows (video + audio duration ends).
+ * durationMs<=0 VIS covers the whole timeline and is not a stop.
+ */
 export function collectEditPoints(project: Project): number[] {
   const times = new Set<number>();
   for (const clip of project.clips) {
@@ -754,6 +759,16 @@ export function collectEditPoints(project: Project): number[] {
     const visStart = Math.max(0, project.visualizer.startMs ?? 0);
     times.add(visStart);
     times.add(visStart + visDur);
+  }
+  for (const event of visualizerEventsOf(project)) {
+    times.add(event.startMs);
+    times.add(event.startMs + Math.max(0, event.durationMs));
+  }
+  for (const t of project.transitions ?? []) {
+    times.add(t.startMs);
+    if (t.durationMs > 0) times.add(t.startMs + t.durationMs);
+    const audioDur = t.audioDurationMs ?? 0;
+    if (audioDur > 0) times.add(t.startMs + audioDur);
   }
   return [...times].filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
 }
