@@ -100,6 +100,19 @@ describe("applyCommand determinism", () => {
     expect(next.selectedClipId).toBeNull();
   });
 
+  it("ripple-delete refuses to pack a later locked clip (P128)", () => {
+    const start = twoClipSession();
+    start.project = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "c2" ? { ...c, locked: true } : c)),
+    };
+    const blocked = applyCommand(start, { type: "rippleDelete" });
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(blocked.history.past.length).toBe(start.history.past.length);
+  });
+
   it("undo restores a ripple delete", () => {
     const start = twoClipSession();
     const deleted = applyCommand(start, { type: "rippleDelete" });

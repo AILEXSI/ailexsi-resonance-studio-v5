@@ -292,6 +292,37 @@ describe("clip lock (P53)", () => {
     expect(blocked.history.past.length).toBe(start.history.past.length);
   });
 
+  it("rippleDelete refuses to pack a later locked clip (P128)", () => {
+    const start = clipSession();
+    start.project = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 1000,
+        }),
+        clip({
+          id: "wall",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 1000,
+          durationMs: 500,
+          locked: true,
+        }),
+      ],
+      [asset({ id: "va", kind: "video", durationMs: 4000 })],
+    );
+    start.selectedClipId = "c1";
+    start.selectedClipIds = ["c1"];
+    const blocked = applyCommand(start, { type: "rippleDelete" });
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project.clips.find((c) => c.id === "c1")?.startMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "wall")?.startMs).toBe(1000);
+    expect(blocked.history.past.length).toBe(start.history.past.length);
+  });
+
   it("setClipsLocked writes history and undo restores", () => {
     const start = clipSession();
     const viaCommand = applyCommand(start, { type: "setClipsLocked", locked: true });

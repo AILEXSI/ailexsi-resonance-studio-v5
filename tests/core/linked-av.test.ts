@@ -5,7 +5,7 @@ import { audioClipsForMix, jobFromProject, mixWindowsForClip, presentLinkedAudio
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
 import { vClipMixesOwnAudio } from "../../src/core/link";
-import { moveClip, rippleTrimClip, rollEdit, setClipFades, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, rippleDeleteClip, rippleTrimClip, rollEdit, setClipFades, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -867,6 +867,30 @@ describe("linked A/V", () => {
     expect(viaCommand.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
     expect(viaCommand.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
     expect(viaCommand.selectedClipId).toBe("a1");
+  });
+
+  it("ripple-delete of a pair refuses when a later locked clip sits on the mate track (P128)", () => {
+    const start = linkedPair();
+    const project = {
+      ...start.project,
+      clips: [
+        ...start.project.clips,
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 500,
+          locked: true,
+        }),
+      ],
+    };
+    const blocked = rippleDeleteClip(project, "v1");
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project).toBe(project);
+    expect(blocked.project.clips.find((c) => c.id === "v1")).toBeDefined();
+    expect(blocked.project.clips.find((c) => c.id === "a1")).toBeDefined();
+    expect(blocked.project.clips.find((c) => c.id === "a2")!.startMs).toBe(2000);
   });
 
   it("setClipFades on an unlocked clip skips a locked mate (P123)", () => {

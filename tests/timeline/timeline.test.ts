@@ -311,9 +311,57 @@ describe("ripple delete", () => {
       [a],
     );
     const next = rippleDeleteClip(p, "c1");
-    expect(next.clips.find((c) => c.id === "c1")).toBeUndefined();
-    expect(next.clips.find((c) => c.id === "c2")!.startMs).toBe(0);
-    expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+
+  it("refuses to pack a later locked clip (P128)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 2000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({
+          id: "wall",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 500,
+          locked: true,
+        }),
+      ],
+      [a],
+    );
+    const blocked = rippleDeleteClip(p, "c1");
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project).toBe(p);
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "wall")!.startMs).toBe(1000);
+  });
+
+  it("still ripple-deletes when a locked clip is earlier on the track", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 3000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "parked",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 500,
+          locked: true,
+        }),
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 800, durationMs: 400 }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 1200, durationMs: 400 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClip(p, "c1");
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "parked")!.startMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
   });
 });
 
@@ -450,10 +498,11 @@ describe("group move / delete", () => {
       [a],
     );
     const next = rippleDeleteClips(p, ["c1", "c2"]);
-    expect(next.clips.find((c) => c.id === "c1")).toBeUndefined();
-    expect(next.clips.find((c) => c.id === "c2")).toBeUndefined();
-    expect(next.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
-    expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c2")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
+    expect(next.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
   });
 });
 

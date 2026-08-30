@@ -427,8 +427,13 @@ export function deleteClips(project: Project, clipIds: readonly string[]): Proje
 /**
  * Ripple-delete many clips. Per track, later clips first so earlier
  * ripple shifts do not invalidate later selected starts.
+ * A locked later clip on any affected track refuses the whole edit
+ * (same wall as ripple-trim / G / extract).
  */
-export function rippleDeleteClips(project: Project, clipIds: readonly string[]): Project {
+export function rippleDeleteClips(
+  project: Project,
+  clipIds: readonly string[],
+): { project: Project; error?: string } {
   const selected = expandLinkedClipIds(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
@@ -438,9 +443,12 @@ export function rippleDeleteClips(project: Project, clipIds: readonly string[]):
   });
   let next = project;
   for (const clip of order) {
-    next = rippleDeleteClip(next, clip.id);
+    if (!clipById(next, clip.id)) continue;
+    const step = rippleDeleteClip(next, clip.id);
+    if (step.error) return { project, error: step.error };
+    next = step.project;
   }
-  return next;
+  return { project: next };
 }
 
 /**
@@ -1682,31 +1690,52 @@ export function deleteClip(project: Project, clipId: string): Project {
 
 /**
  * Lift the clip, then shift later clips on the same track left by its duration.
- * Other tracks are unchanged.
+ * Other tracks are unchanged. A locked later clip is a wall — refuse
+ * (same as ripple-trim / closeGap / extract). Deleting the clip itself
+ * is still allowed even when it is locked.
  */
-function rippleDeleteOne(project: Project, clipId: string): Project {
+function rippleDeleteOne(
+  project: Project,
+  clipId: string,
+): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
-  if (!clip) return project;
+  if (!clip) return { project };
   const shift = clip.durationMs;
   const cutoff = clip.startMs;
   const trackId = clip.trackId;
+  const laterLocked = project.clips.some(
+    (c) =>
+      c.id !== clipId &&
+      c.trackId === trackId &&
+      c.startMs + ABUT_TOLERANCE_MS >= cutoff &&
+      clipIsLocked(c),
+  );
+  if (laterLocked) return { project, error: "Clip is locked" };
   return {
-    ...project,
-    clips: project.clips
-      .filter((c) => c.id !== clipId)
-      .map((c) => {
-        if (c.trackId !== trackId || c.startMs < cutoff) return c;
-        return { ...c, startMs: clampStartMs(c.startMs - shift) };
-      }),
-    updatedAt: new Date().toISOString(),
+    project: {
+      ...project,
+      clips: project.clips
+        .filter((c) => c.id !== clipId)
+        .map((c) => {
+          if (c.trackId !== trackId || c.startMs < cutoff) return c;
+          return { ...c, startMs: clampStartMs(c.startMs - shift) };
+        }),
+      updatedAt: new Date().toISOString(),
+    },
   };
 }
 
-export function rippleDeleteClip(project: Project, clipId: string): Project {
+export function rippleDeleteClip(
+  project: Project,
+  clipId: string,
+): { project: Project; error?: string } {
   const mate = livingLinkedMate(project, clipId);
-  let next = rippleDeleteOne(project, clipId);
-  if (mate) next = rippleDeleteOne(next, mate.id);
-  return next;
+  const one = rippleDeleteOne(project, clipId);
+  if (one.error) return one;
+  if (!mate || !clipById(one.project, mate.id)) return one;
+  const two = rippleDeleteOne(one.project, mate.id);
+  if (two.error) return { project, error: two.error };
+  return two;
 }
 
 /** End of the last clip on `trackId`, or 0 if that track is empty. */

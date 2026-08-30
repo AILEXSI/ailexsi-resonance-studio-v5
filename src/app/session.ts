@@ -1124,7 +1124,9 @@ export function applyRippleDelete(session: Session): Session {
   const ids = selectionOf(session);
   if (ids.length > 0) {
     const next = rippleDeleteClips(session.project, ids);
-    return withClipSelection(withHistory(session, next, "Ripple deleted"), []);
+    if (next.error) return { ...session, error: next.error };
+    if (next.project === session.project) return session;
+    return withClipSelection(withHistory(session, next.project, "Ripple deleted"), []);
   }
   if (session.selectedVisEventId) return applyDelete(session);
   if (editRangeOf(session.project)) return applyExtractRange(session);

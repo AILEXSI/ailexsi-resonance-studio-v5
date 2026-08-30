@@ -113,7 +113,8 @@ export interface Clip {
   enabled?: boolean;
   /**
    * True = skip move, trim, slip, rate, roll/slide/ripple-trim-of-mate,
-   * relocate-duplicate, drag, and relink shrink of duration/sourceOut.
+   * relocate-duplicate, drag, relink shrink of duration/sourceOut, and
+   * ripple-delete packing through a locked later clip.
    * Missing = unlocked (same pattern as enabled).
    * Independent of linkId — locking one side of an A/V pair does not lock the mate.
    */
