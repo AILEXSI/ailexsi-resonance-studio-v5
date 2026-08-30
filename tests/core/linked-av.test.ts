@@ -62,6 +62,40 @@ describe("linked A/V", () => {
     expect(after.map((c) => c.id).sort()).toEqual(["a1", "v1"]);
   });
 
+  it("export mix skips V audio when the linked A clip is disabled or its track is muted (P113)", () => {
+    const start = linkedPair();
+    const disabled = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+    };
+    expect(audioClipsForMix(jobFromProject(disabled)).map((c) => c.id)).toEqual([]);
+    expect(jobFromProject(disabled).tracks.find((t) => t.id === "V1")!.clips[0]!.skipMix).toBe(true);
+
+    const mutedA = {
+      ...start.project,
+      tracks: start.project.tracks.map((t) => (t.id === "A1" ? { ...t, muted: true } : t)),
+    };
+    const mutedMix = audioClipsForMix(jobFromProject(mutedA));
+    expect(mutedMix.map((c) => c.id)).toEqual([]);
+    expect(jobFromProject(mutedA).tracks.find((t) => t.id === "A1")!.clips).toEqual([]);
+
+    const missingAsset = {
+      ...start.project,
+      assets: [
+        start.project.assets[0]!,
+        asset({
+          id: "aa-miss",
+          kind: "audio",
+          durationMs: 2000,
+          name: "gone.wav",
+          missing: true,
+        }),
+      ],
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, assetId: "aa-miss" } : c)),
+    };
+    expect(audioClipsForMix(jobFromProject(missingAsset)).map((c) => c.id)).toEqual([]);
+  });
+
   it("split at the same time cuts both and keeps each half-pair linked", () => {
     const start = linkedPair();
     const split = splitClipAt(start.project, "v1", 1000);

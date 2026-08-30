@@ -23,6 +23,8 @@ export interface ExportClip {
   linkId?: string;
   /** Image asset on a video lane — picture only, no decode/mix. */
   still?: boolean;
+  /** True when a living linked A mate (enabled, disabled, or muted) carries the sound. */
+  skipMix?: boolean;
 }
 
 export interface ExportTrack {

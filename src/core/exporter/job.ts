@@ -8,6 +8,7 @@ import {
   sourceTimeAt,
   type Project,
 } from "../models";
+import { vClipMixesOwnAudio } from "../link";
 import { clampPan, mixLinearGain } from "../volume";
 import { exportRangeMs } from "../timeline";
 import {
@@ -79,6 +80,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           label: asset?.name ?? c.id,
           linkId: c.linkId,
           still: asset?.kind === "image",
+          skipMix: !vClipMixesOwnAudio(project, c),
         };
       });
     return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips };
@@ -176,7 +178,7 @@ export function audioClipsForMix(job: ExportJob): ExportClip[] {
     clips.filter((c) => c.kind === "audio" && c.linkId).map((c) => c.linkId as string),
   );
   return clips.filter((c) => {
-    if (c.still) return false;
+    if (c.still || c.skipMix) return false;
     if (c.kind === "video" && c.linkId && livingAudioLinks.has(c.linkId)) return false;
     return true;
   });
