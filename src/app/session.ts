@@ -1348,7 +1348,10 @@ export function applySelectAllOnTrack(session: Session): Session {
 
 export function applySelectMarker(session: Session, markerId: string | null): Session {
   if (markerId) {
-    return { ...withClipSelection(session, []), selectedMarkerId: markerId };
+    const marker = session.project.markers.find((m) => m.id === markerId);
+    const selected = { ...withClipSelection(session, []), selectedMarkerId: markerId };
+    if (!marker) return selected;
+    return applyPlayhead(selected, marker.timeMs);
   }
   return { ...session, selectedMarkerId: null };
 }

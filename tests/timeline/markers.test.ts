@@ -36,6 +36,18 @@ function sessionWithMarkers() {
 }
 
 describe("markers", () => {
+  it("selecting a marker seeks the playhead to that mark (P50)", () => {
+    const { session, m2 } = sessionWithMarkers();
+    expect(session.project.playheadMs).toBe(0);
+    const atM2 = applySelectMarker(session, m2.id);
+    expect(atM2.selectedMarkerId).toBe(m2.id);
+    expect(atM2.project.playheadMs).toBe(m2.timeMs);
+    expect(atM2.selectedClipId).toBeNull();
+    const cleared = applySelectMarker(atM2, null);
+    expect(cleared.selectedMarkerId).toBeNull();
+    expect(cleared.project.playheadMs).toBe(m2.timeMs);
+  });
+
   it("drag / moveMarker changes that marker time and keeps the rest", () => {
     const { session, m1, m2 } = sessionWithMarkers();
     const moved = moveMarker(session.project, m1.id, 1800);
