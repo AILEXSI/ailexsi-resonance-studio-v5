@@ -241,6 +241,7 @@ export function rippleTrimClip(
   const before = clipById(project, clipId);
   if (!before) return { project, error: "Clip not found" };
   if (clipIsLocked(before)) return { project, error: "Clip is locked" };
+  if (!clipIsEnabled(before)) return { project, error: "Clip is disabled" };
   const liveMate = editableLinkedMate(project, clipId);
   const laterLocked = project.clips.some((c) => {
     if (c.id === clipId || c.id === liveMate?.id) return false;

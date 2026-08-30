@@ -532,6 +532,18 @@ describe("ripple trim", () => {
     expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
     expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1800);
   });
+
+  it("does not ripple-trim a disabled clip or pack later enabled (P148)", () => {
+    const p = {
+      ...abuttingA1(),
+      clips: abuttingA1().clips.map((c) => (c.id === "c1" ? { ...c, enabled: false } : c)),
+    };
+    const next = rippleTrimClip(p, "c1", "out", 800);
+    expect(next.error).toMatch(/disabled/i);
+    expect(next.project).toBe(p);
+    expect(next.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
 });
 
 describe("group move / delete", () => {
