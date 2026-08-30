@@ -25,6 +25,7 @@ interface Props {
   projectName?: string;
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
+  onToggleShortcuts?: () => void;
 }
 
 export function Toolbar({
@@ -50,6 +51,7 @@ export function Toolbar({
   projectName = "Untitled Resonance",
   onRenameProject,
   projectDirty = false,
+  onToggleShortcuts,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -145,6 +147,15 @@ export function Toolbar({
         </button>
         <button type="button" className={snap ? "active" : ""} onClick={onToggleSnap}>
           Snap
+        </button>
+        <button
+          type="button"
+          data-testid="shortcuts-help"
+          title="Shortcuts (?)"
+          onClick={() => onToggleShortcuts?.()}
+        >
+          Help
+          <kbd className="btn-kbd">?</kbd>
         </button>
       </div>
       <div className="toolbar-brand">

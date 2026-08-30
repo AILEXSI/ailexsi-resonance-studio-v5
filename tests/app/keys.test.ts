@@ -507,6 +507,16 @@ describe("editor keys", () => {
     if (cut.type === "session") expect(cut.session.status).toBe("Cut clip");
   });
 
+  it("? toggles the existing shortcuts sheet and does not split", () => {
+    const start = clipSession();
+    expect(dispatchEditorKey(start, false, { key: "?" })).toEqual({
+      type: "toggleShortcuts",
+      preventDefault: true,
+    });
+    expect(start.project.clips).toHaveLength(1);
+    expect(dispatchEditorKey(start, false, { key: "?", formFocus: true }).type).toBe("none");
+  });
+
   it("Tab cycles screens; Shift+Tab reverses; form focus does not cycle", () => {
     const start = clipSession();
     const tab = dispatchEditorKey(start, false, { key: "Tab" });
