@@ -123,6 +123,7 @@ describe("project persist + reload", () => {
         sourceBClipId: "v2",
         audioMode: "keepA",
         audioDurationMs: 400,
+        source: "auto",
       },
     ];
     const loaded = deserializeProject(serializeProject(p));

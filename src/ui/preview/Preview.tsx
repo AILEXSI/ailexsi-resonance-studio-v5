@@ -18,7 +18,9 @@ import { gainAtClipTime, videoAlphaAtClipTime } from "../../core/fades";
 import {
   compositeVideoAt,
   contextFromProject,
+  formatResolvedSource,
   primaryLayer,
+  resolvePictureSource,
   transitionAudioGain,
 } from "../../core/transition";
 import { mixLinearGain } from "../../core/volume";
@@ -49,11 +51,15 @@ export function Preview({ project, playing, onLevels }: Props) {
   const lastPlayheadRef = useRef(project.playheadMs);
   const tapRef = useRef<PlaybackTap | null>(null);
 
-  const composite = compositeVideoAt(contextFromProject(project), project.playheadMs);
+  const pictureCtx = contextFromProject(project);
+  const composite = compositeVideoAt(pictureCtx, project.playheadMs);
+  const picture = resolvePictureSource(pictureCtx, project.playheadMs);
+  const hideVideo = picture.source === "vis" || picture.source === "black";
   const primary = primaryLayer(composite);
-  const videoClip =
-    (primary ? clipById(project, primary.clipId) : undefined) ??
-    topVideoClipAt(project, project.playheadMs);
+  const videoClip = hideVideo
+    ? undefined
+    : (primary ? clipById(project, primary.clipId) : undefined) ??
+      topVideoClipAt(project, project.playheadMs);
   const layerA = primary && videoClip && primary.clipId === videoClip.id ? primary.alpha : 1;
   const videoAsset = videoClip
     ? project.assets.find((a) => a.id === videoClip.assetId)
@@ -224,7 +230,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     return () => ro.disconnect();
   }, [showViz, project]);
 
-  const activeLabel = showViz ? "VIS" : videoClip ? videoClip.trackId : "—";
+  const activeLabel = formatResolvedSource(picture);
 
   return (
     <section className="preview-wrap" data-testid="preview">

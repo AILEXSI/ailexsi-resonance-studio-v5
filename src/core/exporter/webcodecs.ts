@@ -10,7 +10,9 @@ import {
   compositeVideoAt,
   contextFromExportClips,
   layerAlpha,
+  resolvePictureSource,
 } from "../transition";
+import { exportVisOf } from "./job";
 
 export { compositeVideoAt as exportComposite } from "../transition";
 import {
@@ -18,7 +20,6 @@ import {
   renderVisualizerScene,
   visualizerEventAt,
   visualizerEventsOf,
-  visWindowCovers,
 } from "../visualizer";
 
 const AVC_CODEC = "avc1.42001f";
@@ -59,10 +60,14 @@ function clearCanvas(ctx: CanvasRenderingContext2D, width: number, height: numbe
   ctx.fillRect(0, 0, width, height);
 }
 
-function jobComposite(job: ExportJob, timeMs: number) {
+function exportPictureCtx(job: ExportJob) {
   const clips = job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
   const front = job.frontVideoTrackId === "V1" ? "V1" : "V2";
-  return compositeVideoAt(contextFromExportClips(clips, job.transitions ?? [], front), timeMs);
+  return contextFromExportClips(clips, job.transitions ?? [], front, exportVisOf(job));
+}
+
+function jobComposite(job: ExportJob, timeMs: number) {
+  return compositeVideoAt(exportPictureCtx(job), timeMs);
 }
 
 function paintTransitionPlate(
@@ -101,13 +106,12 @@ function paintVisualizer(
   job: ExportJob,
   timeMs: number,
   dt: number,
-  overVideo = false,
 ): void {
-  if (!job.visualizer.enabled || job.visualizer.muted) return;
+  if (resolvePictureSource(exportPictureCtx(job), timeMs).kind !== "vis") return;
   const covering = visualizerEventAt(job.visualizer, timeMs);
   const sceneId = covering
     ? covering.sceneId
-    : !overVideo && visualizerEventsOf(job.visualizer).length === 0 && visWindowCovers(job.visualizer, timeMs)
+    : visualizerEventsOf(job.visualizer).length === 0
       ? job.visualizer.sceneId
       : undefined;
   if (!sceneId) return;
@@ -284,7 +288,7 @@ export async function exportWithWebCodecs(
 
   const encodeCanvas = async (i: number) => {
     const timeMs = (i / job.fps) * 1000;
-    paintVisualizer(ctx, job, timeMs, dt, true);
+    paintVisualizer(ctx, job, timeMs, dt);
     await waitForQueue();
     const frame = new VideoFrame(canvas, {
       timestamp: i * frameDurUs,

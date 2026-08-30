@@ -15,11 +15,15 @@ import { canShowRelink } from "../../core/relink";
 import {
   TRANSITION_AUDIO_MODES,
   TRANSITION_TYPES,
+  editPairAt,
   findTransitionForPair,
   resolveEditPair,
+  transitionAt,
+  transitionSourceOf,
   type TransitionAudioMode,
   type TransitionType,
 } from "../../core/transition";
+import { SourceButtons } from "../cutter/SourceButtons";
 
 interface Props {
   project: Project;
@@ -32,7 +36,9 @@ interface Props {
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
   onRelink?: () => void;
-  onTransition?: (cmd: Extract<EditorCommand, { type: "setTransition" }>) => void;
+  onTransition?: (
+    cmd: Extract<EditorCommand, { type: "setTransition" } | { type: "setTransitionSource" }>,
+  ) => void;
   onVisualizer?: (
     patch: Partial<{ sceneId: VisualizerSceneId; startMs: number; durationMs: number }>,
   ) => void;
@@ -96,10 +102,11 @@ export function Inspector({
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
   const unlinkId = firstClipIdWithLivingMate(project, ids);
   const showRelink = !selectedVis && canShowRelink(project, ids);
-  const pair = resolveEditPair(project, ids);
+  const pair = resolveEditPair(project, ids) ?? editPairAt(project, project.playheadMs);
   const stored = pair
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
-    : undefined;
+    : transitionAt(project.transitions ?? [], project.playheadMs);
+  const source = transitionSourceOf(stored);
   const vis = project.visualizer;
   const visEvent = selectedVisEventId
     ? (vis.events ?? []).find((e) => e.id === selectedVisEventId)
@@ -111,6 +118,11 @@ export function Inspector({
   return (
     <aside className="panel inspector" data-testid="inspector">
       <h2>Inspector</h2>
+      <SourceButtons
+        value={source}
+        testIdPrefix="inspector"
+        onPick={(next) => onTransition?.({ type: "setTransitionSource", source: next })}
+      />
       {selectedVis ? (
         <dl data-testid="inspector-vis">
           <Field label="VIS scene">

@@ -3,10 +3,14 @@ import type { TransitionAudioMode, TransitionType } from "../../core/transition"
 import {
   TRANSITION_AUDIO_MODES,
   TRANSITION_TYPES,
+  editPairAt,
   findTransitionForPair,
   resolveEditPair,
+  transitionAt,
+  transitionSourceOf,
 } from "../../core/transition";
 import type { Project } from "../../core/models";
+import { SourceButtons } from "./SourceButtons";
 
 function assetLabel(project: Project, assetId: string): string {
   return project.assets.find((a) => a.id === assetId)?.name ?? assetId;
@@ -23,18 +27,26 @@ export function Cutter({
   selectedClipIds: string[];
   apply: (cmd: EditorCommand) => void;
 }) {
-  const pair = resolveEditPair(project, selectedClipIds.length ? selectedClipIds : selectedClipId ? [selectedClipId] : []);
+  const pair =
+    resolveEditPair(project, selectedClipIds.length ? selectedClipIds : selectedClipId ? [selectedClipId] : []) ??
+    editPairAt(project, project.playheadMs);
   const stored = pair
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
-    : undefined;
+    : transitionAt(project.transitions ?? [], project.playheadMs);
   const type: TransitionType = stored?.type ?? "cut";
   const durationMs = stored?.durationMs ?? (pair ? Math.max(1, pair.overlapDurationMs) : 0);
   const audioMode: TransitionAudioMode = stored?.audioMode ?? "cut";
   const audioDurationMs = stored?.audioDurationMs ?? durationMs;
+  const source = transitionSourceOf(stored);
 
   return (
     <div className="cutter cutter-strip" data-testid="cutter">
       <div className="cutter-title">Cutter</div>
+      <SourceButtons
+        value={source}
+        testIdPrefix="cutter"
+        onPick={(next) => apply({ type: "setTransitionSource", source: next })}
+      />
       {!pair ? (
         <div className="cutter-empty" data-testid="cutter-empty">
           No edit. Select a clip that overlaps another video track.

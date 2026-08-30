@@ -4,6 +4,7 @@ import {
   TRACK_IDS,
   clipById,
   clipEndMs,
+  isTrackAudible,
   kindOfTrack,
   type Clip,
   type FrontVideoTrackId,
@@ -17,6 +18,9 @@ export type TransitionType = (typeof TRANSITION_TYPES)[number];
 export const TRANSITION_AUDIO_MODES = ["cut", "crossfade", "keepA", "keepB"] as const;
 export type TransitionAudioMode = (typeof TRANSITION_AUDIO_MODES)[number];
 
+export const TRANSITION_SOURCES = ["auto", "vis", "V1", "V2", "black"] as const;
+export type TransitionSource = (typeof TRANSITION_SOURCES)[number];
+
 export interface Transition {
   id: string;
   type: TransitionType;
@@ -26,6 +30,8 @@ export interface Transition {
   sourceBClipId: string;
   audioMode: TransitionAudioMode;
   audioDurationMs: number;
+  /** Picture override for this edit window. Missing = auto. */
+  source?: TransitionSource;
 }
 
 export interface EditPair {
@@ -52,11 +58,31 @@ export interface CompositeClip {
   endMs: number;
 }
 
+export interface CompositeVis {
+  enabled: boolean;
+  muted: boolean;
+  events: { startMs: number; durationMs: number }[];
+  startMs: number;
+  durationMs: number;
+}
+
 export interface CompositeContext {
   clips: CompositeClip[];
   transitions: Transition[];
   /** Which video track covers on overlap / cut. Default V2. */
   frontVideoTrackId?: FrontVideoTrackId;
+  mutedTrackIds?: TrackId[];
+  vis?: CompositeVis;
+}
+
+export type PictureKind = "vis" | "V1" | "V2" | "black";
+
+export interface ResolvedPicture {
+  /** Configured override, or auto when none. */
+  source: TransitionSource;
+  /** AUTO-resolved or explicit result. */
+  kind: PictureKind;
+  clipId?: string;
 }
 
 export function isTransitionType(value: unknown): value is TransitionType {
@@ -65,6 +91,20 @@ export function isTransitionType(value: unknown): value is TransitionType {
 
 export function isTransitionAudioMode(value: unknown): value is TransitionAudioMode {
   return typeof value === "string" && (TRANSITION_AUDIO_MODES as readonly string[]).includes(value);
+}
+
+export function isTransitionSource(value: unknown): value is TransitionSource {
+  return typeof value === "string" && (TRANSITION_SOURCES as readonly string[]).includes(value);
+}
+
+export function transitionSourceOf(t: Transition | undefined): TransitionSource {
+  return t?.source && isTransitionSource(t.source) ? t.source : "auto";
+}
+
+export function formatResolvedSource(picture: ResolvedPicture): string {
+  const name = picture.kind === "vis" ? "VIS" : picture.kind === "black" ? "BLACK" : picture.kind;
+  if (picture.source === "auto") return `AUTO→${name}`;
+  return name;
 }
 
 export function clipsOverlapMs(a: { startMs: number; durationMs?: number; endMs?: number }, b: {
@@ -193,14 +233,50 @@ export function transitionAt(transitions: readonly Transition[], timeMs: number)
   return transitions.find((t) => transitionCovers(t, timeMs));
 }
 
+function visEventCoversIn(vis: CompositeVis, timeMs: number): boolean {
+  return vis.events.some(
+    (event) => timeMs >= event.startMs && timeMs < event.startMs + Math.max(0, event.durationMs),
+  );
+}
+
+function visWindowCoversIn(vis: CompositeVis, timeMs: number): boolean {
+  const dur = vis.durationMs ?? 0;
+  if (dur <= 0) return true;
+  const start = vis.startMs ?? 0;
+  return timeMs >= start && timeMs < start + dur;
+}
+
+function coveringVideoOnTrack(
+  clips: readonly CompositeClip[],
+  timeMs: number,
+  trackId: "V1" | "V2",
+  muted: ReadonlySet<string>,
+): CompositeClip | undefined {
+  if (muted.has(trackId)) return undefined;
+  return clips.find(
+    (c) =>
+      c.trackId === trackId &&
+      kindOfTrack(c.trackId) === "video" &&
+      timeMs >= c.startMs &&
+      timeMs < c.endMs,
+  );
+}
+
+function mutedSetOf(ctx: CompositeContext): Set<string> {
+  return new Set(ctx.mutedTrackIds ?? []);
+}
+
 export function topVideoClipId(
   clips: readonly CompositeClip[],
   timeMs: number,
   front: FrontVideoTrackId = "V2",
+  mutedTrackIds: readonly TrackId[] = [],
 ): string | undefined {
+  const muted = new Set(mutedTrackIds);
   const hits = clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "video" &&
+      !muted.has(c.trackId) &&
       timeMs >= c.startMs &&
       timeMs < c.endMs,
   );
@@ -211,27 +287,106 @@ export function topVideoClipId(
   return hits[0]!.id;
 }
 
+function coveringTransition(ctx: CompositeContext, timeMs: number): Transition | undefined {
+  const t = transitionAt(ctx.transitions, timeMs);
+  if (!t || t.durationMs <= 0) return undefined;
+  return t;
+}
+
+function visLive(vis: CompositeVis | undefined): boolean {
+  return Boolean(vis && vis.enabled && !vis.muted);
+}
+
+/**
+ * AUTO + explicit source at t. Preview and export must call this (via the same
+ * composite context) so picture matches.
+ */
+export function resolvePictureSource(ctx: CompositeContext, timeMs: number): ResolvedPicture {
+  const t = coveringTransition(ctx, timeMs);
+  const source = transitionSourceOf(t);
+  const vis = ctx.vis;
+  const muted = mutedSetOf(ctx);
+  const front: FrontVideoTrackId = ctx.frontVideoTrackId === "V1" ? "V1" : "V2";
+  const other: FrontVideoTrackId = front === "V1" ? "V2" : "V1";
+
+  const visIfEvent = (): ResolvedPicture | undefined => {
+    if (visLive(vis) && vis && visEventCoversIn(vis, timeMs)) return { source, kind: "vis" };
+    return undefined;
+  };
+  const videoOn = (trackId: "V1" | "V2"): ResolvedPicture | undefined => {
+    const clip = coveringVideoOnTrack(ctx.clips, timeMs, trackId, muted);
+    return clip ? { source, kind: trackId, clipId: clip.id } : undefined;
+  };
+  const legacyVis = (): ResolvedPicture | undefined => {
+    if (!visLive(vis) || !vis) return undefined;
+    if (vis.events.length > 0) return undefined;
+    if (!visWindowCoversIn(vis, timeMs)) return undefined;
+    return { source, kind: "vis" };
+  };
+
+  if (source === "black") return { source, kind: "black" };
+  if (source === "vis") return visIfEvent() ?? { source, kind: "black" };
+  if (source === "V1" || source === "V2") return videoOn(source) ?? { source, kind: "black" };
+
+  return visIfEvent() ?? videoOn(front) ?? videoOn(other) ?? legacyVis() ?? { source: "auto", kind: "black" };
+}
+
+export function editPairAt(project: Project, timeMs: number): EditPair | undefined {
+  for (const mark of listStackedEditPairs(project)) {
+    if (timeMs >= mark.overlapStartMs && timeMs < mark.overlapStartMs + mark.overlapDurationMs) {
+      return {
+        sourceA: mark.sourceA,
+        sourceB: mark.sourceB,
+        overlapStartMs: mark.overlapStartMs,
+        overlapDurationMs: mark.overlapDurationMs,
+      };
+    }
+  }
+  return undefined;
+}
+
+function mixEndsOf(t: Transition, ctx: CompositeContext, timeMs: number): { a: string; b: string } {
+  const src = transitionSourceOf(t);
+  if (src !== "V1" && src !== "V2") return { a: t.sourceAClipId, b: t.sourceBClipId };
+  const chosen = coveringVideoOnTrack(ctx.clips, timeMs, src, mutedSetOf(ctx));
+  if (!chosen) return { a: t.sourceAClipId, b: t.sourceBClipId };
+  const otherId = chosen.id === t.sourceAClipId ? t.sourceBClipId : t.sourceAClipId;
+  return { a: otherId, b: chosen.id };
+}
+
 /**
  * Shared preview/export compositor. Transition types at t in the window;
  * outside the window, existing stack order (later video track on top).
+ * Explicit vis/black hide video layers. AUTO vis is an overlay (P34) and
+ * does not clear the video stack.
  */
 export function compositeVideoAt(ctx: CompositeContext, timeMs: number): VideoComposite {
   const front = ctx.frontVideoTrackId === "V1" ? "V1" : "V2";
-  const t = transitionAt(ctx.transitions, timeMs);
-  if (!t || t.durationMs <= 0) {
-    const id = topVideoClipId(ctx.clips, timeMs, front);
+  const muted = ctx.mutedTrackIds ?? [];
+  const t = coveringTransition(ctx, timeMs);
+  const source = transitionSourceOf(t);
+  if (source === "black") {
+    return { layers: [], plate: { color: "#000000", alpha: 1 } };
+  }
+  if (source === "vis") {
+    return { layers: [] };
+  }
+  const cutFront: FrontVideoTrackId = source === "V1" || source === "V2" ? source : front;
+  if (!t) {
+    const id = topVideoClipId(ctx.clips, timeMs, cutFront, muted);
     return id ? { layers: [{ clipId: id, alpha: 1 }] } : { layers: [] };
   }
   const u = Math.max(0, Math.min(1, (timeMs - t.startMs) / t.durationMs));
   if (t.type === "cut") {
-    const covering = topVideoClipId(ctx.clips, timeMs, front) ?? t.sourceBClipId;
+    const covering = topVideoClipId(ctx.clips, timeMs, cutFront, muted) ?? t.sourceBClipId;
     return { layers: [{ clipId: covering, alpha: 1 }] };
   }
+  const ends = mixEndsOf(t, ctx, timeMs);
   if (t.type === "crossfade") {
     return {
       layers: [
-        { clipId: t.sourceAClipId, alpha: 1 - u },
-        { clipId: t.sourceBClipId, alpha: u },
+        { clipId: ends.a, alpha: 1 - u },
+        { clipId: ends.b, alpha: u },
       ],
     };
   }
@@ -239,18 +394,32 @@ export function compositeVideoAt(ctx: CompositeContext, timeMs: number): VideoCo
   if (u < 0.5) {
     const p = u * 2;
     return {
-      layers: [{ clipId: t.sourceAClipId, alpha: 1 - p }],
+      layers: [{ clipId: ends.a, alpha: 1 - p }],
       plate: { color: plateColor, alpha: p },
     };
   }
   const p = (u - 0.5) * 2;
   return {
-    layers: [{ clipId: t.sourceBClipId, alpha: p }],
+    layers: [{ clipId: ends.b, alpha: p }],
     plate: { color: plateColor, alpha: 1 - p },
   };
 }
 
+function visFromProject(project: Project): CompositeVis {
+  return {
+    enabled: project.visualizer.enabled,
+    muted: project.visualizer.muted,
+    events: (project.visualizer.events ?? []).map((e) => ({
+      startMs: e.startMs,
+      durationMs: e.durationMs,
+    })),
+    startMs: project.visualizer.startMs ?? 0,
+    durationMs: project.visualizer.durationMs ?? 0,
+  };
+}
+
 export function contextFromProject(project: Project): CompositeContext {
+  const mutedTrackIds = (["V1", "V2", "A1", "A2"] as const).filter((id) => !isTrackAudible(project, id));
   return {
     clips: project.clips.map((c) => ({
       id: c.id,
@@ -260,6 +429,8 @@ export function contextFromProject(project: Project): CompositeContext {
     })),
     transitions: project.transitions ?? [],
     frontVideoTrackId: project.frontVideoTrackId === "V1" ? "V1" : "V2",
+    mutedTrackIds,
+    vis: visFromProject(project),
   };
 }
 
@@ -267,11 +438,13 @@ export function contextFromExportClips(
   clips: readonly { id: string; trackId: TrackId; startMs: number; endMs: number }[],
   transitions: readonly Transition[] = [],
   frontVideoTrackId: FrontVideoTrackId = "V2",
+  vis?: CompositeVis,
 ): CompositeContext {
   return {
     clips: clips.map((c) => ({ ...c })),
     transitions: [...transitions],
     frontVideoTrackId: frontVideoTrackId === "V1" ? "V1" : "V2",
+    vis,
   };
 }
 
@@ -393,7 +566,7 @@ export function transitionAudioGain(
 export function upsertTransition(
   project: Project,
   pair: EditPair,
-  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs">>,
+  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs" | "source">>,
 ): { project: Project; transition: Transition } {
   const existing = findTransitionForPair(
     project.transitions ?? [],
@@ -413,6 +586,7 @@ export function upsertTransition(
     sourceBClipId: pair.sourceB.id,
     audioMode: patch.audioMode ?? existing?.audioMode ?? "cut",
     audioDurationMs: Math.max(1, patch.audioDurationMs ?? existing?.audioDurationMs ?? durationMs),
+    source: patch.source ?? existing?.source ?? "auto",
   };
   const rest = (project.transitions ?? []).filter((t) => t.id !== next.id);
   return {
@@ -422,6 +596,25 @@ export function upsertTransition(
       updatedAt: new Date().toISOString(),
     },
     transition: next,
+  };
+}
+
+export function setTransitionSource(
+  project: Project,
+  transitionId: string,
+  source: TransitionSource,
+): Project {
+  const transitions = project.transitions ?? [];
+  const index = transitions.findIndex((t) => t.id === transitionId);
+  if (index < 0) return project;
+  const current = transitions[index]!;
+  if (transitionSourceOf(current) === source && current.source === source) return project;
+  const copy = [...transitions];
+  copy[index] = { ...current, source };
+  return {
+    ...project,
+    transitions: copy,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -445,6 +638,7 @@ export function sanitizeTransitions(raw: unknown): Transition[] {
       sourceBClipId: r.sourceBClipId,
       audioMode: r.audioMode,
       audioDurationMs,
+      source: isTransitionSource(r.source) ? r.source : "auto",
     });
   }
   return out;

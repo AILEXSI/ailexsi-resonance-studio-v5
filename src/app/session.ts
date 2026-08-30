@@ -1,8 +1,19 @@
 import { unlinkClips } from "../core/link";
-import { resolveEditPair, upsertTransition, type Transition } from "../core/transition";
+import {
+  editPairAt,
+  findTransitionForPair,
+  resolveEditPair,
+  setTransitionSource,
+  transitionAt,
+  transitionSourceOf,
+  upsertTransition,
+  type Transition,
+  type TransitionSource,
+} from "../core/transition";
 import { classifyFile, importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
 import {
   clipById,
+  clipOnTrackAt,
   kindOfTrack,
   type Clip,
   type FrontVideoTrackId,
@@ -731,12 +742,53 @@ export function applySetClipRate(session: Session, clipId: string, rate: number)
 
 export function applySetTransition(
   session: Session,
-  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs">>,
+  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs" | "source">>,
 ): Session {
   const pair = resolveEditPair(session.project, selectionOf(session));
   if (!pair) return session;
   const { project } = upsertTransition(session.project, pair, patch);
   return withHistory(session, project, "Set transition");
+}
+
+function sourceStatus(source: TransitionSource): string {
+  if (source === "auto") return "Source AUTO";
+  if (source === "vis") return "Source VIS";
+  if (source === "black") return "Source BLACK";
+  return `Source ${source}`;
+}
+
+export function applySetTransitionSource(session: Session, source: TransitionSource): Session {
+  const playhead = session.project.playheadMs;
+  const pair =
+    resolveEditPair(session.project, selectionOf(session)) ?? editPairAt(session.project, playhead);
+  if (pair) {
+    const existing = findTransitionForPair(session.project.transitions ?? [], pair.sourceA.id, pair.sourceB.id);
+    if (existing && transitionSourceOf(existing) === source) return session;
+    const { project } = upsertTransition(session.project, pair, {
+      source,
+      durationMs: existing?.durationMs ?? Math.max(1, pair.overlapDurationMs),
+    });
+    return withHistory(session, project, sourceStatus(source));
+  }
+  const existing = transitionAt(session.project.transitions ?? [], playhead);
+  if (existing) {
+    const project = setTransitionSource(session.project, existing.id, source);
+    if (project === session.project) return session;
+    return withHistory(session, project, sourceStatus(source));
+  }
+  const cover = clipOnTrackAt(session.project, "V1", playhead) ?? clipOnTrackAt(session.project, "V2", playhead);
+  if (!cover) return session;
+  const { project } = upsertTransition(
+    session.project,
+    {
+      sourceA: cover,
+      sourceB: cover,
+      overlapStartMs: cover.startMs,
+      overlapDurationMs: Math.max(1, cover.durationMs),
+    },
+    { source, type: "cut" },
+  );
+  return withHistory(session, project, sourceStatus(source));
 }
 
 export function applyLiftRange(session: Session): Session {

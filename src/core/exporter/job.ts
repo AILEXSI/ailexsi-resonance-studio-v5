@@ -12,6 +12,8 @@ import {
   compositeVideoAt,
   contextFromExportClips,
   primaryLayer,
+  resolvePictureSource,
+  type CompositeVis,
 } from "../transition";
 import type { ExportClip, ExportJob, ExportTrack } from "./types";
 
@@ -107,13 +109,32 @@ function jobVideoClips(job: ExportJob): ExportClip[] {
   return job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
 }
 
+export function exportVisOf(job: ExportJob): CompositeVis {
+  return {
+    enabled: job.visualizer.enabled,
+    muted: job.visualizer.muted,
+    events: (job.visualizer.events ?? []).map((e) => ({
+      startMs: e.startMs,
+      durationMs: e.durationMs,
+    })),
+    startMs: job.visualizer.startMs ?? 0,
+    durationMs: job.visualizer.durationMs ?? 0,
+  };
+}
+
 export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefined {
   const clips = jobVideoClips(job);
   const front = job.frontVideoTrackId === "V1" ? "V1" : "V2";
-  const composite = compositeVideoAt(
-    contextFromExportClips(clips, job.transitions ?? [], front),
-    timeMs,
-  );
+  const ctx = contextFromExportClips(clips, job.transitions ?? [], front, exportVisOf(job));
+  const picture = resolvePictureSource(ctx, timeMs);
+  if (picture.kind === "vis" || picture.kind === "black") {
+    if (picture.source === "vis" || picture.source === "black") return undefined;
+  }
+  if (picture.clipId) {
+    const chosen = clips.find((c) => c.id === picture.clipId && timeMs >= c.startMs && timeMs < c.endMs);
+    if (chosen) return chosen;
+  }
+  const composite = compositeVideoAt(ctx, timeMs);
   const primary = primaryLayer(composite);
   if (primary) {
     const hit = clips.find(
@@ -121,6 +142,7 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
     );
     if (hit) return hit;
   }
+  if (picture.kind === "vis" || picture.kind === "black") return undefined;
   const hits = clips.filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
   const preferred = hits.find((c) => c.trackId === front);
   if (preferred) return preferred;

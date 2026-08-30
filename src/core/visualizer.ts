@@ -1,13 +1,13 @@
 import { createId } from "./ids";
 import {
   FRAME_MS,
-  topVideoClipAt,
   VISUALIZER_SCENE_IDS,
   type Project,
   type VisualizerEvent,
   type VisualizerSceneId,
   type VisualizerState,
 } from "./models";
+import { contextFromProject, resolvePictureSource } from "./transition";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
 
@@ -191,12 +191,7 @@ export function visualizerSceneAt(
  * Empty events keep the legacy gap-fill (window + no unmuted V1/V2).
  */
 export function shouldShowVisualizer(project: Project, timeMs: number): boolean {
-  if (!project.visualizer.enabled || project.visualizer.muted) return false;
-  if (visualizerEventAt(project, timeMs)) return true;
-  if (visualizerEventsOf(project).length > 0) return false;
-  if (!visWindowCovers(project.visualizer, timeMs)) return false;
-  if (topVideoClipAt(project, timeMs)) return false;
-  return true;
+  return resolvePictureSource(contextFromProject(project), timeMs).kind === "vis";
 }
 
 export function setVisualizer(

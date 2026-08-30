@@ -67,5 +67,10 @@ describe("Cutter", () => {
       type!.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(cmds[0]).toEqual({ type: "setTransition", transitionType: "crossfade" });
+    act(() => {
+      host!.querySelector<HTMLButtonElement>("[data-testid=cutter-source-V2]")!.click();
+    });
+    expect(cmds[1]).toEqual({ type: "setTransitionSource", source: "V2" });
+    expect(host!.querySelector("[data-testid=cutter-source-auto]")?.classList.contains("on")).toBe(true);
   });
 });

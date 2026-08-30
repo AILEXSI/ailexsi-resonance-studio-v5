@@ -1,5 +1,5 @@
 import type { FrontVideoTrackId, TrackId } from "../core/models";
-import type { TransitionAudioMode, TransitionType } from "../core/transition";
+import type { TransitionAudioMode, TransitionSource, TransitionType } from "../core/transition";
 import {
   applyClearInOut,
   applyCloseGap,
@@ -38,6 +38,7 @@ import {
   applySetClipRate,
   applySetTrackPan,
   applySetTransition,
+  applySetTransitionSource,
   applyShuttle,
   applySlideClip,
   applySlip,
@@ -105,6 +106,7 @@ export type EditorCommand =
       audioDurationMs?: number;
       startMs?: number;
     }
+  | { type: "setTransitionSource"; source: TransitionSource }
   | { type: "setFrontVideoTrack"; trackId: FrontVideoTrackId }
   | { type: "insertVisEvent" }
   | { type: "selectVisEvent"; eventId: string }
@@ -203,6 +205,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
         audioDurationMs: command.audioDurationMs,
         startMs: command.startMs,
       });
+    case "setTransitionSource":
+      return applySetTransitionSource(session, command.source);
     case "setFrontVideoTrack":
       return applySetFrontVideoTrack(session, command.trackId);
     case "insertVisEvent":
