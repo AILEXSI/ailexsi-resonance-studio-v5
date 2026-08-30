@@ -15,6 +15,7 @@ import {
   contextFromExportClips,
   primaryLayer,
   resolvePictureSource,
+  transitionSourcesIn,
   type CompositeVis,
 } from "../transition";
 import type { ExportClip, ExportJob, ExportTrack } from "./types";
@@ -91,7 +92,9 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
 
   const safe = (opts.fileName || project.name || "resonance").replace(/[^\w\-]+/g, "_");
   const durationMs = endMs - startMs;
+  const livingIds = new Set(tracks.flatMap((tr) => tr.clips.map((c) => c.id)));
   const transitions = (project.transitions ?? [])
+    .filter((t) => transitionSourcesIn(t, livingIds))
     .map((t) => ({ ...t, startMs: t.startMs - startMs }))
     .filter((t) => t.durationMs > 0 && t.startMs + t.durationMs > 0 && t.startMs < durationMs);
   return {
