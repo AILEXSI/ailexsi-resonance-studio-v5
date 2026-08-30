@@ -70,6 +70,7 @@ describe("project persist + reload", () => {
       sceneId: "lita-bloom",
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
     const raw = JSON.parse(serializeProject(p)) as Record<string, unknown>;
     delete raw.visualizer;
@@ -80,6 +81,7 @@ describe("project persist + reload", () => {
       sceneId: DEFAULT_VISUALIZER_SCENE_ID,
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
   });
 

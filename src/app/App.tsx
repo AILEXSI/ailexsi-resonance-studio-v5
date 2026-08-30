@@ -971,6 +971,7 @@ export function App() {
             selectedClipId={session.selectedClipId}
             selectedClipIds={session.selectedClipIds}
             selectedVis={session.selectedVis}
+            selectedVisEventId={session.selectedVisEventId}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
             onFades={(clipId, fadeInMs, fadeOutMs) =>
               setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
@@ -1050,7 +1051,7 @@ export function App() {
         onMarkerMoveLive={onMarkerMoveLive}
         onMarkerMoveCommit={onMarkerMoveCommit}
         onDeleteMarker={(id) => setSession(applyDeleteMarker(session, id))}
-        onPlayhead={(ms) => setSession(applyPlayhead(session, ms))}
+        onPlayhead={(ms) => setSession((s) => applyPlayhead(s, ms))}
         onMoveLive={onMoveLive}
         onMoveCommit={onMoveCommit}
         onTrimLive={onTrimLive}
@@ -1066,6 +1067,14 @@ export function App() {
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
         onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
         onSelectVis={() => setSession(applySelectVis(session))}
+        onSelectVisEvent={(eventId) =>
+          setSession((s) => applyCommand(s, { type: "selectVisEvent", eventId }))
+        }
+        onInsertVisEvent={() => setSession((s) => applyCommand(s, { type: "insertVisEvent" }))}
+        onSetFrontVideoTrack={(trackId) =>
+          setSession((s) => applyCommand(s, { type: "setFrontVideoTrack", trackId }))
+        }
+        selectedVisEventId={session.selectedVisEventId}
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
         }}

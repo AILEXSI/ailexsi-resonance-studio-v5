@@ -94,8 +94,12 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       sceneId: project.visualizer.sceneId,
       startMs: project.visualizer.startMs ?? 0,
       durationMs: project.visualizer.durationMs ?? 0,
+      events: (project.visualizer.events ?? [])
+        .map((e) => ({ ...e, startMs: e.startMs - startMs }))
+        .filter((e) => e.durationMs > 0 && e.startMs + e.durationMs > 0 && e.startMs < durationMs),
     },
     transitions,
+    frontVideoTrackId: project.frontVideoTrackId === "V1" ? "V1" : "V2",
   };
 }
 
@@ -105,8 +109,9 @@ function jobVideoClips(job: ExportJob): ExportClip[] {
 
 export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefined {
   const clips = jobVideoClips(job);
+  const front = job.frontVideoTrackId === "V1" ? "V1" : "V2";
   const composite = compositeVideoAt(
-    contextFromExportClips(clips, job.transitions ?? []),
+    contextFromExportClips(clips, job.transitions ?? [], front),
     timeMs,
   );
   const primary = primaryLayer(composite);
@@ -117,6 +122,8 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
     if (hit) return hit;
   }
   const hits = clips.filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
+  const preferred = hits.find((c) => c.trackId === front);
+  if (preferred) return preferred;
   hits.sort((a, b) => TRACK_IDS.indexOf(b.trackId) - TRACK_IDS.indexOf(a.trackId));
   return hits[0];
 }

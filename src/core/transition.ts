@@ -6,6 +6,7 @@ import {
   clipEndMs,
   kindOfTrack,
   type Clip,
+  type FrontVideoTrackId,
   type Project,
   type TrackId,
 } from "./models";
@@ -54,6 +55,8 @@ export interface CompositeClip {
 export interface CompositeContext {
   clips: CompositeClip[];
   transitions: Transition[];
+  /** Which video track covers on overlap / cut. Default V2. */
+  frontVideoTrackId?: FrontVideoTrackId;
 }
 
 export function isTransitionType(value: unknown): value is TransitionType {
@@ -190,7 +193,11 @@ export function transitionAt(transitions: readonly Transition[], timeMs: number)
   return transitions.find((t) => transitionCovers(t, timeMs));
 }
 
-export function topVideoClipId(clips: readonly CompositeClip[], timeMs: number): string | undefined {
+export function topVideoClipId(
+  clips: readonly CompositeClip[],
+  timeMs: number,
+  front: FrontVideoTrackId = "V2",
+): string | undefined {
   const hits = clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "video" &&
@@ -198,6 +205,8 @@ export function topVideoClipId(clips: readonly CompositeClip[], timeMs: number):
       timeMs < c.endMs,
   );
   if (hits.length === 0) return undefined;
+  const preferred = hits.find((c) => c.trackId === front);
+  if (preferred) return preferred.id;
   hits.sort((a, b) => TRACK_IDS.indexOf(b.trackId) - TRACK_IDS.indexOf(a.trackId));
   return hits[0]!.id;
 }
@@ -207,14 +216,16 @@ export function topVideoClipId(clips: readonly CompositeClip[], timeMs: number):
  * outside the window, existing stack order (later video track on top).
  */
 export function compositeVideoAt(ctx: CompositeContext, timeMs: number): VideoComposite {
+  const front = ctx.frontVideoTrackId === "V1" ? "V1" : "V2";
   const t = transitionAt(ctx.transitions, timeMs);
   if (!t || t.durationMs <= 0) {
-    const id = topVideoClipId(ctx.clips, timeMs);
+    const id = topVideoClipId(ctx.clips, timeMs, front);
     return id ? { layers: [{ clipId: id, alpha: 1 }] } : { layers: [] };
   }
   const u = Math.max(0, Math.min(1, (timeMs - t.startMs) / t.durationMs));
   if (t.type === "cut") {
-    return { layers: [{ clipId: t.sourceBClipId, alpha: 1 }] };
+    const covering = topVideoClipId(ctx.clips, timeMs, front) ?? t.sourceBClipId;
+    return { layers: [{ clipId: covering, alpha: 1 }] };
   }
   if (t.type === "crossfade") {
     return {
@@ -248,14 +259,20 @@ export function contextFromProject(project: Project): CompositeContext {
       endMs: clipEndMs(c),
     })),
     transitions: project.transitions ?? [],
+    frontVideoTrackId: project.frontVideoTrackId === "V1" ? "V1" : "V2",
   };
 }
 
 export function contextFromExportClips(
   clips: readonly { id: string; trackId: TrackId; startMs: number; endMs: number }[],
   transitions: readonly Transition[] = [],
+  frontVideoTrackId: FrontVideoTrackId = "V2",
 ): CompositeContext {
-  return { clips: clips.map((c) => ({ ...c })), transitions: [...transitions] };
+  return {
+    clips: clips.map((c) => ({ ...c })),
+    transitions: [...transitions],
+    frontVideoTrackId: frontVideoTrackId === "V1" ? "V1" : "V2",
+  };
 }
 
 export function primaryLayer(composite: VideoComposite): CompositeLayer | undefined {

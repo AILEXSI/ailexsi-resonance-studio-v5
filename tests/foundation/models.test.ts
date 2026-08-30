@@ -46,9 +46,11 @@ describe("foundation models", () => {
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
       clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 500, durationMs: 500 }),
     ]);
+    expect(p.frontVideoTrackId).toBe("V2");
     expect(topVideoClipAt(p, 600)?.id).toBe("v2");
     expect(topVideoClipAt(p, 100)?.id).toBe("v1");
     expect(topVideoClipAt(p, 3000)).toBeUndefined();
+    expect(topVideoClipAt({ ...p, frontVideoTrackId: "V1" }, 600)?.id).toBe("v1");
   });
 
   it("finds up to two audio clips", () => {

@@ -1,4 +1,4 @@
-import type { MediaKind, TrackId, VisualizerSceneId } from "../models";
+import type { FrontVideoTrackId, MediaKind, TrackId, VisualizerEvent, VisualizerSceneId } from "../models";
 import type { Transition } from "../transition";
 
 export interface ExportClip {
@@ -33,6 +33,7 @@ export interface ExportVisualizer {
   sceneId: VisualizerSceneId;
   startMs?: number;
   durationMs?: number;
+  events?: VisualizerEvent[];
 }
 
 export interface ExportJob {
@@ -50,6 +51,7 @@ export interface ExportJob {
   visualizer: ExportVisualizer;
   /** Job-relative startMs (shifted by export IN). */
   transitions?: Transition[];
+  frontVideoTrackId?: FrontVideoTrackId;
 }
 
 export interface ExportProgress {

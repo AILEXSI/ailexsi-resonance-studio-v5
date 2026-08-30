@@ -64,6 +64,7 @@ describe("export planner + fail path", () => {
       sceneId: "lita-bloom",
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
     // Export paintVisualizer calls featuresAt — not an A1/A2 AnalyserNode FFT.
     const f = featuresAt(0, job.durationMs);
@@ -171,6 +172,7 @@ describe("export mute skip", () => {
       sceneId: "lita-bloom",
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
     const f = featuresAt(0, job.durationMs);
     expect(f.tempoBpm).toBe(120);

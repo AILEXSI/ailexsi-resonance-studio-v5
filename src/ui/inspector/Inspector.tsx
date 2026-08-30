@@ -26,6 +26,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   selectedVis?: boolean;
+  selectedVisEventId?: string | null;
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
@@ -81,6 +82,7 @@ export function Inspector({
   selectedClipId,
   selectedClipIds,
   selectedVis,
+  selectedVisEventId,
   onChange,
   onFades,
   onRate,
@@ -99,6 +101,12 @@ export function Inspector({
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
     : undefined;
   const vis = project.visualizer;
+  const visEvent = selectedVisEventId
+    ? (vis.events ?? []).find((e) => e.id === selectedVisEventId)
+    : undefined;
+  const visScene = visEvent?.sceneId ?? vis.sceneId;
+  const visStart = visEvent?.startMs ?? vis.startMs ?? 0;
+  const visDuration = visEvent?.durationMs ?? vis.durationMs ?? 0;
 
   return (
     <aside className="panel inspector" data-testid="inspector">
@@ -108,7 +116,7 @@ export function Inspector({
           <Field label="VIS scene">
             <select
               data-testid="inspector-vis-scene"
-              value={vis.sceneId}
+              value={visScene}
               onChange={(e) => onVisualizer?.({ sceneId: e.target.value as VisualizerSceneId })}
             >
               {VISUALIZER_SCENE_IDS.map((id) => (
@@ -121,13 +129,13 @@ export function Inspector({
           <MsField
             label="VIS from (ms)"
             testId="inspector-vis-start"
-            value={vis.startMs ?? 0}
+            value={visStart}
             onChange={(v) => onVisualizer?.({ startMs: v })}
           />
           <MsField
             label="VIS to span (ms)"
             testId="inspector-vis-duration"
-            value={vis.durationMs ?? 0}
+            value={visDuration}
             onChange={(v) => onVisualizer?.({ durationMs: v })}
           />
         </dl>

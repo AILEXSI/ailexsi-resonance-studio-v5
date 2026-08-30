@@ -1,12 +1,16 @@
+import { createId } from "./ids";
 import {
   topVideoClipAt,
   VISUALIZER_SCENE_IDS,
   type Project,
+  type VisualizerEvent,
   type VisualizerSceneId,
   type VisualizerState,
 } from "./models";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
+
+export const DEFAULT_VIS_EVENT_MS = 4000;
 
 export const BEAT_WINDOW_MS = 90;
 export const DEFAULT_VISUALIZER_BPM = 120;
@@ -128,9 +132,43 @@ export function visWindowCovers(
   return timeMs >= start && timeMs < start + dur;
 }
 
-/** Main Output fallback: visualizer only when no unmuted V1/V2 clip is under the playhead. */
+export function visualizerEventsOf(vis: VisualizerState | Project): VisualizerEvent[] {
+  const state = "visualizer" in vis ? vis.visualizer : vis;
+  return state.events ?? [];
+}
+
+export function visualizerEventCovers(event: VisualizerEvent, timeMs: number): boolean {
+  return timeMs >= event.startMs && timeMs < event.startMs + Math.max(0, event.durationMs);
+}
+
+export function visualizerEventAt(
+  vis: VisualizerState | Project,
+  timeMs: number,
+): VisualizerEvent | undefined {
+  return visualizerEventsOf(vis).find((event) => visualizerEventCovers(event, timeMs));
+}
+
+/** Event scene at t, else fallback sceneId when events are empty and the window covers. */
+export function visualizerSceneAt(
+  vis: VisualizerState | Project,
+  timeMs: number,
+): VisualizerSceneId | undefined {
+  const state = "visualizer" in vis ? vis.visualizer : vis;
+  const covering = visualizerEventAt(state, timeMs);
+  if (covering) return covering.sceneId;
+  if (visualizerEventsOf(state).length > 0) return undefined;
+  if (!visWindowCovers(state, timeMs)) return undefined;
+  return state.sceneId;
+}
+
+/**
+ * VIS overlay: an event covering t shows even when video exists.
+ * Empty events keep the legacy gap-fill (window + no unmuted V1/V2).
+ */
 export function shouldShowVisualizer(project: Project, timeMs: number): boolean {
   if (!project.visualizer.enabled || project.visualizer.muted) return false;
+  if (visualizerEventAt(project, timeMs)) return true;
+  if (visualizerEventsOf(project).length > 0) return false;
   if (!visWindowCovers(project.visualizer, timeMs)) return false;
   if (topVideoClipAt(project, timeMs)) return false;
   return true;
@@ -162,13 +200,70 @@ export function toggleVisualizerMute(project: Project): Project {
   };
 }
 
-export function cycleVisualizerScene(project: Project): Project {
+export function cycleVisualizerScene(project: Project, eventId?: string | null): Project {
+  if (eventId) {
+    const event = visualizerEventsOf(project).find((e) => e.id === eventId);
+    if (event) {
+      return updateVisualizerEvent(project, eventId, { sceneId: nextSceneId(event.sceneId) });
+    }
+  }
   return {
     ...project,
     visualizer: {
       ...project.visualizer,
       sceneId: nextSceneId(project.visualizer.sceneId),
     },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function insertVisualizerEvent(project: Project, timeMs: number): {
+  project: Project;
+  event: VisualizerEvent;
+} {
+  const t = Math.max(0, timeMs);
+  const existing = [...visualizerEventsOf(project)].sort((a, b) => a.startMs - b.startMs);
+  const next = existing.find((e) => e.startMs > t);
+  const durationMs = next ? Math.max(1, next.startMs - t) : DEFAULT_VIS_EVENT_MS;
+  const event: VisualizerEvent = {
+    id: createId("ve"),
+    sceneId: project.visualizer.sceneId,
+    startMs: t,
+    durationMs,
+  };
+  return {
+    project: {
+      ...project,
+      visualizer: {
+        ...project.visualizer,
+        events: [...existing, event],
+      },
+      updatedAt: new Date().toISOString(),
+    },
+    event,
+  };
+}
+
+export function updateVisualizerEvent(
+  project: Project,
+  eventId: string,
+  patch: Partial<Pick<VisualizerEvent, "sceneId" | "startMs" | "durationMs">>,
+): Project {
+  const events = visualizerEventsOf(project);
+  const index = events.findIndex((e) => e.id === eventId);
+  if (index < 0) return project;
+  const current = events[index]!;
+  const next: VisualizerEvent = {
+    ...current,
+    sceneId: patch.sceneId ?? current.sceneId,
+    startMs: Math.max(0, patch.startMs ?? current.startMs),
+    durationMs: Math.max(0, patch.durationMs ?? current.durationMs),
+  };
+  const copy = [...events];
+  copy[index] = next;
+  return {
+    ...project,
+    visualizer: { ...project.visualizer, events: copy },
     updatedAt: new Date().toISOString(),
   };
 }

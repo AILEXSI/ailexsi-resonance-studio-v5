@@ -21,6 +21,13 @@ export type VisualizerSceneId = (typeof VISUALIZER_SCENE_IDS)[number];
 /** Visualz signature scene. New projects and missing-visualizer loads use this. */
 export const DEFAULT_VISUALIZER_SCENE_ID: VisualizerSceneId = "resonance-wave";
 
+export interface VisualizerEvent {
+  id: string;
+  sceneId: VisualizerSceneId;
+  startMs: number;
+  durationMs: number;
+}
+
 export interface VisualizerState {
   enabled: boolean;
   muted: boolean;
@@ -28,6 +35,8 @@ export interface VisualizerState {
   /** Overlay from-to on the timeline. durationMs <= 0 = whole timeline. Not a TrackId. */
   startMs?: number;
   durationMs?: number;
+  /** Scene clips on the VIS lane. Empty = use sceneId + window. Not TrackId clips. */
+  events?: VisualizerEvent[];
 }
 
 export function defaultVisualizer(): VisualizerState {
@@ -37,7 +46,14 @@ export function defaultVisualizer(): VisualizerState {
     sceneId: DEFAULT_VISUALIZER_SCENE_ID,
     startMs: 0,
     durationMs: 0,
+    events: [],
   };
+}
+
+export type FrontVideoTrackId = "V1" | "V2";
+
+export function isFrontVideoTrackId(value: unknown): value is FrontVideoTrackId {
+  return value === "V1" || value === "V2";
 }
 
 export function isVisualizerSceneId(value: unknown): value is VisualizerSceneId {
@@ -129,6 +145,8 @@ export interface Project {
   zoomPxPerSec: number;
   scrollMs: number;
   visualizer: VisualizerState;
+  /** Which video track covers on overlap. Default V2 (later-on-top). */
+  frontVideoTrackId: FrontVideoTrackId;
   /** Linear master fader. 1 = 0 dB unity. */
   masterVolume: number;
 }
@@ -255,7 +273,8 @@ export function topVideoClipAt(project: Project, timeMs: number): Clip | undefin
       timeMs >= c.startMs &&
       timeMs < clipEndMs(c),
   );
-  return hits.find((c) => c.trackId === "V2") ?? hits.find((c) => c.trackId === "V1");
+  const front = project.frontVideoTrackId === "V1" ? "V1" : "V2";
+  return hits.find((c) => c.trackId === front) ?? hits.find((c) => c.trackId === "V1" || c.trackId === "V2");
 }
 
 export function audioClipsAt(project: Project, timeMs: number): Clip[] {

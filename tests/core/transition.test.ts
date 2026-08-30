@@ -126,6 +126,72 @@ describe("compositeVideoAt", () => {
     expect(compositeVideoAt(ctx, 500).layers).toEqual([{ clipId: "v1", alpha: 1 }]);
     expect(compositeVideoAt(ctx, 2500).layers).toEqual([{ clipId: "v2", alpha: 1 }]);
   });
+
+  it("V2-front overlap still shows V2; setFront V1 shows V1", () => {
+    const project = stackedV1OverV2();
+    const mid = 1500;
+    expect(project.frontVideoTrackId).toBe("V2");
+    expect(compositeVideoAt(contextFromProject(project), mid).layers).toEqual([
+      { clipId: "v2", alpha: 1 },
+    ]);
+    expect(previewComposite(contextFromProject(project), mid).layers).toEqual([
+      { clipId: "v2", alpha: 1 },
+    ]);
+    const frontV1 = { ...project, frontVideoTrackId: "V1" as const };
+    expect(compositeVideoAt(contextFromProject(frontV1), mid).layers).toEqual([
+      { clipId: "v1", alpha: 1 },
+    ]);
+  });
+
+  it("cut uses the covering clip on the front track", () => {
+    const project = stackedV1OverV2();
+    const { project: cut } = upsertTransition(project, resolveEditPair(project, ["v1"])!, {
+      type: "cut",
+      durationMs: 1000,
+      startMs: 1000,
+    });
+    expect(compositeVideoAt(contextFromProject(cut), 1500).layers).toEqual([
+      { clipId: "v2", alpha: 1 },
+    ]);
+    const cutV1 = { ...cut, frontVideoTrackId: "V1" as const };
+    expect(compositeVideoAt(contextFromProject(cutV1), 1500).layers).toEqual([
+      { clipId: "v1", alpha: 1 },
+    ]);
+  });
+
+  it("crossfade A→B math is unchanged by front track", () => {
+    const project = stackedV1OverV2();
+    const { project: xf } = upsertTransition(project, resolveEditPair(project, ["v1"])!, {
+      type: "crossfade",
+      durationMs: 1000,
+      startMs: 1000,
+    });
+    const expected = {
+      layers: [
+        { clipId: "v1", alpha: 0.5 },
+        { clipId: "v2", alpha: 0.5 },
+      ],
+    };
+    expect(compositeVideoAt(contextFromProject(xf), 1500)).toEqual(expected);
+    expect(compositeVideoAt(contextFromProject({ ...xf, frontVideoTrackId: "V1" }), 1500)).toEqual(
+      expected,
+    );
+  });
+});
+
+describe("setFrontVideoTrack command", () => {
+  it("header click command sets front and is history-worthy", () => {
+    const start = sessionOf();
+    expect(start.project.frontVideoTrackId).toBe("V2");
+    const same = applyCommand(start, { type: "setFrontVideoTrack", trackId: "V2" });
+    expect(same).toBe(start);
+    const next = applyCommand(start, { type: "setFrontVideoTrack", trackId: "V1" });
+    expect(next.project.frontVideoTrackId).toBe("V1");
+    expect(next.status).toBe("Front V1");
+    expect(next.history.past.length).toBe(start.history.past.length + 1);
+    const undone = applyCommand(next, { type: "undo" });
+    expect(undone.project.frontVideoTrackId).toBe("V2");
+  });
 });
 
 describe("preview and export compositor", () => {

@@ -19,7 +19,7 @@ import {
 } from "../../core/marquee";
 import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
-import { sceneShortName } from "../../core/visualizer";
+import { sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
 import { listStackedEditPairs } from "../../core/transition";
@@ -47,6 +47,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   selectedMarkerId?: string | null;
+  selectedVisEventId?: string | null;
   onSelect: (clipId: string | null, opts?: { toggle?: boolean; range?: boolean }) => void;
   onSelectMarker?: (markerId: string | null) => void;
   onMarkerMoveLive?: (markerId: string, timeMs: number) => void;
@@ -74,6 +75,9 @@ interface Props {
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
   onSelectVis?: () => void;
+  onSelectVisEvent?: (eventId: string) => void;
+  onInsertVisEvent?: () => void;
+  onSetFrontVideoTrack?: (trackId: "V1" | "V2") => void;
   /** Arrange = all tracks. Cutter = video only. VIS overlay is separate. */
   visibleTrackIds?: TrackId[];
   onSplitHere: (clipId: string, timeMs: number) => void;
@@ -128,6 +132,7 @@ export function Timeline({
   selectedClipId,
   selectedClipIds,
   selectedMarkerId = null,
+  selectedVisEventId = null,
   onSelect,
   onSelectMarker,
   onMarkerMoveLive,
@@ -150,6 +155,9 @@ export function Timeline({
   onToggleVisualizerMute,
   onCycleVisualizerScene,
   onSelectVis,
+  onSelectVisEvent,
+  onInsertVisEvent,
+  onSetFrontVideoTrack,
   visibleTrackIds,
   onSplitHere,
   onCut,
@@ -312,8 +320,10 @@ export function Timeline({
       dragKindRef.current = null;
       setMarquee(null);
       if (!moved) {
-        if (lane === "VIS" && onSelectVis) onSelectVis();
-        else onSelect(null);
+        if (lane === "VIS") {
+          if (onInsertVisEvent) onInsertVisEvent();
+          else onSelectVis?.();
+        } else onSelect(null);
         return;
       }
       const hits = clipsIntersectingMarquee(project.clips, {
@@ -757,14 +767,22 @@ export function Timeline({
             <button
               type="button"
               className="scene-btn"
-              title={project.visualizer.sceneId}
+              title={
+                (selectedVisEventId
+                  ? visualizerEventsOf(project).find((e) => e.id === selectedVisEventId)?.sceneId
+                  : undefined) ?? project.visualizer.sceneId
+              }
               data-testid="visualizer-scene"
               onClick={(e) => {
                 e.stopPropagation();
                 onCycleVisualizerScene();
               }}
             >
-              {sceneShortName(project.visualizer.sceneId)}
+              {sceneShortName(
+                (selectedVisEventId
+                  ? visualizerEventsOf(project).find((e) => e.id === selectedVisEventId)?.sceneId
+                  : undefined) ?? project.visualizer.sceneId,
+              )}
             </button>
           </div>
         </div>
@@ -778,6 +796,29 @@ export function Timeline({
           {loopOverlay(false)}
           <div className="vis-lane-fill" aria-hidden="true" />
           {(() => {
+            const events = visualizerEventsOf(project);
+            if (events.length > 0) {
+              return events.map((event) => (
+                <button
+                  key={event.id}
+                  type="button"
+                  className={`vis-span${selectedVisEventId === event.id ? " selected" : ""}`}
+                  data-testid={`vis-event-${event.id}`}
+                  data-vis-event={event.id}
+                  data-scene={event.sceneId}
+                  style={{
+                    left: msToX(event.startMs, project.zoomPxPerSec, project.scrollMs),
+                    width: Math.max(28, msToWidth(event.durationMs, project.zoomPxPerSec)),
+                  }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onSelectVisEvent?.(event.id);
+                  }}
+                >
+                  {sceneShortName(event.sceneId)} {event.startMs}–{event.startMs + event.durationMs}ms
+                </button>
+              ));
+            }
             const start = project.visualizer.startMs ?? 0;
             const rawDur = project.visualizer.durationMs ?? 0;
             const dur = rawDur > 0 ? rawDur : Math.max(10_000, projectDurationMs(project));
@@ -793,7 +834,8 @@ export function Timeline({
                 }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
-                  onSelectVis?.();
+                  if (onInsertVisEvent) onInsertVisEvent();
+                  else onSelectVis?.();
                 }}
               >
                 {sceneShortName(project.visualizer.sceneId)} {start}–{start + dur}ms
@@ -817,7 +859,22 @@ export function Timeline({
             data-testid={`lane-${id}`}
           >
             <div className="lane-label">
-              <span>{id}</span>
+              {id === "V1" || id === "V2" ? (
+                <button
+                  type="button"
+                  className={`track-front-btn${(project.frontVideoTrackId === "V1" ? "V1" : "V2") === id ? " on" : ""}`}
+                  data-testid={`front-${id}`}
+                  title={`Show ${id} on overlap`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSetFrontVideoTrack?.(id);
+                  }}
+                >
+                  {id}
+                </button>
+              ) : (
+                <span>{id}</span>
+              )}
               <div className="lane-ms">
               <button
                 type="button"

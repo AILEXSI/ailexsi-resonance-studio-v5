@@ -29,6 +29,7 @@ import {
   featuresAt,
   renderVisualizerScene,
   shouldShowVisualizer,
+  visualizerSceneAt,
 } from "../../core/visualizer";
 import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../core/visualz/playback-tap";
 
@@ -209,7 +210,8 @@ export function Preview({ project, playing, onLevels }: Props) {
         live = null;
       }
       const features = preferLiveFeatures(live, synthetic);
-      renderVisualizerScene(ctx, canvas.width, canvas.height, project.visualizer.sceneId, features, dt);
+      const sceneId = visualizerSceneAt(project, project.playheadMs) ?? project.visualizer.sceneId;
+      renderVisualizerScene(ctx, canvas.width, canvas.height, sceneId, features, dt);
     };
 
     const dt = Math.max(0, (project.playheadMs - lastPlayheadRef.current) / 1000);
@@ -222,11 +224,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     return () => ro.disconnect();
   }, [showViz, project]);
 
-  const activeLabel = videoClip
-    ? videoClip.trackId
-    : showViz
-      ? "VIS"
-      : "—";
+  const activeLabel = showViz ? "VIS" : videoClip ? videoClip.trackId : "—";
 
   return (
     <section className="preview-wrap" data-testid="preview">
@@ -262,15 +260,20 @@ export function Preview({ project, playing, onLevels }: Props) {
               />
             ) : null}
           </>
-        ) : showViz ? (
-          <canvas ref={canvasRef} data-testid="visualizer-canvas" />
-        ) : (
+        ) : null}
+        {showViz ? (
+          <canvas
+            ref={canvasRef}
+            data-testid="visualizer-canvas"
+            style={videoAsset?.objectUrl && videoClip ? { position: "absolute", inset: 0 } : undefined}
+          />
+        ) : !videoAsset?.objectUrl || !videoClip ? (
           <div className="preview-empty">
             {videoClip && videoAsset?.missing
               ? `missing:${videoAsset.name}`
               : "No video under playhead"}
           </div>
-        )}
+        ) : null}
       </div>
       <audio ref={v1Ref} className="hidden-audio" data-testid="preview-v1" />
       <audio ref={v2Ref} className="hidden-audio" data-testid="preview-v2" />

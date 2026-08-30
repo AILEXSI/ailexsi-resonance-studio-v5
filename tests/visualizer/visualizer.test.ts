@@ -156,6 +156,7 @@ describe("visualizer project persist", () => {
       sceneId: DEFAULT_VISUALIZER_SCENE_ID,
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
     expect(loaded.visualizer.sceneId).toBe("resonance-wave");
   });
@@ -170,6 +171,7 @@ describe("visualizer project persist", () => {
       sceneId: "pulse-orb",
       startMs: 0,
       durationMs: 0,
+      events: [],
     });
   });
 

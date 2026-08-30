@@ -71,6 +71,9 @@ describe("applyCommand determinism", () => {
       { type: "closeGap" } as const,
       { type: "rippleTrimToPlayhead", edge: "in" } as const,
       { type: "rippleTrimToPlayhead", edge: "out" } as const,
+      { type: "setFrontVideoTrack", trackId: "V1" } as const,
+      { type: "insertVisEvent" } as const,
+      { type: "selectVisEvent", eventId: "none" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

@@ -1,4 +1,4 @@
-import type { TrackId } from "../core/models";
+import type { FrontVideoTrackId, TrackId } from "../core/models";
 import type { TransitionAudioMode, TransitionType } from "../core/transition";
 import {
   applyClearInOut,
@@ -29,6 +29,9 @@ import {
   applyRoll,
   applySelect,
   applySelectClips,
+  applySelectVisEvent,
+  applySetFrontVideoTrack,
+  applyInsertVisEvent,
   applySetClipFades,
   applySetClipRate,
   applySetTrackPan,
@@ -99,7 +102,10 @@ export type EditorCommand =
       audioMode?: TransitionAudioMode;
       audioDurationMs?: number;
       startMs?: number;
-    };
+    }
+  | { type: "setFrontVideoTrack"; trackId: FrontVideoTrackId }
+  | { type: "insertVisEvent" }
+  | { type: "selectVisEvent"; eventId: string };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -193,6 +199,12 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
         audioDurationMs: command.audioDurationMs,
         startMs: command.startMs,
       });
+    case "setFrontVideoTrack":
+      return applySetFrontVideoTrack(session, command.trackId);
+    case "insertVisEvent":
+      return applyInsertVisEvent(session);
+    case "selectVisEvent":
+      return applySelectVisEvent(session, command.eventId);
     default: {
       const _never: never = command;
       return _never;

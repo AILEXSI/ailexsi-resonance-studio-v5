@@ -13,6 +13,7 @@ import {
   type MediaKind,
   type Project,
   type Track,
+  type VisualizerEvent,
   type VisualizerState,
 } from "./models";
 
@@ -40,6 +41,7 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     zoomPxPerSec: 80,
     scrollMs: 0,
     visualizer: defaultVisualizer(),
+    frontVideoTrackId: "V2",
     masterVolume: 1,
   };
 }
@@ -131,16 +133,35 @@ function sanitizeTracks(raw: unknown): Track[] {
   });
 }
 
+function sanitizeVisualizerEvent(raw: unknown): VisualizerEvent | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  if (typeof rec.id !== "string" || rec.id.length === 0) return null;
+  if (typeof rec.sceneId !== "string" || !isVisualizerSceneId(rec.sceneId)) return null;
+  if (typeof rec.startMs !== "number" || !Number.isFinite(rec.startMs)) return null;
+  if (typeof rec.durationMs !== "number" || !Number.isFinite(rec.durationMs)) return null;
+  return {
+    id: rec.id,
+    sceneId: rec.sceneId,
+    startMs: Math.max(0, rec.startMs),
+    durationMs: rec.durationMs,
+  };
+}
+
 function sanitizeVisualizer(raw: unknown): VisualizerState {
   const fallback = defaultVisualizer();
   if (!raw || typeof raw !== "object") return fallback;
   const v = raw as Record<string, unknown>;
+  const events = Array.isArray(v.events)
+    ? v.events.map((item) => sanitizeVisualizerEvent(item)).filter((item): item is VisualizerEvent => item !== null)
+    : [];
   return {
     enabled: v.enabled !== false,
     muted: v.muted === true,
     sceneId: isVisualizerSceneId(v.sceneId) ? v.sceneId : fallback.sceneId,
     startMs: Math.max(0, Number(v.startMs) || 0),
     durationMs: Math.max(0, Number(v.durationMs) || 0),
+    events,
   };
 }
 
@@ -222,6 +243,7 @@ export function deserializeProject(text: string): Project {
     zoomPxPerSec: Math.max(0.05, Math.min(ZOOM_MAX_PX_PER_SEC, Number(raw.zoomPxPerSec) || 80)),
     scrollMs: Math.max(0, Number(raw.scrollMs) || 0),
     visualizer: sanitizeVisualizer(raw.visualizer),
+    frontVideoTrackId: raw.frontVideoTrackId === "V1" ? "V1" : "V2",
     masterVolume: (() => {
       const v = Number(raw.masterVolume);
       return Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 1;

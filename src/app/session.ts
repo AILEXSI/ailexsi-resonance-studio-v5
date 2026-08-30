@@ -1,7 +1,15 @@
 import { unlinkClips } from "../core/link";
 import { resolveEditPair, upsertTransition, type Transition } from "../core/transition";
 import { classifyFile, importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
-import { clipById, kindOfTrack, type Clip, type MediaKind, type Project, type TrackId } from "../core/models";
+import {
+  clipById,
+  kindOfTrack,
+  type Clip,
+  type FrontVideoTrackId,
+  type MediaKind,
+  type Project,
+  type TrackId,
+} from "../core/models";
 import { relinkClipsOnProject, relinkSelectionOf } from "../core/relink";
 import {
   createIndexedDbBlobStore,
@@ -63,8 +71,11 @@ import {
 import { nextShuttleRate } from "../core/playback";
 import {
   cycleVisualizerScene,
+  insertVisualizerEvent,
   setVisualizer,
   toggleVisualizerMute,
+  updateVisualizerEvent,
+  visualizerEventsOf,
 } from "../core/visualizer";
 import type { VisualizerState } from "../core/models";
 import { formatDb, formatPan, linearToDb } from "../core/volume";
@@ -84,6 +95,8 @@ export interface Session {
   selectedMarkerId: string | null;
   /** VIS overlay selected for inspector (not a TrackId / clip). */
   selectedVis: boolean;
+  /** Selected VIS event id. Null = fallback sceneId+window. */
+  selectedVisEventId: string | null;
   /** Last plain-clicked clip. Shift+click ranges from here. View state only. */
   selectionAnchorClipId: string | null;
   /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
@@ -105,6 +118,7 @@ export function createSession(store?: BlobStore): Session {
     selectedClipIds: [],
     selectedMarkerId: null,
     selectedVis: false,
+    selectedVisEventId: null,
     selectionAnchorClipId: null,
     clipboard: [],
     targetTrackId: "V1",
@@ -131,6 +145,7 @@ export function withClipSelection(session: Session, ids: string[]): Session {
     selectedClipIds: unique,
     selectedClipId: unique[0] ?? null,
     selectedVis: false,
+    selectedVisEventId: null,
   };
 }
 
@@ -342,7 +357,13 @@ export function applyRippleTrimToPlayhead(session: Session, edge: "in" | "out"):
     next = { ...next, project: { ...next.project, playheadMs } };
   }
   if (clipById(next.project, clip.id) && next.selectedClipId !== clip.id) {
-    return { ...next, selectedClipId: clip.id, selectedClipIds: [clip.id], selectedVis: false };
+    return {
+      ...next,
+      selectedClipId: clip.id,
+      selectedClipIds: [clip.id],
+      selectedVis: false,
+      selectedVisEventId: null,
+    };
   }
   return next;
 }
@@ -823,11 +844,13 @@ export function applyToggleVisualizerMute(session: Session): Session {
 }
 
 export function applyCycleVisualizerScene(session: Session): Session {
-  const next = cycleVisualizerScene(session.project);
+  const eventId = session.selectedVisEventId;
+  const next = cycleVisualizerScene(session.project, eventId);
+  const event = eventId ? visualizerEventsOf(next).find((e) => e.id === eventId) : undefined;
   return {
     ...session,
     project: next,
-    status: `Visualizer ${next.visualizer.sceneId}`,
+    status: `Visualizer ${event?.sceneId ?? next.visualizer.sceneId}`,
     error: null,
   };
 }
@@ -839,14 +862,63 @@ export function applySelectVis(session: Session): Session {
     selectedClipIds: [],
     selectedMarkerId: null,
     selectedVis: true,
+    selectedVisEventId: null,
     selectionAnchorClipId: null,
   };
+}
+
+export function applySelectVisEvent(session: Session, eventId: string): Session {
+  const event = visualizerEventsOf(session.project).find((e) => e.id === eventId);
+  if (!event) return applySelectVis(session);
+  return {
+    ...session,
+    selectedClipId: null,
+    selectedClipIds: [],
+    selectedMarkerId: null,
+    selectedVis: true,
+    selectedVisEventId: event.id,
+    selectionAnchorClipId: null,
+  };
+}
+
+export function applyInsertVisEvent(session: Session): Session {
+  const { project, event } = insertVisualizerEvent(session.project, session.project.playheadMs);
+  return {
+    ...withHistory(session, project, "VIS event"),
+    selectedClipId: null,
+    selectedClipIds: [],
+    selectedMarkerId: null,
+    selectedVis: true,
+    selectedVisEventId: event.id,
+    selectionAnchorClipId: null,
+  };
+}
+
+export function applySetFrontVideoTrack(session: Session, trackId: FrontVideoTrackId): Session {
+  const next = trackId === "V1" ? "V1" : "V2";
+  const current = session.project.frontVideoTrackId === "V1" ? "V1" : "V2";
+  if (current === next) return session;
+  return withHistory(
+    session,
+    { ...session.project, frontVideoTrackId: next, updatedAt: new Date().toISOString() },
+    `Front ${next}`,
+  );
 }
 
 export function applySetVisualizer(
   session: Session,
   patch: Partial<Pick<VisualizerState, "sceneId" | "startMs" | "durationMs">>,
 ): Session {
+  if (session.selectedVisEventId) {
+    const project = updateVisualizerEvent(session.project, session.selectedVisEventId, patch);
+    const event = visualizerEventsOf(project).find((e) => e.id === session.selectedVisEventId);
+    return {
+      ...session,
+      project,
+      status: `Visualizer ${event?.sceneId ?? project.visualizer.sceneId}`,
+      error: null,
+    };
+  }
   const project = setVisualizer(session.project, patch);
   return {
     ...session,
@@ -998,6 +1070,7 @@ export function openSerialized(session: Session, text: string): Session {
     selectedClipIds: [],
     selectedMarkerId: null,
     selectedVis: false,
+    selectedVisEventId: null,
     status: `Opened ${project.name}`,
     error: null,
     playing: false,
