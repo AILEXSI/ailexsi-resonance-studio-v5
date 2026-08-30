@@ -4,6 +4,7 @@ import {
   clipEndMs,
   isTrackAudible,
   kindOfTrack,
+  sourceTimeAt,
   type Project,
 } from "../models";
 import { clampPan, mixLinearGain } from "../volume";
@@ -48,15 +49,17 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       .filter((c) => clipEndMs(c) > startMs && c.startMs < endMs)
       .map((c) => {
         const asset = assets.get(c.assetId);
+        const visibleStart = Math.max(c.startMs, startMs);
+        const visibleEnd = Math.min(clipEndMs(c), endMs);
         return {
           id: c.id,
           trackId: c.trackId,
           kind: kindOfTrack(c.trackId),
-          startMs: Math.max(0, c.startMs - startMs),
-          endMs: Math.max(0, clipEndMs(c) - startMs),
+          startMs: visibleStart - startMs,
+          endMs: visibleEnd - startMs,
           sourceUrl: asset?.objectUrl && !asset.missing ? asset.objectUrl : "",
-          sourceInMs: c.sourceInMs,
-          sourceOutMs: c.sourceOutMs,
+          sourceInMs: sourceTimeAt(c, visibleStart),
+          sourceOutMs: sourceTimeAt(c, visibleEnd),
           gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, !audible),
           fadeInMs: c.fadeInMs,
           fadeOutMs: c.fadeOutMs,

@@ -4,7 +4,7 @@ import { exportVisOf, jobFromProject, ExportPlanError } from "../../src/core/exp
 import { exportTimeline, canUseWebCodecs, webCodecsUnavailableMessage } from "../../src/core/exporter";
 import { hexHeader, looksLikeWebm, validateMp4Ftyp } from "../../src/core/exporter/ftyp";
 import { muxAvcToMp4 } from "../../src/core/exporter/mp4";
-import { DEFAULT_VISUALIZER_SCENE_ID } from "../../src/core/models";
+import { DEFAULT_VISUALIZER_SCENE_ID, sourceTimeAt } from "../../src/core/models";
 import { contextFromExportClips, contextFromProject, resolvePictureSource } from "../../src/core/transition";
 import { featuresAt } from "../../src/core/visualizer";
 import { asset, clip, projectWith } from "../helpers";
@@ -83,6 +83,22 @@ describe("export planner + fail path", () => {
     expect(job.durationMs).toBe(600);
     expect(job.tracks.find((t) => t.id === "V1")!.clips[0]!.startMs).toBe(0);
     expect(job.fileName.endsWith(".mp4")).toBe(true);
+    const jc = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    expect(jc.endMs).toBe(600);
+    expect(jc.sourceInMs).toBe(200);
+    expect(jc.sourceOutMs).toBe(800);
+  });
+
+  it("IN advances sourceIn so export frame 0 matches preview at IN (P98)", () => {
+    const p = projectReady();
+    p.inPointMs = 200;
+    p.outPointMs = 800;
+    const job = jobFromProject(p);
+    const jc = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    const previewSrc = p.clips[0]!;
+    expect(jc.sourceInMs).toBe(sourceTimeAt(previewSrc, 200));
+    expect(jc.startMs).toBe(0);
+    expect(jc.endMs).toBe(600);
   });
 
   it("shifts the legacy VIS window by IN like events (P96)", () => {
