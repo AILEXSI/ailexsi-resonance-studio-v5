@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, rippleTrimClip, rollEdit, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, rippleTrimClip, rollEdit, setClipFades, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -844,6 +844,39 @@ describe("linked A/V", () => {
     expect(viaCommand.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
     expect(viaCommand.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
     expect(viaCommand.selectedClipId).toBe("a1");
+  });
+
+  it("setClipFades on an unlocked clip skips a locked mate (P123)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const next = setClipFades(locked, "a1", 200, 100);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "a1")!.fadeInMs).toBe(200);
+    expect(next.project.clips.find((c) => c.id === "a1")!.fadeOutMs).toBe(100);
+    expect(next.project.clips.find((c) => c.id === "v1")!.fadeInMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "v1")!.fadeOutMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+
+    const viaCommand = applyCommand(
+      { ...start, project: locked, selectedClipId: "a1", selectedClipIds: ["a1"] },
+      { type: "setClipFades", clipId: "a1", fadeInMs: 200, fadeOutMs: 100 },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "a1")!.fadeInMs).toBe(200);
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.fadeInMs).toBe(0);
+  });
+
+  it("setClipFades on a linked clip copies fades to the unlocked mate", () => {
+    const start = linkedPair();
+    const next = setClipFades(start.project, "v1", 200, 100);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "v1")!.fadeInMs).toBe(200);
+    expect(next.project.clips.find((c) => c.id === "v1")!.fadeOutMs).toBe(100);
+    expect(next.project.clips.find((c) => c.id === "a1")!.fadeInMs).toBe(200);
+    expect(next.project.clips.find((c) => c.id === "a1")!.fadeOutMs).toBe(100);
   });
 
   it("group slip follows a living mate of a member, or no-ops all", () => {

@@ -1557,6 +1557,30 @@ export function updateClip(
   };
 }
 
+/**
+ * Fade in/out on one clip. A living unlocked linked mate gets the same
+ * fade lengths (clamped to its duration). A locked mate is skipped
+ * (same as split/slip/rate/roll/slide/ripple-trim). Lock does not block
+ * fades on the clip itself.
+ */
+export function setClipFades(
+  project: Project,
+  clipId: string,
+  fadeInMs: number,
+  fadeOutMs: number,
+): { project: Project; error?: string } {
+  const clip = clipById(project, clipId);
+  if (!clip) return { project, error: "Clip not found" };
+  const one = updateClip(project, clipId, { fadeInMs, fadeOutMs });
+  if (one.error) return one;
+  const mate = livingLinkedMate(one.project, clipId);
+  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  if (!liveMate) return one;
+  const two = updateClip(one.project, liveMate.id, { fadeInMs, fadeOutMs });
+  if (two.error) return { project: one.project, error: two.error };
+  return two;
+}
+
 function planClipRate(
   project: Project,
   clip: Clip,

@@ -63,6 +63,7 @@ import {
   slipClips,
   slideClips,
   setClipRate,
+  setClipFades,
   maybeScrollToOrigin,
   moveClip,
   moveClipsByDelta,
@@ -958,7 +959,7 @@ export function applySetClipFades(
   fadeInMs: number,
   fadeOutMs: number,
 ): Session {
-  const result = updateClip(session.project, clipId, { fadeInMs, fadeOutMs });
+  const result = setClipFades(session.project, clipId, fadeInMs, fadeOutMs);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Clip fades");
 }
