@@ -1206,7 +1206,7 @@ export function App() {
       <div
         className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
         data-testid="arrange-row"
-        style={{ overflowY: "auto" }}
+        style={{ overflow: "hidden" }}
       >
       <Timeline
         visibleTrackIds={tracksForScreen(screen)}

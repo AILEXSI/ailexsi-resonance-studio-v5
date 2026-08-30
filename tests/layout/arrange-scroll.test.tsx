@@ -24,14 +24,14 @@ describe("arrange overflow", () => {
     root = undefined;
   });
 
-  it("arrange-row overflow-y is scrollable so A2 stays reachable when preview is tall", () => {
+  it("lanes scroll vertically; tools and ruler stay outside the scroller (P52)", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     act(() => {
       root!.render(
-        <div className="lower-stage" style={{ height: 140 }}>
-          <div className="arrange-row" data-testid="arrange-row" style={{ overflowY: "auto" }}>
+        <div className="lower-stage" style={{ height: 240 }}>
+          <div className="arrange-row" data-testid="arrange-row" style={{ overflow: "hidden" }}>
             <Timeline
               project={createEmptyProject()}
               selectedClipId={null}
@@ -74,13 +74,36 @@ describe("arrange overflow", () => {
       );
     });
     const row = host.querySelector('[data-testid="arrange-row"]') as HTMLElement;
-    expect(row).toBeTruthy();
-    const overflowY = row.style.overflowY || getComputedStyle(row).overflowY;
-    expect(overflowY === "auto" || overflowY === "scroll").toBe(true);
+    const timeline = host.querySelector('[data-testid="timeline"]') as HTMLElement;
+    const lanes = host.querySelector('[data-testid="timeline-lanes"]') as HTMLElement;
+    const tools = timeline?.querySelector(".timeline-tools") as HTMLElement;
+    const ruler = host.querySelector('[data-testid="ruler"]') as HTMLElement;
+    expect(row && timeline && lanes && tools && ruler).toBeTruthy();
+    const rowOverflow = row.style.overflow || getComputedStyle(row).overflow;
+    expect(rowOverflow === "hidden" || getComputedStyle(row).overflowY === "hidden").toBe(true);
+    expect(lanes.contains(tools)).toBe(false);
+    expect(lanes.contains(ruler)).toBe(false);
+    expect(timeline.contains(tools)).toBe(true);
+    expect(timeline.contains(ruler)).toBe(true);
+    expect(lanes.contains(host.querySelector('[data-testid="lane-VIS"]')!)).toBe(true);
+    expect(lanes.contains(host.querySelector('[data-testid="lane-A2"]')!)).toBe(true);
     expect(host.querySelector('[data-testid="mute-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mute-V2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-V1"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="lane-VIS"]')).toBeTruthy();
+    const lanesOverflow =
+      getComputedStyle(lanes).overflowY ||
+      [...document.styleSheets]
+        .flatMap((sheet) => {
+          try {
+            return [...sheet.cssRules];
+          } catch {
+            return [];
+          }
+        })
+        .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
+        .find((rule) => rule.selectorText === ".timeline-lanes")?.style.overflowY ??
+      "";
+    expect(lanesOverflow === "auto" || lanesOverflow === "scroll").toBe(true);
   });
 });
