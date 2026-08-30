@@ -127,6 +127,33 @@ describe("duplicate", () => {
     expect(latest.id).not.toBe("c1");
   });
 
+  it("paste/duplicate snap to nearby edges; playhead and Ctrl+V/D stay (P93)", () => {
+    const start = oneClipSession();
+    start.project = {
+      ...start.project,
+      playheadMs: 1070,
+      markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+      snap: true,
+    };
+    const duped = applyCommand(start, { type: "duplicate" });
+    const clone = duped.project.clips.find((c) => c.id !== "c1")!;
+    expect(clone.startMs).toBe(1000);
+    expect(duped.project.playheadMs).toBe(1070);
+
+    const copied = applyCommand(start, { type: "copy" });
+    const pasted = applyCommand(copied, { type: "paste" });
+    const drop = pasted.project.clips.find((c) => c.id !== "c1")!;
+    expect(drop.startMs).toBe(1000);
+    expect(pasted.project.playheadMs).toBe(1070);
+
+    const off = applyCommand(
+      { ...start, project: { ...start.project, snap: false } },
+      { type: "duplicate" },
+    );
+    expect(off.project.clips.find((c) => c.id !== "c1")!.startMs).toBe(1070);
+    expect(off.project.playheadMs).toBe(1070);
+  });
+
   it("empty selection is a no-op with no history", () => {
     const start = createSession(createMemoryBlobStore());
     const next = applyCommand(start, { type: "duplicate" });

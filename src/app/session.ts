@@ -775,11 +775,12 @@ export function applyCut(session: Session): Session {
 }
 
 export function applyPaste(session: Session): Session {
+  const at = snapPlayheadSeek(session.project, session.project.playheadMs);
   if (shouldPasteVisEvent(session) && session.visClipboard) {
     const { project, event } = pasteVisualizerEvent(
       session.project,
       session.visClipboard,
-      session.project.playheadMs,
+      at,
     );
     return {
       ...withHistory(session, project, "Pasted VIS event"),
@@ -795,7 +796,7 @@ export function applyPaste(session: Session): Session {
     return { ...session, error: "Clipboard empty" };
   }
   if (session.clipboard.length === 0) return { ...session, error: "Clipboard empty" };
-  const result = pasteClips(session.project, session.clipboard, session.project.playheadMs);
+  const result = pasteClips(session.project, session.clipboard, at);
   if (result.error) return { ...session, error: result.error };
   const many = result.clipIds.length > 1;
   return withClipSelection(
@@ -814,7 +815,7 @@ export function applyDuplicate(session: Session): Session {
   const result = pasteClips(
     session.project,
     clips.map((c) => ({ ...c })),
-    session.project.playheadMs,
+    snapPlayheadSeek(session.project, session.project.playheadMs),
   );
   if (result.error) return { ...session, error: result.error };
   const many = result.clipIds.length > 1;

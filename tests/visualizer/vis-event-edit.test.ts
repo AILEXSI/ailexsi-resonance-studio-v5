@@ -76,6 +76,22 @@ describe("VIS event edit ops", () => {
     expect(pasted.status).toBe("Pasted VIS event");
   });
 
+  it("VIS paste snaps to nearby edges; playhead stays (P93)", () => {
+    const start = visSession(
+      [{ id: "ve1", sceneId: "lita-bloom", startMs: 200, durationMs: 800 }],
+      {
+        playheadMs: 2070,
+        snap: true,
+        markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+      },
+    );
+    const copied = applyCommand(start, { type: "copy" });
+    const pasted = applyCommand(copied, { type: "paste" });
+    const clone = visualizerEventsOf(pasted.project).find((e) => e.id !== "ve1")!;
+    expect(clone.startMs).toBe(2000);
+    expect(pasted.project.playheadMs).toBe(2070);
+  });
+
   it("cut copies then deletes the selected event", () => {
     const start = visSession([
       { id: "ve1", sceneId: "tunnel-spiral", startMs: 0, durationMs: 1000 },
