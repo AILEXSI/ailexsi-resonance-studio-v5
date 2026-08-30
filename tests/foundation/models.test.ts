@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   audioClipsAt,
+  clipOnTrackAt,
+  mixClipsAt,
   clipEndMs,
   defaultTracks,
   formatTimecode,
@@ -55,6 +57,18 @@ describe("foundation models", () => {
       clip({ id: "a2", assetId: "b", trackId: "A2", startMs: 0, durationMs: 1000 }),
     ]);
     expect(audioClipsAt(p, 100).map((c) => c.id).sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("mixClipsAt includes V-track clips; audioClipsAt stays A-only", () => {
+    const p = projectWith([
+      clip({ id: "v1", assetId: "v", trackId: "V1", startMs: 0, durationMs: 2000 }),
+      clip({ id: "a1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+    ]);
+    expect(clipOnTrackAt(p, "V1", 100)?.id).toBe("v1");
+    expect(mixClipsAt(p, 100).map((c) => c.id).sort()).toEqual(["a1", "v1"]);
+    expect(audioClipsAt(p, 100).map((c) => c.id)).toEqual(["a1"]);
+    p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, muted: true } : t));
+    expect(mixClipsAt(p, 100).map((c) => c.id)).toEqual(["a1"]);
   });
 
   it("empty project has zero duration", () => {

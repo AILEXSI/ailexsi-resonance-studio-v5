@@ -93,11 +93,9 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
   return hits.find((c) => c.trackId === "V2") ?? hits.find((c) => c.trackId === "V1");
 }
 
+/** Mix candidates: A and V clips that are present. Video-only files drop at decode. */
 export function audioClipsForMix(job: ExportJob): ExportClip[] {
-  return job.tracks
-    .filter((t) => t.kind === "audio")
-    .flatMap((t) => t.clips)
-    .filter((c) => !c.missing);
+  return job.tracks.flatMap((t) => t.clips).filter((c) => !c.missing);
 }
 
 export function missingOnlyVideoLabel(job: ExportJob): string | undefined {

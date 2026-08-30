@@ -1,5 +1,5 @@
 /**
- * Optional live A1/A2 AnalyserNode tap for Visualz setFeatures.
+ * Optional live V1/V2/A1/A2 AnalyserNode tap for Visualz setFeatures + mix meters.
  * MediaElementSource can only be created once per element, so sources are
  * cached for the page lifetime. If Web Audio is unavailable or tap fails,
  * the host must use the synthetic 120 BPM AudioFeatures fallback.
@@ -8,23 +8,29 @@
 import { createFeatureExtractor, type FeatureExtractor } from "./feature-extractor";
 import type { AudioFeatures } from "./types";
 
+export const MIX_LANES = ["V1", "V2", "A1", "A2"] as const;
+export type MixLane = (typeof MIX_LANES)[number];
+
 export interface MixPeaks {
+  V1: number;
+  V2: number;
   A1: number;
   A2: number;
   master: number;
 }
 
+export type MixGains = MixPeaks & {
+  V1pan?: number;
+  V2pan?: number;
+  A1pan?: number;
+  A2pan?: number;
+};
+
 export interface PlaybackTap {
   sample(timeMs: number): AudioFeatures;
   resume(): void;
   disconnect(): void;
-  setGains(gains: {
-    A1: number;
-    A2: number;
-    master: number;
-    A1pan?: number;
-    A2pan?: number;
-  }): void;
+  setGains(gains: MixGains): void;
   peaks(): MixPeaks;
 }
 
@@ -62,13 +68,10 @@ function sourceFor(ctx: AudioContext, el: HTMLMediaElement): MediaElementAudioSo
 }
 
 export function createPlaybackTap(
-  elements: Array<HTMLMediaElement | null>,
+  elements: Partial<Record<MixLane, HTMLMediaElement | null>>,
 ): PlaybackTap | null {
   const ctx = sharedAudioContext();
   if (!ctx) return null;
-
-  const media = elements.filter((el): el is HTMLMediaElement => el != null);
-  if (media.length === 0) return null;
 
   const mixer = ctx.createGain();
   mixer.gain.value = 1;
@@ -77,11 +80,13 @@ export function createPlaybackTap(
   mixer.connect(masterAnalyser);
   masterAnalyser.connect(ctx.destination);
 
-  const trackGains: GainNode[] = [];
-  const trackPanners: Array<StereoPannerNode | null> = [];
-  const trackAnalysers: AnalyserNode[] = [];
+  const trackGains: Partial<Record<MixLane, GainNode>> = {};
+  const trackPanners: Partial<Record<MixLane, StereoPannerNode | null>> = {};
+  const trackAnalysers: Partial<Record<MixLane, AnalyserNode>> = {};
   let connected = 0;
-  for (const el of media) {
+  for (const id of MIX_LANES) {
+    const el = elements[id];
+    if (!el) continue;
     const source = sourceFor(ctx, el);
     if (!source) continue;
     try {
@@ -101,9 +106,9 @@ export function createPlaybackTap(
         gain.connect(analyser);
       }
       analyser.connect(mixer);
-      trackGains.push(gain);
-      trackPanners.push(panner);
-      trackAnalysers.push(analyser);
+      trackGains[id] = gain;
+      trackPanners[id] = panner;
+      trackAnalysers[id] = analyser;
       connected += 1;
     } catch {
       // already wired this tick
@@ -151,20 +156,22 @@ export function createPlaybackTap(
       if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
     },
     setGains(gains) {
-      const a1 = trackGains[0];
-      const a2 = trackGains[1];
-      if (a1) a1.gain.value = Math.max(0, gains.A1);
-      if (a2) a2.gain.value = Math.max(0, gains.A2);
+      for (const id of MIX_LANES) {
+        const node = trackGains[id];
+        if (node) node.gain.value = Math.max(0, gains[id]);
+        const panner = trackPanners[id];
+        const panKey = `${id}pan` as const;
+        const pan = gains[panKey];
+        if (panner && pan != null) panner.pan.value = Math.max(-1, Math.min(1, pan));
+      }
       mixer.gain.value = Math.max(0, gains.master);
-      const p1 = trackPanners[0];
-      const p2 = trackPanners[1];
-      if (p1 && gains.A1pan != null) p1.pan.value = Math.max(-1, Math.min(1, gains.A1pan));
-      if (p2 && gains.A2pan != null) p2.pan.value = Math.max(-1, Math.min(1, gains.A2pan));
     },
     peaks() {
       return {
-        A1: trackAnalysers[0] ? readPeak(trackAnalysers[0]) : 0,
-        A2: trackAnalysers[1] ? readPeak(trackAnalysers[1]) : 0,
+        V1: trackAnalysers.V1 ? readPeak(trackAnalysers.V1) : 0,
+        V2: trackAnalysers.V2 ? readPeak(trackAnalysers.V2) : 0,
+        A1: trackAnalysers.A1 ? readPeak(trackAnalysers.A1) : 0,
+        A2: trackAnalysers.A2 ? readPeak(trackAnalysers.A2) : 0,
         master: readPeak(masterAnalyser),
       };
     },

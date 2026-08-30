@@ -251,6 +251,21 @@ export function audioClipsAt(project: Project, timeMs: number): Clip[] {
   );
 }
 
+export function clipOnTrackAt(project: Project, trackId: TrackId, timeMs: number): Clip | undefined {
+  return project.clips.find(
+    (c) => c.trackId === trackId && timeMs >= c.startMs && timeMs < clipEndMs(c),
+  );
+}
+
+/** Audible clips on V1/V2/A1/A2 under the playhead (picture + mix). */
+export function mixClipsAt(project: Project, timeMs: number): Clip[] {
+  return TRACK_IDS.flatMap((id) => {
+    if (!isTrackAudible(project, id)) return [];
+    const clip = clipOnTrackAt(project, id, timeMs);
+    return clip ? [clip] : [];
+  });
+}
+
 export function sourceTimeAt(clip: Clip, timelineMs: number): number {
   const offset = Math.max(0, timelineMs - clip.startMs);
   return clip.sourceInMs + offset * clipRateOf(clip);

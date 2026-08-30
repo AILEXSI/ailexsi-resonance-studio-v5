@@ -84,6 +84,13 @@ export async function probeAac(): Promise<AacProbe | null> {
   return null;
 }
 
+/** Video-only / empty decode: no channels or no frames → skip, do not fail the mix. */
+export function decodedBufferIsAudible(
+  buf: Pick<AudioBuffer, "numberOfChannels" | "length">,
+): boolean {
+  return buf.numberOfChannels > 0 && buf.length > 0;
+}
+
 export async function mixJobAudio(
   job: ExportJob,
   probe: AacProbe,
@@ -98,6 +105,7 @@ export async function mixJobAudio(
     if (signal?.aborted) throw new Error("Export aborted");
     try {
       const decoded = await decodeAudio(clip.sourceUrl);
+      if (!decodedBufferIsAudible(decoded)) continue;
       const src = ctx.createBufferSource();
       src.buffer = decoded;
       const gain = ctx.createGain();

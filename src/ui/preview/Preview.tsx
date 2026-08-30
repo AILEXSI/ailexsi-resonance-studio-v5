@@ -1,14 +1,16 @@
 import { useEffect, useRef } from "react";
 import {
-  audioClipsAt,
+  TRACK_IDS,
+  clipOnTrackAt,
   isTrackAudible,
-  kindOfTrack,
+  mixClipsAt,
   projectDurationMs,
   sourceTimeAt,
   topVideoClipAt,
   trackPanOf,
   trackVolumeOf,
   type Project,
+  type TrackId,
 } from "../../core/models";
 import { gainAtClipTime, videoAlphaAtClipTime } from "../../core/fades";
 import { mixLinearGain } from "../../core/volume";
@@ -28,6 +30,8 @@ interface Props {
 
 export function Preview({ project, playing, onLevels }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const v1Ref = useRef<HTMLAudioElement>(null);
+  const v2Ref = useRef<HTMLAudioElement>(null);
   const a1Ref = useRef<HTMLAudioElement>(null);
   const a2Ref = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,7 +42,7 @@ export function Preview({ project, playing, onLevels }: Props) {
   const videoAsset = videoClip
     ? project.assets.find((a) => a.id === videoClip.assetId)
     : undefined;
-  const audios = audioClipsAt(project, project.playheadMs);
+  const mixClips = mixClipsAt(project, project.playheadMs);
   const showViz = shouldShowVisualizer(project, project.playheadMs);
 
   useEffect(() => {
@@ -54,9 +58,11 @@ export function Preview({ project, playing, onLevels }: Props) {
   }, [project.playheadMs, playing, videoClip, videoAsset?.objectUrl]);
 
   useEffect(() => {
-    const bind = (el: HTMLAudioElement | null, trackId: "A1" | "A2") => {
+    const bind = (el: HTMLAudioElement | null, trackId: TrackId) => {
       if (!el) return;
-      const clip = audios.find((c) => c.trackId === trackId);
+      const clip = isTrackAudible(project, trackId)
+        ? clipOnTrackAt(project, trackId, project.playheadMs)
+        : undefined;
       const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
       if (!clip || !asset?.objectUrl) {
         el.pause();
@@ -82,13 +88,20 @@ export function Preview({ project, playing, onLevels }: Props) {
       if (playing && el.paused) void el.play().catch(() => undefined);
       if (!playing && !el.paused) el.pause();
     };
+    bind(v1Ref.current, "V1");
+    bind(v2Ref.current, "V2");
     bind(a1Ref.current, "A1");
     bind(a2Ref.current, "A2");
-  }, [audios, playing, project.assets, project.playheadMs, project.tracks, project.masterVolume]);
+  }, [mixClips, playing, project.assets, project.playheadMs, project.tracks, project.masterVolume]);
 
   useEffect(() => {
     if (tapRef.current) return;
-    const tap = createPlaybackTap([a1Ref.current, a2Ref.current]);
+    const tap = createPlaybackTap({
+      V1: v1Ref.current,
+      V2: v2Ref.current,
+      A1: a1Ref.current,
+      A2: a2Ref.current,
+    });
     if (!tap) return;
     tapRef.current = tap;
     return () => {
@@ -104,24 +117,29 @@ export function Preview({ project, playing, onLevels }: Props) {
   useEffect(() => {
     const tap = tapRef.current;
     if (!tap) return;
-    const gainOf = (trackId: "A1" | "A2") => {
-      const clip = audios.find((c) => c.trackId === trackId);
+    const gainOf = (trackId: TrackId) => {
+      if (!isTrackAudible(project, trackId)) return 0;
+      const clip = clipOnTrackAt(project, trackId, project.playheadMs);
       if (!clip) return 0;
       return mixLinearGain(
         gainAtClipTime(clip, project.playheadMs - clip.startMs),
         trackVolumeOf(project, trackId),
         1,
-        !isTrackAudible(project, trackId),
+        false,
       );
     };
     tap.setGains({
+      V1: gainOf("V1"),
+      V2: gainOf("V2"),
       A1: gainOf("A1"),
       A2: gainOf("A2"),
       master: project.masterVolume ?? 1,
+      V1pan: trackPanOf(project, "V1"),
+      V2pan: trackPanOf(project, "V2"),
       A1pan: trackPanOf(project, "A1"),
       A2pan: trackPanOf(project, "A2"),
     });
-  }, [audios, project]);
+  }, [mixClips, project]);
 
   useEffect(() => {
     if (!playing || !onLevels) return;
@@ -129,8 +147,8 @@ export function Preview({ project, playing, onLevels }: Props) {
     const tick = () => {
       const p = tapRef.current?.peaks();
       onLevels({
-        V1: 0,
-        V2: 0,
+        V1: p?.V1 ?? 0,
+        V2: p?.V2 ?? 0,
         A1: p?.A1 ?? 0,
         A2: p?.A2 ?? 0,
         master: p?.master ?? 0,
@@ -215,11 +233,13 @@ export function Preview({ project, playing, onLevels }: Props) {
           </div>
         )}
       </div>
+      <audio ref={v1Ref} className="hidden-audio" data-testid="preview-v1" />
+      <audio ref={v2Ref} className="hidden-audio" data-testid="preview-v2" />
       <audio ref={a1Ref} className="hidden-audio" data-testid="preview-a1" />
       <audio ref={a2Ref} className="hidden-audio" data-testid="preview-a2" />
       <div className="preview-meta">
         Active: {activeLabel} · audio{" "}
-        {audios.filter((c) => kindOfTrack(c.trackId) === "audio").map((c) => c.trackId).join(" ") || "—"}
+        {TRACK_IDS.filter((id) => mixClips.some((c) => c.trackId === id)).join(" ") || "—"}
       </div>
     </section>
   );
