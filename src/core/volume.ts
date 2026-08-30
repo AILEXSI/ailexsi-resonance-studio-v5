@@ -63,3 +63,26 @@ export function mixLinearGain(
     Math.max(0, clipGain) * Math.max(0, trackVolume) * Math.max(0, masterVolume),
   );
 }
+
+/** Track pan −1 (L) … +1 (R). 0 is center. */
+export function clampPan(pan: number): number {
+  if (!Number.isFinite(pan)) return 0;
+  return Math.max(-1, Math.min(1, pan));
+}
+
+/**
+ * Equal-power stereo law.
+ * L = cos((pan+1)/2 * π/2), R = sin((pan+1)/2 * π/2).
+ */
+export function equalPowerPan(pan: number): { left: number; right: number } {
+  const theta = ((clampPan(pan) + 1) / 2) * (Math.PI / 2);
+  return { left: Math.cos(theta), right: Math.sin(theta) };
+}
+
+/** Mixer label: C at center, L/R plus 0–100 otherwise. */
+export function formatPan(pan: number): string {
+  const p = clampPan(pan);
+  if (Math.abs(p) < 0.02) return "C";
+  if (p < 0) return `L${Math.round(-p * 100)}`;
+  return `R${Math.round(p * 100)}`;
+}

@@ -57,6 +57,7 @@ describe("applyCommand determinism", () => {
       { type: "liftRange" } as const,
       { type: "extractRange" } as const,
       { type: "setClipFades", clipId: "c1", fadeInMs: 200, fadeOutMs: 100 } as const,
+      { type: "setTrackPan", trackId: "A1", pan: -0.5 } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

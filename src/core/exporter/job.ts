@@ -5,7 +5,7 @@ import {
   kindOfTrack,
   type Project,
 } from "../models";
-import { mixLinearGain } from "../volume";
+import { clampPan, mixLinearGain } from "../volume";
 import { exportRangeMs } from "../timeline";
 import type { ExportClip, ExportJob, ExportTrack } from "./types";
 
@@ -31,7 +31,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const tracks: ExportTrack[] = project.tracks.map((track) => {
     if (!isTrackAudible(project, track.id)) {
-      return { id: track.id, kind: track.kind, clips: [] };
+      return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips: [] };
     }
     const clips: ExportClip[] = project.clips
       .filter((c) => c.trackId === track.id)
@@ -54,7 +54,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           label: asset?.name ?? c.id,
         };
       });
-    return { id: track.id, kind: track.kind, clips };
+    return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips };
   });
 
   const hasClips = tracks.some((t) => t.clips.length > 0);

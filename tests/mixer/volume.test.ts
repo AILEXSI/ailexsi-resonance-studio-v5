@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { applyCommand } from "../../src/app/commands";
 import { applyMasterVolume, applyToggleSolo, applyTrackVolume, createSession } from "../../src/app/session";
+import { jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
 import {
   dbToLinear,
+  equalPowerPan,
   formatDb,
+  formatPan,
   linearToDb,
   mixLinearGain,
   peakToDb,
@@ -81,5 +85,51 @@ describe("session + project volume persist", () => {
     const loaded = deserializeProject(JSON.stringify(raw));
     expect(loaded.tracks.every((t) => t.volume === 1)).toBe(true);
     expect(loaded.masterVolume).toBe(1);
+  });
+
+  it("legacy JSON without pan defaults to center; setTrackPan persists", () => {
+    const session = createSession(createMemoryBlobStore());
+    expect(session.project.tracks.every((t) => t.pan === 0)).toBe(true);
+    const raw = JSON.parse(serializeProject(session.project)) as {
+      tracks: Array<{ pan?: number }>;
+    };
+    for (const t of raw.tracks) delete t.pan;
+    const legacy = deserializeProject(JSON.stringify(raw));
+    expect(legacy.tracks.every((t) => t.pan === 0)).toBe(true);
+
+    const panned = applyCommand(session, { type: "setTrackPan", trackId: "A1", pan: -1 });
+    expect(panned.project.tracks.find((t) => t.id === "A1")!.pan).toBe(-1);
+    expect(panned.project.tracks.find((t) => t.id === "A2")!.pan).toBe(0);
+    const loaded = deserializeProject(serializeProject(panned.project));
+    expect(loaded.tracks.find((t) => t.id === "A1")!.pan).toBe(-1);
+  });
+});
+
+describe("equal-power pan", () => {
+  it("hard L / center / hard R", () => {
+    const left = equalPowerPan(-1);
+    expect(left.left).toBeCloseTo(1, 8);
+    expect(left.right).toBeCloseTo(0, 8);
+    const center = equalPowerPan(0);
+    expect(center.left).toBeCloseTo(Math.SQRT1_2, 8);
+    expect(center.right).toBeCloseTo(Math.SQRT1_2, 8);
+    const right = equalPowerPan(1);
+    expect(right.left).toBeCloseTo(0, 8);
+    expect(right.right).toBeCloseTo(1, 8);
+    expect(formatPan(0)).toBe("C");
+    expect(formatPan(-1)).toBe("L100");
+    expect(formatPan(1)).toBe("R100");
+  });
+
+  it("jobFromProject copies track pan onto export tracks", () => {
+    let session = createSession(createMemoryBlobStore());
+    session.project = projectWith(
+      [clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 })],
+      [asset({ id: "a", kind: "audio", durationMs: 1000, objectUrl: "blob:t", missing: false })],
+    );
+    session = applyCommand(session, { type: "setTrackPan", trackId: "A1", pan: 0.5 });
+    const job = jobFromProject(session.project);
+    expect(job.tracks.find((t) => t.id === "A1")!.pan).toBeCloseTo(0.5, 8);
+    expect(job.tracks.find((t) => t.id === "V1")!.pan).toBe(0);
   });
 });

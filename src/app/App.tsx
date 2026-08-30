@@ -917,6 +917,7 @@ export function App() {
         onToggleCollapsed={toggleMixerCollapsed}
         onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
+        onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}

@@ -643,6 +643,15 @@ export function setTrackVolume(project: Project, trackId: TrackId, volume: numbe
   };
 }
 
+export function setTrackPan(project: Project, trackId: TrackId, pan: number): Project {
+  const p = Math.max(-1, Math.min(1, Number.isFinite(pan) ? pan : 0));
+  return {
+    ...project,
+    tracks: project.tracks.map((t) => (t.id === trackId ? { ...t, pan: p } : t)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function setMasterVolume(project: Project, volume: number): Project {
   const v = Math.max(0, Math.min(2, Number(volume) || 0));
   return { ...project, masterVolume: v, updatedAt: new Date().toISOString() };

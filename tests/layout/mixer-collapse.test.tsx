@@ -70,6 +70,9 @@ describe("mixer collapse", () => {
     expect(host.querySelector('[data-testid="mix-solo-V1"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mix-solo-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mix-solo-master"]')).toBeNull();
+    expect(host.querySelector('[data-testid="mix-pan-V1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mix-pan-A2"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mix-pan-master"]')).toBeNull();
     expect(host.querySelector('[data-testid="mixer"]')?.getAttribute("data-collapsed")).toBe("false");
 
     act(() => {

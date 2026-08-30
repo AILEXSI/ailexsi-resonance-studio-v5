@@ -19,6 +19,8 @@ export interface ExportClip {
 export interface ExportTrack {
   id: TrackId;
   kind: MediaKind;
+  /** −1 L … +1 R. Applied last on this track’s mix contribution. */
+  pan: number;
   clips: ExportClip[];
 }
 

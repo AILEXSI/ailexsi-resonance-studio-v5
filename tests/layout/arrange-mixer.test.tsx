@@ -64,6 +64,9 @@ describe("arrange + mixer layout", () => {
     expect(parseFloat(style.minWidth) || 228).toBeGreaterThanOrEqual(228);
 
     expect(host.querySelector('[data-testid="mix-V1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mix-pan-V1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mix-pan-A1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mix-pan-master"]')).toBeNull();
     expect(host.querySelector('[data-testid="mix-fader-master"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mix-db-A1"]')?.textContent).toMatch(/dB/);
   });

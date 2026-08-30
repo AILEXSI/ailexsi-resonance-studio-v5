@@ -114,11 +114,13 @@ function sanitizeTracks(raw: unknown): Track[] {
       | undefined;
     if (!found) return track;
     const vol = Number((found as Track).volume);
+    const pan = Number((found as Track).pan);
     return {
       ...track,
       muted: Boolean(found.muted),
       solo: found.solo === true,
       volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
+      pan: Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0,
     };
   });
 }

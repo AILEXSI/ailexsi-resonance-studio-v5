@@ -21,6 +21,7 @@ describe("foundation models", () => {
     expect(p.tracks.map((t) => t.id)).toEqual(["V1", "V2", "A1", "A2"]);
     expect(defaultTracks().every((t) => t.kind === kindOfTrack(t.id))).toBe(true);
     expect(defaultTracks().every((t) => t.volume === 1)).toBe(true);
+    expect(defaultTracks().every((t) => t.pan === 0)).toBe(true);
     expect(defaultTracks().every((t) => t.solo === false)).toBe(true);
     expect(p.masterVolume).toBe(1);
     expect(p.clips).toEqual([]);

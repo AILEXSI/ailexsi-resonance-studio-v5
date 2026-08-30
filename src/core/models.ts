@@ -82,6 +82,8 @@ export interface Track {
   solo: boolean;
   /** Linear track fader. 1 = 0 dB unity. 0 = silence. */
   volume: number;
+  /** Stereo pan. −1 = hard L, 0 = center, +1 = hard R. Master has no pan. */
+  pan: number;
 }
 
 export interface Marker {
@@ -153,6 +155,12 @@ export function trackVolumeOf(project: Project, trackId: TrackId): number {
   return v == null || !Number.isFinite(v) ? 1 : Math.max(0, v);
 }
 
+export function trackPanOf(project: Project, trackId: TrackId): number {
+  const p = project.tracks.find((t) => t.id === trackId)?.pan;
+  if (p == null || !Number.isFinite(p)) return 0;
+  return Math.max(-1, Math.min(1, p));
+}
+
 export function clipEndMs(clip: Clip): number {
   return clip.startMs + clip.durationMs;
 }
@@ -171,10 +179,10 @@ export function projectDurationMs(project: Project): number {
 
 export function defaultTracks(): Track[] {
   return [
-    { id: "V1", kind: "video", name: "V1", muted: false, solo: false, volume: 1 },
-    { id: "V2", kind: "video", name: "V2", muted: false, solo: false, volume: 1 },
-    { id: "A1", kind: "audio", name: "A1", muted: false, solo: false, volume: 1 },
-    { id: "A2", kind: "audio", name: "A2", muted: false, solo: false, volume: 1 },
+    { id: "V1", kind: "video", name: "V1", muted: false, solo: false, volume: 1, pan: 0 },
+    { id: "V2", kind: "video", name: "V2", muted: false, solo: false, volume: 1, pan: 0 },
+    { id: "A1", kind: "audio", name: "A1", muted: false, solo: false, volume: 1, pan: 0 },
+    { id: "A2", kind: "audio", name: "A2", muted: false, solo: false, volume: 1, pan: 0 },
   ];
 }
 

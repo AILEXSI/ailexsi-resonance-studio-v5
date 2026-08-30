@@ -4,6 +4,7 @@ import {
   dbToLinear,
   faderToDb,
   formatDb,
+  formatPan,
   linearToDb,
   meterHeightPct,
   peakToDb,
@@ -28,6 +29,7 @@ interface Props {
   onMasterVolume: (linear: number) => void;
   onToggleMute: (id: TrackId) => void;
   onToggleSolo: (id: TrackId) => void;
+  onPan?: (id: TrackId, pan: number) => void;
 }
 
 function Strip(props: {
@@ -36,11 +38,13 @@ function Strip(props: {
   volume: number;
   muted?: boolean;
   solo?: boolean;
+  pan?: number;
   selected?: boolean;
   peak: number;
   kind: "video" | "audio" | "master";
   onSelect?: () => void;
   onVolume: (linear: number) => void;
+  onPan?: (pan: number) => void;
   onMute?: () => void;
   onSolo?: () => void;
 }) {
@@ -57,6 +61,27 @@ function Strip(props: {
       <div className="mix-meter" aria-hidden="true">
         <div className="mix-meter-fill" style={{ height: `${meterHeightPct(props.peak)}%` }} />
       </div>
+      {props.kind !== "master" ? (
+        <>
+          <input
+            type="range"
+            className="mix-pan"
+            min={-1}
+            max={1}
+            step={0.01}
+            value={props.pan ?? 0}
+            aria-label={`${props.label} pan`}
+            title={formatPan(props.pan ?? 0)}
+            data-testid={`mix-pan-${props.id}`}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onChange={(e) => props.onPan?.(Number(e.target.value))}
+          />
+          <div className="mix-pan-label" data-testid={`mix-pan-label-${props.id}`}>
+            {formatPan(props.pan ?? 0)}
+          </div>
+        </>
+      ) : null}
       <input
         type="range"
         className="mix-fader"
@@ -133,6 +158,7 @@ export function Mixer({
   onMasterVolume,
   onToggleMute,
   onToggleSolo,
+  onPan,
 }: Props) {
   return (
     <aside
@@ -169,12 +195,14 @@ export function Mixer({
                   label={id}
                   kind={id === "A1" || id === "A2" ? "audio" : "video"}
                   volume={track?.volume ?? 1}
+                  pan={track?.pan ?? 0}
                   muted={track?.muted === true}
                   solo={track?.solo === true}
                   selected={selectedTrackId === id}
                   peak={peaks[id]}
                   onSelect={() => onSelectTrack(id)}
                   onVolume={(v) => onVolume(id, v)}
+                  onPan={onPan ? (p) => onPan(id, p) : undefined}
                   onMute={() => onToggleMute(id)}
                   onSolo={() => onToggleSolo(id)}
                 />

@@ -18,7 +18,13 @@ export interface PlaybackTap {
   sample(timeMs: number): AudioFeatures;
   resume(): void;
   disconnect(): void;
-  setGains(gains: { A1: number; A2: number; master: number }): void;
+  setGains(gains: {
+    A1: number;
+    A2: number;
+    master: number;
+    A1pan?: number;
+    A2pan?: number;
+  }): void;
   peaks(): MixPeaks;
 }
 
@@ -72,6 +78,7 @@ export function createPlaybackTap(
   masterAnalyser.connect(ctx.destination);
 
   const trackGains: GainNode[] = [];
+  const trackPanners: Array<StereoPannerNode | null> = [];
   const trackAnalysers: AnalyserNode[] = [];
   let connected = 0;
   for (const el of media) {
@@ -82,10 +89,20 @@ export function createPlaybackTap(
       gain.gain.value = 1;
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
-      source.connect(gain);
-      gain.connect(analyser);
+      let panner: StereoPannerNode | null = null;
+      if (typeof ctx.createStereoPanner === "function") {
+        panner = ctx.createStereoPanner();
+        panner.pan.value = 0;
+        source.connect(gain);
+        gain.connect(panner);
+        panner.connect(analyser);
+      } else {
+        source.connect(gain);
+        gain.connect(analyser);
+      }
       analyser.connect(mixer);
       trackGains.push(gain);
+      trackPanners.push(panner);
       trackAnalysers.push(analyser);
       connected += 1;
     } catch {
@@ -139,6 +156,10 @@ export function createPlaybackTap(
       if (a1) a1.gain.value = Math.max(0, gains.A1);
       if (a2) a2.gain.value = Math.max(0, gains.A2);
       mixer.gain.value = Math.max(0, gains.master);
+      const p1 = trackPanners[0];
+      const p2 = trackPanners[1];
+      if (p1 && gains.A1pan != null) p1.pan.value = Math.max(-1, Math.min(1, gains.A1pan));
+      if (p2 && gains.A2pan != null) p2.pan.value = Math.max(-1, Math.min(1, gains.A2pan));
     },
     peaks() {
       return {

@@ -1,8 +1,37 @@
 import { scheduleGainEnvelope } from "../fades";
+import { clampPan, equalPowerPan } from "../volume";
 import { audioClipsForMix } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
 import type { AacSample } from "./mp4";
 import type { ExportHooks, ExportJob } from "./types";
+import type { TrackId } from "../models";
+
+function trackPanOfJob(job: ExportJob, trackId: TrackId): number {
+  return clampPan(job.tracks.find((t) => t.id === trackId)?.pan ?? 0);
+}
+
+/** Pan last: gain envelope (clip/fade/fader/master) already on `input`. */
+function connectTrackPan(ctx: OfflineAudioContext, input: AudioNode, pan: number): void {
+  const p = clampPan(pan);
+  if (typeof ctx.createStereoPanner === "function") {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = p;
+    input.connect(panner);
+    panner.connect(ctx.destination);
+    return;
+  }
+  const { left, right } = equalPowerPan(p);
+  const merger = ctx.createChannelMerger(2);
+  const gL = ctx.createGain();
+  const gR = ctx.createGain();
+  gL.gain.value = left;
+  gR.gain.value = right;
+  input.connect(gL);
+  input.connect(gR);
+  gL.connect(merger, 0, 0);
+  gR.connect(merger, 0, 1);
+  merger.connect(ctx.destination);
+}
 
 export type AacProbe = {
   sampleRate: number;
@@ -82,7 +111,7 @@ export async function mixJobAudio(
         peak,
       );
       src.connect(gain);
-      gain.connect(ctx.destination);
+      connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
       const startSec = Math.max(0, clip.startMs / 1000);
       const offsetSec = Math.max(0, clip.sourceInMs / 1000);
       const durSec = Math.max(0.01, durationMs / 1000);

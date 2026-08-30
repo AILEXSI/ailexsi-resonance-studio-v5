@@ -33,6 +33,7 @@ import {
   toggleLoop,
   toggleSnap,
   setMasterVolume,
+  setTrackPan,
   setTrackVolume,
   rippleDeleteClips,
   rippleTrimClip,
@@ -50,7 +51,7 @@ import {
 } from "../core/timeline";
 import { nextShuttleRate } from "../core/playback";
 import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
-import { formatDb, linearToDb } from "../core/volume";
+import { formatDb, formatPan, linearToDb } from "../core/volume";
 import {
   clampZoomPxPerSec,
   fitZoomPxPerSec,
@@ -566,6 +567,15 @@ export function applyTrackVolume(session: Session, trackId: TrackId, volume: num
     ...session,
     project: setTrackVolume(session.project, trackId, volume),
     status: `${trackId} ${formatDb(linearToDb(volume))}`,
+    error: null,
+  };
+}
+
+export function applySetTrackPan(session: Session, trackId: TrackId, pan: number): Session {
+  return {
+    ...session,
+    project: setTrackPan(session.project, trackId, pan),
+    status: `${trackId} ${formatPan(pan)}`,
     error: null,
   };
 }

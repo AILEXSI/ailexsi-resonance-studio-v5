@@ -6,6 +6,7 @@ import {
   projectDurationMs,
   sourceTimeAt,
   topVideoClipAt,
+  trackPanOf,
   trackVolumeOf,
   type Project,
 } from "../../core/models";
@@ -115,6 +116,8 @@ export function Preview({ project, playing, onLevels }: Props) {
       A1: gainOf("A1"),
       A2: gainOf("A2"),
       master: project.masterVolume ?? 1,
+      A1pan: trackPanOf(project, "A1"),
+      A2pan: trackPanOf(project, "A2"),
     });
   }, [audios, project]);
 
