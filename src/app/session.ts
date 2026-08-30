@@ -28,6 +28,7 @@ import {
   clipIsLocked,
   clipOnTrackAt,
   kindOfTrack,
+  projectDurationMs,
   type Clip,
   type FrontVideoTrackId,
   type MediaAsset,
@@ -112,6 +113,7 @@ import {
 import type { VisualizerState } from "../core/models";
 import { formatDb, formatPan, linearToDb } from "../core/volume";
 import {
+  clampScrollMs,
   clampZoomPxPerSec,
   fitZoomPxPerSec,
   LANE_LABEL_PX,
@@ -1468,7 +1470,15 @@ export function applyFit(session: Session, timelineWidthPx: number, laneLabelPx?
 }
 
 export function applyScroll(session: Session, scrollMs: number): Session {
-  return { ...session, project: { ...session.project, scrollMs: Math.max(0, scrollMs) } };
+  const next = clampScrollMs(
+    scrollMs,
+    projectDurationMs(session.project),
+    session.project.zoomPxPerSec,
+    session.timelineWidthPx,
+    session.timelineLaneLabelPx,
+  );
+  if (next === session.project.scrollMs) return session;
+  return { ...session, project: { ...session.project, scrollMs: next } };
 }
 
 export function openSerialized(session: Session, text: string): Session {

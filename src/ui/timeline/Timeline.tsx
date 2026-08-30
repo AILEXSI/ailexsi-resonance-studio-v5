@@ -31,7 +31,7 @@ import {
   type LaneHeightGroup,
   type LaneHeights,
 } from "../../core/layout-prefs";
-import { RULER_PAD_PX } from "../../core/zoom";
+import { clampScrollMs, maxScrollMs, RULER_PAD_PX } from "../../core/zoom";
 import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
@@ -266,6 +266,12 @@ export function Timeline({
   );
   const [viewWidth, setViewWidth] = useState(1000);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
+  const panMaxMs = maxScrollMs(
+    projectDurationMs(project),
+    project.zoomPxPerSec,
+    viewWidth,
+    laneLabelPx,
+  );
   const measureWidth = (): number => timelineRef.current?.clientWidth ?? 1000;
 
   useEffect(() => {
@@ -298,12 +304,27 @@ export function Timeline({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const width = el.clientWidth || 1000;
+      const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      if (e.shiftKey || horiz) {
+        const deltaPx = horiz ? e.deltaX : e.deltaY;
+        const deltaMs = (deltaPx / Math.max(project.zoomPxPerSec, 1e-6)) * 1000;
+        onScroll(
+          clampScrollMs(
+            project.scrollMs + deltaMs,
+            projectDurationMs(project),
+            project.zoomPxPerSec,
+            width,
+            laneLabelPx,
+          ),
+        );
+        return;
+      }
       const next = e.deltaY > 0 ? project.zoomPxPerSec / 1.2 : project.zoomPxPerSec * 1.2;
       onZoom(next, width);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [onZoom, project.zoomPxPerSec]);
+  }, [laneLabelPx, onScroll, onZoom, project.scrollMs, project.zoomPxPerSec, project]);
 
   const timeFromEvent = (clientX: number, contentEl?: HTMLElement | null): number => {
     const el = contentEl ?? bodyRef.current;
@@ -965,9 +986,10 @@ export function Timeline({
           Pan
           <input
             type="range"
+            data-testid="timeline-pan"
             min={0}
-            max={Math.max(0, duration - 4000)}
-            value={project.scrollMs}
+            max={panMaxMs}
+            value={Math.min(project.scrollMs, panMaxMs)}
             onChange={(e) => onScroll(Number(e.target.value))}
           />
         </label>

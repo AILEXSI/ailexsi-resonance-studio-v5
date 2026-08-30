@@ -51,6 +51,27 @@ export function visibleDurationMs(
   return (usableLanePx(timelineWidthPx, laneLabelPx) / Math.max(zoomPxPerSec, 1e-6)) * 1000;
 }
 
+/** Furthest left-edge time so the project end can sit on the right of the lane. */
+export function maxScrollMs(
+  durationMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  return Math.max(0, durationMs - visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx));
+}
+
+export function clampScrollMs(
+  scrollMs: number,
+  durationMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  const max = maxScrollMs(durationMs, zoomPxPerSec, timelineWidthPx, laneLabelPx);
+  return Math.max(0, Math.min(scrollMs, max));
+}
+
 /** Playhead is in the time span drawn after the ruler pad. */
 export function playheadInView(
   playheadMs: number,

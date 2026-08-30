@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { applyFit, applyZoom, createSession, type Session } from "../../src/app/session";
+import { applyFit, applyScroll, applyZoom, createSession, type Session } from "../../src/app/session";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
+import { projectDurationMs } from "../../src/core/models";
 import {
   ZOOM_MAX_PX_PER_SEC,
+  clampScrollMs,
   clampZoomPxPerSec,
+  maxScrollMs,
   playheadInView,
   usableLanePx,
+  visibleDurationMs,
 } from "../../src/core/zoom";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -118,6 +122,31 @@ describe("timeline zoom fit", () => {
     s = applyZoom(s, 12_000, LANE);
     expect(s.project.zoomPxPerSec).toBe(12_000);
     expect(playheadInView(HEAD, s.project.scrollMs, s.project.zoomPxPerSec, LANE)).toBe(true);
+  });
+
+  it("Pan max follows visible window, not duration-4000 (P65)", () => {
+    const duration = 300_000;
+    const zoom = 12_000;
+    const visible = visibleDurationMs(zoom, LANE);
+    const max = maxScrollMs(duration, zoom, LANE);
+    expect(visible).toBeLessThan(4000);
+    expect(max).toBeCloseTo(duration - visible, 5);
+    expect(max).toBeGreaterThan(duration - 4000);
+    expect(clampScrollMs(duration + 50_000, duration, zoom, LANE)).toBeCloseTo(max, 5);
+    expect(maxScrollMs(duration, 2, LANE)).toBe(0);
+  });
+
+  it("applyScroll can reach the last seconds at high zoom (P65)", () => {
+    const start = applyZoom(longWavSession(80, HEAD), 12_000, LANE);
+    const duration = projectDurationMs(start.project);
+    const max = maxScrollMs(duration, start.project.zoomPxPerSec, LANE);
+    expect(max).toBeGreaterThan(duration - 4000);
+    const oldWall = applyScroll(start, duration - 4000);
+    expect(oldWall.project.scrollMs).toBe(duration - 4000);
+    const end = applyScroll(start, duration);
+    expect(end.project.scrollMs).toBeCloseTo(max, 5);
+    expect(end.project.scrollMs + visibleDurationMs(12_000, LANE)).toBeCloseTo(duration, 5);
+    expect(applyScroll(end, max)).toBe(end);
   });
 
   it("persist/load keeps zoom above the old 400 wall", () => {
