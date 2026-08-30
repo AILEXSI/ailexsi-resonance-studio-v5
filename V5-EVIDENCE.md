@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:11 UTC. Clip playback rate on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:16 UTC. Rate-aware edit mapping on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CbhRT8ol.css 16.89 kB
-- dist/assets/index-P4YyXKnS.js 688.99 kB
+- dist/assets/index-BNapn6cI.js 689.25 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **235 passed / 33 files**. Start 07:10:48 UTC. Duration 6.53s.
+exit 0. vitest 3.2.7. **244 passed / 33 files**. Start 07:15:46 UTC. Duration 7.12s.
 
-New this follow-up: `Clip.rate` default 1, duration = sourceSpan/rate at 0.5/1/2, overlap reject, `setClipRate` + undo, legacy missing rate → 1, `sourceTimeAt` / export clock × rate, inspector Rate field. Prior suites remain green (228 → 235; +1 file).
+New this follow-up: trim / ripple / roll / slip / slide / split / inspector duration+source fields map through `Clip.rate` at 2 and 0.5. Rate-1 suites stay green (235 → 244; same 33 files). `tests/core/rate.test.ts` is now 16.
 
 ## Visualizer
 
@@ -100,7 +100,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (35 in `timeline.test.ts`): prior plus slide +N/−N, span invariant, 50ms hard-stop, no-neighbor/gap no-op. Also move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim, mute, loop, ripple-delete, solo, ripple-trim, roll, group move/delete.
+Existing units still green (35 in `timeline.test.ts`): prior plus slide +N/−N, span invariant, 50ms hard-stop, no-neighbor/gap no-op. Also move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim, mute, loop, ripple-delete, solo, ripple-trim, roll, group move/delete. Rate-1 trim/split/roll/slip/slide stay 1:1. Rate ≠ 1 mapping lives in `tests/core/rate.test.ts`.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -215,7 +215,7 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 Status: TEST-VERIFIED (0 / 1 / 2+). Live fields: NOT VERIFIED.
 
-0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3). Duration field writes `sourceOut = sourceIn + duration * rate`. Source-in / source-out resize timeline duration via `sourceSpan / rate`. Rate field still goes through `setClipRate` (unchanged).
 
 ## Export
 
@@ -288,7 +288,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 ## Known limitations (plain)
 
 - Live clip rate (preview/export hear/see) NOT VERIFIED.
-- Trim / ripple / roll / slide still assume rate 1 for source-delta (not rebuilt this slice). Inspector duration edit still writes sourceOut = sourceIn + duration at rate 1.
+- Live trim / ripple / roll / slip / slide / split / inspector at rate ≠ 1 NOT VERIFIED (units only).
 - Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
 - Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
@@ -447,11 +447,31 @@ Inspector (one clip): Rate number field. `{ type: "setClipRate", clipId, rate }`
 
 Preview: `<video>` / `<audio>` `playbackRate`. `sourceTimeAt` = sourceIn + clip-local × rate. Export mix: `AudioBufferSourceNode.playbackRate` + source-window duration. Export video: `sourceTimeSec` uses the same clock. Mute/solo/fader/gain/fades/pan still apply.
 
-No elastic audio, pitch-preserve, or time-stretch UI. Trim / roll / slide still treat timeline delta as source delta at rate 1 (genuine limit). Slip preserves the source span (not timeline duration) so a rated clip can still slip.
+No elastic audio, pitch-preserve, or time-stretch UI. Edits that move a source window now use `timelineMs * rate = sourceMs`. Rate itself does not change during trim/roll/slip/slide/split.
 
-`tests/core/rate.test.ts` (7).
+`tests/core/rate.test.ts` (16).
 
-## Changelog this follow-up (2026-08-30 07:11 UTC)
+## Rate-aware edits
+
+Status: TEST-VERIFIED (units at rate 1 / 2 / 0.5). Live drag / inspector at rate ≠ 1: NOT VERIFIED.
+
+Invariant: `timelineMs * rate = sourceMs`. Helpers: `timelineDeltaToSource` / `sourceDeltaToTimeline`. Rate 1 is identity.
+
+- Out-trim: `sourceOut += Δtimeline * rate`. In-trim: `sourceIn += Δtimeline * rate`. Timeline `SPLIT_EDGE_GUARD_MS` stays; source remaining uses `50 * rate`. Media bounds unchanged.
+- Ripple-trim calls `trimClip` then only shifts later starts. Rated clip source follows trim. Rate-1 neighbor that only moves keeps its source window.
+- Roll: each side maps through its own rate. Rate-1 neighbor stays 1:1.
+- Slip: UI/nudge delta (timeline ms / `FRAME_MS`) converts through rate. 1 frame at rate 2 = 2 frames of source. Source span stays.
+- Slide: neighbor source in/out follow the same mapping. Middle clip source in/out unchanged.
+- Split: cut source = `sourceTimeAt(cut)`. Both halves keep `clip.rate`.
+- Inspector `updateClip`: duration → `sourceOut = sourceIn + duration * rate`. Source-in/out → `duration = sourceSpan / rate`. `setClipRate` not touched.
+
+No elastic audio. No fade handles. No marquee. No group slide. No new gestures.
+
+## Changelog this follow-up (2026-08-30 07:16 UTC)
+
+- Rate-aware source mapping on trim / ripple / roll / slip / slide / split / inspector duration+source. TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:11 UTC)
 
 - Clip playback rate (`Clip.rate`, `setClipRate`, preview/export clocks). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -560,7 +580,7 @@ No elastic audio, pitch-preserve, or time-stretch UI. Trim / roll / slide still 
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `8250c53` (rate). Assigned start: `41d9653`. Prior slide: `45234de`.
+Tip after this follow-up: `59b303b` (rate-aware edits). Assigned start: `be7899c`. Prior rate: `fcb3626` / evidence `be7899c`.
 
 ## Not added
 
