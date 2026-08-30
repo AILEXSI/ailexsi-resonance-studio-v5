@@ -11,7 +11,7 @@ export function ShortcutsOverlay({ open }: Props) {
       <div className="shortcuts-card">
         <header>
           <h2>Shortcuts</h2>
-          <p>Split is S. Cut is Ctrl+X. Copy is Ctrl+C. Paste is Ctrl+V.</p>
+          <p>Split is S. Save is Ctrl+S. Cut is Ctrl+X. Copy is Ctrl+C. Paste is Ctrl+V.</p>
         </header>
         <dl>
           {SHORTCUT_ROWS.map((row) => (

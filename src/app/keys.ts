@@ -19,6 +19,7 @@ export type EditorKeyAction =
   | { type: "session"; session: Session; preventDefault?: boolean }
   | { type: "toggleShortcuts"; preventDefault: true }
   | { type: "cycleScreen"; dir: 1 | -1; preventDefault: true }
+  | { type: "save"; preventDefault: true }
   | { type: "none" };
 
 function commandFromKey(
@@ -98,7 +99,7 @@ function commandFromKey(
 
 /**
  * Editor key routing. Modifier chords run before bare letters.
- * Split is S (not V). Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
+ * Split is S (not V). Ctrl+S / Cmd+S saves. Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
  * Home/End seek start/duration. Shift+Home/End seek IN/OUT (no-op if unset).
  * Shift+I still clears marks — do not steal I/O.
  * All mutations go through `applyCommand` except playhead seeks (`applyPlayhead`).
@@ -112,8 +113,12 @@ export function dispatchEditorKey(
     if (e.formFocus) return { type: "none" };
     return { type: "cycleScreen", dir: e.shiftKey ? -1 : 1, preventDefault: true };
   }
-  if (e.formFocus) return { type: "none" };
   const mod = Boolean(e.ctrlKey || e.metaKey);
+  const saveLetter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (mod && saveLetter === "s" && !e.shiftKey) {
+    return { type: "save", preventDefault: true };
+  }
+  if (e.formFocus) return { type: "none" };
   if (!mod && (e.key === "Home" || e.code === "Home")) {
     if (e.shiftKey) {
       if (session.project.inPointMs == null) return { type: "none" };

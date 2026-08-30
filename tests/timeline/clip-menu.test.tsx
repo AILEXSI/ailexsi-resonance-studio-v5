@@ -140,6 +140,8 @@ describe("clip-menu shortcut labels", () => {
     expect(sheet).toBeTruthy();
     const text = sheet!.textContent ?? "";
     expect(text).toContain("Split is S");
+    expect(text).toContain("Save is Ctrl+S");
+    expect(text).toContain("Save project");
     expect(text).toContain("Split at playhead");
     expect(text).toContain("S");
     expect(text).toContain("Ctrl+X");

@@ -126,6 +126,7 @@ export function App() {
   const [session, setSession] = useState<Session>(() => createSession());
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const saveProjectRef = useRef<() => void>(() => {});
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -307,7 +308,8 @@ export function App() {
         return;
       }
       const formFocus = editorFormFocus(e.target);
-      if (formFocus && e.key !== "Tab") return;
+      const chord = (e.ctrlKey || e.metaKey) && e.key.length === 1 && e.key.toLowerCase() === "s";
+      if (formFocus && e.key !== "Tab" && !chord) return;
       const s = sessionRef.current;
       const action = dispatchEditorKey(s, s.playing, {
         key: e.key,
@@ -326,6 +328,10 @@ export function App() {
       }
       if (action.type === "cycleScreen") {
         setScreen((cur) => cycleProductionScreen(cur, action.dir));
+        return;
+      }
+      if (action.type === "save") {
+        saveProjectRef.current();
         return;
       }
       setSession(action.session);
@@ -376,6 +382,7 @@ export function App() {
 
   const saveProject = () => persistSave(runSave);
   const saveProjectAs = () => persistSave(runSaveAs);
+  saveProjectRef.current = saveProject;
 
   const chooseFolder = () => {
     void (async () => {

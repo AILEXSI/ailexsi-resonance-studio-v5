@@ -483,19 +483,28 @@ describe("editor keys", () => {
     expect(noMate.type).toBe("none");
   });
 
-  it("Ctrl/Meta ignore bare letter shortcuts S M X I O", () => {
+  it("Ctrl/Cmd+S saves and does not split; Ctrl+M/I/O stay unused", () => {
     const start = clipSession();
-    for (const key of ["s", "m", "x", "i", "o"] as const) {
-      const action = dispatchEditorKey(start, false, { key, ctrlKey: true });
-      if (key === "x") {
-        expect(action.type).toBe("session");
-        if (action.type === "session") expect(action.session.status).toBe("Cut clip");
-      } else {
-        expect(action.type).toBe("none");
-      }
+    const save = dispatchEditorKey(start, false, { key: "s", ctrlKey: true });
+    expect(save).toEqual({ type: "save", preventDefault: true });
+    expect(start.project.clips).toHaveLength(1);
+    expect(dispatchEditorKey(start, false, { key: "s", metaKey: true })).toEqual({
+      type: "save",
+      preventDefault: true,
+    });
+    expect(dispatchEditorKey(start, false, { key: "s", ctrlKey: true, formFocus: true })).toEqual({
+      type: "save",
+      preventDefault: true,
+    });
+    expect(dispatchEditorKey(start, false, { key: "s", ctrlKey: true, shiftKey: true }).type).toBe(
+      "none",
+    );
+    for (const key of ["m", "i", "o"] as const) {
+      expect(dispatchEditorKey(start, false, { key, ctrlKey: true }).type).toBe("none");
     }
-    const metaS = dispatchEditorKey(start, false, { key: "s", metaKey: true });
-    expect(metaS.type).toBe("none");
+    const cut = dispatchEditorKey(start, false, { key: "x", ctrlKey: true });
+    expect(cut.type).toBe("session");
+    if (cut.type === "session") expect(cut.session.status).toBe("Cut clip");
   });
 
   it("Tab cycles screens; Shift+Tab reverses; form focus does not cycle", () => {
