@@ -21,6 +21,8 @@ interface Props {
   project: Project;
   selectedTrackId: TrackId;
   peaks: MixPeaks;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   onSelectTrack: (id: TrackId) => void;
   onVolume: (id: TrackId, linear: number) => void;
   onMasterVolume: (linear: number) => void;
@@ -88,43 +90,79 @@ function Strip(props: {
   );
 }
 
+function CollapseIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+      {collapsed ? (
+        <path d="M4 2 L9 6 L4 10" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      ) : (
+        <path d="M8 2 L3 6 L8 10" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      )}
+    </svg>
+  );
+}
+
 export function Mixer({
   project,
   selectedTrackId,
   peaks,
+  collapsed = false,
+  onToggleCollapsed,
   onSelectTrack,
   onVolume,
   onMasterVolume,
   onToggleMute,
 }: Props) {
   return (
-    <aside className="mixer" data-testid="mixer">
-      {TRACK_IDS.map((id) => {
-        const track = project.tracks.find((t) => t.id === id);
-        return (
-          <Strip
-            key={id}
-            id={id}
-            label={id}
-            kind={id === "A1" || id === "A2" ? "audio" : "video"}
-            volume={track?.volume ?? 1}
-            muted={track?.muted === true}
-            selected={selectedTrackId === id}
-            peak={peaks[id]}
-            onSelect={() => onSelectTrack(id)}
-            onVolume={(v) => onVolume(id, v)}
-            onMute={() => onToggleMute(id)}
-          />
-        );
-      })}
-      <Strip
-        id="master"
-        label="MST"
-        kind="master"
-        volume={project.masterVolume ?? 1}
-        peak={peaks.master}
-        onVolume={onMasterVolume}
-      />
+    <aside
+      className={`mixer${collapsed ? " collapsed" : ""}`}
+      data-testid="mixer"
+      data-collapsed={collapsed ? "true" : "false"}
+    >
+      <div className="mixer-chrome">
+        <button
+          type="button"
+          className="mixer-collapse"
+          data-testid="mixer-collapse"
+          aria-expanded={!collapsed}
+          aria-controls="mixer-channels"
+          title={collapsed ? "Kanäle ausklappen" : "Kanäle einklappen — nur Master"}
+          onClick={onToggleCollapsed}
+        >
+          <CollapseIcon collapsed={collapsed} />
+        </button>
+        {collapsed ? null : <span className="mixer-chrome-label">Mix</span>}
+      </div>
+      <div className="mixer-strips" id="mixer-channels" data-testid="mixer-channels">
+        {collapsed
+          ? null
+          : TRACK_IDS.map((id) => {
+              const track = project.tracks.find((t) => t.id === id);
+              return (
+                <Strip
+                  key={id}
+                  id={id}
+                  label={id}
+                  kind={id === "A1" || id === "A2" ? "audio" : "video"}
+                  volume={track?.volume ?? 1}
+                  muted={track?.muted === true}
+                  selected={selectedTrackId === id}
+                  peak={peaks[id]}
+                  onSelect={() => onSelectTrack(id)}
+                  onVolume={(v) => onVolume(id, v)}
+                  onMute={() => onToggleMute(id)}
+                />
+              );
+            })}
+        <Strip
+          id="master"
+          label="MST"
+          kind="master"
+          volume={project.masterVolume ?? 1}
+          peak={peaks.master}
+          onVolume={onMasterVolume}
+        />
+      </div>
     </aside>
   );
 }

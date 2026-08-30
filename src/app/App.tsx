@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
@@ -73,6 +73,16 @@ import {
   type Session,
 } from "./session";
 import { dispatchEditorKey } from "./keys";
+import {
+  ARRANGE_MIN_PX,
+  PREVIEW_MIN_PX,
+  applySplitPointer,
+  browserLayoutStorage,
+  loadMixerCollapsed,
+  loadSplitRatio,
+  saveMixerCollapsed,
+  saveSplitRatio,
+} from "../core/layout-prefs";
 
 export function App() {
   const [session, setSession] = useState<Session>(() => createSession());
@@ -89,6 +99,13 @@ export function App() {
     master: 0,
   });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const layoutStore = browserLayoutStorage();
+  const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
+  const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(layoutStore));
+  const splitRatioRef = useRef(splitRatio);
+  splitRatioRef.current = splitRatio;
+  const stageRef = useRef<HTMLDivElement>(null);
+  const splitDragRef = useRef(false);
   const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
   const projectFileRef = useRef(projectFile);
   projectFileRef.current = projectFile;
@@ -437,6 +454,44 @@ export function App() {
     });
   };
 
+  const toggleMixerCollapsed = () => {
+    setMixerCollapsed((prev) => {
+      const next = !prev;
+      saveMixerCollapsed(layoutStore, next);
+      return next;
+    });
+  };
+
+  const applySplitFromEvent = (clientY: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const next = applySplitPointer({
+      clientY,
+      stageTop: rect.top,
+      stageHeight: rect.height,
+    });
+    setSplitRatio(next.ratio);
+  };
+
+  const onSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    splitDragRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    applySplitFromEvent(e.clientY);
+  };
+
+  const onSplitPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!splitDragRef.current) return;
+    applySplitFromEvent(e.clientY);
+  };
+
+  const onSplitPointerUp = () => {
+    if (!splitDragRef.current) return;
+    splitDragRef.current = false;
+    saveSplitRatio(layoutStore, splitRatioRef.current);
+  };
+
   const onLoopCommit = () => {
     const base = dragBaseRef.current;
     dragBaseRef.current = null;
@@ -469,7 +524,13 @@ export function App() {
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
 
-      <div className="workspace">
+      <div className="stage" data-testid="stage" ref={stageRef}>
+      <div
+        className="workspace"
+        data-testid="preview-pane"
+        data-preview-ratio={splitRatio}
+        style={{ flex: `${splitRatio} 1 ${PREVIEW_MIN_PX}px` }}
+      >
         <div className="workspace-left">
           <ProjectFilePanel
             memory={projectFile}
@@ -512,6 +573,23 @@ export function App() {
         />
       </div>
 
+      <div
+        className="layout-split"
+        data-testid="layout-split"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Preview und Arrange teilen"
+        onPointerDown={onSplitPointerDown}
+        onPointerMove={onSplitPointerMove}
+        onPointerUp={onSplitPointerUp}
+        onPointerCancel={onSplitPointerUp}
+      />
+
+      <div
+        className="lower-stage"
+        data-testid="lower-stage"
+        style={{ flex: `${1 - splitRatio} 1 ${ARRANGE_MIN_PX}px` }}
+      >
       <Transport
         project={session.project}
         playing={session.playing}
@@ -527,7 +605,10 @@ export function App() {
         onSplit={() => setSession(applySplit(session))}
       />
 
-      <div className="arrange-row" data-testid="arrange-row">
+      <div
+        className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
+        data-testid="arrange-row"
+      >
       <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}
@@ -560,11 +641,15 @@ export function App() {
         project={session.project}
         selectedTrackId={session.targetTrackId}
         peaks={mixPeaks}
+        collapsed={mixerCollapsed}
+        onToggleCollapsed={toggleMixerCollapsed}
         onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
         onToggleMute={(id) => setSession(applyToggleMute(session, id))}
       />
+      </div>
+      </div>
       </div>
 
       <ShortcutsOverlay open={shortcutsOpen} />

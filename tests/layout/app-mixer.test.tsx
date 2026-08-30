@@ -35,5 +35,8 @@ describe("App arrange layout", () => {
     expect(getComputedStyle(mixer!).minWidth).not.toBe("0px");
     expect(host.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="project-file-name"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="layout-split"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="mixer-collapse"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="preview-pane"]')).toBeTruthy();
   });
 });
