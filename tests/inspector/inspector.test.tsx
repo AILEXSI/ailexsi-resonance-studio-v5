@@ -108,8 +108,9 @@ describe("inspector selection", () => {
     expect(input.value).toBe("M1");
     expect(host.textContent ?? "").not.toContain("No clip selected.");
     act(() => {
-      input.value = "Chorus";
-      input.blur();
+      const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+      proto?.set?.call(input, "Chorus");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     expect(renamed).toEqual([{ id: "mk1", label: "Chorus" }]);
   });

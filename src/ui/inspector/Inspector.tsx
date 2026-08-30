@@ -156,12 +156,8 @@ export function Inspector({
           <Field label="Marker">
             <input
               data-testid="inspector-marker-label"
-              defaultValue={marker.label}
-              key={marker.id}
-              onBlur={(e) => onRenameMarker?.(marker.id, e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
+              value={marker.label}
+              onChange={(e) => onRenameMarker?.(marker.id, e.target.value)}
             />
           </Field>
           <Field label="Time">
