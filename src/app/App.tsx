@@ -37,6 +37,7 @@ import {
   isExportSuccess,
   jobFromProject,
   openExportDialog,
+  readyExportDialog,
   runExportWithDestination,
   succeedExportDialog,
   wavFileName,
@@ -489,7 +490,17 @@ export function App() {
   };
 
   const runExport = () => {
-    startExport("mp4");
+    if (exporting || exportBusyRef.current) return;
+    if (exportDialog.phase === "ready") return;
+    const safe = (session.project.name || "resonance").replace(/[^\w\-]+/g, "_");
+    setExportDialog(
+      readyExportDialog({
+        fileName: safe.endsWith(".mp4") ? safe : `${safe}.mp4`,
+        width: exportDialog.width || 1280,
+        height: exportDialog.height || 720,
+        fps: exportDialog.fps || 30,
+      }),
+    );
   };
 
   const runExportWav = () => {
@@ -498,16 +509,23 @@ export function App() {
 
   const startExport = (kind: "mp4" | "wav") => {
     if (exporting || exportBusyRef.current) return;
+    const size = {
+      width: exportDialog.width || 1280,
+      height: exportDialog.height || 720,
+      fps: exportDialog.fps || 30,
+    };
     let planned;
     try {
-      planned = jobFromProject(session.project);
+      planned = jobFromProject(session.project, kind === "wav" ? {} : size);
       if (kind === "wav") planned = { ...planned, fileName: wavFileName(planned.fileName) };
     } catch (e) {
       const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
       const fallbackName = kind === "wav" ? "export.wav" : "export.mp4";
-      setExportDialog(
-        failExportDialog(openExportDialog({ fileName: fallbackName, width: 1280, height: 720, fps: 30 }), `FAIL: ${msg}`),
-      );
+      const base =
+        exportDialog.phase === "ready"
+          ? exportDialog
+          : openExportDialog({ fileName: fallbackName, ...size });
+      setExportDialog(failExportDialog(base, `FAIL: ${msg}`));
       setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
       return;
     }
@@ -1347,7 +1365,13 @@ export function App() {
       </div>
       </div>
 
-      <ExportDialog state={exportDialog} onCancel={cancelExport} onClose={dismissExport} />
+      <ExportDialog
+        state={exportDialog}
+        onCancel={cancelExport}
+        onClose={dismissExport}
+        onChange={setExportDialog}
+        onStart={() => startExport("mp4")}
+      />
 
       <ShortcutsOverlay open={shortcutsOpen} />
 

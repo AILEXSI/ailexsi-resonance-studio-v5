@@ -1,6 +1,23 @@
 import type { ExportHooks, ExportJob, ExportProgress, ExportResult } from "./types";
 
-export type ExportDialogPhase = "closed" | "running" | "aborted" | "failed" | "done";
+export type ExportDialogPhase = "closed" | "ready" | "running" | "aborted" | "failed" | "done";
+
+export const EXPORT_SIZE_PRESETS = [
+  { id: "720p", width: 1280, height: 720 },
+  { id: "1080p", width: 1920, height: 1080 },
+] as const;
+
+export const EXPORT_FPS_PRESETS = [24, 25, 30] as const;
+
+export function normalizeExportSize(width: number, height: number): { width: number; height: number } {
+  if (height >= 1080 || width >= 1920) return { width: 1920, height: 1080 };
+  return { width: 1280, height: 720 };
+}
+
+export function normalizeExportFps(fps: number): number {
+  if (fps === 24 || fps === 25) return fps;
+  return 30;
+}
 
 export interface ExportDialogJobInfo {
   fileName: string;
@@ -36,6 +53,37 @@ export function closedExportDialog(): ExportDialogState {
     error: null,
     aborted: false,
     success: false,
+  };
+}
+
+export function readyExportDialog(info: Partial<ExportDialogJobInfo> = {}): ExportDialogState {
+  const size = normalizeExportSize(info.width ?? 1280, info.height ?? 720);
+  return {
+    open: true,
+    phase: "ready",
+    fileName: info.fileName ?? "",
+    width: size.width,
+    height: size.height,
+    fps: normalizeExportFps(info.fps ?? 30),
+    percent: 0,
+    stage: "",
+    error: null,
+    aborted: false,
+    success: false,
+  };
+}
+
+export function applyExportDialogSize(
+  state: ExportDialogState,
+  patch: { width?: number; height?: number; fps?: number },
+): ExportDialogState {
+  if (!state.open || state.phase !== "ready") return state;
+  const size = normalizeExportSize(patch.width ?? state.width, patch.height ?? state.height);
+  return {
+    ...state,
+    width: size.width,
+    height: size.height,
+    fps: normalizeExportFps(patch.fps ?? state.fps),
   };
 }
 

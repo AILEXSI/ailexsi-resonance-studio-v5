@@ -5,13 +5,19 @@ import type { ExportHooks, ExportJob, ExportResult } from "./types";
 export type { ExportHooks, ExportJob, ExportProgress, ExportResult, ExportAudioKind } from "./types";
 export {
   abortExportDialog,
+  applyExportDialogSize,
   applyExportProgress,
   closeExportDialog,
   closedExportDialog,
   driveExportDialog,
+  EXPORT_FPS_PRESETS,
+  EXPORT_SIZE_PRESETS,
   failExportDialog,
   isExportSuccess,
+  normalizeExportFps,
+  normalizeExportSize,
   openExportDialog,
+  readyExportDialog,
   succeedExportDialog,
   type ExportDialogState,
 } from "./dialog";

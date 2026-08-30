@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   abortExportDialog,
+  applyExportDialogSize,
   applyExportProgress,
   closeExportDialog,
   closedExportDialog,
@@ -10,6 +11,7 @@ import {
   isExportSuccess,
   jobFromProject,
   openExportDialog,
+  readyExportDialog,
   succeedExportDialog,
 } from "../../src/core/exporter";
 import { asset, clip, projectWith } from "../helpers";
@@ -28,6 +30,28 @@ describe("export dialog state", () => {
     expect(job.width).toBe(1280);
     expect(job.height).toBe(720);
     expect(job.fps).toBe(30);
+  });
+
+  it("ready dialog size writes jobFromProject opts (P67)", () => {
+    let state = readyExportDialog({ fileName: "cut.mp4" });
+    expect(state.phase).toBe("ready");
+    expect(state.width).toBe(1280);
+    expect(state.height).toBe(720);
+    expect(state.fps).toBe(30);
+    state = applyExportDialogSize(state, { width: 1920, height: 1080, fps: 24 });
+    expect(state.width).toBe(1920);
+    expect(state.height).toBe(1080);
+    expect(state.fps).toBe(24);
+    const job = jobFromProject(projectReady(), {
+      width: state.width,
+      height: state.height,
+      fps: state.fps,
+    });
+    expect(job.width).toBe(1920);
+    expect(job.height).toBe(1080);
+    expect(job.fps).toBe(24);
+    const running = openExportDialog(job);
+    expect(applyExportDialogSize(running, { width: 1280, height: 720 })).toBe(running);
   });
 
   it("starting export opens the dialog with job name and size", () => {
