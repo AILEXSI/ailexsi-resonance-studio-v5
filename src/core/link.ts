@@ -4,6 +4,7 @@ import {
   clipById,
   clipEndMs,
   clipIsEnabled,
+  clipIsLocked,
   isTrackAudible,
   kindOfTrack,
   type Clip,
@@ -15,6 +16,17 @@ export function livingLinkedMate(project: Project, clipId: string): Clip | undef
   const clip = clipById(project, clipId);
   if (!clip?.linkId) return undefined;
   return project.clips.find((c) => c.id !== clip.id && c.linkId === clip.linkId);
+}
+
+/**
+ * Living mate that may take the same relocate/trim/split. Locked and
+ * disabled mates stay parked (same as lift skip disabled mate / skip
+ * locked mate). Mix still uses livingLinkedMate (disabled A silences V).
+ */
+export function editableLinkedMate(project: Project, clipId: string): Clip | undefined {
+  const mate = livingLinkedMate(project, clipId);
+  if (!mate || clipIsLocked(mate) || !clipIsEnabled(mate)) return undefined;
+  return mate;
 }
 
 /** First selected clip that still has a living same-`linkId` mate. */

@@ -2,6 +2,7 @@ import { applyNormalizedFades } from "./fades";
 import { createId } from "./ids";
 import { assetFitsTrack } from "./media";
 import {
+  editableLinkedMate,
   expandLinkedClipIds,
   firstFreeAudioTrack,
   livingLinkedMate,
@@ -94,14 +95,14 @@ export function moveClip(
 
   const startMs = clampStartMs(nextStartMs);
   const delta = startMs - clip.startMs;
-  const mate = opts?.skipLink ? undefined : livingLinkedMate(project, clipId);
+  const mate = opts?.skipLink ? undefined : editableLinkedMate(project, clipId);
   return {
     project: {
       ...project,
       updatedAt: new Date().toISOString(),
       clips: project.clips.map((c) => {
         if (c.id === clipId) return { ...c, startMs, trackId };
-        if (mate && c.id === mate.id && !clipIsLocked(mate)) {
+        if (mate && c.id === mate.id) {
           return { ...c, startMs: clampStartMs(c.startMs + delta) };
         }
         return c;
@@ -171,9 +172,9 @@ export function trimClip(
   if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const one = trimOneClip(project, clip, edge, nextEdgeMs);
   if ("error" in one) return { project, error: one.error };
-  const mate = livingLinkedMate(project, clipId);
+  const mate = editableLinkedMate(project, clipId);
   let two: { clip: Clip } | undefined;
-  if (mate && !clipIsLocked(mate)) {
+  if (mate) {
     const mateTrim = trimOneClip(project, mate, edge, nextEdgeMs);
     if ("error" in mateTrim) return { project, error: mateTrim.error };
     two = mateTrim;
@@ -240,8 +241,7 @@ export function rippleTrimClip(
   const before = clipById(project, clipId);
   if (!before) return { project, error: "Clip not found" };
   if (clipIsLocked(before)) return { project, error: "Clip is locked" };
-  const mate = livingLinkedMate(project, clipId);
-  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  const liveMate = editableLinkedMate(project, clipId);
   const laterLocked = project.clips.some((c) => {
     if (c.id === clipId || c.id === liveMate?.id) return false;
     if (!clipIsEnabled(c) || !clipIsLocked(c)) return false;
@@ -297,12 +297,15 @@ export function moveClipsByDelta(
   deltaMs: number,
   opts?: { skipLink?: boolean },
 ): { project: Project; error?: string } {
-  const ids = opts?.skipLink ? [...new Set(clipIds)] : expandLinkedClipIds(project, clipIds);
+  const explicit = new Set(clipIds.filter(Boolean));
+  const ids = opts?.skipLink ? [...explicit] : expandLinkedClipIds(project, clipIds);
   const found = ids
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   if (found.length === 0) return { project, error: "No clip selected" };
-  const targets = found.filter((c) => !clipIsLocked(c));
+  const targets = found.filter(
+    (c) => !clipIsLocked(c) && (clipIsEnabled(c) || explicit.has(c.id)),
+  );
   if (targets.length === 0) return { project, error: "Clip is locked" };
   const minStart = Math.min(...targets.map((c) => c.startMs));
   const delta = Math.max(deltaMs, -minStart);
@@ -561,10 +564,8 @@ export function rollEdit(
     durationMs: rightDur,
     sourceInMs: rightSourceIn,
   });
-  const leftMate = livingLinkedMate(project, leftId);
-  const rightMate = livingLinkedMate(project, rightId);
-  const liveLeftMate = leftMate && !clipIsLocked(leftMate) ? leftMate : undefined;
-  const liveRightMate = rightMate && !clipIsLocked(rightMate) ? rightMate : undefined;
+  const liveLeftMate = editableLinkedMate(project, leftId);
+  const liveRightMate = editableLinkedMate(project, rightId);
   const nextLeftMate = liveLeftMate
     ? applyNormalizedFades({
         ...liveLeftMate,
@@ -637,8 +638,8 @@ export function splitClipAt(
   const first = splitOneClip(clip, timeMs, edgeGuardMs);
   if ("error" in first) return { project, error: first.error };
   const mate = livingLinkedMate(project, clipId);
-  const skipLockedMate = Boolean(mate && clipIsLocked(mate));
-  const liveMate = skipLockedMate ? undefined : mate;
+  const liveMate = editableLinkedMate(project, clipId);
+  const skipParkedMate = Boolean(mate && !liveMate);
   let mateParts: { left: Clip; right: Clip } | undefined;
   if (liveMate) {
     const second = splitOneClip(liveMate, timeMs, edgeGuardMs);
@@ -646,8 +647,8 @@ export function splitClipAt(
     mateParts = second;
   }
   const rightLink = mateParts && clip.linkId ? createId("link") : undefined;
-  const left = skipLockedMate ? { ...first.left, linkId: undefined } : first.left;
-  const right = skipLockedMate
+  const left = skipParkedMate ? { ...first.left, linkId: undefined } : first.left;
+  const right = skipParkedMate
     ? { ...first.right, linkId: undefined }
     : rightLink
       ? { ...first.right, linkId: rightLink }
@@ -655,7 +656,7 @@ export function splitClipAt(
   const mateLeft = mateParts?.left;
   const mateRight =
     mateParts && rightLink ? { ...mateParts.right, linkId: rightLink } : mateParts?.right;
-  const lockedMateId = skipLockedMate ? mate!.id : undefined;
+  const parkedMateId = skipParkedMate ? mate!.id : undefined;
 
   return {
     project: {
@@ -664,7 +665,7 @@ export function splitClipAt(
       clips: project.clips.flatMap((c) => {
         if (c.id === clipId) return [left, right];
         if (liveMate && c.id === liveMate.id && mateLeft && mateRight) return [mateLeft, mateRight];
-        if (lockedMateId && c.id === lockedMateId) return [{ ...c, linkId: undefined }];
+        if (parkedMateId && c.id === parkedMateId) return [{ ...c, linkId: undefined }];
         return [c];
       }),
     },
@@ -1320,8 +1321,8 @@ function applySlideThroughNeighbors(
   const before = [left, ...mids, right];
   const after = [nextLeft, ...nextMids, nextRight];
   for (let i = 0; i < before.length; i++) {
-    const mate = livingLinkedMate(project, before[i]!.id);
-    if (!mate || clipIsLocked(mate) || byId.has(mate.id)) continue;
+    const mate = editableLinkedMate(project, before[i]!.id);
+    if (!mate || byId.has(mate.id)) continue;
     const next = after[i]!;
     const orig = before[i]!;
     byId.set(
@@ -1455,8 +1456,8 @@ function applySlipSourceDelta(
   for (const clip of clips) {
     if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
     targets.set(clip.id, clip);
-    const mate = livingLinkedMate(project, clip.id);
-    if (mate && !clipIsLocked(mate)) targets.set(mate.id, mate);
+    const mate = editableLinkedMate(project, clip.id);
+    if (mate) targets.set(mate.id, mate);
   }
   const nextById = new Map<string, Clip>();
   for (const clip of targets.values()) {
@@ -1495,8 +1496,7 @@ export function slipClip(
   const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
   const span = sourceSpanMs(clip);
   const sourceDelta = timelineDeltaToSource(clip, deltaMs);
-  const mate = livingLinkedMate(project, clipId);
-  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  const liveMate = editableLinkedMate(project, clipId);
   if (!liveMate) {
     const maxIn = maxOut - span;
     const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
@@ -1643,8 +1643,7 @@ export function setClipFades(
   if (!clip) return { project, error: "Clip not found" };
   const one = updateClip(project, clipId, { fadeInMs, fadeOutMs });
   if (one.error) return one;
-  const mate = livingLinkedMate(one.project, clipId);
-  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  const liveMate = editableLinkedMate(one.project, clipId);
   if (!liveMate) return one;
   const two = updateClip(one.project, liveMate.id, { fadeInMs, fadeOutMs });
   if (two.error) return { project: one.project, error: two.error };
@@ -1707,8 +1706,7 @@ export function setClipRate(
   if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const one = planClipRate(project, clip, rate);
   if ("error" in one) return { project, error: one.error };
-  const mate = livingLinkedMate(project, clipId);
-  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  const liveMate = editableLinkedMate(project, clipId);
   if (!liveMate) {
     if ("unchanged" in one) return { project };
     return {

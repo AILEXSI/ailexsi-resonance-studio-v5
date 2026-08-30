@@ -184,6 +184,38 @@ describe("linked A/V", () => {
     expect(moved.project.clips.find((c) => c.id === "a1")!.trackId).toBe("A1");
   });
 
+  it("move/split of an unlocked clip skips a disabled mate (P141)", () => {
+    const start = linkedPair();
+    const dimmed = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+    };
+    const moved = moveClip(dimmed, "v1", 400);
+    expect(moved.error).toBeUndefined();
+    expect(moved.project.clips.find((c) => c.id === "v1")!.startMs).toBe(400);
+    expect(moved.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+    expect(moved.project.clips.find((c) => c.id === "a1")!.enabled).toBe(false);
+    expect(moved.project.clips.find((c) => c.id === "a1")!.linkId).toBe("lnk1");
+
+    const viaMove = applyCommand(
+      { ...start, project: dimmed, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "moveClips", clipIds: ["v1"], deltaMs: 400 },
+    );
+    expect(viaMove.project.clips.find((c) => c.id === "v1")!.startMs).toBe(400);
+    expect(viaMove.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+
+    const split = splitClipAt(dimmed, "v1", 1000);
+    expect(split.error).toBeUndefined();
+    const parked = split.project.clips.find((c) => c.id === "a1")!;
+    expect(parked.startMs).toBe(0);
+    expect(parked.durationMs).toBe(2000);
+    expect(parked.enabled).toBe(false);
+    expect(parked.linkId).toBeUndefined();
+    const video = split.project.clips.filter((c) => c.trackId === "V1");
+    expect(video).toHaveLength(2);
+    expect(video.every((c) => !c.linkId)).toBe(true);
+  });
+
   it("unlink then move one leaves the other", () => {
     const start = linkedPair();
     const unlinked = applyCommand(start, { type: "unlinkClips", clipId: "v1" });
