@@ -493,7 +493,7 @@ export function Timeline({
                       onContextMenu={(e) => onClipContext(e, clip)}
                     >
                       {asset && kind === "audio" && !asset.missing ? (
-                        <AudioClipWave clip={clip} asset={asset} />
+                        <AudioClipWave clip={clip} asset={asset} clipWidthPx={clipW} />
                       ) : null}
                       {asset && kind === "video" && !asset.missing ? (
                         <VideoClipStrip clip={clip} asset={asset} clipWidthPx={clipW} />

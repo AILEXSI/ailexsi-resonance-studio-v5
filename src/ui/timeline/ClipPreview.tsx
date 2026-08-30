@@ -1,45 +1,52 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FILMSTRIP_THUMB_PX,
+  buildPeakMipmap,
+  envelopeForWidth,
+  envelopeToPath,
+  envelopeWidthPx,
   filmstripTimes,
-  peaksFromChannel,
-  peaksToPath,
-  slicePeaks,
+  type MinMaxPeaks,
+  type PeakMipmap,
 } from "../../core/clip-preview";
 import { decodeAudio, isPlayableSource, loadVideo, seekVideo } from "../../core/exporter/media";
 import type { Clip, MediaAsset } from "../../core/models";
 
-const peakCache = new Map<string, Float32Array>();
+const WAVE_H = 36;
+const mipCache = new Map<string, PeakMipmap>();
 const thumbCache = new Map<string, string>();
 
 export function AudioClipWave(props: {
   clip: Clip;
   asset: MediaAsset;
-  peaks?: Float32Array | null;
+  clipWidthPx: number;
+  envelope?: MinMaxPeaks | null;
+  samples?: ArrayLike<number> | null;
 }) {
-  const { clip, asset, peaks: injected } = props;
-  const [peaks, setPeaks] = useState<Float32Array | null>(injected ?? null);
+  const { clip, asset, clipWidthPx, envelope: injected, samples } = props;
+  const [mip, setMip] = useState<PeakMipmap | null>(null);
+  const width = envelopeWidthPx(clipWidthPx);
 
   useEffect(() => {
-    if (injected) {
-      setPeaks(injected);
+    if (injected || samples) {
+      setMip(null);
       return;
     }
     const url = asset.objectUrl;
     if (!url || !isPlayableSource(url)) return;
-    const cached = peakCache.get(url);
+    const cached = mipCache.get(url);
     if (cached) {
-      setPeaks(cached);
+      setMip(cached);
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
         const buf = await decodeAudio(url);
-        const samples = buf.getChannelData(0);
-        const next = peaksFromChannel(samples, 1024);
-        peakCache.set(url, next);
-        if (!cancelled) setPeaks(next);
+        const channel = buf.getChannelData(0);
+        const next = buildPeakMipmap(channel);
+        mipCache.set(url, next);
+        if (!cancelled) setMip(next);
       } catch {
         /* keep green fill */
       }
@@ -47,17 +54,29 @@ export function AudioClipWave(props: {
     return () => {
       cancelled = true;
     };
-  }, [asset.objectUrl, injected]);
+  }, [asset.objectUrl, injected, samples]);
 
-  if (!peaks || peaks.length === 0) return null;
-  const sliced = slicePeaks(peaks, clip.sourceInMs, clip.sourceOutMs, asset.durationMs);
-  const d = peaksToPath(sliced, 200, 36);
+  const peaks = useMemo(() => {
+    if (injected) return injected;
+    const source = samples ? samples : mip;
+    if (!source) return null;
+    return envelopeForWidth(source, {
+      widthPx: width,
+      sourceInMs: clip.sourceInMs,
+      sourceOutMs: clip.sourceOutMs,
+      durationMs: asset.durationMs,
+    });
+  }, [injected, samples, mip, width, clip.sourceInMs, clip.sourceOutMs, asset.durationMs]);
+
+  if (!peaks || peaks.max.length === 0) return null;
+  const d = envelopeToPath(peaks, width, WAVE_H);
   if (!d) return null;
   return (
     <svg
       className="clip-wave"
       data-testid={`clip-wave-${clip.id}`}
-      viewBox="0 0 200 36"
+      data-peak-count={peaks.max.length}
+      viewBox={`0 0 ${width} ${WAVE_H}`}
       preserveAspectRatio="none"
       aria-hidden="true"
     >
@@ -108,7 +127,7 @@ export function VideoClipStrip(props: {
     if (!loader) return;
     setThumbs([]);
     void (async () => {
-      const next: Array<{ timeMs: number; src: string }> = [];
+      const next: Array<{ timeMs: number; src: string }>> = [];
       for (const timeMs of times) {
         const src = await loader(timeMs);
         if (cancelled) return;

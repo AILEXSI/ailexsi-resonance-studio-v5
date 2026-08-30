@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import { peaksFromChannel } from "../../src/core/clip-preview";
+import { envelopeForWidth } from "../../src/core/clip-preview";
 import { AudioClipWave, VideoClipStrip } from "../../src/ui/timeline/ClipPreview";
 import { asset, clip } from "../helpers";
 
@@ -16,21 +16,71 @@ describe("clip preview DOM", () => {
     host?.remove();
   });
 
-  it("draws a waveform path from fixture samples", () => {
+  it("draws a gapless waveform path from fixture samples", () => {
     const samples = new Float32Array(256);
     for (let i = 0; i < samples.length; i += 1) samples[i] = i % 16 === 0 ? 1 : 0.1;
-    const peaks = peaksFromChannel(samples, 32);
+    const envelope = envelopeForWidth(samples, {
+      widthPx: 48,
+      sourceInMs: 0,
+      sourceOutMs: 1000,
+      durationMs: 1000,
+    });
     const c = clip({ id: "a1", assetId: "wav", trackId: "A1", startMs: 0, durationMs: 1000 });
     const a = asset({ id: "wav", kind: "audio", durationMs: 1000 });
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     act(() => {
-      root!.render(<AudioClipWave clip={c} asset={a} peaks={peaks} />);
+      root!.render(<AudioClipWave clip={c} asset={a} clipWidthPx={48} envelope={envelope} />);
     });
-    const path = host.querySelector('[data-testid="clip-wave-a1"] path');
+    const svg = host.querySelector('[data-testid="clip-wave-a1"]');
+    const path = svg?.querySelector("path");
     expect(path).toBeTruthy();
-    expect(path!.getAttribute("d") ?? "").toMatch(/^M /);
+    expect(svg!.getAttribute("data-peak-count")).toBe("48");
+    const d = path!.getAttribute("d") ?? "";
+    expect(d).toMatch(/^M /);
+    expect(d.endsWith("Z")).toBe(true);
+    const xs = [...d.matchAll(/[ML]\s+(-?[\d.]+)/g)].map((m) => Number(m[1]));
+    for (let i = 1; i < xs.length; i += 1) {
+      const gap = Math.abs(xs[i]! - xs[i - 1]!);
+      expect(gap === 0 || Math.abs(gap - 1) < 1e-6).toBe(true);
+    }
+  });
+
+  it("re-samples to more peaks when the same clip is wider (zoom-in)", () => {
+    const samples = new Float32Array(8000);
+    for (let i = 0; i < samples.length; i += 1) {
+      samples[i] = Math.sin((i / samples.length) * 40 * Math.PI * 2);
+    }
+    const c = clip({ id: "a2", assetId: "wav", trackId: "A1", startMs: 0, durationMs: 5000 });
+    const a = asset({ id: "wav", kind: "audio", durationMs: 400_000 });
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(<AudioClipWave clip={c} asset={a} clipWidthPx={100} samples={samples} />);
+    });
+    expect(host.querySelector('[data-testid="clip-wave-a2"]')?.getAttribute("data-peak-count")).toBe(
+      "100",
+    );
+    act(() => {
+      root!.render(<AudioClipWave clip={c} asset={a} clipWidthPx={400} samples={samples} />);
+    });
+    expect(host.querySelector('[data-testid="clip-wave-a2"]')?.getAttribute("data-peak-count")).toBe(
+      "400",
+    );
+  });
+
+  it("falls back to clip fill when samples are not ready", () => {
+    const c = clip({ id: "a3", assetId: "wav", trackId: "A1", startMs: 0, durationMs: 1000 });
+    const a = asset({ id: "wav", kind: "audio", durationMs: 1000 });
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(<AudioClipWave clip={c} asset={a} clipWidthPx={200} />);
+    });
+    expect(host.querySelector('[data-testid="clip-wave-a3"]')).toBeNull();
   });
 
   it("paints stubbed filmstrip thumbs along the clip", async () => {

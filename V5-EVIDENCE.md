@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:34 UTC. Projekt overlay + preview h-split + arrange scroll follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:40 UTC. A-track waveform envelope (dense min/max silhouette) follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -122,9 +122,9 @@ Status: TEST-VERIFIED (label gaps). Live Fit ruler pixels: NOT VERIFIED.
 
 ## Arrange clip previews
 
-Status: TEST-VERIFIED (peaks path + stubbed filmstrip). Live waveform/filmstrip pixels: NOT VERIFIED.
+Status: TEST-VERIFIED (min/max envelope + stubbed filmstrip). Live waveform/filmstrip pixels: NOT VERIFIED.
 
-Audio: `peaksFromChannel` + `peaksToPath` from fixture samples (real generator, no WebAudio in vitest). SVG path rendered in DOM when peaks are injected. Live decode via `decodeAudio` after import — not run in a browser this pass.
+Audio: `envelopeForWidth` returns ~1 min/max pair per CSS pixel; zoom-in on the same source window increases peak count. `envelopeToPath` is a filled +peak/−peak silhouette with adjacent x (no bar gaps). Empty/not-ready samples return no path so the green clip fill stays. Mipmap is built once after `decodeAudio`; paints resample the pyramid. Live clip pixels: NOT VERIFIED.
 
 Video: `filmstripTimes` / `collectFilmstripTimes` request N thumbs along source-in…source-out via a stubbed decoder. DOM paints stub `<img>`s. Live video-element thumbs: NOT VERIFIED.
 
@@ -269,7 +269,11 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:34 UTC)
+## Changelog this follow-up (2026-08-30 05:40 UTC)
+
+- A-track clip preview is a filled min/max peak envelope (~1 pair per CSS pixel), not gapped bars. Zoom re-samples. Mipmap cached after decode. TEST-VERIFIED. Live clip pixels: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 05:34 UTC)
 
 - Projekt + MEDIA left rail hidden by default; overlay opens from toolbar Save/Open. TEST-VERIFIED. Live overlay: NOT VERIFIED.
 - Preview vs Inspector horizontal split, persisted. TEST-VERIFIED. Live drag: NOT VERIFIED.
