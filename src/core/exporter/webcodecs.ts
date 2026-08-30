@@ -13,7 +13,7 @@ import {
 } from "../transition";
 
 export { compositeVideoAt as exportComposite } from "../transition";
-import { featuresAt, renderVisualizerScene } from "../visualizer";
+import { featuresAt, renderVisualizerScene, visWindowCovers } from "../visualizer";
 
 const AVC_CODEC = "avc1.42001f";
 
@@ -91,6 +91,7 @@ function exportPaintAlpha(job: ExportJob, clip: ExportClip, timeMs: number): num
 
 function paintVisualizer(ctx: CanvasRenderingContext2D, job: ExportJob, timeMs: number, dt: number): void {
   if (!job.visualizer.enabled || job.visualizer.muted) return;
+  if (!visWindowCovers(job.visualizer, timeMs)) return;
   const features = featuresAt(timeMs, job.durationMs);
   renderVisualizerScene(ctx, job.width, job.height, job.visualizer.sceneId, features, dt);
 }

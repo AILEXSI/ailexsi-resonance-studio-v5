@@ -3,6 +3,7 @@ import {
   VISUALIZER_SCENE_IDS,
   type Project,
   type VisualizerSceneId,
+  type VisualizerState,
 } from "./models";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
@@ -116,11 +117,41 @@ export function sceneShortName(sceneId: VisualizerSceneId): string {
   return SCENE_SHORT[sceneId] ?? sceneId;
 }
 
+/** durationMs <= 0 means the overlay covers the whole timeline (legacy). */
+export function visWindowCovers(
+  vis: { startMs?: number; durationMs?: number },
+  timeMs: number,
+): boolean {
+  const dur = vis.durationMs ?? 0;
+  if (dur <= 0) return true;
+  const start = vis.startMs ?? 0;
+  return timeMs >= start && timeMs < start + dur;
+}
+
 /** Main Output fallback: visualizer only when no unmuted V1/V2 clip is under the playhead. */
 export function shouldShowVisualizer(project: Project, timeMs: number): boolean {
   if (!project.visualizer.enabled || project.visualizer.muted) return false;
+  if (!visWindowCovers(project.visualizer, timeMs)) return false;
   if (topVideoClipAt(project, timeMs)) return false;
   return true;
+}
+
+export function setVisualizer(
+  project: Project,
+  patch: Partial<Pick<VisualizerState, "sceneId" | "startMs" | "durationMs" | "enabled" | "muted">>,
+): Project {
+  const startMs = Math.max(0, patch.startMs ?? project.visualizer.startMs ?? 0);
+  const durationMs = Math.max(0, patch.durationMs ?? project.visualizer.durationMs ?? 0);
+  return {
+    ...project,
+    visualizer: {
+      ...project.visualizer,
+      ...patch,
+      startMs,
+      durationMs,
+    },
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export function toggleVisualizerMute(project: Project): Project {

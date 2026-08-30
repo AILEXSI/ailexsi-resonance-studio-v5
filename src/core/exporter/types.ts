@@ -31,6 +31,8 @@ export interface ExportVisualizer {
   enabled: boolean;
   muted: boolean;
   sceneId: VisualizerSceneId;
+  startMs?: number;
+  durationMs?: number;
 }
 
 export interface ExportJob {

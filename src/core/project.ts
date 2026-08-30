@@ -139,6 +139,8 @@ function sanitizeVisualizer(raw: unknown): VisualizerState {
     enabled: v.enabled !== false,
     muted: v.muted === true,
     sceneId: isVisualizerSceneId(v.sceneId) ? v.sceneId : fallback.sceneId,
+    startMs: Math.max(0, Number(v.startMs) || 0),
+    durationMs: Math.max(0, Number(v.durationMs) || 0),
   };
 }
 

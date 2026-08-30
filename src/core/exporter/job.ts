@@ -92,6 +92,8 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       enabled: project.visualizer.enabled,
       muted: project.visualizer.muted,
       sceneId: project.visualizer.sceneId,
+      startMs: project.visualizer.startMs ?? 0,
+      durationMs: project.visualizer.durationMs ?? 0,
     },
     transitions,
   };

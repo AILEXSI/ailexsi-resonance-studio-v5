@@ -54,7 +54,12 @@ import {
   type HistoryStack,
 } from "../core/timeline";
 import { nextShuttleRate } from "../core/playback";
-import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
+import {
+  cycleVisualizerScene,
+  setVisualizer,
+  toggleVisualizerMute,
+} from "../core/visualizer";
+import type { VisualizerState } from "../core/models";
 import { formatDb, formatPan, linearToDb } from "../core/volume";
 import {
   clampZoomPxPerSec,
@@ -70,6 +75,8 @@ export interface Session {
   /** Source of truth for clip selection. `selectedClipId` is the primary (first). */
   selectedClipIds: string[];
   selectedMarkerId: string | null;
+  /** VIS overlay selected for inspector (not a TrackId / clip). */
+  selectedVis: boolean;
   /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
   clipboard: Clip[];
   targetTrackId: TrackId;
@@ -88,6 +95,7 @@ export function createSession(store?: BlobStore): Session {
     selectedClipId: null,
     selectedClipIds: [],
     selectedMarkerId: null,
+    selectedVis: false,
     clipboard: [],
     targetTrackId: "V1",
     status: "New project",
@@ -112,6 +120,7 @@ export function withClipSelection(session: Session, ids: string[]): Session {
     ...session,
     selectedClipIds: unique,
     selectedClipId: unique[0] ?? null,
+    selectedVis: false,
   };
 }
 
@@ -702,6 +711,29 @@ export function applyCycleVisualizerScene(session: Session): Session {
   };
 }
 
+export function applySelectVis(session: Session): Session {
+  return {
+    ...session,
+    selectedClipId: null,
+    selectedClipIds: [],
+    selectedMarkerId: null,
+    selectedVis: true,
+  };
+}
+
+export function applySetVisualizer(
+  session: Session,
+  patch: Partial<Pick<VisualizerState, "sceneId" | "startMs" | "durationMs">>,
+): Session {
+  const project = setVisualizer(session.project, patch);
+  return {
+    ...session,
+    project,
+    status: `Visualizer ${project.visualizer.sceneId}`,
+    error: null,
+  };
+}
+
 export function applySelect(
   session: Session,
   clipId: string | null,
@@ -792,6 +824,7 @@ export function openSerialized(session: Session, text: string): Session {
     selectedClipId: null,
     selectedClipIds: [],
     selectedMarkerId: null,
+    selectedVis: false,
     status: `Opened ${project.name}`,
     error: null,
     playing: false,

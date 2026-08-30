@@ -3,6 +3,7 @@ import {
   PRODUCTION_SCREENS,
   cycleProductionScreen,
   isFormFocus,
+  tracksForScreen,
 } from "../../src/app/screens";
 
 describe("production screens", () => {
@@ -10,6 +11,8 @@ describe("production screens", () => {
     expect(PRODUCTION_SCREENS).toEqual(["arrange", "cutter"]);
     expect(cycleProductionScreen("arrange", 1)).toBe("cutter");
     expect(cycleProductionScreen("cutter", 1)).toBe("arrange");
+    expect(tracksForScreen("arrange")).toEqual(["V1", "V2", "A1", "A2"]);
+    expect(tracksForScreen("cutter")).toEqual(["V1", "V2"]);
   });
 
   it("Shift+TAB cycles reverse", () => {

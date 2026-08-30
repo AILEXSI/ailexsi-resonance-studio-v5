@@ -33,7 +33,7 @@ export function Cutter({
   const audioDurationMs = stored?.audioDurationMs ?? durationMs;
 
   return (
-    <div className="cutter" data-testid="cutter">
+    <div className="cutter cutter-strip" data-testid="cutter">
       <div className="cutter-title">Cutter</div>
       {!pair ? (
         <div className="cutter-empty" data-testid="cutter-empty">

@@ -1006,12 +1006,46 @@ input[type="range"] { accent-color: var(--accent-2); }
   overflow: hidden;
 }
 
+.vis-span {
+  position: absolute;
+  top: 10px;
+  height: 28px;
+  z-index: 3;
+  padding: 0 6px;
+  border: 1px solid rgba(212, 180, 90, 0.45);
+  border-radius: 4px;
+  background: rgba(16, 19, 24, 0.72);
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 .cutter {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  padding: 10px 12px;
+  padding: 6px 10px;
   overflow: auto;
   border-top: 1px solid var(--line);
+}
+.cutter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+.cutter-strip .cutter-title { margin: 0 8px 0 0; }
+.cutter-strip .cutter-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  max-width: none;
+  align-items: center;
+}
+.cutter-strip .cutter-field {
+  grid-template-columns: auto minmax(72px, 110px);
 }
 .cutter-title {
   font-size: 11px;

@@ -63,6 +63,8 @@ import {
   applyTrackVolume,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
+  applySelectVis,
+  applySetVisualizer,
   applyToggleSnap,
   applyUpdateClip,
   applyZoom,
@@ -76,7 +78,12 @@ import {
 } from "./session";
 import { applyCommand, type EditorCommand } from "./commands";
 import { dispatchEditorKey } from "./keys";
-import { cycleProductionScreen, isFormFocus, type ProductionScreen } from "./screens";
+import {
+  cycleProductionScreen,
+  isFormFocus,
+  tracksForScreen,
+  type ProductionScreen,
+} from "./screens";
 import { Cutter } from "../ui/cutter/Cutter";
 import { ScreenNav } from "../ui/screens/ScreenNav";
 import {
@@ -908,6 +915,7 @@ export function App() {
             project={session.project}
             selectedClipId={session.selectedClipId}
             selectedClipIds={session.selectedClipIds}
+            selectedVis={session.selectedVis}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
             onFades={(clipId, fadeInMs, fadeOutMs) =>
               setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
@@ -916,6 +924,8 @@ export function App() {
               setSession(applyCommand(session, { type: "setClipRate", clipId, rate }))
             }
             onUnlink={(clipId) => setSession(applyCommand(session, { type: "unlinkClips", clipId }))}
+            onTransition={(cmd) => setSession(applyCommand(session, cmd))}
+            onVisualizer={(patch) => setSession(applySetVisualizer(session, patch))}
           />
         </div>
       </div>
@@ -960,13 +970,14 @@ export function App() {
           selectedClipIds={session.selectedClipIds}
           apply={runCommand}
         />
-      ) : (
+      ) : null}
       <div
         className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
         data-testid="arrange-row"
         style={{ overflowY: "auto" }}
       >
       <Timeline
+        visibleTrackIds={tracksForScreen(screen)}
         project={session.project}
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
@@ -996,6 +1007,7 @@ export function App() {
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
         onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
+        onSelectVis={() => setSession(applySelectVis(session))}
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
         }}
@@ -1029,7 +1041,6 @@ export function App() {
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
       />
       </div>
-      )}
       </div>
       </div>
 

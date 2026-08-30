@@ -57,6 +57,9 @@ interface Props {
   onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
+  onSelectVis?: () => void;
+  /** Arrange = all tracks. Cutter = video only. VIS overlay is separate. */
+  visibleTrackIds?: TrackId[];
   onSplitHere: (clipId: string, timeMs: number) => void;
   onCut: () => void;
   onCopy: () => void;
@@ -126,6 +129,8 @@ export function Timeline({
   onToggleSolo,
   onToggleVisualizerMute,
   onCycleVisualizerScene,
+  onSelectVis,
+  visibleTrackIds,
   onSplitHere,
   onCut,
   onCopy,
@@ -283,7 +288,8 @@ export function Timeline({
       dragKindRef.current = null;
       setMarquee(null);
       if (!moved) {
-        onSelect(null);
+        if (lane === "VIS" && onSelectVis) onSelectVis();
+        else onSelect(null);
         return;
       }
       const hits = clipsIntersectingMarquee(project.clips, {
@@ -739,18 +745,45 @@ export function Timeline({
         >
           {loopOverlay(false)}
           <div className="vis-lane-fill" aria-hidden="true" />
+          {(() => {
+            const start = project.visualizer.startMs ?? 0;
+            const rawDur = project.visualizer.durationMs ?? 0;
+            const dur = rawDur > 0 ? rawDur : Math.max(10_000, projectDurationMs(project));
+            return (
+              <button
+                type="button"
+                className="vis-span"
+                data-testid="vis-span"
+                data-scene={project.visualizer.sceneId}
+                style={{
+                  left: msToX(start, project.zoomPxPerSec, project.scrollMs),
+                  width: Math.max(28, msToWidth(dur, project.zoomPxPerSec)),
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  onSelectVis?.();
+                }}
+              >
+                {sceneShortName(project.visualizer.sceneId)} {start}–{start + dur}ms
+              </button>
+            );
+          })()}
           <div
             className="playhead"
             style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
           />
         </div>
       </div>
-      {TRACK_IDS.map((id) => {
+      {(visibleTrackIds ?? TRACK_IDS).map((id) => {
         const track = project.tracks.find((t) => t.id === id);
         const muted = track?.muted === true;
         const soloed = track?.solo === true;
         return (
-          <div className={`lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`} key={id}>
+          <div
+            className={`lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`}
+            key={id}
+            data-testid={`lane-${id}`}
+          >
             <div className="lane-label">
               <span>{id}</span>
               <div className="lane-ms">

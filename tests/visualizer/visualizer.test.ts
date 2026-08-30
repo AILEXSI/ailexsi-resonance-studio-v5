@@ -126,6 +126,15 @@ describe("visualizer fallback rules", () => {
     expect(shouldShowVisualizer(p, 0)).toBe(true);
   });
 
+  it("VIS from-to window hides the overlay outside the span", () => {
+    const p = createEmptyProject("Window");
+    p.visualizer = { ...p.visualizer, startMs: 1000, durationMs: 500 };
+    expect(shouldShowVisualizer(p, 999)).toBe(false);
+    expect(shouldShowVisualizer(p, 1000)).toBe(true);
+    expect(shouldShowVisualizer(p, 1499)).toBe(true);
+    expect(shouldShowVisualizer(p, 1500)).toBe(false);
+  });
+
   it("muted V1/V2 does not count as user video", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
@@ -145,6 +154,8 @@ describe("visualizer project persist", () => {
       enabled: true,
       muted: false,
       sceneId: DEFAULT_VISUALIZER_SCENE_ID,
+      startMs: 0,
+      durationMs: 0,
     });
     expect(loaded.visualizer.sceneId).toBe("resonance-wave");
   });
@@ -157,6 +168,8 @@ describe("visualizer project persist", () => {
       enabled: true,
       muted: true,
       sceneId: "pulse-orb",
+      startMs: 0,
+      durationMs: 0,
     });
   });
 

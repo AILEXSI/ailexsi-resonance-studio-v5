@@ -32,12 +32,21 @@ describe("ScreenNav click + TAB", () => {
     expect(arrangeBtn?.getAttribute("data-active")).toBe("true");
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=preview]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-A1]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-A2]")).toBeTruthy();
 
     await act(async () => {
       cutterBtn!.click();
     });
+    expect(host.querySelector("[data-testid=preview]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
     expect(host.querySelector("[data-testid=cutter]")).toBeTruthy();
-    expect(host.querySelector("[data-testid=timeline]")).toBeNull();
+    expect(host.querySelector("[data-testid=lane-V1]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-V2]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-VIS]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-A1]")).toBeNull();
+    expect(host.querySelector("[data-testid=lane-A2]")).toBeNull();
     expect(cutterBtn?.getAttribute("data-active")).toBe("true");
     expect(arrangeBtn?.getAttribute("data-active")).toBe("false");
 
@@ -46,6 +55,9 @@ describe("ScreenNav click + TAB", () => {
     });
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=preview]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-A1]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=lane-A2]")).toBeTruthy();
     expect(arrangeBtn?.getAttribute("data-active")).toBe("true");
   });
 
@@ -60,12 +72,14 @@ describe("ScreenNav click + TAB", () => {
       host!.querySelector<HTMLButtonElement>('[data-testid="screen-nav-cutter"]')!.click();
     });
     expect(host.querySelector("[data-testid=cutter]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
 
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     });
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
+    expect(host.querySelector("[data-testid=preview]")).toBeTruthy();
 
     const field = document.createElement("input");
     host.appendChild(field);

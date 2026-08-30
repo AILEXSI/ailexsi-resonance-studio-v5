@@ -195,3 +195,51 @@ describe("inspector unlink", () => {
     expect(cleared.project.clips.every((c) => !c.linkId)).toBe(true);
   });
 });
+
+describe("inspector VIS routing", () => {
+  let host: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  it("can set VIS scene id and from-to when the overlay is selected", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = projectWith([], []);
+    const seen: Array<{ sceneId?: string; startMs?: number; durationMs?: number }> = [];
+    act(() => {
+      root!.render(
+        <Inspector
+          project={project}
+          selectedClipId={null}
+          selectedClipIds={[]}
+          selectedVis
+          onChange={() => {}}
+          onVisualizer={(patch) => seen.push(patch)}
+        />,
+      );
+    });
+    expect(host.querySelector("[data-testid=inspector-vis]")).toBeTruthy();
+    const scene = host.querySelector<HTMLSelectElement>("[data-testid=inspector-vis-scene]");
+    expect(scene).toBeTruthy();
+    act(() => {
+      scene!.value = "pulse-orb";
+      scene!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(seen[0]?.sceneId).toBe("pulse-orb");
+    const start = host.querySelector<HTMLInputElement>("[data-testid=inspector-vis-start]");
+    act(() => {
+      start!.value = "250";
+      start!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(seen[1]?.startMs).toBe(250);
+  });
+});

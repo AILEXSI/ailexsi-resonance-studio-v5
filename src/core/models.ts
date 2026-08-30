@@ -25,10 +25,19 @@ export interface VisualizerState {
   enabled: boolean;
   muted: boolean;
   sceneId: VisualizerSceneId;
+  /** Overlay from-to on the timeline. durationMs <= 0 = whole timeline. Not a TrackId. */
+  startMs?: number;
+  durationMs?: number;
 }
 
 export function defaultVisualizer(): VisualizerState {
-  return { enabled: true, muted: false, sceneId: DEFAULT_VISUALIZER_SCENE_ID };
+  return {
+    enabled: true,
+    muted: false,
+    sceneId: DEFAULT_VISUALIZER_SCENE_ID,
+    startMs: 0,
+    durationMs: 0,
+  };
 }
 
 export function isVisualizerSceneId(value: unknown): value is VisualizerSceneId {

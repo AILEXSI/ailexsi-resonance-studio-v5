@@ -1,5 +1,14 @@
+import type { TrackId } from "../core/models";
+
 export const PRODUCTION_SCREENS = ["arrange", "cutter"] as const;
 export type ProductionScreen = (typeof PRODUCTION_SCREENS)[number];
+
+export const ARRANGE_TRACK_IDS: TrackId[] = ["V1", "V2", "A1", "A2"];
+export const CUTTER_TRACK_IDS: TrackId[] = ["V1", "V2"];
+
+export function tracksForScreen(screen: ProductionScreen): TrackId[] {
+  return screen === "cutter" ? CUTTER_TRACK_IDS : ARRANGE_TRACK_IDS;
+}
 
 export function cycleProductionScreen(
   current: ProductionScreen,

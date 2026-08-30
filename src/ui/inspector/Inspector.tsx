@@ -1,15 +1,38 @@
 import type { ReactNode } from "react";
+import type { EditorCommand } from "../../app/commands";
 import { firstClipIdWithLivingMate } from "../../core/link";
-import { clipById, formatTimecode, kindOfTrack, type Clip, type Project, type TrackId } from "../../core/models";
+import {
+  VISUALIZER_SCENE_IDS,
+  clipById,
+  formatTimecode,
+  kindOfTrack,
+  type Clip,
+  type Project,
+  type TrackId,
+  type VisualizerSceneId,
+} from "../../core/models";
+import {
+  TRANSITION_AUDIO_MODES,
+  TRANSITION_TYPES,
+  findTransitionForPair,
+  resolveEditPair,
+  type TransitionAudioMode,
+  type TransitionType,
+} from "../../core/transition";
 
 interface Props {
   project: Project;
   selectedClipId: string | null;
   selectedClipIds?: string[];
+  selectedVis?: boolean;
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
+  onTransition?: (cmd: Extract<EditorCommand, { type: "setTransition" }>) => void;
+  onVisualizer?: (
+    patch: Partial<{ sceneId: VisualizerSceneId; startMs: number; durationMs: number }>,
+  ) => void;
 }
 
 function Field({
@@ -51,16 +74,60 @@ function MsField({
   );
 }
 
-export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades, onRate, onUnlink }: Props) {
+export function Inspector({
+  project,
+  selectedClipId,
+  selectedClipIds,
+  selectedVis,
+  onChange,
+  onFades,
+  onRate,
+  onUnlink,
+  onTransition,
+  onVisualizer,
+}: Props) {
   const ids = selectedClipIds?.length ? selectedClipIds : selectedClipId ? [selectedClipId] : [];
   const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
   const unlinkId = firstClipIdWithLivingMate(project, ids);
+  const pair = resolveEditPair(project, ids);
+  const stored = pair
+    ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
+    : undefined;
+  const vis = project.visualizer;
 
   return (
     <aside className="panel inspector" data-testid="inspector">
       <h2>Inspector</h2>
-      {ids.length >= 2 ? (
+      {selectedVis ? (
+        <dl data-testid="inspector-vis">
+          <Field label="VIS scene">
+            <select
+              data-testid="inspector-vis-scene"
+              value={vis.sceneId}
+              onChange={(e) => onVisualizer?.({ sceneId: e.target.value as VisualizerSceneId })}
+            >
+              {VISUALIZER_SCENE_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <MsField
+            label="VIS from (ms)"
+            testId="inspector-vis-start"
+            value={vis.startMs ?? 0}
+            onChange={(v) => onVisualizer?.({ startMs: v })}
+          />
+          <MsField
+            label="VIS to span (ms)"
+            testId="inspector-vis-duration"
+            value={vis.durationMs ?? 0}
+            onChange={(v) => onVisualizer?.({ durationMs: v })}
+          />
+        </dl>
+      ) : ids.length >= 2 ? (
         <p data-testid="inspector-selection-count" style={{ color: "var(--muted)" }}>
           {ids.length} clips
         </p>
@@ -120,6 +187,52 @@ export function Inspector({ project, selectedClipId, selectedClipIds, onChange, 
           <Field label="Asset">{asset?.missing ? <span className="err">{asset.name}</span> : (asset?.name ?? "—")}</Field>
         </dl>
       )}
+      {pair && !selectedVis ? (
+        <dl data-testid="inspector-transition">
+          <Field label="Type">
+            <select
+              data-testid="inspector-transition-type"
+              value={stored?.type ?? "cut"}
+              onChange={(e) =>
+                onTransition?.({ type: "setTransition", transitionType: e.target.value as TransitionType })
+              }
+            >
+              {TRANSITION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <MsField
+            label="Duration (ms)"
+            testId="inspector-transition-duration"
+            value={stored?.durationMs ?? pair.overlapDurationMs}
+            onChange={(v) => onTransition?.({ type: "setTransition", durationMs: v })}
+          />
+          <Field label="Audio">
+            <select
+              data-testid="inspector-transition-audio"
+              value={stored?.audioMode ?? "cut"}
+              onChange={(e) =>
+                onTransition?.({ type: "setTransition", audioMode: e.target.value as TransitionAudioMode })
+              }
+            >
+              {TRANSITION_AUDIO_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <MsField
+            label="Audio duration (ms)"
+            testId="inspector-transition-audio-duration"
+            value={stored?.audioDurationMs ?? stored?.durationMs ?? pair.overlapDurationMs}
+            onChange={(v) => onTransition?.({ type: "setTransition", audioDurationMs: v })}
+          />
+        </dl>
+      ) : null}
       {unlinkId ? (
         <button
           type="button"
