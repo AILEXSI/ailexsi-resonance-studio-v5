@@ -199,6 +199,44 @@ describe("clip lock (P53)", () => {
     expect(blocked.history.past.length).toBe(start.history.past.length);
   });
 
+  it("extractRange refuses when a locked clip straddles IN/OUT (P111)", () => {
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "locked",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 500,
+              durationMs: 2500,
+              locked: true,
+            }),
+            clip({
+              id: "later",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 4000,
+              durationMs: 500,
+            }),
+          ],
+          [asset({ id: "a", kind: "audio", durationMs: 8000 })],
+        ),
+        inPointMs: 1000,
+        outPointMs: 2000,
+        snap: false,
+      },
+      selectedClipId: null,
+      selectedClipIds: [],
+    };
+    const blocked = applyCommand(start, { type: "extractRange" });
+    expect(blocked.project.clips.find((c) => c.id === "later")?.startMs).toBe(4000);
+    expect(blocked.project.clips.find((c) => c.id === "locked")?.durationMs).toBe(2500);
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.history.past.length).toBe(start.history.past.length);
+  });
+
   it("setClipsLocked writes history and undo restores", () => {
     const start = clipSession();
     const viaCommand = applyCommand(start, { type: "setClipsLocked", locked: true });

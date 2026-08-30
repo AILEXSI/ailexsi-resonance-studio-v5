@@ -1011,6 +1011,53 @@ describe("range lift / extract", () => {
     expect(extracted.error).toBeUndefined();
     expect(extracted.project.clips.find((c) => c.id === "parked")!.startMs).toBe(3000);
   });
+
+  it("extractRange does not slide later clips into a locked clip that straddles IN/OUT (P111)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const p = {
+      ...projectWith(
+        [
+          clip({
+            id: "locked",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 500,
+            durationMs: 2500,
+            sourceInMs: 0,
+            sourceOutMs: 2500,
+            locked: true,
+          }),
+          clip({
+            id: "later",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 4000,
+            durationMs: 500,
+            sourceInMs: 0,
+            sourceOutMs: 500,
+          }),
+        ],
+        [a],
+      ),
+      inPointMs: 1000,
+      outPointMs: 2000,
+      snap: false,
+    };
+    const blocked = extractRange(p);
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project).toBe(p);
+    expect(blocked.project.clips.find((c) => c.id === "later")!.startMs).toBe(4000);
+    expect(blocked.project.clips.find((c) => c.id === "locked")!.startMs).toBe(500);
+    expect(blocked.project.clips.find((c) => c.id === "locked")!.durationMs).toBe(2500);
+
+    const free = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "locked" ? { ...c, locked: undefined } : c)),
+    };
+    const extracted = extractRange(free);
+    expect(extracted.error).toBeUndefined();
+    expect(extracted.project.clips.find((c) => c.id === "later")!.startMs).toBe(3000);
+  });
 });
 
 describe("roll edit", () => {

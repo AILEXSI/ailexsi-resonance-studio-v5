@@ -693,14 +693,31 @@ export function liftRange(project: Project): { project: Project } {
   return { project: deleteUnlockedClips(split, mids.map((c) => c.id)) };
 }
 
+function clipStraddlesTime(clip: Clip, timeMs: number): boolean {
+  return clip.startMs < timeMs && clipEndMs(clip) > timeMs;
+}
+
+/** Locked later clip, or locked clip that split cannot cut at IN/OUT. */
+function lockedClipBlocksExtract(
+  project: Project,
+  range: { inMs: number; outMs: number },
+): boolean {
+  return project.clips.some((c) => {
+    if (!clipIsLocked(c)) return false;
+    if (c.startMs >= range.outMs) return true;
+    return clipStraddlesTime(c, range.inMs) || clipStraddlesTime(c, range.outMs);
+  });
+}
+
 /**
  * liftRange, then on each track shift clips that start at/after OUT left by (out−in).
- * A locked clip at/after OUT blocks the ripple (same as close-gap / ripple-trim).
+ * A locked clip at/after OUT, or one that straddles IN/OUT, blocks the ripple
+ * (splitClipAt no-ops the lock; later clips would slide into the parked body).
  */
 export function extractRange(project: Project): { project: Project; error?: string } {
   const range = editRangeOf(project);
   if (!range) return { project };
-  if (project.clips.some((c) => clipIsLocked(c) && c.startMs >= range.outMs)) {
+  if (lockedClipBlocksExtract(project, range)) {
     return { project, error: "Clip is locked" };
   }
   const lifted = liftRange(project).project;
