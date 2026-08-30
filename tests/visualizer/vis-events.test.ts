@@ -37,6 +37,25 @@ describe("VIS events", () => {
     expect(next.history.past.length).toBe(start.history.past.length + 1);
   });
 
+  it("insert snaps to nearby edges; playhead stays (P94)", () => {
+    const project = createEmptyProject("VIS");
+    project.playheadMs = 2070;
+    project.snap = true;
+    project.markers = [{ id: "m1", timeMs: 2000, label: "M" }];
+    const next = applyCommand(sessionOf(project), { type: "insertVisEvent" });
+    const events = visualizerEventsOf(next.project);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.startMs).toBe(2000);
+    expect(next.project.playheadMs).toBe(2070);
+
+    const off = applyCommand(
+      sessionOf({ ...project, snap: false }),
+      { type: "insertVisEvent" },
+    );
+    expect(visualizerEventsOf(off.project)[0]!.startMs).toBe(2070);
+    expect(off.project.playheadMs).toBe(2070);
+  });
+
   it("two events switch scene at the boundary in composite/preview helper", () => {
     const project = projectWith(
       [

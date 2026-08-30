@@ -1361,9 +1361,10 @@ export function applySelectVisEvent(session: Session, eventId: string): Session 
 }
 
 export function applyInsertVisEvent(session: Session): Session {
+  const at = snapPlayheadSeek(session.project, session.project.playheadMs);
   const { project, event, inserted } = insertVisualizerEvent(
     session.project,
-    session.project.playheadMs,
+    at,
   );
   if (!inserted) return applySelectVisEvent(session, event.id);
   return {

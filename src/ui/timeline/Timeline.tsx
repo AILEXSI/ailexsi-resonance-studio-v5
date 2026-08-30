@@ -1166,6 +1166,7 @@ export function Timeline({
                 }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
+                  onPlayhead(snapPlayheadSeek(project, timeFromEvent(e.clientX)));
                   if (onInsertVisEvent) onInsertVisEvent();
                   else onSelectVis?.();
                 }}

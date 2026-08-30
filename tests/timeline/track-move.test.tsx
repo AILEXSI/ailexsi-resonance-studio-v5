@@ -205,4 +205,25 @@ describe("timeline drag to other video lane", () => {
     });
     expect(moves).toEqual([]);
   });
+
+  it("fallback VIS span click parks playhead then inserts (P94)", () => {
+    const seeks: number[] = [];
+    let inserts = 0;
+    const el = render(
+      baseProps({
+        onPlayhead: (ms: number) => {
+          seeks.push(ms);
+        },
+        onInsertVisEvent: () => {
+          inserts += 1;
+        },
+      }),
+    );
+    const vis = el.querySelector('[data-testid="vis-span"]')!;
+    act(() => {
+      vis.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 80, clientY: 8 }));
+    });
+    expect(seeks).toHaveLength(1);
+    expect(inserts).toBe(1);
+  });
 });
