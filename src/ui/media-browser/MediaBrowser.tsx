@@ -12,6 +12,7 @@ interface Props {
   onTargetTrack: (id: TrackId) => void;
   onImport: (files: FileList) => void;
   onPlace: (assetId: string) => void;
+  onRelinkAsset?: (assetId: string) => void;
 }
 
 export function MediaBrowser({
@@ -22,6 +23,7 @@ export function MediaBrowser({
   onTargetTrack,
   onImport,
   onPlace,
+  onRelinkAsset,
 }: Props) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<MediaKindFilter>("all");
@@ -113,6 +115,22 @@ export function MediaBrowser({
               <div className="media-meta">
                 {asset.kind} · {(asset.durationMs / 1000).toFixed(2)}s
               </div>
+              {asset.missing &&
+              onRelinkAsset &&
+              project.clips.some((c) => c.assetId === asset.id) ? (
+                <button
+                  type="button"
+                  className="media-relink"
+                  data-testid={`media-relink-${asset.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRelinkAsset(asset.id);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  Relink
+                </button>
+              ) : null}
             </div>
           ))
         )}

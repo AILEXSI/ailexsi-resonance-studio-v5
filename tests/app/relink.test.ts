@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, ingestRelinkFile, type Session } from "../../src/app/session";
+import { relinkSelectionForAsset } from "../../src/core/relink";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -55,6 +56,23 @@ function relinkSession(): Session {
     selectedClipIds: ["c1"],
   };
 }
+
+describe("relinkSelectionForAsset (P59)", () => {
+  it("returns every clip that shares the missing asset", () => {
+    const start = relinkSession();
+    const sel = relinkSelectionForAsset(start.project, "va");
+    expect(sel?.kind).toBe("video");
+    expect(sel?.assetId).toBe("va");
+    expect(sel?.clipIds.sort()).toEqual(["c1", "c2"]);
+    expect(relinkSelectionForAsset(start.project, "vb")?.clipIds).toEqual(["c3"]);
+    expect(relinkSelectionForAsset(start.project, "nope")).toBeNull();
+    const unused = {
+      ...start.project,
+      assets: [...start.project.assets, asset({ id: "ghost", kind: "video", missing: true })],
+    };
+    expect(relinkSelectionForAsset(unused, "ghost")).toBeNull();
+  });
+});
 
 describe("relinkClips", () => {
   it("relinks one clip: assetId changes, startMs unchanged, missing false", async () => {

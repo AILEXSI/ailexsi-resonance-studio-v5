@@ -82,6 +82,7 @@ import {
   importFiles,
   ingestRelinkFile,
   newProject,
+  withClipSelection,
   openSerialized,
   projectJson,
   type Session,
@@ -94,7 +95,7 @@ import {
   tracksForScreen,
   type ProductionScreen,
 } from "./screens";
-import { relinkSelectionOf } from "../core/relink";
+import { relinkSelectionForAsset, relinkSelectionOf } from "../core/relink";
 import { Cutter } from "../ui/cutter/Cutter";
 import {
   ARRANGE_MIN_PX,
@@ -201,9 +202,12 @@ export function App() {
     [laneLabelPx],
   );
 
+  const relinkClipIdsRef = useRef<string[] | null>(null);
+
   const finishRelink = useCallback(async (file: File) => {
     const s = sessionRef.current;
-    const sel = relinkSelectionOf(s.project, selectionOf(s));
+    const clipIds = relinkClipIdsRef.current ?? selectionOf(s);
+    const sel = relinkSelectionOf(s.project, clipIds);
     if (!sel) return;
     const ingested = await ingestRelinkFile(s, file, sel.kind);
     if ("error" in ingested) {
@@ -219,10 +223,15 @@ export function App() {
     );
   }, []);
 
-  const runRelink = useCallback(async () => {
+  const runRelink = useCallback(async (clipIds?: readonly string[]) => {
     const s = sessionRef.current;
-    const sel = relinkSelectionOf(s.project, selectionOf(s));
+    const ids = clipIds?.length ? [...clipIds] : selectionOf(s);
+    const sel = relinkSelectionOf(s.project, ids);
     if (!sel) return;
+    relinkClipIdsRef.current = sel.clipIds;
+    if (clipIds?.length) {
+      setSession(withClipSelection(s, sel.clipIds));
+    }
     const picked = await pickRelinkMediaFile({
       host: pickerHost,
       memory: projectFileRef.current,
@@ -239,6 +248,15 @@ export function App() {
     input.value = "";
     input.click();
   }, [finishRelink, pickerHost]);
+
+  const runRelinkAsset = useCallback(
+    (assetId: string) => {
+      const sel = relinkSelectionForAsset(sessionRef.current.project, assetId);
+      if (!sel) return;
+      void runRelink(sel.clipIds);
+    },
+    [runRelink],
+  );
   const play = useCallback(() => {
     runCommand({ type: "play" });
   }, [runCommand]);
@@ -1113,6 +1131,7 @@ export function App() {
                 const trackId = preferredTrackForAsset(asset.kind, session.targetTrackId);
                 setSession((s) => applyPlaceAsset(s, assetId, trackId));
               }}
+              onRelinkAsset={runRelinkAsset}
             />
           </div>
         </div>
@@ -1291,7 +1310,7 @@ export function App() {
         onRippleDelete={() => runCommand({ type: "rippleDelete" })}
         onLiftRange={() => runCommand({ type: "liftRange" })}
         onExtractRange={() => runCommand({ type: "extractRange" })}
-        onRelink={() => void runRelink()}
+        onRelink={(clipIds) => void runRelink(clipIds)}
         onCloseGap={() => runCommand({ type: "closeGap" })}
         onRippleTrimToPlayhead={(edge) => runCommand({ type: "rippleTrimToPlayhead", edge })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx, laneLabelPx))}

@@ -391,6 +391,10 @@ body.media-asset-dragging .project-overlay-drawer {
 .media-item.missing { border-color: var(--danger); color: var(--danger); background: #2a1518; }
 .media-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .media-item.missing .media-meta { color: var(--danger); }
+.media-relink {
+  margin-top: 6px;
+  font-size: 11px;
+}
 .media-kind-filter button {
   font-size: 11px;
   text-transform: capitalize;
@@ -653,6 +657,15 @@ body.media-asset-dragging .project-overlay-drawer {
 .clip.selected.video { background: var(--video-sel); }
 .clip.selected.audio { background: var(--audio-sel); }
 .clip.missing { background: #6b2c33; }
+.clip-relink {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  z-index: 3;
+  font-size: 10px;
+  padding: 1px 6px;
+  pointer-events: auto;
+}
 .clip.disabled { opacity: 0.4; }
 .clip.locked { cursor: default; box-shadow: inset 0 0 0 1px var(--accent); }
 .clip-fade-in,

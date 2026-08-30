@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { MediaBrowser } from "../../src/ui/media-browser/MediaBrowser";
 import { createEmptyProject } from "../../src/core/project";
-import { asset } from "../helpers";
+import { asset, clip } from "../helpers";
 
 describe("MediaBrowser stills + drag", () => {
   let host: HTMLDivElement | undefined;
@@ -46,6 +46,43 @@ describe("MediaBrowser stills + drag", () => {
     expect(item.getAttribute("data-asset-kind")).toBe("image");
     expect(host.querySelector('[data-testid="media-search"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="media-kind-filter"]')).toBeTruthy();
+  });
+
+  it("shows Relink on a missing asset and calls existing onRelinkAsset", () => {
+    const project = {
+      ...createEmptyProject(),
+      assets: [
+        asset({ id: "gone", kind: "audio", name: "bed.mp3", missing: true }),
+        asset({ id: "ok", kind: "audio", name: "ok.wav" }),
+        asset({ id: "unused", kind: "audio", name: "dead.mp3", missing: true }),
+      ],
+      clips: [clip({ id: "c1", assetId: "gone", trackId: "A1" })],
+    };
+    const relinked: string[] = [];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <MediaBrowser
+          project={project}
+          targetTrackId="A1"
+          selectedAssetId={null}
+          onSelectAsset={() => undefined}
+          onTargetTrack={() => undefined}
+          onImport={() => undefined}
+          onPlace={() => undefined}
+          onRelinkAsset={(id) => relinked.push(id)}
+        />,
+      );
+    });
+    expect(host.querySelector('[data-testid="media-relink-gone"]')?.textContent).toMatch(/Relink/);
+    expect(host.querySelector('[data-testid="media-relink-ok"]')).toBeNull();
+    expect(host.querySelector('[data-testid="media-relink-unused"]')).toBeNull();
+    act(() => {
+      (host!.querySelector('[data-testid="media-relink-gone"]') as HTMLButtonElement).click();
+    });
+    expect(relinked).toEqual(["gone"]);
   });
 
   it("kind filter hides non-matching items", () => {

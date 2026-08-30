@@ -25,6 +25,18 @@ export function canShowRelink(project: Project, clipIds: readonly string[]): boo
   return relinkSelectionOf(project, clipIds) != null;
 }
 
+/** All clips that share this asset — bin Relink uses existing clip remapping. */
+export function relinkSelectionForAsset(
+  project: Project,
+  assetId: string,
+): { clipIds: string[]; assetId: string; kind: MediaKind } | null {
+  const asset = project.assets.find((a) => a.id === assetId);
+  if (!asset) return null;
+  const clipIds = project.clips.filter((c) => c.assetId === assetId).map((c) => c.id);
+  if (clipIds.length === 0) return null;
+  return relinkSelectionOf(project, clipIds);
+}
+
 export function relinkClipsOnProject(
   project: Project,
   clipIds: readonly string[],
