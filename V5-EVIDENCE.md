@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 04:05 UTC. Sequential-import follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 04:17 UTC. Keys/zoom/clip-menu follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 134 modules. Outputs:
+exit 0. vite 7.3.6, 137 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BqKW0e4x.css 8.00 kB
-- dist/assets/index-Dj5DKiIV.js 628.21 kB (this follow-up `npx vite build`, exit 0, 134 modules)
+- dist/assets/index-6-3iVymv.css 8.28 kB
+- dist/assets/index-Cs0RFzgY.js 630.61 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **77 passed / 8 files**. Start 04:06:45 UTC. Duration 1.38s.
+exit 0. vitest 3.2.7. **90 passed / 11 files**. Start 04:17:17 UTC. Duration 1.89s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 3, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -98,11 +98,26 @@ No live multi-file picker this follow-up.
 
 ## Timeline
 
-Status: TEST-VERIFIED
+Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
 Existing units still green (18): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut.
-No timeline defects found this pass. No new timeline tests except VIS-is-not-TrackId in foundation.
-UI drag: NOT VERIFIED this run.
+
+Zoom (`tests/timeline/zoom.test.ts`, 3):
+- ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
+- zoom-out from 10 still decreases
+- Fit does not clamp at 10; scrollMs=0
+
+Fit button and wheel exist in `Timeline.tsx`. Neither was clicked/scrolled in a browser this run.
+
+## Keys / clip menu
+
+Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
+
+Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
+
+`tests/app/keys.test.ts` (7): S splits; bare V does not split; Ctrl+V pastes (does not split); Ctrl+C leaves the clip; Ctrl+X removes it and fills clipboard; bare X clears IN/OUT; Ctrl+S/M/I/O do not fire the bare-letter actions.
+
+`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete; overlay text matches and does not say Split/Cut is V; toolbar + transport Split show S.
 
 ## Preview / playback
 
@@ -187,20 +202,17 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:05 UTC)
+## Changelog this follow-up (2026-08-30 04:17 UTC)
 
-- Sequential multi-file Import: end-to-end on matching track. TEST-VERIFIED (5 cases).
-- Multi-file picker UI: NOT VERIFIED.
+- Split key is S (not V). Ctrl+V pastes. TEST-VERIFIED.
+- Cut = Ctrl+X (`applyCut`). Copy stays non-destructive. TEST-VERIFIED.
+- Clip-menu shortcut labels + overlay/toolbar/transport S. TEST-VERIFIED. Live menu: NOT VERIFIED.
+- Zoom floor / Fit for long WAV. TEST-VERIFIED. Fit click / wheel in UI: NOT VERIFIED.
+- Sequential multi-file Import (prior): TEST-VERIFIED. Picker UI: NOT VERIFIED.
 
 ## Commits on this branch (tip)
 
-See git log after sequential-import commits. Prior tip included:
-
-```
-b824fc6 docs(v5): rewrite V5-EVIDENCE from this verification run
-d552d82 test(v5): paint VIS pixels and close persist/import holes
-51d93dc feat(v5): Windows Start-V5.cmd app launcher
-```
+See git log after this follow-up. Prior tip included sequential-import (`a072957` / `cd63a28`).
 
 ## Not added
 

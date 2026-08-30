@@ -1,3 +1,5 @@
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 if (typeof URL !== "undefined" && typeof URL.createObjectURL !== "function") {
   const urls = new Map<string, Blob>();
   let n = 0;
