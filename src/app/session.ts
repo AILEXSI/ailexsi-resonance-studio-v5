@@ -237,6 +237,7 @@ export function revertToLastSave(session: Session): Session {
 }
 
 /** Browser beforeunload: warn only when history is past the last save. */
+export function beforeUnloadIfDirty(
   session: Session,
   event: { preventDefault: () => void; returnValue: string },
 ): boolean {
