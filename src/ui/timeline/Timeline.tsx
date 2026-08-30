@@ -8,7 +8,7 @@ import {
   type Project,
   type TrackId,
 } from "../../core/models";
-import { collectSnapTargets, snapTime } from "../../core/timeline";
+import { abuttingNeighbor, collectSnapTargets, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
@@ -29,9 +29,15 @@ interface Props {
   onPlayhead: (ms: number) => void;
   onMoveLive: (clipId: string, startMs: number, trackId?: TrackId) => void;
   onMoveCommit: () => void;
-  onTrimLive: (clipId: string, edge: "in" | "out", nextEdgeMs: number) => void;
+  onTrimLive: (
+    clipId: string,
+    edge: "in" | "out",
+    nextEdgeMs: number,
+    mode?: "lift" | "ripple" | "roll",
+  ) => void;
   onTrimCommit: () => void;
   onToggleMute: (trackId: TrackId) => void;
+  onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
   onSplitHere: (clipId: string, timeMs: number) => void;
@@ -90,6 +96,7 @@ export function Timeline({
   onTrimLive,
   onTrimCommit,
   onToggleMute,
+  onToggleSolo,
   onToggleVisualizerMute,
   onCycleVisualizerScene,
   onSplitHere,
@@ -266,11 +273,16 @@ export function Timeline({
     onSelect(clip.id);
     const originX = e.clientX;
     const originEdge = edge === "in" ? clip.startMs : clipEndMs(clip);
+    const mode: "lift" | "ripple" | "roll" = e.shiftKey
+      ? "ripple"
+      : abuttingNeighbor(project, clip.id, edge)
+        ? "roll"
+        : "lift";
     const move = (ev: PointerEvent) => {
       if (dragKindRef.current !== "trim") return;
       const dx = ev.clientX - originX;
       const nextEdge = originEdge + (dx / project.zoomPxPerSec) * 1000;
-      onTrimLive(clip.id, edge, nextEdge);
+      onTrimLive(clip.id, edge, nextEdge, ev.shiftKey ? "ripple" : mode);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -533,10 +545,12 @@ export function Timeline({
       {TRACK_IDS.map((id) => {
         const track = project.tracks.find((t) => t.id === id);
         const muted = track?.muted === true;
+        const soloed = track?.solo === true;
         return (
-          <div className={`lane${muted ? " muted" : ""}`} key={id}>
+          <div className={`lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`} key={id}>
             <div className="lane-label">
               <span>{id}</span>
+              <div className="lane-ms">
               <button
                 type="button"
                 className={muted ? "active mute-btn" : "mute-btn"}
@@ -549,6 +563,19 @@ export function Timeline({
               >
                 M
               </button>
+              <button
+                type="button"
+                className={soloed ? "active solo-btn" : "solo-btn"}
+                title={soloed ? `Unsolo ${id}` : `Solo ${id}`}
+                data-testid={`solo-${id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSolo?.(id);
+                }}
+              >
+                S
+              </button>
+              </div>
             </div>
             <div
               className="lane-body"
@@ -586,13 +613,23 @@ export function Timeline({
                       {selected ? (
                         <>
                           <div
-                            className="trim-handle in"
+                            className={`trim-handle in${abuttingNeighbor(project, clip.id, "in") ? " roll" : ""}`}
                             data-testid={`trim-in-${clip.id}`}
+                            title={
+                              abuttingNeighbor(project, clip.id, "in")
+                                ? "Roll edit (Shift+drag = ripple trim)"
+                                : "Trim in (Shift+drag = ripple trim)"
+                            }
                             onPointerDown={(e) => onTrimPointerDown(e, clip, "in")}
                           />
                           <div
-                            className="trim-handle out"
+                            className={`trim-handle out${abuttingNeighbor(project, clip.id, "out") ? " roll" : ""}`}
                             data-testid={`trim-out-${clip.id}`}
+                            title={
+                              abuttingNeighbor(project, clip.id, "out")
+                                ? "Roll edit (Shift+drag = ripple trim)"
+                                : "Trim out (Shift+drag = ripple trim)"
+                            }
                             onPointerDown={(e) => onTrimPointerDown(e, clip, "out")}
                           />
                         </>

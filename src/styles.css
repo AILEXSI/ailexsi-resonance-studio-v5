@@ -565,6 +565,12 @@ input[type="range"] { accent-color: var(--accent-2); }
 }
 .trim-handle.in { left: 0; }
 .trim-handle.out { right: 0; }
+.trim-handle.roll {
+  background: rgba(212, 180, 90, 0.55);
+  cursor: col-resize;
+}
+.lane-ms { display: flex; gap: 2px; }
+.lane.soloed .lane-label { color: var(--accent); }
 .playhead {
   position: absolute;
   top: 0;

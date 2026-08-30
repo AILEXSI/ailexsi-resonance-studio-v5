@@ -143,6 +143,143 @@ export function trimClip(
   };
 }
 
+export const ABUT_TOLERANCE_MS = 1;
+
+/** Neighbor that shares this edge (end of A == start of B within 1ms). */
+export function abuttingNeighbor(
+  project: Project,
+  clipId: string,
+  edge: "in" | "out",
+): Clip | undefined {
+  const clip = clipById(project, clipId);
+  if (!clip) return undefined;
+  if (edge === "out") {
+    const end = clipEndMs(clip);
+    return project.clips.find(
+      (c) =>
+        c.id !== clipId &&
+        c.trackId === clip.trackId &&
+        Math.abs(c.startMs - end) <= ABUT_TOLERANCE_MS,
+    );
+  }
+  return project.clips.find(
+    (c) =>
+      c.id !== clipId &&
+      c.trackId === clip.trackId &&
+      Math.abs(clipEndMs(c) - clip.startMs) <= ABUT_TOLERANCE_MS,
+  );
+}
+
+/**
+ * Lift-trim, then shift later clips on the same track by the duration delta.
+ * Later = startMs >= original end (abut counts). Other tracks unchanged.
+ */
+export function rippleTrimClip(
+  project: Project,
+  clipId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): { project: Project; error?: string } {
+  const before = clipById(project, clipId);
+  if (!before) return { project, error: "Clip not found" };
+  const oldEnd = clipEndMs(before);
+  const oldDur = before.durationMs;
+  const trimmed = trimClip(project, clipId, edge, nextEdgeMs);
+  if (trimmed.error) return trimmed;
+  const after = clipById(trimmed.project, clipId);
+  if (!after) return trimmed;
+  const delta = after.durationMs - oldDur;
+  if (delta === 0) return trimmed;
+  return {
+    project: {
+      ...trimmed.project,
+      clips: trimmed.project.clips.map((c) => {
+        if (c.id === clipId || c.trackId !== before.trackId) return c;
+        if (c.startMs + ABUT_TOLERANCE_MS < oldEnd) return c;
+        return { ...c, startMs: clampStartMs(c.startMs + delta) };
+      }),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Move the shared cut between two abutting clips. Total A+B span stays constant.
+ */
+export function rollEdit(
+  project: Project,
+  leftId: string,
+  rightId: string,
+  cutMs: number,
+): { project: Project; error?: string } {
+  const left = clipById(project, leftId);
+  const right = clipById(project, rightId);
+  if (!left || !right) return { project, error: "Clip not found" };
+  if (left.trackId !== right.trackId) {
+    return { project, error: "Roll requires two clips on the same track" };
+  }
+  if (Math.abs(clipEndMs(left) - right.startMs) > ABUT_TOLERANCE_MS) {
+    return { project, error: "Clips do not abut" };
+  }
+
+  const spanEnd = clipEndMs(right);
+  let cut = Math.max(0, cutMs);
+  if (project.snap) {
+    cut = snapTime(cut, collectSnapTargets(project, leftId)).timeMs;
+    cut = Math.max(0, cut);
+  }
+
+  const leftDur = cut - left.startMs;
+  const rightDur = spanEnd - cut;
+  if (leftDur < SPLIT_EDGE_GUARD_MS || rightDur < SPLIT_EDGE_GUARD_MS) {
+    return { project, error: "Roll would leave less than 50ms" };
+  }
+
+  const leftSourceOut = left.sourceInMs + leftDur;
+  const rightSourceIn = right.sourceInMs + (cut - right.startMs);
+  const leftAsset = project.assets.find((a) => a.id === left.assetId);
+  const rightAsset = project.assets.find((a) => a.id === right.assetId);
+  if (rightSourceIn < 0) {
+    return { project, error: "sourceIn cannot go below 0" };
+  }
+  if (rightSourceIn > right.sourceOutMs - SPLIT_EDGE_GUARD_MS) {
+    return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
+  }
+  if (leftSourceOut < left.sourceInMs + SPLIT_EDGE_GUARD_MS) {
+    return { project, error: "Trim would leave less than 50ms" };
+  }
+  if (leftAsset && leftSourceOut > leftAsset.durationMs) {
+    return { project, error: "sourceOut cannot exceed asset duration" };
+  }
+  if (rightAsset && right.sourceOutMs > rightAsset.durationMs) {
+    return { project, error: "sourceOut cannot exceed asset duration" };
+  }
+
+  const nextLeft: Clip = {
+    ...left,
+    durationMs: leftDur,
+    sourceOutMs: leftSourceOut,
+  };
+  const nextRight: Clip = {
+    ...right,
+    startMs: cut,
+    durationMs: rightDur,
+    sourceInMs: rightSourceIn,
+  };
+
+  return {
+    project: {
+      ...project,
+      updatedAt: new Date().toISOString(),
+      clips: project.clips.map((c) => {
+        if (c.id === leftId) return nextLeft;
+        if (c.id === rightId) return nextRight;
+        return c;
+      }),
+    },
+  };
+}
+
 export function splitClipAt(
   project: Project,
   clipId: string,

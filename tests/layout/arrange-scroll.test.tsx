@@ -42,6 +42,7 @@ describe("arrange overflow", () => {
               onTrimLive={(_id: string, _edge: "in" | "out", _ms: number) => {}}
               onTrimCommit={noop}
               onToggleMute={noop}
+              onToggleSolo={noop}
               onToggleVisualizerMute={noop}
               onCycleVisualizerScene={noop}
               onSplitHere={noop}
@@ -78,6 +79,8 @@ describe("arrange overflow", () => {
     expect(overflowY === "auto" || overflowY === "scroll").toBe(true);
     expect(host.querySelector('[data-testid="mute-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mute-V2"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="solo-A2"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="solo-V1"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="lane-VIS"]')).toBeTruthy();
   });
 });

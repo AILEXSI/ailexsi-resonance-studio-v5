@@ -15,11 +15,14 @@ import {
   applyPlayPause,
   applyRedo,
   applyRippleDelete,
+  applyRippleTrim,
+  applyRoll,
   applyShuttle,
   applySplit,
   applyStop,
   applyToggleMute,
   applyToggleSolo,
+  applyTrim,
   applyUndo,
   type Session,
 } from "./session";
@@ -49,7 +52,10 @@ export type EditorCommand =
   | { type: "stop" }
   | { type: "shuttle"; dir: -1 | 0 | 1 }
   | { type: "toggleMute"; trackId: TrackId }
-  | { type: "toggleSolo"; trackId: TrackId };
+  | { type: "toggleSolo"; trackId: TrackId }
+  | { type: "liftTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
+  | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
+  | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -95,6 +101,12 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyToggleMute(session, command.trackId);
     case "toggleSolo":
       return applyToggleSolo(session, command.trackId);
+    case "liftTrim":
+      return applyTrim(session, command.clipId, command.edge, command.nextEdgeMs);
+    case "rippleTrim":
+      return applyRippleTrim(session, command.clipId, command.edge, command.nextEdgeMs);
+    case "rollEdit":
+      return applyRoll(session, command.clipId, command.edge, command.nextEdgeMs);
     default: {
       const _never: never = command;
       return _never;

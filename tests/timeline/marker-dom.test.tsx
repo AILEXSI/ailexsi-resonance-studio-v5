@@ -51,6 +51,7 @@ function MarkerHarness() {
       onTrimLive={(_id: string, _edge: "in" | "out", _ms: number) => {}}
       onTrimCommit={noop}
       onToggleMute={noop}
+      onToggleSolo={noop}
       onToggleVisualizerMute={noop}
       onCycleVisualizerScene={noop}
       onSplitHere={noop}

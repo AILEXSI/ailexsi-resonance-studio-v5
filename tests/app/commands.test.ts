@@ -49,6 +49,7 @@ describe("applyCommand determinism", () => {
       { type: "toggleSolo", trackId: "A1" } as const,
       { type: "shuttle", dir: 1 } as const,
       { type: "liftDelete" } as const,
+      { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);
@@ -77,6 +78,60 @@ describe("applyCommand determinism", () => {
     const undone = applyCommand(deleted, { type: "undo" });
     expect(clipStarts(undone)).toEqual(clipStarts(start));
     expect(undone.project.clips).toHaveLength(3);
+  });
+
+  it("ripple-trims first out and pulls the later A1 clip; lift-trim does not", () => {
+    const start = twoClipSession();
+    start.project = { ...start.project, snap: false };
+    const lifted = applyCommand(start, { type: "liftTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 });
+    expect(lifted.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    const rippled = applyCommand(start, { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 });
+    expect(rippled.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    const undone = applyCommand(rippled, { type: "undo" });
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+  });
+
+  it("rolls an abutting cut +200 and undo restores both clips", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 2000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "c2",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "c1",
+    };
+    const rolled = applyCommand(start, { type: "rollEdit", clipId: "c1", edge: "out", nextEdgeMs: 1200 });
+    expect(rolled.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1200);
+    expect(rolled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1200);
+    expect(rolled.project.clips.find((c) => c.id === "c2")!.durationMs).toBe(800);
+    const undone = applyCommand(rolled, { type: "undo" });
+    expect(undone.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+    expect(undone.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
   });
 
   it("nudge moves startMs by FRAME_MS and clamps at 0", () => {

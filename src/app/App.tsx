@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
+import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
 import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import {
@@ -486,12 +486,27 @@ export function App() {
     }));
   };
 
-  const onTrimLive = (clipId: string, edge: "in" | "out", nextEdgeMs: number) => {
+  const onTrimLive = (
+    clipId: string,
+    edge: "in" | "out",
+    nextEdgeMs: number,
+    mode: "lift" | "ripple" | "roll" = "lift",
+  ) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
-      const result = trimClip(s.project, clipId, edge, nextEdgeMs);
-      if (result.error) return { ...s, error: result.error };
-      return { ...s, project: result.project, selectedClipId: clipId, error: null };
+      const type =
+        mode === "ripple" ? "rippleTrim" : mode === "roll" ? "rollEdit" : "liftTrim";
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type, clipId, edge, nextEdgeMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipId,
+        error: preview.error,
+        status: preview.status,
+      };
     });
   };
 
@@ -502,7 +517,6 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Trimmed clip",
       error: null,
     }));
   };
@@ -810,6 +824,7 @@ export function App() {
         onTrimLive={onTrimLive}
         onTrimCommit={onTrimCommit}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
+        onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
         onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
         onSplitHere={(clipId, timeMs) => {

@@ -18,6 +18,9 @@ import {
   snapTime,
   splitClipAt,
   rippleDeleteClip,
+  rippleTrimClip,
+  rollEdit,
+  abuttingNeighbor,
   toggleTrackMute,
   toggleTrackSolo,
   trimClip,
@@ -180,6 +183,93 @@ describe("ripple delete", () => {
     expect(next.clips.find((c) => c.id === "c1")).toBeUndefined();
     expect(next.clips.find((c) => c.id === "c2")!.startMs).toBe(0);
     expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+});
+
+function abuttingA1(): ReturnType<typeof projectWith> {
+  const a = asset({ id: "a", kind: "audio", durationMs: 2000 });
+  return {
+    ...projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "c2",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "c3",
+          assetId: "a",
+          trackId: "A2",
+          startMs: 1000,
+          durationMs: 800,
+        }),
+      ],
+      [a],
+    ),
+    snap: false,
+  };
+}
+
+describe("ripple trim", () => {
+  it("ripple-trims first out to 800 and pulls the later A1 clip; lift-trim does not", () => {
+    const p = abuttingA1();
+    const lifted = trimClip(p, "c1", "out", 800);
+    expect(lifted.error).toBeUndefined();
+    expect(lifted.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(lifted.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+
+    const rippled = rippleTrimClip(p, "c1", "out", 800);
+    expect(rippled.error).toBeUndefined();
+    expect(rippled.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+
+  it("keeps the 50ms edge guard", () => {
+    const p = abuttingA1();
+    const rejected = rippleTrimClip(p, "c1", "out", 40);
+    expect(rejected.error).toMatch(/50ms/);
+    expect(rejected.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
+});
+
+describe("roll edit", () => {
+  it("rolls the shared cut +200 and keeps the A+B span", () => {
+    const p = abuttingA1();
+    expect(abuttingNeighbor(p, "c1", "out")?.id).toBe("c2");
+    const rolled = rollEdit(p, "c1", "c2", 1200);
+    expect(rolled.error).toBeUndefined();
+    const a = rolled.project.clips.find((c) => c.id === "c1")!;
+    const b = rolled.project.clips.find((c) => c.id === "c2")!;
+    expect(a.startMs).toBe(0);
+    expect(a.durationMs).toBe(1200);
+    expect(a.sourceOutMs).toBe(1200);
+    expect(b.startMs).toBe(1200);
+    expect(b.durationMs).toBe(800);
+    expect(b.sourceInMs).toBe(200);
+    expect(a.startMs + a.durationMs + b.durationMs).toBe(2000);
+    expect(rolled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+
+  it("rejects a roll that would leave less than 50ms", () => {
+    const p = abuttingA1();
+    const rejected = rollEdit(p, "c1", "c2", 40);
+    expect(rejected.error).toMatch(/50ms/);
+    expect(rejected.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+    expect(rejected.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
   });
 });
 

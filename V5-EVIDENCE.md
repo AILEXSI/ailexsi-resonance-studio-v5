@@ -144,6 +144,8 @@ Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destr
 
 `tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Mixer S; toolbar + transport Split show S.
 
+`?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
+
 ## Preview / playback
 
 Status: TEST-VERIFIED

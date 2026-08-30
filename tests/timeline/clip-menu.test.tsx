@@ -28,6 +28,7 @@ function timelineProps() {
     onTrimLive: (_id: string, _edge: "in" | "out", _ms: number) => {},
     onTrimCommit: noop,
     onToggleMute: (_id: TrackId) => {},
+    onToggleSolo: (_id: TrackId) => {},
     onToggleVisualizerMute: noop,
     onCycleVisualizerScene: noop,
     onSplitHere: (_id: string, _ms: number) => {},
@@ -115,7 +116,9 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Shift+Delete");
     expect(text).toContain("J / K / L");
     expect(text).toContain(", / .");
-    expect(text).toContain("Mixer S");
+    expect(text).toContain("Lane / Mixer S");
+    expect(text).toContain("Shift+edge-drag");
+    expect(text).toContain("Abutting edge-drag");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });

@@ -34,6 +34,9 @@ import {
   setMasterVolume,
   setTrackVolume,
   rippleDeleteClip,
+  rippleTrimClip,
+  rollEdit,
+  abuttingNeighbor,
   toggleTrackMute,
   toggleTrackSolo,
   trimClip,
@@ -215,6 +218,34 @@ export function applyTrim(
   const result = trimClip(session.project, clipId, edge, nextEdgeMs);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Trimmed clip");
+}
+
+export function applyRippleTrim(
+  session: Session,
+  clipId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): Session {
+  const result = rippleTrimClip(session.project, clipId, edge, nextEdgeMs);
+  if (result.error) return { ...session, error: result.error };
+  return withHistory(session, result.project, "Ripple trimmed");
+}
+
+export function applyRoll(
+  session: Session,
+  clipId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): Session {
+  const clip = session.project.clips.find((c) => c.id === clipId);
+  if (!clip) return { ...session, error: "Clip not found" };
+  const neighbor = abuttingNeighbor(session.project, clipId, edge);
+  if (!neighbor) return { ...session, error: "No abutting clip to roll" };
+  const leftId = edge === "out" ? clipId : neighbor.id;
+  const rightId = edge === "out" ? neighbor.id : clipId;
+  const result = rollEdit(session.project, leftId, rightId, nextEdgeMs);
+  if (result.error) return { ...session, error: result.error };
+  return withHistory(session, result.project, "Rolled edit");
 }
 
 export function applySplit(session: Session): Session {

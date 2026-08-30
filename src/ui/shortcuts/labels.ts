@@ -30,6 +30,8 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: CLIP_MENU_SHORTCUTS.cut, action: "Cut" },
   { key: CLIP_MENU_SHORTCUTS.copy, action: "Copy" },
   { key: CLIP_MENU_SHORTCUTS.paste, action: "Paste" },
-  { key: "Mixer S", action: "Solo track (V1–A2)" },
+  { key: "Lane / Mixer S", action: "Solo track (V1–A2)" },
+  { key: "Shift+edge-drag", action: "Ripple trim (same track)" },
+  { key: "Abutting edge-drag", action: "Roll edit (shared cut)" },
   { key: "?", action: "Toggle this sheet" },
 ];
