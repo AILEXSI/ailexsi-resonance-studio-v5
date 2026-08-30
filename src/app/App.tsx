@@ -822,6 +822,9 @@ export function App() {
             selectedClipId={session.selectedClipId}
             selectedClipIds={session.selectedClipIds}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
+            onFades={(clipId, fadeInMs, fadeOutMs) =>
+              setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
+            }
           />
         </div>
       </div>

@@ -10,6 +10,8 @@ export interface ExportClip {
   sourceInMs: number;
   sourceOutMs: number;
   gain: number;
+  fadeInMs: number;
+  fadeOutMs: number;
   missing: boolean;
   label: string;
 }

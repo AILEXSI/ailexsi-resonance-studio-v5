@@ -45,8 +45,12 @@ describe("inspector selection", () => {
     mount("c1", ["c1"]);
     const text = host!.textContent ?? "";
     expect(text).toContain("Start (ms)");
+    expect(text).toContain("Fade in (ms)");
+    expect(text).toContain("Fade out (ms)");
     expect(text).not.toContain("3 clips");
     expect(host!.querySelector('[data-testid="inspector-selection-count"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="inspector-fade-out"]')).toBeTruthy();
   });
 
   it("shows only a count when two or more clips are selected", () => {
@@ -55,6 +59,8 @@ describe("inspector selection", () => {
     expect(count?.textContent).toBe("3 clips");
     expect(host!.textContent ?? "").not.toContain("Start (ms)");
     expect(host!.textContent ?? "").not.toContain("Gain");
+    expect(host!.textContent ?? "").not.toContain("Fade in (ms)");
+    expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeNull();
   });
 
   it("shows the empty copy when nothing is selected", () => {

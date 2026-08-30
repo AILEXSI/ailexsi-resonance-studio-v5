@@ -6,6 +6,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
+  onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
 }
 
 function Field({
@@ -27,15 +28,18 @@ function MsField({
   label,
   value,
   onChange,
+  testId,
 }: {
   label: string;
   value: number;
   onChange: (next: number) => void;
+  testId?: string;
 }) {
   return (
     <Field label={label}>
       <input
         type="number"
+        data-testid={testId}
         value={Math.round(value)}
         onChange={(e) => onChange(Number(e.target.value))}
       />
@@ -44,7 +48,7 @@ function MsField({
   );
 }
 
-export function Inspector({ project, selectedClipId, selectedClipIds, onChange }: Props) {
+export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades }: Props) {
   const ids = selectedClipIds?.length ? selectedClipIds : selectedClipId ? [selectedClipId] : [];
   const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
@@ -86,6 +90,18 @@ export function Inspector({ project, selectedClipId, selectedClipIds, onChange }
               onChange={(e) => onChange(clip.id, { gain: Number(e.target.value) })}
             />
           </Field>
+          <MsField
+            label="Fade in (ms)"
+            testId="inspector-fade-in"
+            value={clip.fadeInMs}
+            onChange={(v) => onFades?.(clip.id, v, clip.fadeOutMs)}
+          />
+          <MsField
+            label="Fade out (ms)"
+            testId="inspector-fade-out"
+            value={clip.fadeOutMs}
+            onChange={(v) => onFades?.(clip.id, clip.fadeInMs, v)}
+          />
           <Field label="Asset">{asset?.missing ? <span className="err">{asset.name}</span> : (asset?.name ?? "—")}</Field>
         </dl>
       )}

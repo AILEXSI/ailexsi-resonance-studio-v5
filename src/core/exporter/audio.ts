@@ -1,3 +1,4 @@
+import { scheduleGainEnvelope } from "../fades";
 import { audioClipsForMix } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
 import type { AacSample } from "./mp4";
@@ -70,12 +71,21 @@ export async function mixJobAudio(
       const src = ctx.createBufferSource();
       src.buffer = decoded;
       const gain = ctx.createGain();
-      gain.gain.value = Number.isFinite(clip.gain) ? Math.max(0, clip.gain) : 1;
+      const peak = Number.isFinite(clip.gain) ? Math.max(0, clip.gain) : 1;
+      const durationMs = Math.max(1, clip.endMs - clip.startMs);
+      scheduleGainEnvelope(
+        gain.gain,
+        clip.startMs,
+        durationMs,
+        clip.fadeInMs ?? 0,
+        clip.fadeOutMs ?? 0,
+        peak,
+      );
       src.connect(gain);
       gain.connect(ctx.destination);
       const startSec = Math.max(0, clip.startMs / 1000);
       const offsetSec = Math.max(0, clip.sourceInMs / 1000);
-      const durSec = Math.max(0.01, (clip.endMs - clip.startMs) / 1000);
+      const durSec = Math.max(0.01, durationMs / 1000);
       src.start(startSec, offsetSec, durSec);
       added += 1;
     } catch {

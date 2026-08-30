@@ -519,6 +519,22 @@ input[type="range"] { accent-color: var(--accent-2); }
 .clip.selected.video { background: var(--video-sel); }
 .clip.selected.audio { background: var(--audio-sel); }
 .clip.missing { background: #6b2c33; }
+.clip-fade-in,
+.clip-fade-out {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.clip-fade-in {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.55), transparent);
+}
+.clip-fade-out {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.55), transparent);
+}
 .clip-name {
   position: relative;
   z-index: 1;

@@ -1,4 +1,5 @@
 import { createId } from "./ids";
+import { normalizeClipFades } from "./fades";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import {
   defaultTracks,
@@ -85,6 +86,11 @@ function sanitizeClip(raw: unknown): Clip | null {
   const durationMs = Math.max(1, Number(c.durationMs) || 0);
   const sourceInMs = Math.max(0, Number(c.sourceInMs) || 0);
   const sourceOutMs = Math.max(sourceInMs + 1, Number(c.sourceOutMs) || sourceInMs + durationMs);
+  const fades = normalizeClipFades(
+    c.fadeInMs == null ? 0 : Number(c.fadeInMs),
+    c.fadeOutMs == null ? 0 : Number(c.fadeOutMs),
+    durationMs,
+  );
   return {
     id: c.id,
     assetId: c.assetId,
@@ -94,6 +100,8 @@ function sanitizeClip(raw: unknown): Clip | null {
     sourceInMs,
     sourceOutMs,
     gain: Math.max(0, Number(c.gain) || 1),
+    fadeInMs: fades.fadeInMs,
+    fadeOutMs: fades.fadeOutMs,
   };
 }
 

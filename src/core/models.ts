@@ -67,6 +67,10 @@ export interface Clip {
   sourceInMs: number;
   sourceOutMs: number;
   gain: number;
+  /** Linear fade-in length. 0 = none. Clamped to duration; scaled if fadeIn+fadeOut would overlap. */
+  fadeInMs: number;
+  /** Linear fade-out length. 0 = none. */
+  fadeOutMs: number;
 }
 
 export interface Track {

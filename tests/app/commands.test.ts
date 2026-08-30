@@ -56,6 +56,7 @@ describe("applyCommand determinism", () => {
       { type: "copy" } as const,
       { type: "liftRange" } as const,
       { type: "extractRange" } as const,
+      { type: "setClipFades", clipId: "c1", fadeInMs: 200, fadeOutMs: 100 } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

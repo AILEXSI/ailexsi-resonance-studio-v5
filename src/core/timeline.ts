@@ -1,3 +1,4 @@
+import { applyNormalizedFades } from "./fades";
 import { createId } from "./ids";
 import {
   SPLIT_EDGE_GUARD_MS,
@@ -113,12 +114,12 @@ export function trimClip(
     if (newSourceIn > clip.sourceOutMs - SPLIT_EDGE_GUARD_MS) {
       return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
     }
-    next = {
+    next = applyNormalizedFades({
       ...clip,
       startMs: newStart,
       sourceInMs: newSourceIn,
       durationMs: newDuration,
-    };
+    });
   } else {
     const newDuration = edgeMs - clip.startMs;
     const newSourceOut = clip.sourceInMs + newDuration;
@@ -128,11 +129,11 @@ export function trimClip(
     if (asset && newSourceOut > asset.durationMs) {
       return { project, error: "sourceOut cannot exceed asset duration" };
     }
-    next = {
+    next = applyNormalizedFades({
       ...clip,
       durationMs: newDuration,
       sourceOutMs: newSourceOut,
-    };
+    });
   }
 
   return {
@@ -313,17 +314,17 @@ export function rollEdit(
     return { project, error: "sourceOut cannot exceed asset duration" };
   }
 
-  const nextLeft: Clip = {
+  const nextLeft: Clip = applyNormalizedFades({
     ...left,
     durationMs: leftDur,
     sourceOutMs: leftSourceOut,
-  };
-  const nextRight: Clip = {
+  });
+  const nextRight: Clip = applyNormalizedFades({
     ...right,
     startMs: cut,
     durationMs: rightDur,
     sourceInMs: rightSourceIn,
-  };
+  });
 
   return {
     project: {
@@ -351,19 +352,19 @@ export function splitClipAt(
     return { project, error: "Split too close to clip edge" };
   }
 
-  const left: Clip = {
+  const left: Clip = applyNormalizedFades({
     ...clip,
     durationMs: offset,
     sourceOutMs: clip.sourceInMs + offset,
-  };
-  const right: Clip = {
+  });
+  const right: Clip = applyNormalizedFades({
     ...clip,
     id: createId("clip"),
     startMs: timeMs,
     durationMs: clip.durationMs - offset,
     sourceInMs: clip.sourceInMs + offset,
     sourceOutMs: clip.sourceOutMs,
-  };
+  });
 
   return {
     project: {
@@ -812,7 +813,7 @@ export function duplicateClip(
 export function updateClip(
   project: Project,
   clipId: string,
-  patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>,
+  patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "fadeInMs" | "fadeOutMs">>,
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
@@ -820,7 +821,7 @@ export function updateClip(
     return { project, error: "Cannot change clip to a different kind of track" };
   }
 
-  const next: Clip = { ...clip, ...patch };
+  let next: Clip = { ...clip, ...patch };
   if (patch.sourceInMs != null || patch.sourceOutMs != null) {
     const asset = project.assets.find((a) => a.id === clip.assetId);
     const maxOut = asset?.durationMs ?? next.sourceOutMs;
@@ -834,6 +835,7 @@ export function updateClip(
   }
   next.startMs = clampStartMs(next.startMs);
   next.gain = Math.max(0, Math.min(4, next.gain));
+  next = applyNormalizedFades(next);
 
   return {
     project: {
@@ -903,6 +905,8 @@ export function placeAsset(
     sourceInMs: 0,
     sourceOutMs: asset.durationMs,
     gain: 1,
+    fadeInMs: 0,
+    fadeOutMs: 0,
   };
   return {
     project: {

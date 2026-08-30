@@ -9,6 +9,7 @@ import {
   trackVolumeOf,
   type Project,
 } from "../../core/models";
+import { gainAtClipTime, videoAlphaAtClipTime } from "../../core/fades";
 import { mixLinearGain } from "../../core/volume";
 import type { MixPeaks } from "../mixer/Mixer";
 import {
@@ -62,7 +63,7 @@ export function Preview({ project, playing, onLevels }: Props) {
       }
       if (el.src !== asset.objectUrl) el.src = asset.objectUrl;
       const mix = mixLinearGain(
-        clip.gain,
+        gainAtClipTime(clip, project.playheadMs - clip.startMs),
         trackVolumeOf(project, trackId),
         project.masterVolume ?? 1,
         !isTrackAudible(project, trackId),
@@ -104,7 +105,7 @@ export function Preview({ project, playing, onLevels }: Props) {
       const clip = audios.find((c) => c.trackId === trackId);
       if (!clip) return 0;
       return mixLinearGain(
-        clip.gain,
+        gainAtClipTime(clip, project.playheadMs - clip.startMs),
         trackVolumeOf(project, trackId),
         1,
         !isTrackAudible(project, trackId),
@@ -195,6 +196,9 @@ export function Preview({ project, playing, onLevels }: Props) {
             muted
             playsInline
             data-testid="preview-video"
+            style={{
+              opacity: videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
+            }}
           />
         ) : showViz ? (
           <canvas ref={canvasRef} data-testid="visualizer-canvas" />

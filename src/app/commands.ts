@@ -21,6 +21,7 @@ import {
   applyRippleTrim,
   applyRoll,
   applySelect,
+  applySetClipFades,
   applyShuttle,
   applySlip,
   applySplit,
@@ -65,7 +66,8 @@ export type EditorCommand =
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number }
   | { type: "liftRange" }
-  | { type: "extractRange" };
+  | { type: "extractRange" }
+  | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -127,6 +129,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyLiftRange(session);
     case "extractRange":
       return applyExtractRange(session);
+    case "setClipFades":
+      return applySetClipFades(session, command.clipId, command.fadeInMs, command.fadeOutMs);
     default: {
       const _never: never = command;
       return _never;

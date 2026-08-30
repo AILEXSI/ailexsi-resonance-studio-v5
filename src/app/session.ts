@@ -467,6 +467,17 @@ export function applyUpdateClip(
   return withHistory(session, result.project, "Clip updated");
 }
 
+export function applySetClipFades(
+  session: Session,
+  clipId: string,
+  fadeInMs: number,
+  fadeOutMs: number,
+): Session {
+  const result = updateClip(session.project, clipId, { fadeInMs, fadeOutMs });
+  if (result.error) return { ...session, error: result.error };
+  return withHistory(session, result.project, "Clip fades");
+}
+
 export function applyLiftRange(session: Session): Session {
   if (!editRangeOf(session.project)) return session;
   const result = liftRange(session.project);

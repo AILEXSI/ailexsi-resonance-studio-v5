@@ -8,6 +8,7 @@ import {
   type Project,
   type TrackId,
 } from "../../core/models";
+import { normalizeClipFades } from "../../core/fades";
 import { abuttingNeighbor, collectSnapTargets, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
@@ -655,6 +656,35 @@ export function Timeline({
                       {asset && kind === "video" && !asset.missing ? (
                         <VideoClipStrip clip={clip} asset={asset} clipWidthPx={clipW} />
                       ) : null}
+                      {(() => {
+                        const fades = normalizeClipFades(
+                          clip.fadeInMs,
+                          clip.fadeOutMs,
+                          clip.durationMs,
+                        );
+                        const inPct =
+                          clip.durationMs > 0 ? (fades.fadeInMs / clip.durationMs) * 100 : 0;
+                        const outPct =
+                          clip.durationMs > 0 ? (fades.fadeOutMs / clip.durationMs) * 100 : 0;
+                        return (
+                          <>
+                            {inPct > 0 ? (
+                              <span
+                                className="clip-fade-in"
+                                data-testid={`fade-in-${clip.id}`}
+                                style={{ width: `${inPct}%` }}
+                              />
+                            ) : null}
+                            {outPct > 0 ? (
+                              <span
+                                className="clip-fade-out"
+                                data-testid={`fade-out-${clip.id}`}
+                                style={{ width: `${outPct}%` }}
+                              />
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       <span className="clip-name">{label}</span>
                       {primary ? (
                         <>

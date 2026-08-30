@@ -5,6 +5,7 @@ import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
 import { mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
 import type { ExportClip, ExportHooks, ExportJob, ExportResult } from "./types";
+import { videoAlphaAtClipTime } from "../fades";
 import { featuresAt, renderVisualizerScene } from "../visualizer";
 
 const AVC_CODEC = "avc1.42001f";
@@ -73,19 +74,57 @@ function groupFrameRuns(job: ExportJob, total: number, fps: number): FrameRun[] 
   return runs;
 }
 
+function exportClipLocalMs(clip: ExportClip, timeMs: number): number {
+  return timeMs - clip.startMs;
+}
+
+function exportClipVideoAlpha(clip: ExportClip, timeMs: number): number {
+  return videoAlphaAtClipTime(
+    {
+      durationMs: Math.max(0, clip.endMs - clip.startMs),
+      gain: clip.gain,
+      fadeInMs: clip.fadeInMs,
+      fadeOutMs: clip.fadeOutMs,
+    },
+    exportClipLocalMs(clip, timeMs),
+  );
+}
+
+function withVideoClipAlpha(
+  ctx: CanvasRenderingContext2D,
+  clip: ExportClip,
+  timeMs: number,
+  draw: () => void,
+): void {
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * exportClipVideoAlpha(clip, timeMs);
+  try {
+    draw();
+  } finally {
+    ctx.globalAlpha = prev;
+  }
+}
+
 async function paintHtmlVideo(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   url: string,
   sourceSec: number,
+  alpha = 1,
 ): Promise<boolean> {
   try {
     const video = await loadVideo(url);
     await seekVideo(video, sourceSec);
     if (video.videoWidth < 2) return false;
-    drawContain(ctx, canvas, video.videoWidth, video.videoHeight, (dx, dy, dw, dh) => {
-      ctx.drawImage(video, dx, dy, dw, dh);
-    });
+    const prev = ctx.globalAlpha;
+    ctx.globalAlpha = prev * Math.max(0, Math.min(1, alpha));
+    try {
+      drawContain(ctx, canvas, video.videoWidth, video.videoHeight, (dx, dy, dw, dh) => {
+        ctx.drawImage(video, dx, dy, dw, dh);
+      });
+    } finally {
+      ctx.globalAlpha = prev;
+    }
     return true;
   } catch {
     return false;
@@ -234,11 +273,22 @@ export async function exportWithWebCodecs(
               currentTimeMs: (i / job.fps) * 1000,
             });
             clearCanvas(ctx, width, height);
+            const timeMs = (i / job.fps) * 1000;
             if (sample) {
-              sample.drawWithFit(ctx, { fit: "contain" });
+              withVideoClipAlpha(ctx, clip, timeMs, () => {
+                sample.drawWithFit(ctx, { fit: "contain" });
+              });
               sample.close();
               painted += 1;
-            } else if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k] ?? 0)) {
+            } else if (
+              await paintHtmlVideo(
+                ctx,
+                canvas,
+                clip.sourceUrl,
+                timestamps[k] ?? 0,
+                exportClipVideoAlpha(clip, timeMs),
+              )
+            ) {
               painted += 1;
             } else {
               paintFallback(i);
@@ -254,7 +304,17 @@ export async function exportWithWebCodecs(
           if (hooks.signal?.aborted) throw new Error("Export aborted");
           const i = run.startIndex + k;
           clearCanvas(ctx, width, height);
-          if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k]!)) painted += 1;
+          const timeMs = (i / job.fps) * 1000;
+          if (
+            await paintHtmlVideo(
+              ctx,
+              canvas,
+              clip.sourceUrl,
+              timestamps[k]!,
+              exportClipVideoAlpha(clip, timeMs),
+            )
+          )
+            painted += 1;
           else paintFallback(i);
           await encodeCanvas(i);
           k += 1;
@@ -269,7 +329,17 @@ export async function exportWithWebCodecs(
             currentTimeMs: (i / job.fps) * 1000,
           });
           clearCanvas(ctx, width, height);
-          if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k]!)) painted += 1;
+          const timeMs = (i / job.fps) * 1000;
+          if (
+            await paintHtmlVideo(
+              ctx,
+              canvas,
+              clip.sourceUrl,
+              timestamps[k]!,
+              exportClipVideoAlpha(clip, timeMs),
+            )
+          )
+            painted += 1;
           else paintFallback(i);
           await encodeCanvas(i);
         }

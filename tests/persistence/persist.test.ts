@@ -25,6 +25,8 @@ describe("project persist + reload", () => {
     expect(loaded.assets[0]!.missing).toBe(true);
     expect(loaded.assets[0]!.objectUrl).toBeUndefined();
     expect(loaded.clips[0]!.startMs).toBe(0);
+    expect(loaded.clips[0]!.fadeInMs).toBe(0);
+    expect(loaded.clips[0]!.fadeOutMs).toBe(0);
     expect(loaded.inPointMs).toBe(100);
     expect(loaded.outPointMs).toBe(400);
     expect(loaded.assets[0]!.blobId).toBe("a1");

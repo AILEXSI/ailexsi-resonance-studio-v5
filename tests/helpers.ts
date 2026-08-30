@@ -23,6 +23,8 @@ export function clip(partial: Partial<Clip> & Pick<Clip, "id" | "assetId" | "tra
     sourceInMs: partial.sourceInMs ?? 0,
     sourceOutMs: partial.sourceOutMs ?? durationMs,
     gain: partial.gain ?? 1,
+    fadeInMs: partial.fadeInMs ?? 0,
+    fadeOutMs: partial.fadeOutMs ?? 0,
     ...partial,
   };
 }
