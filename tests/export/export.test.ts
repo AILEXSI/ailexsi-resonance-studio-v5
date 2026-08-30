@@ -145,7 +145,7 @@ describe("export planner + fail path", () => {
 });
 
 describe("export mute skip", () => {
-  it("omits clips on muted tracks from the job", () => {
+  it("keeps muted V1 picture clips and silences their gain", () => {
     const p = projectWith(
       [
         clip({ id: "v1", assetId: "a1", trackId: "V1", startMs: 0, durationMs: 1000 }),
@@ -158,7 +158,8 @@ describe("export mute skip", () => {
     );
     p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, muted: true } : t));
     const job = jobFromProject(p);
-    expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(0);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(1);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips[0]!.gain).toBe(0);
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
   });
 

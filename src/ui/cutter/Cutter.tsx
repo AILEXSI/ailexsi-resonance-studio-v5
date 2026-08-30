@@ -26,12 +26,14 @@ export function Cutter({
   selectedClipIds,
   apply,
   onPlayhead,
+  laneLabelPx,
 }: {
   project: Project;
   selectedClipId: string | null;
   selectedClipIds: string[];
   apply: (cmd: EditorCommand) => void;
   onPlayhead?: (ms: number) => void;
+  laneLabelPx?: number;
 }) {
   const pair =
     resolveEditPair(project, selectedClipIds.length ? selectedClipIds : selectedClipId ? [selectedClipId] : []) ??
@@ -60,7 +62,7 @@ export function Cutter({
         onPick={(next) => apply({ type: "setTransitionAudio", audio: next })}
         onDuration={(ms) => apply({ type: "setTransitionAudioDuration", audioDurationMs: ms })}
       />
-      <CutStrip project={project} onPlayhead={(ms) => onPlayhead?.(ms)} />
+      <CutStrip project={project} onPlayhead={(ms) => onPlayhead?.(ms)} laneLabelPx={laneLabelPx} />
       {!pair ? (
         <div className="cutter-empty" data-testid="cutter-empty">
           No edit. Select a clip that overlaps another video track.

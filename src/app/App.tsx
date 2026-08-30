@@ -98,11 +98,17 @@ import {
   applySplitPointer,
   browserLayoutStorage,
   loadHSplitRatio,
+  loadLaneHeights,
+  loadLaneLabelPx,
   loadMixerCollapsed,
   loadSplitRatio,
   saveHSplitRatio,
+  saveLaneHeights,
+  saveLaneLabelPx,
   saveMixerCollapsed,
   saveSplitRatio,
+  type LaneHeightGroup,
+  type LaneHeights,
 } from "../core/layout-prefs";
 
 export function App() {
@@ -131,6 +137,8 @@ export function App() {
   const [hSplitRatio, setHSplitRatio] = useState(() => loadHSplitRatio(layoutStore));
   const hSplitRatioRef = useRef(hSplitRatio);
   hSplitRatioRef.current = hSplitRatio;
+  const [laneLabelPx, setLaneLabelPx] = useState(() => loadLaneLabelPx(layoutStore));
+  const [laneHeights, setLaneHeights] = useState<LaneHeights>(() => loadLaneHeights(layoutStore));
   const [screen, setScreen] = useState<ProductionScreen>("arrange");
   const [projectPanelOpen, setProjectPanelOpen] = useState(false);
   const projectPanelOpenRef = useRef(false);
@@ -891,6 +899,19 @@ export function App() {
     });
   };
 
+  const onLaneLabelPx = (px: number) => {
+    setLaneLabelPx(px);
+    saveLaneLabelPx(layoutStore, px);
+  };
+
+  const onLaneHeight = (group: LaneHeightGroup, px: number) => {
+    setLaneHeights((prev) => {
+      const next = { ...prev, [group]: px };
+      saveLaneHeights(layoutStore, next);
+      return next;
+    });
+  };
+
   const applySplitFromEvent = (clientY: number) => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -1163,6 +1184,7 @@ export function App() {
           selectedClipIds={session.selectedClipIds}
           apply={runCommand}
           onPlayhead={(ms) => setSession((s) => applyPlayhead(s, ms))}
+          laneLabelPx={laneLabelPx}
         />
       ) : null}
       <div
@@ -1234,8 +1256,12 @@ export function App() {
         onRelink={() => void runRelink()}
         onCloseGap={() => runCommand({ type: "closeGap" })}
         onRippleTrimToPlayhead={(edge) => runCommand({ type: "rippleTrimToPlayhead", edge })}
-        onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
-        onFit={(widthPx) => setSession(applyFit(session, widthPx))}
+        onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx, laneLabelPx))}
+        onFit={(widthPx) => setSession(applyFit(session, widthPx, laneLabelPx))}
+        laneLabelPx={laneLabelPx}
+        laneHeights={laneHeights}
+        onLaneLabelPx={onLaneLabelPx}
+        onLaneHeight={onLaneHeight}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}

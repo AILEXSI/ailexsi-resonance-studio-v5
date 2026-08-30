@@ -79,25 +79,27 @@ describe("foundation models", () => {
 });
 
 describe("mute skip", () => {
-  it("skips muted video tracks and still prefers V2 over V1", () => {
+  it("muted V tracks still cover picture and still prefer V2 over V1", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
       clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 0, durationMs: 2000 }),
     ]);
     expect(topVideoClipAt(p, 100)?.id).toBe("v2");
     p.tracks = p.tracks.map((t) => (t.id === "V2" ? { ...t, muted: true } : t));
-    expect(topVideoClipAt(p, 100)?.id).toBe("v1");
+    expect(topVideoClipAt(p, 100)?.id).toBe("v2");
     p.tracks = p.tracks.map((t) => (t.id === "V1" || t.id === "V2" ? { ...t, muted: true } : t));
-    expect(topVideoClipAt(p, 100)).toBeUndefined();
+    expect(topVideoClipAt(p, 100)?.id).toBe("v2");
   });
 
-  it("skips non-soloed video when another video is soloed", () => {
+  it("solo V1 does not hide V2 picture", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
       clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 0, durationMs: 2000 }),
     ]);
     p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, solo: true } : t));
-    expect(topVideoClipAt(p, 100)?.id).toBe("v1");
+    expect(topVideoClipAt(p, 100)?.id).toBe("v2");
+    expect(isTrackAudible(p, "V2")).toBe(false);
+    expect(isTrackAudible(p, "V1")).toBe(true);
   });
 
   it("skips muted A1/A2", () => {

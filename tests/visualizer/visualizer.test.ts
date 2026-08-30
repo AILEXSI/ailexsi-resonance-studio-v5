@@ -135,12 +135,12 @@ describe("visualizer fallback rules", () => {
     expect(shouldShowVisualizer(p, 1500)).toBe(false);
   });
 
-  it("muted V1/V2 does not count as user video", () => {
+  it("muted V1 still counts as user video (mute is audio-only)", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
     ]);
     p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, muted: true } : t));
-    expect(shouldShowVisualizer(p, 100)).toBe(true);
+    expect(shouldShowVisualizer(p, 100)).toBe(false);
   });
 });
 

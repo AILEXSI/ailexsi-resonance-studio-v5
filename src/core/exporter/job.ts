@@ -38,7 +38,9 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   }
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const tracks: ExportTrack[] = project.tracks.map((track) => {
-    if (!isTrackAudible(project, track.id)) {
+    const audible = isTrackAudible(project, track.id);
+    const keepPicture = kindOfTrack(track.id) === "video";
+    if (!audible && !keepPicture) {
       return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips: [] };
     }
     const clips: ExportClip[] = project.clips
@@ -55,7 +57,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           sourceUrl: asset?.objectUrl && !asset.missing ? asset.objectUrl : "",
           sourceInMs: c.sourceInMs,
           sourceOutMs: c.sourceOutMs,
-          gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, false),
+          gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, !audible),
           fadeInMs: c.fadeInMs,
           fadeOutMs: c.fadeOutMs,
           rate: c.rate ?? 1,

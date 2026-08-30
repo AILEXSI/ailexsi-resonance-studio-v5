@@ -64,18 +64,20 @@ describe("transition source AUTO", () => {
     expect(formatResolvedSource(picture)).toBe("AUTO→V2");
   });
 
-  it("V2 empty/muted, V1 covering → V1", () => {
+  it("V2 empty, V1 covering → V1", () => {
     const project = stacked("V2");
     project.clips = project.clips.filter((c) => c.id !== "v2");
     const emptyV2 = resolvePictureSource(contextFromProject(project), 500);
     expect(emptyV2).toMatchObject({ source: "auto", kind: "V1", clipId: "v1" });
+  });
 
+  it("muted V2 still covers picture; mute is audio-only", () => {
     const muted = stacked("V2");
     muted.tracks = muted.tracks.map((t) => (t.id === "V2" ? { ...t, muted: true } : t));
     const mutedV2 = resolvePictureSource(contextFromProject(muted), 500);
-    expect(mutedV2).toMatchObject({ source: "auto", kind: "V1", clipId: "v1" });
+    expect(mutedV2).toMatchObject({ source: "auto", kind: "V2", clipId: "v2" });
     expect(compositeVideoAt(contextFromProject(muted), 500).layers).toEqual([
-      { clipId: "v1", alpha: 1 },
+      { clipId: "v2", alpha: 1 },
     ]);
   });
 

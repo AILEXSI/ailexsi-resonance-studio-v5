@@ -281,9 +281,8 @@ function coveringVideoOnTrack(
   clips: readonly CompositeClip[],
   timeMs: number,
   trackId: "V1" | "V2",
-  muted: ReadonlySet<string>,
+  _muted?: ReadonlySet<string>,
 ): CompositeClip | undefined {
-  if (muted.has(trackId)) return undefined;
   return clips.find(
     (c) =>
       c.trackId === trackId &&
@@ -301,15 +300,10 @@ export function topVideoClipId(
   clips: readonly CompositeClip[],
   timeMs: number,
   front: FrontVideoTrackId = "V2",
-  mutedTrackIds: readonly TrackId[] = [],
+  _mutedTrackIds: readonly TrackId[] = [],
 ): string | undefined {
-  const muted = new Set(mutedTrackIds);
   const hits = clips.filter(
-    (c) =>
-      kindOfTrack(c.trackId) === "video" &&
-      !muted.has(c.trackId) &&
-      timeMs >= c.startMs &&
-      timeMs < c.endMs,
+    (c) => kindOfTrack(c.trackId) === "video" && timeMs >= c.startMs && timeMs < c.endMs,
   );
   if (hits.length === 0) return undefined;
   const preferred = hits.find((c) => c.trackId === front);
@@ -336,7 +330,6 @@ export function resolvePictureSource(ctx: CompositeContext, timeMs: number): Res
   const t = coveringTransition(ctx, timeMs);
   const source = transitionSourceOf(t);
   const vis = ctx.vis;
-  const muted = mutedSetOf(ctx);
   const front: FrontVideoTrackId = ctx.frontVideoTrackId === "V1" ? "V1" : "V2";
   const other: FrontVideoTrackId = front === "V1" ? "V2" : "V1";
 
@@ -345,7 +338,7 @@ export function resolvePictureSource(ctx: CompositeContext, timeMs: number): Res
     return undefined;
   };
   const videoOn = (trackId: "V1" | "V2"): ResolvedPicture | undefined => {
-    const clip = coveringVideoOnTrack(ctx.clips, timeMs, trackId, muted);
+    const clip = coveringVideoOnTrack(ctx.clips, timeMs, trackId);
     return clip ? { source, kind: trackId, clipId: clip.id } : undefined;
   };
   const legacyVis = (): ResolvedPicture | undefined => {
@@ -450,7 +443,7 @@ function visFromProject(project: Project): CompositeVis {
 }
 
 export function contextFromProject(project: Project): CompositeContext {
-  const mutedTrackIds = (["V1", "V2", "A1", "A2"] as const).filter((id) => !isTrackAudible(project, id));
+  const mutedTrackIds = (["A1", "A2"] as const).filter((id) => !isTrackAudible(project, id));
   return {
     clips: project.clips.map((c) => ({
       id: c.id,

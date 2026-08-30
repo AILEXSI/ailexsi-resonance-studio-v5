@@ -8,6 +8,7 @@ import { createMemoryBlobStore } from "../../src/core/persistence";
 import { createEmptyProject } from "../../src/core/project";
 import { currentCutTickMs } from "../../src/ui/cutter/CutStrip";
 import { Cutter } from "../../src/ui/cutter/Cutter";
+import { RULER_PAD_PX } from "../../src/core/zoom";
 import { upsertTransition } from "../../src/core/transition";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -117,6 +118,22 @@ describe("Cutter cut strip", () => {
     project = { ...project, playheadMs: 1200 };
     expect(collectEditPoints(project)).toContain(1000);
     expect(currentCutTickMs(project)).toBe(1000);
+  });
+
+  it("tick offset uses the live lane label width", () => {
+    const project = { ...mappedProject(), zoomPxPerSec: 80, scrollMs: 0 };
+    render(
+      <Cutter
+        project={project}
+        selectedClipId={null}
+        selectedClipIds={[]}
+        apply={() => {}}
+        laneLabelPx={140}
+      />,
+    );
+    expect(host!.querySelector("[data-testid=cut-strip]")?.getAttribute("data-label-px")).toBe("140");
+    const tick0 = host!.querySelector('[data-testid=cut-strip-tick][data-ms="0"]') as HTMLElement;
+    expect(tick0.style.left).toBe(`${140 + RULER_PAD_PX}px`);
   });
 });
 

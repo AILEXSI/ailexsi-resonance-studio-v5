@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   TRACK_IDS,
   clipEndMs,
@@ -21,6 +21,15 @@ import {
   type MarqueeLane,
 } from "../../core/marquee";
 import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapTime } from "../../core/timeline";
+import {
+  DEFAULT_LANE_HEIGHT_PX,
+  DEFAULT_LANE_LABEL_PX,
+  clampLaneHeightPx,
+  clampLaneLabelPx,
+  heightGroupOfLane,
+  type LaneHeightGroup,
+  type LaneHeights,
+} from "../../core/layout-prefs";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
@@ -110,6 +119,10 @@ interface Props {
   onLoopOutLive: (ms: number) => void;
   onLoopMoveLive: (deltaMs: number) => void;
   onLoopCommit: () => void;
+  laneLabelPx?: number;
+  laneHeights?: LaneHeights;
+  onLaneLabelPx?: (px: number) => void;
+  onLaneHeight?: (group: LaneHeightGroup, px: number) => void;
 }
 
 function msToX(ms: number, zoom: number, scrollMs: number): number {
@@ -203,6 +216,10 @@ export function Timeline({
   onLoopOutLive,
   onLoopMoveLive,
   onLoopCommit,
+  laneLabelPx = DEFAULT_LANE_LABEL_PX,
+  laneHeights,
+  onLaneLabelPx,
+  onLaneHeight,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -220,6 +237,8 @@ export function Timeline({
     | "vis-move"
     | "vis-trim"
     | "transition-duration"
+    | "lane-label"
+    | "lane-height"
     | null
   >(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
@@ -675,6 +694,65 @@ export function Timeline({
     window.addEventListener("pointerup", up);
   };
 
+  const heights: LaneHeights = laneHeights ?? {
+    vis: DEFAULT_LANE_HEIGHT_PX,
+    video: DEFAULT_LANE_HEIGHT_PX,
+    audio: DEFAULT_LANE_HEIGHT_PX,
+  };
+
+  const onLaneLabelSplitterDown = (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    dragKindRef.current = "lane-label";
+    const originX = e.clientX;
+    const origin = laneLabelPx;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "lane-label") return;
+      onLaneLabelPx?.(clampLaneLabelPx(origin + (ev.clientX - originX)));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onLaneHeightPointerDown = (e: ReactPointerEvent, group: LaneHeightGroup) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    dragKindRef.current = "lane-height";
+    const originY = e.clientY;
+    const origin = heights[group];
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "lane-height") return;
+      onLaneHeight?.(group, clampLaneHeightPx(origin + (ev.clientY - originY)));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const laneLabelSplitter = (
+    <div
+      className="lane-label-splitter"
+      data-testid="lane-label-splitter"
+      title="Resize headers"
+      onPointerDown={onLaneLabelSplitterDown}
+    />
+  );
+
   const onLoopHandlePointerDown = (e: ReactPointerEvent, edge: "in" | "out") => {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -784,7 +862,19 @@ export function Timeline({
     ) : null;
 
   return (
-    <section ref={timelineRef} className="timeline" data-testid="timeline">
+    <section
+      ref={timelineRef}
+      className="timeline"
+      data-testid="timeline"
+      style={
+        {
+          "--lane-label-px": `${laneLabelPx}px`,
+          "--lane-height-vis": `${heights.vis}px`,
+          "--lane-height-video": `${heights.video}px`,
+          "--lane-height-audio": `${heights.audio}px`,
+        } as CSSProperties
+      }
+    >
       <div className="timeline-tools">
         <button
           type="button"
@@ -821,7 +911,9 @@ export function Timeline({
         </label>
       </div>
       <div className="ruler">
-        <div className="ruler-gutter" aria-hidden="true" />
+        <div className="ruler-gutter" aria-hidden="true">
+          {laneLabelSplitter}
+        </div>
         <div
           className="ruler-body"
           ref={bodyRef}
@@ -879,8 +971,10 @@ export function Timeline({
       <div
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
         data-testid="lane-VIS"
+        style={{ height: heights.vis }}
       >
         <div className="lane-label">
+          {laneLabelSplitter}
           <span>VIS</span>
           <div className="vis-lane-btns">
             <button
@@ -994,18 +1088,28 @@ export function Timeline({
             style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
           />
         </div>
+        <div
+          className="lane-height-handle"
+          data-testid="lane-height-VIS"
+          title="Resize VIS lane"
+          onPointerDown={(e) => onLaneHeightPointerDown(e, "vis")}
+        />
       </div>
       {(visibleTrackIds ?? TRACK_IDS).map((id) => {
         const track = project.tracks.find((t) => t.id === id);
         const muted = track?.muted === true;
         const soloed = track?.solo === true;
+        const group = heightGroupOfLane(id);
+        const kind = kindOfTrack(id);
         return (
           <div
-            className={`lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`}
+            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`}
             key={id}
             data-testid={`lane-${id}`}
+            style={{ height: heights[group] }}
           >
             <div className="lane-label">
+              {laneLabelSplitter}
               {id === "V1" || id === "V2" ? (
                 <button
                   type="button"
@@ -1216,6 +1320,12 @@ export function Timeline({
                 style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}
               />
             </div>
+            <div
+              className="lane-height-handle"
+              data-testid={`lane-height-${id}`}
+              title={`Resize ${group} lanes`}
+              onPointerDown={(e) => onLaneHeightPointerDown(e, group)}
+            />
           </div>
         );
       })}

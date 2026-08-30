@@ -1246,8 +1246,13 @@ export function applySelectMarker(session: Session, markerId: string | null): Se
   return { ...session, selectedMarkerId: null };
 }
 
-export function applyZoom(session: Session, zoomPxPerSec: number, timelineWidthPx = 1000): Session {
-  const minZ = minZoomPxPerSec(session.project, timelineWidthPx);
+export function applyZoom(
+  session: Session,
+  zoomPxPerSec: number,
+  timelineWidthPx = 1000,
+  laneLabelPx?: number,
+): Session {
+  const minZ = minZoomPxPerSec(session.project, timelineWidthPx, laneLabelPx);
   const zoomOld = session.project.zoomPxPerSec;
   const zoomNew = clampZoomPxPerSec(zoomPxPerSec, minZ);
   return {
@@ -1261,15 +1266,16 @@ export function applyZoom(session: Session, zoomPxPerSec: number, timelineWidthP
         zoomOld,
         zoomNew,
         timelineWidthPx,
+        laneLabelPx,
       }),
     },
   };
 }
 
 /** Fit the whole project in the lane and reset scroll to t=0. */
-export function applyFit(session: Session, timelineWidthPx: number): Session {
-  const z = fitZoomPxPerSec(session.project, timelineWidthPx);
-  const minZ = minZoomPxPerSec(session.project, timelineWidthPx);
+export function applyFit(session: Session, timelineWidthPx: number, laneLabelPx?: number): Session {
+  const z = fitZoomPxPerSec(session.project, timelineWidthPx, laneLabelPx);
+  const minZ = minZoomPxPerSec(session.project, timelineWidthPx, laneLabelPx);
   return {
     ...session,
     project: {

@@ -3,6 +3,22 @@
 export const MIXER_COLLAPSED_KEY = "resonance-studio-v5-mixer-collapsed";
 export const SPLIT_RATIO_KEY = "resonance-studio-v5-preview-split";
 export const H_SPLIT_RATIO_KEY = "resonance-studio-v5-preview-h-split";
+export const LANE_LABEL_PX_KEY = "resonance-studio-v5-lane-label-px";
+export const LANE_HEIGHTS_KEY = "resonance-studio-v5-lane-heights";
+
+export const DEFAULT_LANE_LABEL_PX = 96;
+export const LANE_LABEL_MIN_PX = 72;
+export const LANE_LABEL_MAX_PX = 160;
+export const DEFAULT_LANE_HEIGHT_PX = 52;
+export const LANE_HEIGHT_MIN_PX = 36;
+export const LANE_HEIGHT_MAX_PX = 120;
+
+export type LaneHeightGroup = "vis" | "video" | "audio";
+export interface LaneHeights {
+  vis: number;
+  video: number;
+  audio: number;
+}
 
 export const PREVIEW_MIN_PX = 120;
 export const ARRANGE_MIN_PX = 200;
@@ -128,6 +144,76 @@ export function saveHSplitRatio(storage: StorageLike | null | undefined, ratio: 
   } catch {
     /* quota / private mode */
   }
+}
+
+export function clampLaneLabelPx(px: number): number {
+  if (!Number.isFinite(px)) return DEFAULT_LANE_LABEL_PX;
+  return Math.round(Math.min(LANE_LABEL_MAX_PX, Math.max(LANE_LABEL_MIN_PX, px)));
+}
+
+export function loadLaneLabelPx(storage?: StorageLike | null): number {
+  try {
+    const raw = storage?.getItem(LANE_LABEL_PX_KEY);
+    if (raw == null) return DEFAULT_LANE_LABEL_PX;
+    return clampLaneLabelPx(Number(raw));
+  } catch {
+    return DEFAULT_LANE_LABEL_PX;
+  }
+}
+
+export function saveLaneLabelPx(storage: StorageLike | null | undefined, px: number): void {
+  try {
+    storage?.setItem(LANE_LABEL_PX_KEY, String(clampLaneLabelPx(px)));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function clampLaneHeightPx(px: number): number {
+  if (!Number.isFinite(px)) return DEFAULT_LANE_HEIGHT_PX;
+  return Math.round(Math.min(LANE_HEIGHT_MAX_PX, Math.max(LANE_HEIGHT_MIN_PX, px)));
+}
+
+export function defaultLaneHeights(): LaneHeights {
+  return {
+    vis: DEFAULT_LANE_HEIGHT_PX,
+    video: DEFAULT_LANE_HEIGHT_PX,
+    audio: DEFAULT_LANE_HEIGHT_PX,
+  };
+}
+
+export function clampLaneHeights(raw: Partial<LaneHeights> | null | undefined): LaneHeights {
+  const base = defaultLaneHeights();
+  return {
+    vis: clampLaneHeightPx(raw?.vis ?? base.vis),
+    video: clampLaneHeightPx(raw?.video ?? base.video),
+    audio: clampLaneHeightPx(raw?.audio ?? base.audio),
+  };
+}
+
+export function loadLaneHeights(storage?: StorageLike | null): LaneHeights {
+  try {
+    const raw = storage?.getItem(LANE_HEIGHTS_KEY);
+    if (raw == null) return defaultLaneHeights();
+    const parsed = JSON.parse(raw) as Partial<LaneHeights>;
+    return clampLaneHeights(parsed);
+  } catch {
+    return defaultLaneHeights();
+  }
+}
+
+export function saveLaneHeights(storage: StorageLike | null | undefined, heights: LaneHeights): void {
+  try {
+    storage?.setItem(LANE_HEIGHTS_KEY, JSON.stringify(clampLaneHeights(heights)));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function heightGroupOfLane(id: "VIS" | "V1" | "V2" | "A1" | "A2"): LaneHeightGroup {
+  if (id === "VIS") return "vis";
+  if (id === "V1" || id === "V2") return "video";
+  return "audio";
 }
 
 export function browserLayoutStorage(): StorageLike | null {

@@ -1,7 +1,7 @@
 import { projectDurationMs, type Project } from "./models";
 
-/** Lane label / ruler gutter width. Matches `.lane` / `.ruler` CSS. */
-export const LANE_LABEL_PX = 56;
+/** Default lane label / ruler gutter width. Live width lives in layout-prefs. */
+export const LANE_LABEL_PX = 96;
 
 /** Inset of t=0 from the lane-body / ruler-body left edge. */
 export const RULER_PAD_PX = 56;
@@ -12,8 +12,9 @@ export const ZOOM_MAX_PX_PER_SEC = 48_000;
 /** Floor when the project already fits at 1 px/s. Longer projects may go lower. */
 export const ZOOM_ABS_MIN_PX_PER_SEC = 1;
 
-export function usableLanePx(timelineWidthPx: number): number {
-  return Math.max(1, timelineWidthPx - LANE_LABEL_PX - RULER_PAD_PX);
+export function usableLanePx(timelineWidthPx: number, laneLabelPx = LANE_LABEL_PX): number {
+  const label = laneLabelPx > 0 ? laneLabelPx : LANE_LABEL_PX;
+  return Math.max(1, timelineWidthPx - label - RULER_PAD_PX);
 }
 
 export function fitDurationMs(project: Project): number {
@@ -21,21 +22,33 @@ export function fitDurationMs(project: Project): number {
 }
 
 /** Zoom that places the whole project in the visible lane body. */
-export function fitZoomPxPerSec(project: Project, timelineWidthPx: number): number {
-  return usableLanePx(timelineWidthPx) / (fitDurationMs(project) / 1000);
+export function fitZoomPxPerSec(
+  project: Project,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  return usableLanePx(timelineWidthPx, laneLabelPx) / (fitDurationMs(project) / 1000);
 }
 
 /** Most-zoomed-out value: 1 px/s, or lower if a long clip still cannot fit. */
-export function minZoomPxPerSec(project: Project, timelineWidthPx: number): number {
-  return Math.min(ZOOM_ABS_MIN_PX_PER_SEC, fitZoomPxPerSec(project, timelineWidthPx));
+export function minZoomPxPerSec(
+  project: Project,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  return Math.min(ZOOM_ABS_MIN_PX_PER_SEC, fitZoomPxPerSec(project, timelineWidthPx, laneLabelPx));
 }
 
 export function clampZoomPxPerSec(zoom: number, minZoom: number): number {
   return Math.max(minZoom, Math.min(ZOOM_MAX_PX_PER_SEC, zoom));
 }
 
-export function visibleDurationMs(zoomPxPerSec: number, timelineWidthPx: number): number {
-  return (usableLanePx(timelineWidthPx) / Math.max(zoomPxPerSec, 1e-6)) * 1000;
+export function visibleDurationMs(
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  return (usableLanePx(timelineWidthPx, laneLabelPx) / Math.max(zoomPxPerSec, 1e-6)) * 1000;
 }
 
 /** Playhead is in the time span drawn after the ruler pad. */
@@ -44,8 +57,9 @@ export function playheadInView(
   scrollMs: number,
   zoomPxPerSec: number,
   timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
 ): boolean {
-  const viewEnd = scrollMs + visibleDurationMs(zoomPxPerSec, timelineWidthPx);
+  const viewEnd = scrollMs + visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx);
   return playheadMs >= scrollMs && playheadMs <= viewEnd;
 }
 
@@ -53,8 +67,9 @@ function centerPlayheadScrollMs(
   playheadMs: number,
   zoomPxPerSec: number,
   timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
 ): number {
-  const half = visibleDurationMs(zoomPxPerSec, timelineWidthPx) / 2;
+  const half = visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx) / 2;
   return Math.max(0, playheadMs - half);
 }
 
@@ -63,8 +78,9 @@ function clampScrollKeepPlayhead(
   scrollMs: number,
   zoomPxPerSec: number,
   timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
 ): number {
-  const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx);
+  const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx);
   let scroll = Math.max(0, scrollMs);
   if (playheadMs < scroll) scroll = Math.max(0, playheadMs);
   if (playheadMs > scroll + visible) scroll = Math.max(0, playheadMs - visible);
@@ -81,13 +97,15 @@ export function scrollZoomAroundPlayhead(opts: {
   zoomOld: number;
   zoomNew: number;
   timelineWidthPx: number;
+  laneLabelPx?: number;
 }): number {
   const { playheadMs, zoomNew, timelineWidthPx } = opts;
+  const laneLabelPx = opts.laneLabelPx ?? LANE_LABEL_PX;
   const zoomOld = Math.max(opts.zoomOld, 1e-6);
   let scroll = opts.scrollMs;
-  if (!playheadInView(playheadMs, scroll, zoomOld, timelineWidthPx)) {
-    scroll = centerPlayheadScrollMs(playheadMs, zoomOld, timelineWidthPx);
+  if (!playheadInView(playheadMs, scroll, zoomOld, timelineWidthPx, laneLabelPx)) {
+    scroll = centerPlayheadScrollMs(playheadMs, zoomOld, timelineWidthPx, laneLabelPx);
   }
   const next = playheadMs - (playheadMs - scroll) * (zoomOld / Math.max(zoomNew, 1e-6));
-  return clampScrollKeepPlayhead(playheadMs, next, zoomNew, timelineWidthPx);
+  return clampScrollKeepPlayhead(playheadMs, next, zoomNew, timelineWidthPx, laneLabelPx);
 }

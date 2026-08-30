@@ -12,12 +12,26 @@ import {
   SPLIT_RATIO_KEY,
   applyHSplitPointer,
   applySplitPointer,
+  DEFAULT_LANE_HEIGHT_PX,
+  DEFAULT_LANE_LABEL_PX,
+  LANE_HEIGHT_MAX_PX,
+  LANE_HEIGHT_MIN_PX,
+  LANE_HEIGHTS_KEY,
+  LANE_LABEL_MAX_PX,
+  LANE_LABEL_MIN_PX,
+  LANE_LABEL_PX_KEY,
   clampHSplitRatio,
+  clampLaneHeightPx,
+  clampLaneLabelPx,
   clampSplitRatio,
   loadHSplitRatio,
+  loadLaneHeights,
+  loadLaneLabelPx,
   loadMixerCollapsed,
   loadSplitRatio,
   saveHSplitRatio,
+  saveLaneHeights,
+  saveLaneLabelPx,
   saveMixerCollapsed,
   saveSplitRatio,
 } from "../../src/core/layout-prefs";
@@ -91,5 +105,33 @@ describe("layout prefs", () => {
     expect(store.map.get(H_SPLIT_RATIO_KEY)).toBe("0.62");
     expect(loadHSplitRatio(store)).toBeCloseTo(0.62, 5);
     expect(loadHSplitRatio(memoryStorage())).toBe(DEFAULT_H_SPLIT_RATIO);
+  });
+
+  it("lane label width persists and clamps 72–160", () => {
+    expect(clampLaneLabelPx(96)).toBe(DEFAULT_LANE_LABEL_PX);
+    expect(clampLaneLabelPx(10)).toBe(LANE_LABEL_MIN_PX);
+    expect(clampLaneLabelPx(400)).toBe(LANE_LABEL_MAX_PX);
+    expect(clampLaneLabelPx(Number.NaN)).toBe(DEFAULT_LANE_LABEL_PX);
+    const store = memoryStorage();
+    expect(loadLaneLabelPx(store)).toBe(DEFAULT_LANE_LABEL_PX);
+    saveLaneLabelPx(store, 140);
+    expect(store.map.get(LANE_LABEL_PX_KEY)).toBe("140");
+    expect(loadLaneLabelPx(store)).toBe(140);
+    saveLaneLabelPx(store, 8);
+    expect(loadLaneLabelPx(store)).toBe(LANE_LABEL_MIN_PX);
+  });
+
+  it("lane heights persist and clamp 36–120 per vis/video/audio group", () => {
+    expect(clampLaneHeightPx(20)).toBe(LANE_HEIGHT_MIN_PX);
+    expect(clampLaneHeightPx(200)).toBe(LANE_HEIGHT_MAX_PX);
+    const store = memoryStorage();
+    expect(loadLaneHeights(store)).toEqual({
+      vis: DEFAULT_LANE_HEIGHT_PX,
+      video: DEFAULT_LANE_HEIGHT_PX,
+      audio: DEFAULT_LANE_HEIGHT_PX,
+    });
+    saveLaneHeights(store, { vis: 40, video: 80, audio: 200 });
+    expect(JSON.parse(store.map.get(LANE_HEIGHTS_KEY)!)).toEqual({ vis: 40, video: 80, audio: 120 });
+    expect(loadLaneHeights(store)).toEqual({ vis: 40, video: 80, audio: 120 });
   });
 });

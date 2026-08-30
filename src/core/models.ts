@@ -267,11 +267,7 @@ export function clipsOnTrack(project: Project, trackId: TrackId): Clip[] {
 
 export function topVideoClipAt(project: Project, timeMs: number): Clip | undefined {
   const hits = project.clips.filter(
-    (c) =>
-      kindOfTrack(c.trackId) === "video" &&
-      isTrackAudible(project, c.trackId) &&
-      timeMs >= c.startMs &&
-      timeMs < clipEndMs(c),
+    (c) => kindOfTrack(c.trackId) === "video" && timeMs >= c.startMs && timeMs < clipEndMs(c),
   );
   const front = project.frontVideoTrackId === "V1" ? "V1" : "V2";
   return hits.find((c) => c.trackId === front) ?? hits.find((c) => c.trackId === "V1" || c.trackId === "V2");
