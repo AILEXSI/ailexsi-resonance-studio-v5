@@ -19,7 +19,7 @@ npx vite build => exit 0 (50 modules). package.json script build maps to vite bu
 
 ## Automated tests
 Status: RUNTIME-VERIFIED
-npx vitest run => exit 0, 56 passed / 8 files
+npx vitest run => exit 0, 65 passed / 8 files
 
 ## Visualizer
 Status: CODE-VERIFIED
@@ -95,6 +95,8 @@ ebf63cf feat(v5): add visualizer lane fallback canvas
 60f36d1 test(v5): visualizer energy and fallback rules
 0138ed9 feat(v5): decode user frames and mix audio into mp4
 9c2a771 test(v5): export fails on missing source
+47f3ef7 feat(v5): vendor Visualz engine and six VIS scenes
+a2770e9 test(v5): cover six Visualz scene ids and cycle
 
 ## Not added
 chat, Ollama, vault, AI Arrangement, Beats, AI_EVENTS, VIS TrackId, a second loop, V4 file copies, publish.

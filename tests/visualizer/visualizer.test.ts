@@ -3,6 +3,7 @@ import {
   DEFAULT_VISUALIZER_SCENE_ID,
   VISUALIZER_SCENE_IDS,
   isVisualizerSceneId,
+  type VisualizerSceneId,
 } from "../../src/core/models";
 import { createEmptyProject, deserializeProject, serializeProject } from "../../src/core/project";
 import {
@@ -95,7 +96,9 @@ describe("visualizer energy", () => {
     expect(offBeat.energy).toBeCloseTo(0, 5);
     expect(offBeat.bass).toBeCloseTo(0, 5);
     expect(offBeat.onset).toBe(false);
-    expect(offBeat.spectrum.some((v) => v > 0)).toBe(false);
+    // 250ms is a 240 BPM hat: treble/mid still feed the fake spectrum so bars move.
+    expect(offBeat.treble).toBeGreaterThan(0);
+    expect(offBeat.spectrum.some((v) => v > 0)).toBe(true);
   });
 });
 
@@ -187,7 +190,7 @@ describe("Visualz scene registry", () => {
 
   it("nextSceneId cycles all 6 without repeats until wrap", () => {
     const seen: string[] = [];
-    let current = VISUALIZER_SCENE_IDS[0]!;
+    let current: VisualizerSceneId = VISUALIZER_SCENE_IDS[0]!;
     for (let i = 0; i < VISUALIZER_SCENE_IDS.length; i++) {
       expect(seen).not.toContain(current);
       seen.push(current);

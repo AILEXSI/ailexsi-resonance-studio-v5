@@ -38,28 +38,38 @@ export function getRegisteredScene(sceneId: string): Scene | undefined {
   return sceneRegistry.get(sceneId);
 }
 
-export function createVisualEngine(options: VisualEngineOptions): VisualEngine {
-  ensureBuiltinsRegistered();
-
-  const canvas = options.canvas;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not get 2D context from canvas");
-  }
-
-  let currentSceneId = options.initialSceneId ?? "resonance-wave";
-  const initialScene = sceneRegistry.get(currentSceneId) ?? builtinScenes[0];
-  if (initialScene) currentSceneId = initialScene.id;
-
-  let params: SceneParams = {
+function mergeSceneParams(...parts: Array<Partial<SceneParams> | undefined>): SceneParams {
+  const next: SceneParams = {
     intensity: 0.75,
     colorPrimary: "#ff6b35",
     colorSecondary: "#0a0a12",
     speed: 1,
     complexity: 0.55,
-    ...(initialScene?.defaultParams ?? {}),
-    ...options.initialParams,
   };
+  for (const part of parts) {
+    if (!part) continue;
+    for (const [key, value] of Object.entries(part)) {
+      if (value !== undefined) next[key] = value;
+    }
+  }
+  return next;
+}
+
+export function createVisualEngine(options: VisualEngineOptions): VisualEngine {
+  ensureBuiltinsRegistered();
+
+  const canvas = options.canvas;
+  const maybeCtx = canvas.getContext("2d");
+  if (!maybeCtx) {
+    throw new Error("Could not get 2D context from canvas");
+  }
+  const ctx: CanvasRenderingContext2D = maybeCtx;
+
+  let currentSceneId = options.initialSceneId ?? "resonance-wave";
+  const initialScene = sceneRegistry.get(currentSceneId) ?? builtinScenes[0];
+  if (initialScene) currentSceneId = initialScene.id;
+
+  let params = mergeSceneParams(initialScene?.defaultParams, options.initialParams);
 
   let isPlaying = false;
   let rafId: number | null = null;
@@ -146,7 +156,7 @@ export function createVisualEngine(options: VisualEngineOptions): VisualEngine {
       const prev = sceneRegistry.get(currentSceneId);
       prev?.onExit?.();
       currentSceneId = sceneId;
-      params = { ...next.defaultParams, ...params };
+      params = mergeSceneParams(next.defaultParams, params);
       next.onEnter?.(
         {
           width: canvas.width,
@@ -158,7 +168,7 @@ export function createVisualEngine(options: VisualEngineOptions): VisualEngine {
     },
 
     setParams(partial: Partial<SceneParams>) {
-      params = { ...params, ...partial };
+      params = mergeSceneParams(params, partial);
     },
 
     listScenes() {
