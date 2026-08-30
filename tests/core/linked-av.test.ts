@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, rollEdit, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, rippleTrimClip, rollEdit, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -645,6 +645,147 @@ describe("linked A/V", () => {
     expect(slid.project.clips.find((c) => c.id === "ar")!.startMs).toBe(2200);
     expect(slid.project.clips.find((c) => c.id === "ar")!.durationMs).toBe(800);
     expect(slid.project.clips.find((c) => c.id === "ar")!.sourceInMs).toBe(600);
+  });
+
+  it("ripple-trim of an unlocked clip skips a locked mate (P121)", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 4000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+          locked: true,
+        }),
+        clip({
+          id: "v2",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 2000,
+          durationMs: 500,
+          sourceInMs: 0,
+          sourceOutMs: 500,
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 500,
+          sourceInMs: 0,
+          sourceOutMs: 500,
+        }),
+      ],
+      [va],
+    );
+    const out = rippleTrimClip({ ...start, snap: false }, "a1", "out", 800);
+    expect(out.error).toBeUndefined();
+    expect(out.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "a1")!.sourceOutMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "a2")!.startMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(out.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+    expect(out.project.clips.find((c) => c.id === "v2")!.startMs).toBe(2000);
+
+    const inn = rippleTrimClip({ ...start, snap: false }, "a1", "in", 200);
+    expect(inn.error).toBeUndefined();
+    expect(inn.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+    expect(inn.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(1800);
+    expect(inn.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(200);
+    expect(inn.project.clips.find((c) => c.id === "a2")!.startMs).toBe(1800);
+    expect(inn.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(inn.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(inn.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(0);
+
+    const viaCommand = applyCommand(
+      {
+        ...createSession(createMemoryBlobStore()),
+        project: { ...start, snap: false, playheadMs: 800 },
+        selectedClipId: "a1",
+        selectedClipIds: ["a1"],
+      },
+      { type: "rippleTrimToPlayhead", edge: "out" },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(800);
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(viaCommand.project.clips.find((c) => c.id === "a2")!.startMs).toBe(800);
+  });
+
+  it("ripple-trim of a linked pair still packs both unlocked tracks", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 4000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "v2",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 2000,
+          durationMs: 500,
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 500,
+        }),
+      ],
+      [va],
+    );
+    const out = rippleTrimClip({ ...start, snap: false }, "a1", "out", 800);
+    expect(out.error).toBeUndefined();
+    expect(out.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "a2")!.startMs).toBe(800);
+    expect(out.project.clips.find((c) => c.id === "v2")!.startMs).toBe(800);
   });
 
   it("group slip follows a living mate of a member, or no-ops all", () => {

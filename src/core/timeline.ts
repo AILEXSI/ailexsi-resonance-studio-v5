@@ -221,6 +221,9 @@ export function abuttingNeighbor(
  * Out: later clips (start >= old end) follow (newEnd - oldEnd).
  * In: lift leaves a hole before the clip; the trimmed clip and later clips
  * slide by the duration delta (start returns to the original, end follows).
+ * A living unlocked linked mate takes the same trim and pack. A locked mate
+ * is skipped (same as split/slip/rate/roll/slide) so Q/W can trim the
+ * unlocked clip.
  */
 export function rippleTrimClip(
   project: Project,
@@ -232,21 +235,21 @@ export function rippleTrimClip(
   if (!before) return { project, error: "Clip not found" };
   if (clipIsLocked(before)) return { project, error: "Clip is locked" };
   const mate = livingLinkedMate(project, clipId);
-  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
+  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
   const laterLocked = project.clips.some((c) => {
-    if (c.id === clipId || c.id === mate?.id) return false;
+    if (c.id === clipId || c.id === liveMate?.id) return false;
     if (!clipIsLocked(c)) return false;
     const laterPrimary =
       c.trackId === before.trackId && c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(before);
     const laterMate =
-      Boolean(mate) &&
-      c.trackId === mate!.trackId &&
-      c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(mate!);
+      Boolean(liveMate) &&
+      c.trackId === liveMate!.trackId &&
+      c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(liveMate!);
     return laterPrimary || laterMate;
   });
   if (laterLocked) return { project, error: "Clip is locked" };
   const oldEnd = clipEndMs(before);
-  const mateOldEnd = mate ? clipEndMs(mate) : 0;
+  const mateOldEnd = liveMate ? clipEndMs(liveMate) : 0;
   const oldDur = before.durationMs;
   const trimmed = trimClip(project, clipId, edge, nextEdgeMs);
   if (trimmed.error) return trimmed;
@@ -254,8 +257,8 @@ export function rippleTrimClip(
   if (!after) return trimmed;
   const delta = after.durationMs - oldDur;
   if (delta === 0) return trimmed;
-  const mateId = mate?.id;
-  const mateTrack = mate?.trackId;
+  const mateId = liveMate?.id;
+  const mateTrack = liveMate?.trackId;
   return {
     project: {
       ...trimmed.project,
