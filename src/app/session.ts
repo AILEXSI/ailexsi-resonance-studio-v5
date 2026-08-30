@@ -1,4 +1,3 @@
-import { createId } from "../core/ids";
 import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
 import { clipById, type Clip, type Project, type TrackId } from "../core/models";
 import {
@@ -14,9 +13,9 @@ import {
   deleteMarker,
   collectSnapTargets,
   createHistory,
-  deleteClip,
   deleteClips,
-  duplicateClip,
+  pasteClips,
+  slipClip,
   maybeScrollToOrigin,
   moveClip,
   moveClipsByDelta,
@@ -63,7 +62,8 @@ export interface Session {
   /** Source of truth for clip selection. `selectedClipId` is the primary (first). */
   selectedClipIds: string[];
   selectedMarkerId: string | null;
-  clipboard: Clip | null;
+  /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
+  clipboard: Clip[];
   targetTrackId: TrackId;
   status: string;
   error: string | null;
@@ -80,7 +80,7 @@ export function createSession(store?: BlobStore): Session {
     selectedClipId: null,
     selectedClipIds: [],
     selectedMarkerId: null,
-    clipboard: null,
+    clipboard: [],
     targetTrackId: "V1",
     status: "New project",
     error: null,
@@ -405,43 +405,53 @@ export function applyMarker(session: Session): Session {
 }
 
 export function applyCopy(session: Session): Session {
-  const clip = session.project.clips.find((c) => c.id === session.selectedClipId);
-  if (!clip) return { ...session, error: "No clip selected to copy" };
-  return { ...session, clipboard: clip, status: "Copied clip", error: null };
-}
-
-/** Copy then delete. Clipboard keeps the clip; the timeline clip is removed. */
-export function applyCut(session: Session): Session {
-  const clip = session.project.clips.find((c) => c.id === session.selectedClipId);
-  if (!clip) return { ...session, error: "No clip selected to cut" };
-  const next = deleteClip(session.project, clip.id);
+  const ids = selectionOf(session);
+  const clips = ids
+    .map((id) => clipById(session.project, id))
+    .filter((c): c is Clip => Boolean(c));
+  if (clips.length === 0) return { ...session, error: "No clip selected to copy" };
   return {
-    ...withClipSelection(withHistory(session, next, "Cut clip"), []),
-    clipboard: clip,
+    ...session,
+    clipboard: clips.map((c) => ({ ...c })),
+    status: clips.length > 1 ? "Copied clips" : "Copied clip",
     error: null,
   };
 }
 
-export function applyPaste(session: Session): Session {
-  if (!session.clipboard) return { ...session, error: "Clipboard empty" };
-  const result = duplicateClip(session.project, session.clipboard.id, session.project.playheadMs);
-  if (result.error || !result.clip) {
-    const placed = {
-      ...session.clipboard,
-      startMs: Math.max(0, session.project.playheadMs),
-    };
-    const copy = duplicateFromClipboard(session.project, placed);
-    return withClipSelection(withHistory(session, copy.project, "Pasted clip"), [copy.clipId]);
+/** Copy then lift-delete the selection. One history entry. */
+export function applyCut(session: Session): Session {
+  const ids = selectionOf(session);
+  const copied = applyCopy(session);
+  if (copied.error || copied.clipboard.length === 0) {
+    return { ...session, error: copied.error ?? "No clip selected to cut" };
   }
-  return withClipSelection(withHistory(session, result.project, "Pasted clip"), [result.clip.id]);
+  const next = deleteClips(session.project, ids);
+  return withClipSelection(
+    withHistory(
+      { ...copied, project: session.project },
+      next,
+      ids.length > 1 ? "Cut clips" : "Cut clip",
+    ),
+    [],
+  );
 }
 
-function duplicateFromClipboard(project: Project, clip: Clip): { project: Project; clipId: string } {
-  const next = { ...clip, id: createId("clip") };
-  return {
-    project: { ...project, clips: [...project.clips, next], updatedAt: new Date().toISOString() },
-    clipId: next.id,
-  };
+export function applyPaste(session: Session): Session {
+  if (session.clipboard.length === 0) return { ...session, error: "Clipboard empty" };
+  const result = pasteClips(session.project, session.clipboard, session.project.playheadMs);
+  if (result.error) return { ...session, error: result.error };
+  const many = result.clipIds.length > 1;
+  return withClipSelection(
+    withHistory(session, result.project, many ? "Pasted clips" : "Pasted clip"),
+    result.clipIds,
+  );
+}
+
+export function applySlip(session: Session, clipId: string, deltaMs: number): Session {
+  const result = slipClip(session.project, clipId, deltaMs);
+  if (result.error) return { ...session, error: result.error };
+  if (result.project === session.project) return session;
+  return withHistory(session, result.project, "Slipped clip");
 }
 
 export function applyUpdateClip(

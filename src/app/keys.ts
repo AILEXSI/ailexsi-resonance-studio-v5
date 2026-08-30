@@ -8,6 +8,7 @@ export interface EditorKeyEvent {
   ctrlKey?: boolean;
   metaKey?: boolean;
   shiftKey?: boolean;
+  altKey?: boolean;
 }
 
 export type EditorKeyAction =
@@ -15,7 +16,10 @@ export type EditorKeyAction =
   | { type: "toggleShortcuts"; preventDefault: true }
   | { type: "none" };
 
-function commandFromKey(e: EditorKeyEvent): EditorCommand | "toggleShortcuts" | null {
+function commandFromKey(
+  e: EditorKeyEvent,
+  session: Session,
+): EditorCommand | "toggleShortcuts" | null {
   if (e.key === "?") return "toggleShortcuts";
 
   const mod = Boolean(e.ctrlKey || e.metaKey);
@@ -30,6 +34,13 @@ function commandFromKey(e: EditorKeyEvent): EditorCommand | "toggleShortcuts" | 
     if (letter === "x") return { type: "cut" };
     if (letter === "v") return { type: "paste" };
     return null;
+  }
+
+  const comma = e.key === "," || e.key === "<" || e.code === "Comma";
+  const period = e.key === "." || e.key === ">" || e.code === "Period";
+  if (e.altKey && (comma || period)) {
+    if (!session.selectedClipId) return null;
+    return { type: "slip", clipId: session.selectedClipId, deltaMs: (period ? 1 : -1) * FRAME_MS };
   }
 
   if (letter === "s") return { type: "split" };
@@ -47,8 +58,6 @@ function commandFromKey(e: EditorKeyEvent): EditorCommand | "toggleShortcuts" | 
   if (e.key === "ArrowLeft") return { type: "nudgePlayhead", deltaMs: -FRAME_MS };
   if (e.key === "ArrowRight") return { type: "nudgePlayhead", deltaMs: FRAME_MS };
 
-  const comma = e.key === "," || e.key === "<" || e.code === "Comma";
-  const period = e.key === "." || e.key === ">" || e.code === "Period";
   if (comma || period) {
     const frames = e.shiftKey || e.key === "<" || e.key === ">" ? 10 : 1;
     return { type: "nudgeClip", deltaMs: (period ? 1 : -1) * frames * FRAME_MS };
@@ -66,7 +75,7 @@ export function dispatchEditorKey(
   _playing: boolean,
   e: EditorKeyEvent,
 ): EditorKeyAction {
-  const command = commandFromKey(e);
+  const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
   const preventDefault =
@@ -80,7 +89,8 @@ export function dispatchEditorKey(
     command.type === "liftDelete" ||
     command.type === "rippleDelete" ||
     command.type === "nudgeClip" ||
-    command.type === "shuttle";
+    command.type === "shuttle" ||
+    command.type === "slip";
   return {
     type: "session",
     session: applyCommand(session, command),

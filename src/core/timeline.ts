@@ -5,6 +5,7 @@ import {
   clipById,
   clipEndMs,
   kindOfTrack,
+  TRACK_IDS,
   type Clip,
   type Marker,
   type Project,
@@ -639,6 +640,79 @@ export function deleteMarker(
     project: {
       ...project,
       markers: project.markers.filter((m) => m.id !== markerId),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/** Same-kind track, clamped to V1/V2 or A1/A2. `delta` is a lane step within that kind. */
+export function clampSameKindTrack(trackId: TrackId, delta = 0): TrackId {
+  const kind = kindOfTrack(trackId);
+  const lane = TRACK_IDS.filter((id) => kindOfTrack(id) === kind);
+  const idx = Math.max(0, lane.indexOf(trackId));
+  return lane[Math.max(0, Math.min(lane.length - 1, idx + delta))] ?? trackId;
+}
+
+/**
+ * Place clipboard snapshots at `atMs`. Earliest clip lands on the playhead;
+ * others keep relative start and same-kind track offsets. New ids.
+ */
+export function pasteClips(
+  project: Project,
+  clips: readonly Clip[],
+  atMs: number,
+): { project: Project; clipIds: string[]; error?: string } {
+  if (clips.length === 0) return { project, clipIds: [], error: "Clipboard empty" };
+  const origin = Math.min(...clips.map((c) => c.startMs));
+  const rawStarts = clips.map((c) => atMs + (c.startMs - origin));
+  const pad = Math.max(0, -Math.min(...rawStarts));
+  const nextClips = [...project.clips];
+  const clipIds: string[] = [];
+  clips.forEach((clip, i) => {
+    const copy: Clip = {
+      ...clip,
+      id: createId("clip"),
+      startMs: clampStartMs((rawStarts[i] ?? atMs) + pad),
+      trackId: clampSameKindTrack(clip.trackId),
+    };
+    nextClips.push(copy);
+    clipIds.push(copy.id);
+  });
+  return {
+    project: {
+      ...project,
+      clips: nextClips,
+      updatedAt: new Date().toISOString(),
+    },
+    clipIds,
+  };
+}
+
+/**
+ * Slide source in/out. Timeline start and duration stay put.
+ * Clamps sourceIn ≥ 0 and sourceOut ≤ asset duration.
+ */
+export function slipClip(
+  project: Project,
+  clipId: string,
+  deltaMs: number,
+): { project: Project; error?: string } {
+  const clip = clipById(project, clipId);
+  if (!clip) return { project, error: "Clip not found" };
+  const asset = project.assets.find((a) => a.id === clip.assetId);
+  const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
+  const maxIn = maxOut - clip.durationMs;
+  const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + deltaMs), Math.max(0, maxIn));
+  if (sourceInMs === clip.sourceInMs) return { project };
+  const next: Clip = {
+    ...clip,
+    sourceInMs,
+    sourceOutMs: sourceInMs + clip.durationMs,
+  };
+  return {
+    project: {
+      ...project,
+      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
       updatedAt: new Date().toISOString(),
     },
   };

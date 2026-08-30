@@ -22,6 +22,8 @@ import {
   rippleTrimClip,
   moveClipsByDelta,
   deleteClips,
+  pasteClips,
+  slipClip,
   rollEdit,
   abuttingNeighbor,
   toggleTrackMute,
@@ -292,6 +294,24 @@ describe("group move / delete", () => {
     expect(next.clips[0]!.startMs).toBe(1000);
   });
 
+  it("pastes a group at atMs with relative starts and same-kind tracks", () => {
+    const p = abuttingA1();
+    const group = [
+      p.clips.find((c) => c.id === "c1")!,
+      p.clips.find((c) => c.id === "c3")!,
+    ];
+    const next = pasteClips(p, group, 2000);
+    expect(next.error).toBeUndefined();
+    expect(next.clipIds).toHaveLength(2);
+    const a1 = next.project.clips.find((c) => c.id === next.clipIds[0])!;
+    const a2 = next.project.clips.find((c) => c.id === next.clipIds[1])!;
+    expect(a1.startMs).toBe(2000);
+    expect(a1.trackId).toBe("A1");
+    expect(a2.startMs).toBe(3000);
+    expect(a2.trackId).toBe("A2");
+    expect(next.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+  });
+
   it("ripple-deletes later clips first per track", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
     const p = projectWith(
@@ -308,6 +328,38 @@ describe("group move / delete", () => {
     expect(next.clips.find((c) => c.id === "c2")).toBeUndefined();
     expect(next.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
     expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+});
+
+describe("slip", () => {
+  it("slides source window and leaves start/duration; clamps at asset end", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 3000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+        }),
+      ],
+      [a],
+    );
+    const slipped = slipClip(p, "c1", 200);
+    expect(slipped.error).toBeUndefined();
+    expect(slipped.project.clips[0]!.startMs).toBe(1000);
+    expect(slipped.project.clips[0]!.durationMs).toBe(2000);
+    expect(slipped.project.clips[0]!.sourceInMs).toBe(200);
+    expect(slipped.project.clips[0]!.sourceOutMs).toBe(2200);
+
+    const clamped = slipClip(p, "c1", 2000);
+    expect(clamped.project.clips[0]!.sourceInMs).toBe(1000);
+    expect(clamped.project.clips[0]!.sourceOutMs).toBe(3000);
+    expect(clamped.project.clips[0]!.durationMs).toBe(2000);
+    expect(clamped.project.clips[0]!.startMs).toBe(1000);
   });
 });
 

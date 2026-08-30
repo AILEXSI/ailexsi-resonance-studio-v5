@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:38 UTC. In-edge ripple trim + multi-select / group move / group delete on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:44 UTC. Group clipboard + slip on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CtDAR3fN.css 16.46 kB
-- dist/assets/index-CbPWrYpd.js 676.30 kB
+- dist/assets/index-CGHSte1b.js 678.10 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **197 passed / 31 files**. Start 06:37:59 UTC. Duration 5.90s.
+exit 0. vitest 3.2.7. **203 passed / 31 files**. Start 06:43:46 UTC. Duration 6.02s.
 
-New this follow-up: in-edge ripple trim packs the track (later clips follow duration delta; lift-trim still leaves a hole); toggle select; group move + clamp-at-0; group lift-delete; group ripple-delete later-first per track; multi-split at playhead; inspector count for 2+ clips. Prior suites remain green.
+New this follow-up: group copy/cut/paste (relative time + same-kind tracks; one undo); slip (start/duration stay, sourceIn/Out slide; asset-end clamp; Alt+drag / Alt+, / Alt+.). Prior suites remain green.
 
 ## Visualizer
 
@@ -140,9 +140,9 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (10): prior 7 plus Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
+`tests/app/keys.test.ts` (11): prior plus Alt+, / Alt+. slip ±1 frame (start unchanged). Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
 
-`tests/timeline/clip-menu.test.tsx` (4): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll; toolbar + transport Split show S; multi-select chrome on both clips, trim handles on primary only. Overlay also lists Ctrl+click toggle.
+`tests/timeline/clip-menu.test.tsx` (4): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll, Alt+drag slip, Alt+, / Alt+. slip, Copy selected clip(s); toolbar + transport Split show S; multi-select chrome on both clips, trim handles on primary only. Overlay also lists Ctrl+click toggle.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -292,7 +292,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo, `select`, `moveClips`. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer/timeline select+group-move go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo, `select`, `moveClips`, `slip`. Copy/cut/paste now take the full selection. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer/timeline select+group-move+slip go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -350,9 +350,26 @@ Group move: same Δms for all selected; clamp so no start < 0 (shared delta); sn
 
 Group lift-delete: Delete/Backspace removes all selected (gaps remain). Group ripple-delete: Shift+Delete, per track later-first. Split (S): 0 or 1 selected → current split-all-under-playhead. 2+ selected → only those containing the playhead. One undo each.
 
-No marquee. No Shift+click range. Copy/cut stay primary-only.
+No marquee. No Shift+click range.
 
-## Changelog this follow-up (2026-08-30 06:38 UTC)
+## Group clipboard
+
+Status: TEST-VERIFIED. Live Ctrl+C/X/V: NOT VERIFIED.
+
+`Session.clipboard` is `Clip[]` (empty = none). Copy snapshots every selected clip. One-clip selection still reports “Copied clip” / “Cut clip” / “Pasted clip”. Cut = copy then lift-delete, one history entry. Paste drops the group at the playhead: earliest clip lands on the playhead, others keep relative start deltas and same-kind tracks (V stays V, A stays A; lane clamped to V1/V2 or A1/A2). New ids. Pasted group becomes the selection. Empty selection: copy/cut still no-op with the existing error. Undo restores.
+
+## Slip
+
+Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
+
+`{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip only — no group slip this slice. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
+
+## Changelog this follow-up (2026-08-30 06:44 UTC)
+
+- Group copy / cut / paste (relative time + same-kind tracks). TEST-VERIFIED. Live: NOT VERIFIED.
+- Slip (Alt+drag / Alt+, / Alt+.). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:38 UTC)
 
 - In-edge ripple trim packs the track (later clips follow duration delta). TEST-VERIFIED. Live Shift+in-edge: NOT VERIFIED.
 - Multi-select (Ctrl/Cmd+click), group move, group lift-delete, group ripple-delete, multi-split. TEST-VERIFIED. Live clicks/drags: NOT VERIFIED.
@@ -436,7 +453,7 @@ No marquee. No Shift+click range. Copy/cut stay primary-only.
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up is recorded in git. Prior ripple-trim/roll tip: `d33c7bc`.
+Tip after this follow-up is recorded in git. Prior multi-select tip: `96ea8f3`.
 
 ## Not added
 

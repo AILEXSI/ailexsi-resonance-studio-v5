@@ -37,6 +37,8 @@ interface Props {
     mode?: "lift" | "ripple" | "roll",
   ) => void;
   onTrimCommit: () => void;
+  onSlipLive?: (clipId: string, deltaMs: number) => void;
+  onSlipCommit?: () => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
@@ -97,6 +99,8 @@ export function Timeline({
   onMoveCommit,
   onTrimLive,
   onTrimCommit,
+  onSlipLive,
+  onSlipCommit,
   onToggleMute,
   onToggleSolo,
   onToggleVisualizerMute,
@@ -118,7 +122,7 @@ export function Timeline({
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
+  const dragKindRef = useRef<"move" | "trim" | "slip" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
   const [viewWidth, setViewWidth] = useState(1000);
@@ -244,6 +248,26 @@ export function Timeline({
     setMarkerMenu(null);
     if (e.ctrlKey || e.metaKey) {
       onSelect(clip.id, { toggle: true });
+      return;
+    }
+    if (e.altKey) {
+      if (dragKindRef.current) return;
+      if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+      dragKindRef.current = "slip";
+      const originX = e.clientX;
+      const move = (ev: PointerEvent) => {
+        if (dragKindRef.current !== "slip") return;
+        const deltaMs = ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
+        onSlipLive?.(clip.id, deltaMs);
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        dragKindRef.current = null;
+        onSlipCommit?.();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
       return;
     }
     if (dragKindRef.current) return;

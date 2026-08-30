@@ -52,6 +52,8 @@ describe("applyCommand determinism", () => {
       { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 } as const,
       { type: "select", clipId: "c2", toggle: true } as const,
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
+      { type: "slip", clipId: "c1", deltaMs: 200 } as const,
+      { type: "copy" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);
@@ -253,6 +255,88 @@ describe("applyCommand determinism", () => {
     expect(split.project.clips.find((c) => c.id === "c2")!.durationMs).toBe(500);
     const undone = applyCommand(split, { type: "undo" });
     expect(undone.project.clips).toHaveLength(3);
+  });
+
+  it("copy/paste selected group at playhead keeps relative time and tracks", () => {
+    const selected = applyCommand(twoClipSession(), { type: "select", clipId: "c3", toggle: true });
+    const copied = applyCommand(selected, { type: "copy" });
+    expect(copied.clipboard).toHaveLength(2);
+    expect(copied.project.clips).toHaveLength(3);
+    expect(copied.status).toBe("Copied clips");
+
+    const atHead = applyCommand(
+      { ...copied, project: { ...copied.project, playheadMs: 2000 } },
+      { type: "paste" },
+    );
+    expect(atHead.project.clips).toHaveLength(5);
+    expect(atHead.status).toBe("Pasted clips");
+    const originals = atHead.project.clips.filter((c) => c.id === "c1" || c.id === "c3");
+    expect(originals.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(originals.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    const pasted = atHead.project.clips.filter((c) => c.id !== "c1" && c.id !== "c2" && c.id !== "c3");
+    expect(pasted).toHaveLength(2);
+    const a1 = pasted.find((c) => c.trackId === "A1")!;
+    const a2 = pasted.find((c) => c.trackId === "A2")!;
+    expect(a1.startMs).toBe(2000);
+    expect(a2.startMs).toBe(3000);
+    expect(a2.startMs - a1.startMs).toBe(1000);
+    expect(selectionOf(atHead).sort()).toEqual([a1.id, a2.id].sort());
+    const undone = applyCommand(atHead, { type: "undo" });
+    expect(undone.project.clips).toHaveLength(3);
+    expect(clipStarts(undone)).toEqual(clipStarts(copied));
+  });
+
+  it("cut removes the selected group; one undo restores them", () => {
+    const selected = applyCommand(twoClipSession(), { type: "select", clipId: "c3", toggle: true });
+    const start = twoClipSession();
+    const cut = applyCommand(selected, { type: "cut" });
+    expect(cut.project.clips.map((c) => c.id)).toEqual(["c2"]);
+    expect(cut.clipboard).toHaveLength(2);
+    expect(cut.selectedClipId).toBeNull();
+    expect(cut.status).toBe("Cut clips");
+    const undone = applyCommand(cut, { type: "undo" });
+    expect(undone.project.clips).toHaveLength(3);
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+  });
+
+  it("slips sourceIn/sourceOut and leaves start/duration; undo and asset clamp", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 3000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 2000,
+              sourceInMs: 0,
+              sourceOutMs: 2000,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "c1",
+      selectedClipIds: ["c1"],
+    };
+    const slipped = applyCommand(start, { type: "slip", clipId: "c1", deltaMs: 200 });
+    const c = slipped.project.clips.find((x) => x.id === "c1")!;
+    expect(c.startMs).toBe(1000);
+    expect(c.durationMs).toBe(2000);
+    expect(c.sourceInMs).toBe(200);
+    expect(c.sourceOutMs).toBe(2200);
+    const undone = applyCommand(slipped, { type: "undo" });
+    expect(undone.project.clips.find((x) => x.id === "c1")!.sourceInMs).toBe(0);
+
+    const clamped = applyCommand(start, { type: "slip", clipId: "c1", deltaMs: 2000 });
+    expect(clamped.project.clips.find((x) => x.id === "c1")!.sourceInMs).toBe(1000);
+    expect(clamped.project.clips.find((x) => x.id === "c1")!.sourceOutMs).toBe(3000);
+    expect(clamped.project.clips.find((x) => x.id === "c1")!.durationMs).toBe(2000);
+    expect(clamped.project.clips.find((x) => x.id === "c1")!.startMs).toBe(1000);
   });
 });
 

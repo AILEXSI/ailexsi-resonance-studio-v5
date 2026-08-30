@@ -20,6 +20,7 @@ import {
   applyRoll,
   applySelect,
   applyShuttle,
+  applySlip,
   applySplit,
   applyStop,
   applyToggleMute,
@@ -59,7 +60,8 @@ export type EditorCommand =
   | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "select"; clipId: string | null; toggle?: boolean }
-  | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId };
+  | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
+  | { type: "slip"; clipId: string; deltaMs: number };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -115,6 +117,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySelect(session, command.clipId, { toggle: command.toggle });
     case "moveClips":
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
+    case "slip":
+      return applySlip(session, command.clipId, command.deltaMs);
     default: {
       const _never: never = command;
       return _never;

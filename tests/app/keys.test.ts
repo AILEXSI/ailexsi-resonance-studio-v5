@@ -50,7 +50,7 @@ describe("editor keys", () => {
     const start = clipSession();
     const next = sessionOf(dispatchEditorKey(start, false, { key: "c", ctrlKey: true }));
     expect(next.project.clips).toHaveLength(1);
-    expect(next.clipboard?.id).toBe("c1");
+    expect(next.clipboard[0]?.id).toBe("c1");
     expect(next.project.clips[0]!.id).toBe("c1");
     expect(next.status).toBe("Copied clip");
   });
@@ -58,7 +58,7 @@ describe("editor keys", () => {
   it("Ctrl+X cuts: clipboard filled and clip removed", () => {
     const next = sessionOf(dispatchEditorKey(clipSession(), false, { key: "x", ctrlKey: true }));
     expect(next.project.clips).toHaveLength(0);
-    expect(next.clipboard?.id).toBe("c1");
+    expect(next.clipboard[0]?.id).toBe("c1");
     expect(next.selectedClipId).toBeNull();
     expect(next.status).toBe("Cut clip");
   });
@@ -130,6 +130,32 @@ describe("editor keys", () => {
     const playhead = sessionOf(dispatchEditorKey(start, false, { key: "ArrowRight" }));
     expect(playhead.project.playheadMs).toBe(start.project.playheadMs + FRAME_MS);
     expect(playhead.project.clips[0]!.startMs).toBe(0);
+  });
+
+  it("Alt+, / Alt+. slip source ±1 frame and do not nudge start", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const c = clip({
+      id: "c1",
+      assetId: "a",
+      trackId: "A1",
+      startMs: 1000,
+      durationMs: 2000,
+      sourceInMs: 0,
+      sourceOutMs: 2000,
+    });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: projectWith([c], [a]),
+      selectedClipId: "c1",
+      selectedClipIds: ["c1"],
+    };
+    const right = sessionOf(dispatchEditorKey(start, false, { key: ".", altKey: true }));
+    expect(right.project.clips[0]!.startMs).toBe(1000);
+    expect(right.project.clips[0]!.durationMs).toBe(2000);
+    expect(right.project.clips[0]!.sourceInMs).toBeCloseTo(FRAME_MS, 5);
+    const left = sessionOf(dispatchEditorKey(right, false, { key: ",", altKey: true }));
+    expect(left.project.clips[0]!.sourceInMs).toBe(0);
+    expect(left.project.clips[0]!.startMs).toBe(1000);
   });
 
   it("Ctrl/Meta ignore bare letter shortcuts S M X I O", () => {

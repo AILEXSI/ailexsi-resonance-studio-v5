@@ -119,6 +119,9 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Lane / Mixer S");
     expect(text).toContain("Shift+edge-drag");
     expect(text).toContain("Abutting edge-drag");
+    expect(text).toContain("Alt+drag clip");
+    expect(text).toContain("Alt+, / Alt+.");
+    expect(text).toContain("Copy selected clip(s)");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });
