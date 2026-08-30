@@ -816,7 +816,7 @@ export function applyDuplicate(session: Session): Session {
   if (clips.length === 0) return session;
   const result = pasteClips(
     session.project,
-    clips.map((c) => ({ ...c })),
+    clips.map((c) => (c.enabled === false ? { ...c, enabled: true } : { ...c })),
     snapPlayheadSeek(session.project, session.project.playheadMs),
   );
   if (result.error) return { ...session, error: result.error };

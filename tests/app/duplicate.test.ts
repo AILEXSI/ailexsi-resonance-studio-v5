@@ -154,6 +154,21 @@ describe("duplicate", () => {
     expect(off.project.playheadMs).toBe(1070);
   });
 
+  it("duplicate of a disabled clip is enabled at the playhead (P118)", () => {
+    const start = oneClipSession();
+    start.project = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "c1" ? { ...c, enabled: false } : c)),
+    };
+    const next = applyCommand(start, { type: "duplicate" });
+    const original = next.project.clips.find((c) => c.id === "c1")!;
+    const clone = next.project.clips.find((c) => c.id !== "c1")!;
+    expect(original.enabled).toBe(false);
+    expect(clone.enabled).not.toBe(false);
+    expect(clone.startMs).toBe(2500);
+    expect(next.selectedClipId).toBe(clone.id);
+  });
+
   it("empty selection is a no-op with no history", () => {
     const start = createSession(createMemoryBlobStore());
     const next = applyCommand(start, { type: "duplicate" });
