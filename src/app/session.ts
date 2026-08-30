@@ -18,6 +18,8 @@ import {
   collectSnapTargets,
   createHistory,
   resolveCloseGapTrack,
+  playheadStrictlyInsideClip,
+  resolveRippleTrimToPlayheadClip,
   nextEditPointMs,
   prevEditPointMs,
   deleteClips,
@@ -325,6 +327,24 @@ export function applyRippleTrim(
   const result = rippleTrimClip(session.project, clipId, edge, nextEdgeMs);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Ripple trimmed");
+}
+
+export function applyRippleTrimToPlayhead(session: Session, edge: "in" | "out"): Session {
+  const clip = resolveRippleTrimToPlayheadClip(session.project, {
+    selectedClipId: session.selectedClipId,
+    selectedVis: session.selectedVis,
+  });
+  if (!clip) return session;
+  const playheadMs = session.project.playheadMs;
+  if (!playheadStrictlyInsideClip(clip, playheadMs)) return session;
+  let next = applyRippleTrim(session, clip.id, edge, playheadMs);
+  if (next.project.playheadMs !== playheadMs) {
+    next = { ...next, project: { ...next.project, playheadMs } };
+  }
+  if (clipById(next.project, clip.id) && next.selectedClipId !== clip.id) {
+    return { ...next, selectedClipId: clip.id, selectedClipIds: [clip.id], selectedVis: false };
+  }
+  return next;
 }
 
 export function applyRoll(

@@ -536,4 +536,75 @@ describe("editor keys", () => {
     expect(inField.type).toBe("none");
     expect(start.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(2000);
   });
+
+  it("Q / W ripple-trim to playhead; form focus does not; G/S/Tab stay bound", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "va",
+              trackId: "V1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "c2",
+              assetId: "va",
+              trackId: "V1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+          ],
+          [va],
+        ),
+        snap: false,
+        playheadMs: 200,
+      },
+      selectedClipId: "c1",
+      selectedClipIds: ["c1"],
+    };
+    const q = sessionOf(dispatchEditorKey(start, false, { key: "q" }));
+    expect(q.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(q.project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(200);
+    expect(q.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    const w = sessionOf(
+      dispatchEditorKey({ ...start, project: { ...start.project, playheadMs: 800 } }, false, { key: "w" }),
+    );
+    expect(w.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(w.project.clips.find((c) => c.id === "c1")!.sourceOutMs).toBe(800);
+    expect(w.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    expect(dispatchEditorKey(start, false, { key: "q", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: "w", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(clipSession(), false, { key: "s" }).type).toBe("session");
+    expect(dispatchEditorKey(clipSession(), false, { key: "Tab" })).toEqual({
+      type: "cycleScreen",
+      dir: 1,
+      preventDefault: true,
+    });
+    const gapStart: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({ id: "v1a", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+            clip({ id: "v1b", assetId: "va", trackId: "V1", startMs: 2000, durationMs: 1000 }),
+          ],
+          [va],
+        ),
+        playheadMs: 1500,
+      },
+      selectedClipId: "v1a",
+      selectedClipIds: ["v1a"],
+    };
+    const g = sessionOf(dispatchEditorKey(gapStart, false, { key: "g" }));
+    expect(g.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(1000);
+  });
 });

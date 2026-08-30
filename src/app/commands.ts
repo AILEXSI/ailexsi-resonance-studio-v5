@@ -24,6 +24,7 @@ import {
   applyRelinkClips,
   applyRippleDelete,
   applyRippleTrim,
+  applyRippleTrimToPlayhead,
   applyRoll,
   applySelect,
   applySelectClips,
@@ -62,6 +63,7 @@ export type EditorCommand =
   | { type: "liftDelete" }
   | { type: "rippleDelete" }
   | { type: "closeGap" }
+  | { type: "rippleTrimToPlayhead"; edge: "in" | "out" }
   | { type: "nudgeClip"; deltaMs: number }
   | { type: "nudgePlayhead"; deltaMs: number }
   | { type: "gotoNextEdit" }
@@ -125,6 +127,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyRippleDelete(session);
     case "closeGap":
       return applyCloseGap(session);
+    case "rippleTrimToPlayhead":
+      return applyRippleTrimToPlayhead(session, command.edge);
     case "nudgeClip":
       return applyNudge(session, command.deltaMs);
     case "nudgePlayhead":

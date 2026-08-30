@@ -1078,6 +1078,7 @@ export function App() {
         onExtractRange={() => runCommand({ type: "extractRange" })}
         onRelink={() => void runRelink()}
         onCloseGap={() => runCommand({ type: "closeGap" })}
+        onRippleTrimToPlayhead={(edge) => runCommand({ type: "rippleTrimToPlayhead", edge })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}

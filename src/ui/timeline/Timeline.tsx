@@ -86,6 +86,7 @@ interface Props {
   onExtractRange?: () => void;
   onRelink?: () => void;
   onCloseGap?: () => void;
+  onRippleTrimToPlayhead?: (edge: "in" | "out") => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -159,6 +160,7 @@ export function Timeline({
   onExtractRange,
   onRelink,
   onCloseGap,
+  onRippleTrimToPlayhead,
   onZoom,
   onFit,
   onScroll,
@@ -1118,6 +1120,32 @@ export function Timeline({
               <span>Close gap</span>
               <kbd>{CLIP_MENU_SHORTCUTS.closeGap}</kbd>
             </button>
+          ) : null}
+          {onRippleTrimToPlayhead ? (
+            <>
+              <button
+                type="button"
+                data-testid="clip-menu-ripple-trim-in"
+                onClick={() => {
+                  onRippleTrimToPlayhead("in");
+                  setMenu(null);
+                }}
+              >
+                <span>Ripple trim in to playhead</span>
+                <kbd>{CLIP_MENU_SHORTCUTS.rippleTrimInToPlayhead}</kbd>
+              </button>
+              <button
+                type="button"
+                data-testid="clip-menu-ripple-trim-out"
+                onClick={() => {
+                  onRippleTrimToPlayhead("out");
+                  setMenu(null);
+                }}
+              >
+                <span>Ripple trim out to playhead</span>
+                <kbd>{CLIP_MENU_SHORTCUTS.rippleTrimOutToPlayhead}</kbd>
+              </button>
+            </>
           ) : null}
         </div>
       ) : null}

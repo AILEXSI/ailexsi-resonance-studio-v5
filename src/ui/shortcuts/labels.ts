@@ -12,6 +12,8 @@ export const CLIP_MENU_SHORTCUTS = {
   liftRange: ";",
   extractRange: "'",
   closeGap: "G",
+  rippleTrimInToPlayhead: "Q",
+  rippleTrimOutToPlayhead: "W",
 } as const;
 
 export const SHORTCUT_ROWS: { key: string; action: string }[] = [
@@ -34,6 +36,8 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "← / →", action: "Step playhead ±1 frame" },
   { key: "↑ / ↓", action: "Previous / next edit point" },
   { key: CLIP_MENU_SHORTCUTS.closeGap, action: "Close gap under playhead (one track)" },
+  { key: CLIP_MENU_SHORTCUTS.rippleTrimInToPlayhead, action: "Ripple trim in to playhead" },
+  { key: CLIP_MENU_SHORTCUTS.rippleTrimOutToPlayhead, action: "Ripple trim out to playhead" },
   { key: "Ctrl+Z", action: "Undo" },
   { key: "Ctrl+Y", action: "Redo" },
   { key: CLIP_MENU_SHORTCUTS.cut, action: "Cut selected clip(s)" },

@@ -46,6 +46,7 @@ function timelineProps() {
     onLoopCommit: noop,
     onRelink: noop,
     onCloseGap: noop,
+    onRippleTrimToPlayhead: (_edge: "in" | "out") => {},
   };
 }
 
@@ -97,6 +98,12 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Close gap");
     expect(text).toContain("G");
     expect(menu!.querySelector('[data-testid="clip-menu-close-gap"]')).toBeTruthy();
+    expect(text).toContain("Ripple trim in to playhead");
+    expect(text).toContain("Ripple trim out to playhead");
+    expect(text).toContain("Q");
+    expect(text).toContain("W");
+    expect(menu!.querySelector('[data-testid="clip-menu-ripple-trim-in"]')).toBeTruthy();
+    expect(menu!.querySelector('[data-testid="clip-menu-ripple-trim-out"]')).toBeTruthy();
     expect(text).toContain(CLIP_MENU_SHORTCUTS.liftRange);
     expect(text).toContain(CLIP_MENU_SHORTCUTS.extractRange);
     expect(CLIP_MENU_SHORTCUTS.split).toBe("S");
@@ -141,6 +148,10 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Extract range (IN/OUT)");
     expect(text).toContain("Close gap under playhead");
     expect(text).toContain("G");
+    expect(text).toContain("Ripple trim in to playhead");
+    expect(text).toContain("Ripple trim out to playhead");
+    expect(text).toContain("Q");
+    expect(text).toContain("W");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });

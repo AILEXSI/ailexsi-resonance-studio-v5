@@ -12,6 +12,7 @@ import {
   clampClipRate,
   clipById,
   clipEndMs,
+  clipOnTrackAt,
   isTrackId,
   kindOfTrack,
   sourceDeltaToTimeline,
@@ -339,6 +340,35 @@ export function closeGapOnTrack(
   );
   if (minMoved < 0) return { unchanged: true };
   return { project: result.project };
+}
+
+/** Playhead strictly inside a clip (not on either edge). */
+export function playheadStrictlyInsideClip(clip: Clip, timeMs: number): boolean {
+  return timeMs > clip.startMs && timeMs < clipEndMs(clip);
+}
+
+/**
+ * Clip to ripple-trim to the playhead: selected if playhead is strictly inside it;
+ * else a covering clip on that track; else first of V1→V2→A1→A2. VIS is not a track.
+ */
+export function resolveRippleTrimToPlayheadClip(
+  project: Project,
+  opts: { selectedClipId: string | null; selectedVis?: boolean },
+): Clip | null {
+  const timeMs = project.playheadMs;
+  if (!opts.selectedVis) {
+    const primary = opts.selectedClipId ? clipById(project, opts.selectedClipId) : undefined;
+    if (primary && isTrackId(primary.trackId)) {
+      if (playheadStrictlyInsideClip(primary, timeMs)) return primary;
+      const onTrack = clipOnTrackAt(project, primary.trackId, timeMs);
+      if (onTrack && playheadStrictlyInsideClip(onTrack, timeMs)) return onTrack;
+    }
+  }
+  for (const id of TRACK_IDS) {
+    const hit = clipOnTrackAt(project, id, timeMs);
+    if (hit && playheadStrictlyInsideClip(hit, timeMs)) return hit;
+  }
+  return null;
 }
 
 export function deleteClips(project: Project, clipIds: readonly string[]): Project {
