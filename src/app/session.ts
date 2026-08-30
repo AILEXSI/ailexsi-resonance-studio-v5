@@ -230,6 +230,7 @@ export async function importFiles(
   }
   let next = session;
   const errors: string[] = [];
+  const probeMsgs: string[] = [];
   let imported = 0;
   let recovered = 0;
   const prevScrollMs = session.project.scrollMs;
@@ -253,11 +254,8 @@ export async function importFiles(
             errors.push(placedNext.error);
             continue;
           }
-          next = {
-            ...placedNext.session,
-            error: e.message,
-            status: "Probe failed — Relink",
-          };
+          next = placedNext.session;
+          probeMsgs.push(e.message);
           recovered += 1;
         } catch (inner) {
           errors.push(inner instanceof Error ? inner.message : String(inner));
@@ -282,10 +280,7 @@ export async function importFiles(
   return {
     ...next,
     project: maybeScrollToOrigin(next.project, { prevScrollMs, prevClipCount }),
-    error:
-      errors.length || recovered
-        ? [...errors, recovered ? "Probe failed — Relink" : null].filter(Boolean).join(" · ")
-        : null,
+    error: [...probeMsgs, ...errors].join(" · ") || null,
     status:
       imported === 0 && recovered
         ? `Marked ${recovered} missing — Relink`
