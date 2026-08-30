@@ -85,6 +85,7 @@ import {
   beforeUnloadIfDirty,
   confirmNewProject,
   confirmOpenProject,
+  confirmRevertToLastSave,
   isProjectDirty,
   markProjectClean,
   withClipSelection,
@@ -1134,7 +1135,7 @@ export function App() {
         onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
-        onRevert={() => runCommand({ type: "revertToLastSave" })}
+        onRevert={() => setSession(confirmRevertToLastSave(session))}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
       />
       <input

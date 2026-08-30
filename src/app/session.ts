@@ -236,6 +236,23 @@ export function revertToLastSave(session: Session): Session {
   };
 }
 
+const REVERT_CONFIRM = "Discard unsaved changes and revert to the last save? Undo cannot restore them.";
+
+function defaultRevertConfirm(): boolean {
+  if (typeof window === "undefined" || typeof window.confirm !== "function") return true;
+  return window.confirm(REVERT_CONFIRM);
+}
+
+/** Revert only when dirty. Confirms because the walk drops discarded redo. */
+export function confirmRevertToLastSave(
+  session: Session,
+  confirmDiscard: () => boolean = defaultRevertConfirm,
+): Session {
+  if (!isProjectDirty(session)) return session;
+  if (!confirmDiscard()) return session;
+  return revertToLastSave(session);
+}
+
 /** Browser beforeunload: warn only when history is past the last save. */
 export function beforeUnloadIfDirty(
   session: Session,

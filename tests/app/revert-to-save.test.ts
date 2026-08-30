@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import {
+  confirmRevertToLastSave,
   createSession,
   isProjectDirty,
   markProjectClean,
@@ -42,5 +43,35 @@ describe("revert to last save (P79)", () => {
     const reverted = applyCommand(named, { type: "revertToLastSave" });
     expect(reverted.project.name).toBe(start.project.name);
     expect(isProjectDirty(reverted)).toBe(false);
+  });
+
+  it("confirm Revert: cancel keeps dirty work; confirm drops redo so undo cannot restore (P81)", () => {
+    const start = createSession(createMemoryBlobStore());
+    const named = applyCommand(start, { type: "renameProject", name: "Chorus" });
+    let asked = 0;
+    const cancelled = confirmRevertToLastSave(named, () => {
+      asked += 1;
+      return false;
+    });
+    expect(asked).toBe(1);
+    expect(cancelled).toBe(named);
+    expect(cancelled.project.name).toBe("Chorus");
+
+    const reverted = confirmRevertToLastSave(named, () => {
+      asked += 1;
+      return true;
+    });
+    expect(asked).toBe(2);
+    expect(reverted.project.name).toBe(start.project.name);
+    expect(isProjectDirty(reverted)).toBe(false);
+    const afterUndo = applyCommand(reverted, { type: "undo" });
+    expect(afterUndo.project.name).toBe(start.project.name);
+    expect(afterUndo.status).toBe("Nothing to undo");
+
+    expect(confirmRevertToLastSave(start, () => {
+      asked += 1;
+      return false;
+    })).toBe(start);
+    expect(asked).toBe(2);
   });
 });
