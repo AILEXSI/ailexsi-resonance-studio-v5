@@ -303,10 +303,13 @@ export function moveClipsByDelta(
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   if (found.length === 0) return { project, error: "No clip selected" };
+  const group = explicit.size >= 2;
   const targets = found.filter(
-    (c) => !clipIsLocked(c) && (clipIsEnabled(c) || explicit.has(c.id)),
+    (c) => !clipIsLocked(c) && (clipIsEnabled(c) || (!group && explicit.has(c.id))),
   );
-  if (targets.length === 0) return { project, error: "Clip is locked" };
+  if (targets.length === 0) {
+    return { project, error: found.some(clipIsLocked) ? "Clip is locked" : "No clip selected" };
+  }
   const minStart = Math.min(...targets.map((c) => c.startMs));
   const delta = Math.max(deltaMs, -minStart);
   if (delta === 0) return { project };

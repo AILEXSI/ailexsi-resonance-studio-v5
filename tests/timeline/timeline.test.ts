@@ -550,6 +550,23 @@ describe("group move / delete", () => {
     expect(clamped.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
   });
 
+  it("group move skips a disabled member; single disabled still moves (P146)", () => {
+    const p = {
+      ...abuttingA1(),
+      clips: abuttingA1().clips.map((c) => (c.id === "c2" ? { ...c, enabled: false } : c)),
+    };
+    const group = moveClipsByDelta(p, ["c1", "c2"], 200);
+    expect(group.error).toBeUndefined();
+    expect(group.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    expect(group.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(group.project.clips.find((c) => c.id === "c2")!.enabled).toBe(false);
+
+    const one = moveClipsByDelta(p, ["c2"], 200);
+    expect(one.error).toBeUndefined();
+    expect(one.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1200);
+    expect(one.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+  });
+
   it("lift-deletes many clips and leaves later neighbors in place", () => {
     const p = abuttingA1();
     const next = deleteClips(p, ["c1", "c3"]);
