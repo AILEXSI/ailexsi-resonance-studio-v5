@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:59 UTC. Group slip on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:04 UTC. Export destination before encode on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 154 modules. Outputs:
+exit 0. vite 7.3.6, 155 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-Bc8mcmyi.css 17.23 kB
-- dist/assets/index-BiOsJ3PD.js 701.56 kB
+- dist/assets/index-BWuAMEoS.js 703.55 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **304 passed / 41 files**. Start 07:59:11 UTC. Duration 9.19s.
+exit 0. vitest 3.2.7. **309 passed / 42 files**. Start 08:04:43 UTC. Duration 8.27s.
 
-New this follow-up: contiguous same-track pair slips together; gapped / mixed-track selection no-ops; source-bound on one member no-ops all; living mate of a member follows or whole no-ops; single slip still clamps; Alt+drag passes `clipIds` and does not steal Ctrl+Alt slide. Prior unlink / linked slip/rate units stay green (295 → 304).
+New this follow-up: picker cancel → no dialog/encode; picker confirm → dialog `fileName` is the handle name and encode starts after; success writes via `createWritable` not `<a download>`; fallback without FSA uses `downloadMp4` after encode and says so; no `C:\` in status/dialog. Prior group slip units stay green (304 → 309).
 
 ## Visualizer
 
@@ -228,7 +228,11 @@ Status: TEST-VERIFIED (0 / 1 / 2+ / unlink). Live fields / Unlink click: NOT VER
 
 Status: TEST-VERIFIED (fail planner + ftyp + cancel dialog). Successful H.264 encode: NOT VERIFIED this run. Live cancel: NOT VERIFIED.
 
-Export opens an in-app dialog (not a native OS window) with file name, 1280×720 / fps, percent + stage, and **Abbrechen**. Close/X while running is cancel. Abort uses `AbortController` (`hooks.signal`); result is `aborted: true`, `success: false`, no blob, no `downloadMp4`. No File System Access handle is created until a successful download click — cancel therefore leaves no partial success file. Preview/arrange stay interactive (`pointer-events: none` on the layer).
+Click Export → native MP4 `showSaveFilePicker` **first** (`suggestedName` = `job.fileName`, typically `Untitled_Resonance.mp4`; `startIn` = last project folder or `documents`). Types are `video/mp4` / `.mp4` only — not project JSON. Dialog and encode do not start until the user confirms a file. AbortError / cancel → no dialog, no encode, status stays idle (same as Save cancel). After pick: existing in-app dialog shows `handle.name` (never a fake absolute path), then encode. Success writes the blob with `handle.createWritable`. `downloadMp4` (`<a download>`) is not called when a writable handle exists. If `showSaveFilePicker` is missing: encode then `downloadMp4`, status `Browser-Downloads (Pfad unbekannt)`. Parent directory is remembered for next `startIn` when `getParent` exists; the project `.json` `fileHandle` is not replaced by the MP4 handle.
+
+Close/X while running is still **Abbrechen**. Abort uses `AbortController` (`hooks.signal`); result is `aborted: true`, `success: false`, no blob, no write, no `downloadMp4`. Preview/arrange stay interactive (`pointer-events: none` on the layer).
+
+`tests/export/export-destination.test.ts` (5). Dialog still unit-tested in `tests/export/export-dialog.test.ts` / `export-dialog-dom.test.tsx`. Live picker: NOT VERIFIED.
 
 This environment has no `VideoEncoder`. `exportTimeline` returns FAIL WebCodecs / WebM is not a fallback (unit), or `aborted` if the signal is already aborted.
 
@@ -311,7 +315,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
-- Live linked A/V import / split / move / unlink click / Ctrl+Shift+L / group slip drag NOT VERIFIED (units only).
+- Live linked A/V import / split / move / unlink click / Ctrl+Shift+L / group slip drag / export save picker NOT VERIFIED (units only).
 - No elastic audio, crossfade objects, or automation curves.
 - No relink, link-picker, or nested sequences. Unlink chrome is inspector button + Ctrl+Shift+L only.
 - No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
@@ -565,7 +569,11 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 `tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 07:59 UTC)
+## Changelog this follow-up (2026-08-30 08:04 UTC)
+
+- Export picks an MP4 destination before encode (`showSaveFilePicker` / `createWritable`). TEST-VERIFIED. Live picker: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:59 UTC)
 
 - Group slip for a contiguous same-track selection (`slipClips` / `slip`+`clipIds`). TEST-VERIFIED. Live drag: NOT VERIFIED.
 
@@ -710,7 +718,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: group slip evidence (this commit). Feature `e049372`. Assigned start: `4a08900`. Prior unlink evidence: `4a08900`.
+Tip after this follow-up: export destination evidence (this commit). Feature `854624b`. Assigned start: `9611e06`. Prior group-slip evidence: `9611e06`.
 
 ## Not added
 

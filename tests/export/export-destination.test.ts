@@ -206,9 +206,9 @@ describe("export destination before encode", () => {
     expect(outcome.wroteHandle).toBe(true);
     expect(outcome.usedDownload).toBe(false);
     expect(clicks).toEqual([]);
-    const blob = written[0];
-    expect(blob).toBeInstanceOf(Blob);
-    expect(await (blob as Blob).text()).toBe("ENCODED");
+    expect(written).toHaveLength(1);
+    expect(written[0]).toBe(outcome.result.blob);
+    expect((written[0] as Blob).size).toBe("ENCODED".length);
   });
 
   it("without showSaveFilePicker, encode then downloadMp4 and say so in status", async () => {
