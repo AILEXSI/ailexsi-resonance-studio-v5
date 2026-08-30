@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:27 UTC. Fade handles on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:33 UTC. Rubber-band marquee on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 152 modules. Outputs:
+exit 0. vite 7.3.6, 153 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-ST9luGUK.css 17.08 kB
-- dist/assets/index-CoWZxWpZ.js 691.26 kB
+- dist/assets/index-BIOCqzoX.css 17.20 kB
+- dist/assets/index-DbVRcHPf.js 693.52 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **257 passed / 36 files**. Start 07:26:50 UTC. Duration 6.91s.
+exit 0. vitest 3.2.7. **266 passed / 38 files**. Start 07:32:27 UTC. Duration 7.71s. No unhandled `elementFromPoint` errors (jsdom guard in `laneAt`).
 
-New this follow-up: fade-handle hit vs trim, pixel→fade ms, clamp/overlap, DOM handles + drag + Alt does not steal. Prior fade units stay green (249 → 257; +2 files).
+New this follow-up: marquee intersection (time × track), empty-lane drag, miss, Shift+union, clip-body move still moves, trim/fade-handle win, `selectClips` replace/union + group move. Prior fade-handle units stay green (257 → 266; +2 files).
 
 ## Visualizer
 
@@ -297,6 +297,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
 - Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
 - Live fade-handle drag NOT VERIFIED (hit + pixel map + DOM units only).
+- Live marquee drag NOT VERIFIED (geometry + jsdom pointer units only).
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
 - Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
 - IndexedDB across a real page reload NOT VERIFIED.
@@ -305,12 +306,14 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
+- No group slide, linked A/V split, elastic audio, crossfade objects, or automation curves.
+- No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
 
 ## Command dispatch
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setClipRate` (and prior `slideClip` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `selectClips` (marquee replace/union, no history) plus prior `setClipRate` / `slideClip` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -368,7 +371,7 @@ Group move: same Δms for all selected; clamp so no start < 0 (shared delta); sn
 
 Group lift-delete: Delete/Backspace removes all selected (gaps remain). Group ripple-delete: Shift+Delete, per track later-first. Split (S): 0 or 1 selected → current split-all-under-playhead. 2+ selected → only those containing the playhead. One undo each.
 
-No marquee. No Shift+click range.
+Marquee: empty-lane rubber-band (see Marquee). No Shift+click range. Ctrl/Cmd+click toggle stays.
 
 ## Group clipboard
 
@@ -392,7 +395,7 @@ The fourth edit-point tool. Classic slide: selected clip keeps duration and sour
 
 Gesture: **Ctrl+Alt+drag** (Ctrl or Meta + Alt) on the clip body, not edges. Does not steal Alt+drag slip, Shift+edge ripple, abutting-edge roll, or Ctrl+click toggle-select. Keys: **Shift+Alt+, / Shift+Alt+.** = ±1 `FRAME_MS`. `{ type: "slideClip", clipId, deltaMs }` via `applyCommand`. One history entry. Undo restores.
 
-Fade handles sit on the clip body (not this slide gesture). No marquee, automation, or time-stretch.
+Fade handles sit on the clip body (not this slide gesture). Marquee is empty-lane only (does not steal this gesture). No automation or time-stretch.
 
 ## Clip fades
 
@@ -471,7 +474,7 @@ Invariant: `timelineMs * rate = sourceMs`. Helpers: `timelineDeltaToSource` / `s
 - Split: cut source = `sourceTimeAt(cut)`. Both halves keep `clip.rate`.
 - Inspector `updateClip`: duration → `sourceOut = sourceIn + duration * rate`. Source-in/out → `duration = sourceSpan / rate`. `setClipRate` not touched.
 
-No elastic audio. No marquee. No group slide.
+No elastic audio. No group slide. Marquee is empty-lane only.
 
 ## V-track audio
 
@@ -481,7 +484,7 @@ Status: TEST-VERIFIED (mix candidates + gain/pan bake + decode skip). Live previ
 
 Preview: `<video>` muted. Hidden `<audio>` per V lane, same object URL, same `sourceTimeAt` / `playbackRate` / `gainAtClipTime` / fader / mute-solo / pan as A. One playback tap (not a second mixer). MixPeaks V1/V2 are analyser peaks from those lanes.
 
-No linked A/V split-to-new-track. No marquee. No group slide. No elastic audio.
+No linked A/V split-to-new-track. No group slide. No elastic audio. Marquee is empty-lane only.
 
 `tests/export/vtrack-audio.test.ts` (4). `mixClipsAt` in `tests/foundation/models.test.ts`.
 
@@ -495,11 +498,27 @@ Clip width under 48 px → handles hidden, trim edges stay. Alt / Ctrl / Meta on
 
 Drag → `applyCommand` `{ type: "setClipFades" }` from the drag base (same live/commit as slip). `normalizeClipFades`: 0..duration, scale if they would overlap. One history entry. Inspector fields unchanged.
 
-No marquee. No group slide. No linked A/V split. No elastic audio. No crossfade objects. No automation curves.
+Marquee is empty-lane only (does not steal fade handles). No group slide. No linked A/V split. No elastic audio. No crossfade objects. No automation curves.
 
 `tests/core/fade-handles.test.ts` (4). `tests/timeline/fade-handles.test.tsx` (4). `tests/core/fades.test.ts` (12) still green.
 
-## Changelog this follow-up (2026-08-30 07:27 UTC)
+## Marquee
+
+Status: TEST-VERIFIED (geometry + DOM pointer). Live drag: NOT VERIFIED.
+
+Pointer-down on empty lane body (not clip, lane header, ruler, fade handle, or trim edge) starts a rubber-band. Drag paints `.marquee-rect`. Pointer-up selects every clip whose body intersects the rect (time overlap × track in the lane span). VIS is in the span for painting/hit but is not a `TrackId` (no clips). Empty click (travel ≤ 3 px) still clears via `onSelect(null)`.
+
+Default marquee replaces `selectedClipIds`. Shift+marquee unions. No Ctrl-toggle on marquee; Ctrl/Cmd+click on a clip still toggles. `{ type: "selectClips", clipIds, union? }` via `applyCommand` — no history. Group move / lift / ripple-delete / copy / cut / paste are unchanged and read `selectedClipIds`.
+
+Does not steal clip-body move, edge-trim, ripple, roll, slip, slide, fade handles, or ruler playhead scrub. `laneAt` uses `elementFromPoint` when present; jsdom falls back to the origin lane.
+
+`tests/core/marquee.test.ts` (3). `tests/timeline/marquee.test.tsx` (5). `selectClips` + group-move in `tests/app/commands.test.ts`.
+
+## Changelog this follow-up (2026-08-30 07:33 UTC)
+
+- Rubber-band marquee on empty lanes (`selectClips` replace / Shift+union). TEST-VERIFIED. Live drag: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:27 UTC)
 
 - Fade handles on the clip body (`setClipFades` via applyCommand, inset from trim). TEST-VERIFIED. Live drag: NOT VERIFIED.
 
@@ -620,7 +639,7 @@ No marquee. No group slide. No linked A/V split. No elastic audio. No crossfade 
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `ccef9ca` (fade handles). Assigned start: `e77b02d`. Prior V-audio: `8a9ae3d` / evidence `e77b02d`.
+Tip after this follow-up: `3ecfaaa` (marquee evidence). Feature `f03530d`; jsdom guard `c56f45e`. Assigned start: `1c1a3da`. Prior fade handles: `82fa382` / evidence `1c1a3da`.
 
 ## Not added
 
