@@ -226,7 +226,7 @@ Status: TEST-VERIFIED (0 / 1 / 2+ / unlink). Live fields / Unlink click: NOT VER
 
 ## Export
 
-Status: TEST-VERIFIED (fail planner + ftyp + cancel dialog). Successful H.264 encode: NOT VERIFIED this run. Live cancel: NOT VERIFIED.
+Status: TEST-VERIFIED (fail planner + ftyp + cancel dialog + destination before encode). Successful H.264 encode: NOT VERIFIED this run. Live picker / cancel: NOT VERIFIED.
 
 Click Export → native MP4 `showSaveFilePicker` **first** (`suggestedName` = `job.fileName`, typically `Untitled_Resonance.mp4`; `startIn` = last project folder or `documents`). Types are `video/mp4` / `.mp4` only — not project JSON. Dialog and encode do not start until the user confirms a file. AbortError / cancel → no dialog, no encode, status stays idle (same as Save cancel). After pick: existing in-app dialog shows `handle.name` (never a fake absolute path), then encode. Success writes the blob with `handle.createWritable`. `downloadMp4` (`<a download>`) is not called when a writable handle exists. If `showSaveFilePicker` is missing: encode then `downloadMp4`, status `Browser-Downloads (Pfad unbekannt)`. Parent directory is remembered for next `startIn` when `getParent` exists; the project `.json` `fileHandle` is not replaced by the MP4 handle.
 
