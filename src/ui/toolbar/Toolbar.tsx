@@ -107,8 +107,8 @@ export function Toolbar({
         >
           Export
         </button>
-        </div>
         <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
+        </div>
       </div>
       <div className="toolbar-group" data-group="edit">
         <span className="toolbar-label">Edit</span>
