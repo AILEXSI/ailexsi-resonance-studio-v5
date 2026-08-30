@@ -91,8 +91,7 @@ describe("arrange overflow", () => {
     expect(host.querySelector('[data-testid="mute-V2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-V1"]')).toBeTruthy();
-    const lanesOverflow =
-      getComputedStyle(lanes).overflowY ||
+    const sheetOverflow =
       [...document.styleSheets]
         .flatMap((sheet) => {
           try {
@@ -102,8 +101,8 @@ describe("arrange overflow", () => {
           }
         })
         .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
-        .find((rule) => rule.selectorText === ".timeline-lanes")?.style.overflowY ??
-      "";
+        .find((rule) => rule.selectorText === ".timeline-lanes")?.style.overflowY ?? "";
+    const lanesOverflow = getComputedStyle(lanes).overflowY || sheetOverflow;
     expect(lanesOverflow === "auto" || lanesOverflow === "scroll").toBe(true);
   });
 });
