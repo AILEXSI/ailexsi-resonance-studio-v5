@@ -100,6 +100,67 @@ describe("clip rate defaults and math", () => {
     expect(rejected.project.clips.find((c) => c.id === "c1")!.rate).toBe(1);
   });
 
+  it("grows through a later disabled unlocked take (P136)", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "off",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          enabled: false,
+        }),
+      ],
+      [a],
+    );
+    const next = setClipRate(p, "c1", 0.5);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(2000);
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+  });
+
+  it("still refuses grow into a later locked clip even if that clip is disabled (P136)", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "wall",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          enabled: false,
+          locked: true,
+        }),
+      ],
+      [a],
+    );
+    const rejected = setClipRate(p, "c1", 0.5);
+    expect(rejected.error).toMatch(/overlap/i);
+    expect(rejected.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+  });
+
   it("speeding up that shrinks into a gap succeeds", () => {
     const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
     const p = projectWith(

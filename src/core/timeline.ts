@@ -1646,7 +1646,13 @@ function planClipRate(
   const nextRate = clampClipRate(rate);
   const wanted = timelineDurationForRate(sourceSpanMs(clip), nextRate);
   const nextNeighbor = project.clips
-    .filter((c) => c.trackId === clip.trackId && c.id !== clip.id && c.startMs > clip.startMs)
+    .filter(
+      (c) =>
+        c.trackId === clip.trackId &&
+        c.id !== clip.id &&
+        c.startMs > clip.startMs &&
+        (clipIsEnabled(c) || clipIsLocked(c)),
+    )
     .sort((a, b) => a.startMs - b.startMs)[0];
   const available = nextNeighbor
     ? Math.max(0, nextNeighbor.startMs - clip.startMs)
@@ -1671,8 +1677,10 @@ function planClipRate(
 
 /**
  * Classic NLE speed: source in/out stay. durationMs = sourceSpan / rate.
- * Grows/shrinks to the right. Overlap with the next same-track clip is a
- * hard reject (no auto-ripple). Fades re-clamp to the new duration.
+ * Grows/shrinks to the right. Overlap with the next same-track enabled
+ * or locked clip is a hard reject (no auto-ripple). A disabled unlocked
+ * later take is not a neighbor (same as G / Q/W / ripple-delete).
+ * Fades re-clamp to the new duration.
  * A living unlocked linked mate gets the same rate or both no-op.
  * A locked mate is skipped (same as split/slip/move/trim).
  */
