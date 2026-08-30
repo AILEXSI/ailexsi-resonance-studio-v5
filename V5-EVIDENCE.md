@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 09:35 UTC. P29 Relink on PR #1 after P28 edit-jump. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 09:42 UTC. P30 close-gap on PR #1 after P29 Relink. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,10 +36,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 159 modules. Outputs:
+exit 0. vite 7.3.6, 160 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-DyGOxxme.css 19.41 kB
-- dist/assets/index-xC66rUIk.js 718.15 kB
+- dist/assets/index-Coluu3rJ.css 19.48 kB
+- dist/assets/index-BBnwozIX.js 725.68 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -56,7 +56,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **381 passed / 54 files**. Start 09:30:17 UTC. Duration 9.27s.
+exit 0. vitest 3.2.7. **390 passed / 55 files**. Start 09:41:09 UTC. Duration 9.39s.
+
+P30: `{ type: "closeGap" }`. Packs empty time under the playhead on one track via `moveClipsByDelta(..., { skipLink: true })`. **G** + clip-menu Close gap. Linked A1 does not follow V1. Playhead ms unchanged.
 
 P27: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor.
 
@@ -64,7 +66,7 @@ P26: Shift+click inclusive same-track range via existing `select` / `selectClips
 
 P28: `{ type: "gotoNextEdit" }` / `{ type: "gotoPrevEdit" }` jump the playhead via `applyPlayhead`. ArrowDown / ArrowUp (not form fields). ArrowLeft / ArrowRight still ±1 frame.
 
-P29: Relink. `ingestRelinkFile` reuses `importMediaFile` + IDB. `{ type: "relinkClips", clipIds, assetId }` after the picker. Inspector + clip menu. No second importer.
+P29: Relink. `ingestRelinkFile` reuses `importMediaFile` + IDB. `{ type: "relinkClips", clipIds, assetId }` after the picker. Inspector + clip menu. No second importer. KEEP.
 
 ## Visualizer
 
@@ -142,6 +144,14 @@ Status: TEST-VERIFIED. Live Relink control: RUNTIME-VERIFIED (visible on selecte
 
 `ingestRelinkFile` classifies the file, reuses `importMediaFile` + `persistAssetBlob`, and does not `placeAsset`. `{ type: "relinkClips", clipIds, assetId }` then retargets clips that share one assetId. Mixed / empty selection is a no-op (no picker). Wrong kind is rejected in ingest (command not called). Short replacement clamps `sourceOutMs` and `durationMs` via `sourceDeltaToTimeline`; `startMs` stays. One undo restores assetId + source window. Old asset stays in the bin. Inspector Relink next to Unlink; clip menu Relink. Picker is FSA `showOpenFilePicker` or a hidden file input — no invented `C:\` path. AbortError cancel: no-op, no history.
 
+## Close gap
+
+Status: TEST-VERIFIED. Live Chromium G / clip-menu pack: NOT VERIFIED (no two sequential clips with a hole on this VM without a live import/drag).
+
+`{ type: "closeGap" }` packs empty time under the playhead on **one** track. Not ripple-delete. Target track = primary selected clip if it is V1/V2/A1/A2; if nothing selected or VIS overlay, first of V1→V2→A1→A2 that has a gap at `playheadMs`. Gap: playhead strictly after nearest earlier end (or 0) and strictly before nearest later start. Inside a clip / no later clip / empty track / `gapMs <= 0` → same session, no history. Later clips on that track (`startMs >= next.startMs`) move by `−gapMs` through existing `moveClipsByDelta` with `skipLink: true` so a linked A1 mate does not follow. Clamp: nothing goes below 0; if the move would fail, no-op. Playhead / IN / OUT / markers / snap stay. One undo restores starts. Key: **G** (was unbound; form fields do not dispatch). Clip menu: Close gap. No second timeline menu. No magnetic / auto-close / all-tracks.
+
+`tests/app/close-gap.test.ts` (8). G + formFocus in `tests/app/keys.test.ts`. Menu in `tests/timeline/clip-menu.test.tsx`.
+
 ## Ruler
 
 Status: TEST-VERIFIED (label gaps). Live Fit ruler pixels: NOT VERIFIED.
@@ -164,9 +174,9 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. **Ctrl+Shift+L** (Cmd+Shift+L via `ctrlKey || metaKey`) unlinks a living A/V pair. Ctrl+L without Shift is unused. Bare L stays shuttle. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (16): prior plus Alt+,/. group slip on a contiguous selection; gapped selection no-ops; Shift+Alt still slides.
+`tests/app/keys.test.ts` (19): prior plus **G** → `closeGap` (form focus is `none`). ArrowDown/Up edit jumps stay.
 
-`tests/timeline/clip-menu.test.tsx` (4): prior plus overlay row Ctrl+Shift+L / Unlink A/V pair.
+`tests/timeline/clip-menu.test.tsx` (4): prior plus Close gap / G + overlay row.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -339,13 +349,14 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - No elastic audio or automation curves.
 - Transition objects exist for **stacked** video overlap only. No same-track transition handles. No dual live SOURCE A|B decode / second preview graph. No focused Cutter timeline. No EQ engine. No Mix/Color/Voice screens.
 - Relink is one picker + `{ type: "relinkClips" }` for clips that share one assetId. No folder auto-scan, no mixed-asset relink, no new clip place.
+- Live Close gap (G / clip menu with two clips and a hole) NOT VERIFIED. Units only. Not magnetic; not all-tracks; linked mate does not auto-move.
 - Nested sequences / link-picker: still not present. Unlink chrome is inspector button + Ctrl+Shift+L.
 
 ## Command dispatch
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `{ type: "closeGap" }` (`applyCloseGap` / `closeGapOnTrack`). Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `relinkClips`, `gotoNextEdit` / `gotoPrevEdit`, `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Chrome / Preview height (P27)
 
@@ -622,7 +633,11 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 `tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 08:04 UTC)
+## Changelog this follow-up (2026-08-30 09:42 UTC)
+
+- Close gap under the playhead on one track (`closeGap` / **G** / clip menu). Later clips pack left by −gapMs. Linked A/V does not auto-follow. TEST-VERIFIED. Live pack: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 08:04 UTC)
 
 - Export picks an MP4 destination before encode (`showSaveFilePicker` / `createWritable`). TEST-VERIFIED. Live picker: NOT VERIFIED.
 
@@ -771,7 +786,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P29 Relink (this commit). P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
+Tip after this follow-up: P30 close-gap (this commit). P29 Relink `1b6709c` / `d1cd249`. P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
 
 ## Not added
 

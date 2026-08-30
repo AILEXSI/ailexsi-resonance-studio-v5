@@ -14,8 +14,10 @@ import {
   addMarker,
   clearInOut,
   deleteMarker,
+  closeGapOnTrack,
   collectSnapTargets,
   createHistory,
+  resolveCloseGapTrack,
   nextEditPointMs,
   prevEditPointMs,
   deleteClips,
@@ -260,6 +262,26 @@ export function applyMove(
   const result = moveClip(session.project, clipId, snapped, trackId);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Moved clip");
+}
+
+export function applyCloseGap(session: Session): Session {
+  const trackId = resolveCloseGapTrack(session.project, {
+    selectedClipId: session.selectedClipId,
+    selectedVis: session.selectedVis,
+  });
+  if (!trackId) return session;
+  const result = closeGapOnTrack(session.project, trackId, session.project.playheadMs);
+  if ("unchanged" in result) return session;
+  if ("error" in result) return session;
+  const playheadMs = session.project.playheadMs;
+  if (result.project.playheadMs !== playheadMs) {
+    return withHistory(
+      session,
+      { ...result.project, playheadMs },
+      "Closed gap",
+    );
+  }
+  return withHistory(session, result.project, "Closed gap");
 }
 
 export function applyMoveClips(

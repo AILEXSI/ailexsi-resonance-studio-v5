@@ -68,6 +68,7 @@ describe("applyCommand determinism", () => {
       { type: "gotoNextEdit" } as const,
       { type: "gotoPrevEdit" } as const,
       { type: "relinkClips", clipIds: ["c1"], assetId: "aa" } as const,
+      { type: "closeGap" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

@@ -1077,6 +1077,7 @@ export function App() {
         onLiftRange={() => runCommand({ type: "liftRange" })}
         onExtractRange={() => runCommand({ type: "extractRange" })}
         onRelink={() => void runRelink()}
+        onCloseGap={() => runCommand({ type: "closeGap" })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}

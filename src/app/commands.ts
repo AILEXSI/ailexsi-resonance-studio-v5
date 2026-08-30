@@ -2,6 +2,7 @@ import type { TrackId } from "../core/models";
 import type { TransitionAudioMode, TransitionType } from "../core/transition";
 import {
   applyClearInOut,
+  applyCloseGap,
   applyCopy,
   applyCut,
   applyDelete,
@@ -60,6 +61,7 @@ export type EditorCommand =
   | { type: "markOut" }
   | { type: "liftDelete" }
   | { type: "rippleDelete" }
+  | { type: "closeGap" }
   | { type: "nudgeClip"; deltaMs: number }
   | { type: "nudgePlayhead"; deltaMs: number }
   | { type: "gotoNextEdit" }
@@ -121,6 +123,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyDelete(session);
     case "rippleDelete":
       return applyRippleDelete(session);
+    case "closeGap":
+      return applyCloseGap(session);
     case "nudgeClip":
       return applyNudge(session, command.deltaMs);
     case "nudgePlayhead":

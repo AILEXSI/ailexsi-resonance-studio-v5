@@ -260,8 +260,9 @@ export function moveClipsByDelta(
   project: Project,
   clipIds: readonly string[],
   deltaMs: number,
+  opts?: { skipLink?: boolean },
 ): { project: Project; error?: string } {
-  const ids = expandLinkedClipIds(project, clipIds);
+  const ids = opts?.skipLink ? [...new Set(clipIds)] : expandLinkedClipIds(project, clipIds);
   const targets = ids
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
@@ -283,6 +284,61 @@ export function moveClipsByDelta(
     next = result.project;
   }
   return { project: next };
+}
+
+/** Gap under the playhead on one track: later clips pack left by −gapMs. */
+export function findGapOnTrack(
+  project: Project,
+  trackId: TrackId,
+  timeMs: number,
+): { prevEnd: number; nextClip: Clip; gapMs: number } | null {
+  const onTrack = project.clips.filter((c) => c.trackId === trackId);
+  if (onTrack.some((c) => timeMs >= c.startMs && timeMs < clipEndMs(c))) return null;
+  const later = onTrack.filter((c) => c.startMs > timeMs).sort((a, b) => a.startMs - b.startMs);
+  const nextClip = later[0];
+  if (!nextClip) return null;
+  const earlier = onTrack.filter((c) => clipEndMs(c) <= timeMs);
+  const prevEnd = earlier.length === 0 ? 0 : Math.max(...earlier.map((c) => clipEndMs(c)));
+  if (!(timeMs > prevEnd && timeMs < nextClip.startMs)) return null;
+  const gapMs = nextClip.startMs - prevEnd;
+  if (gapMs <= 0) return null;
+  return { prevEnd, nextClip, gapMs };
+}
+
+export function resolveCloseGapTrack(
+  project: Project,
+  opts: { selectedClipId: string | null; selectedVis?: boolean },
+): TrackId | null {
+  if (!opts.selectedVis) {
+    const primary = opts.selectedClipId ? clipById(project, opts.selectedClipId) : undefined;
+    if (primary && isTrackId(primary.trackId)) return primary.trackId;
+  }
+  const timeMs = project.playheadMs;
+  for (const id of TRACK_IDS) {
+    if (findGapOnTrack(project, id, timeMs)) return id;
+  }
+  return null;
+}
+
+export function closeGapOnTrack(
+  project: Project,
+  trackId: TrackId,
+  timeMs: number,
+): { project: Project } | { unchanged: true } | { error: string } {
+  const gap = findGapOnTrack(project, trackId, timeMs);
+  if (!gap) return { unchanged: true };
+  const movers = project.clips
+    .filter((c) => c.trackId === trackId && c.startMs >= gap.nextClip.startMs)
+    .map((c) => c.id);
+  if (movers.length === 0) return { unchanged: true };
+  const result = moveClipsByDelta(project, movers, -gap.gapMs, { skipLink: true });
+  if (result.error) return { error: result.error };
+  if (result.project === project) return { unchanged: true };
+  const minMoved = Math.min(
+    ...result.project.clips.filter((c) => movers.includes(c.id)).map((c) => c.startMs),
+  );
+  if (minMoved < 0) return { unchanged: true };
+  return { project: result.project };
 }
 
 export function deleteClips(project: Project, clipIds: readonly string[]): Project {

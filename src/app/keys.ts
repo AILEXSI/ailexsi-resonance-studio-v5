@@ -65,6 +65,7 @@ function commandFromKey(
   }
 
   if (letter === "s") return { type: "split" };
+  if (letter === "g") return { type: "closeGap" };
   if (letter === "m") return { type: "addMarker" };
   if (letter === "x" || (letter === "i" && e.shiftKey)) return { type: "clearInOut" };
   if (letter === "i") return { type: "markIn" };
@@ -108,6 +109,9 @@ export function dispatchEditorKey(
   if (e.formFocus && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
     return { type: "none" };
   }
+  if (e.formFocus && (e.key === "g" || e.key === "G")) {
+    return { type: "none" };
+  }
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
@@ -129,7 +133,8 @@ export function dispatchEditorKey(
     command.type === "extractRange" ||
     command.type === "unlinkClips" ||
     command.type === "gotoNextEdit" ||
-    command.type === "gotoPrevEdit";
+    command.type === "gotoPrevEdit" ||
+    command.type === "closeGap";
   return {
     type: "session",
     session: applyCommand(session, command),

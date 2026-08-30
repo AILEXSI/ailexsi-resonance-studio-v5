@@ -511,4 +511,29 @@ describe("editor keys", () => {
     const stepped = sessionOf(dispatchEditorKey(start, false, { key: "ArrowRight" }));
     expect(stepped.project.playheadMs).toBe(start.project.playheadMs + FRAME_MS);
   });
+
+  it("G closes the gap under the playhead; form focus does not", () => {
+    const a = asset({ id: "va", kind: "video", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({ id: "v1a", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+            clip({ id: "v1b", assetId: "va", trackId: "V1", startMs: 2000, durationMs: 1000 }),
+          ],
+          [a],
+        ),
+        playheadMs: 1500,
+      },
+      selectedClipId: "v1a",
+      selectedClipIds: ["v1a"],
+    };
+    const closed = sessionOf(dispatchEditorKey(start, false, { key: "g" }));
+    expect(closed.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(1000);
+    expect(closed.project.playheadMs).toBe(1500);
+    const inField = dispatchEditorKey(start, false, { key: "g", formFocus: true });
+    expect(inField.type).toBe("none");
+    expect(start.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(2000);
+  });
 });

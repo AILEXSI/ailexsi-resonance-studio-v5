@@ -85,6 +85,7 @@ interface Props {
   onLiftRange?: () => void;
   onExtractRange?: () => void;
   onRelink?: () => void;
+  onCloseGap?: () => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -157,6 +158,7 @@ export function Timeline({
   onLiftRange,
   onExtractRange,
   onRelink,
+  onCloseGap,
   onZoom,
   onFit,
   onScroll,
@@ -1102,6 +1104,19 @@ export function Timeline({
               }}
             >
               <span>Relink</span>
+            </button>
+          ) : null}
+          {onCloseGap ? (
+            <button
+              type="button"
+              data-testid="clip-menu-close-gap"
+              onClick={() => {
+                onCloseGap();
+                setMenu(null);
+              }}
+            >
+              <span>Close gap</span>
+              <kbd>{CLIP_MENU_SHORTCUTS.closeGap}</kbd>
             </button>
           ) : null}
         </div>

@@ -45,6 +45,7 @@ function timelineProps() {
     onLoopMoveLive: noopMs,
     onLoopCommit: noop,
     onRelink: noop,
+    onCloseGap: noop,
   };
 }
 
@@ -93,6 +94,9 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Extract range");
     expect(text).toContain("Relink");
     expect(menu!.querySelector('[data-testid="clip-menu-relink"]')).toBeTruthy();
+    expect(text).toContain("Close gap");
+    expect(text).toContain("G");
+    expect(menu!.querySelector('[data-testid="clip-menu-close-gap"]')).toBeTruthy();
     expect(text).toContain(CLIP_MENU_SHORTCUTS.liftRange);
     expect(text).toContain(CLIP_MENU_SHORTCUTS.extractRange);
     expect(CLIP_MENU_SHORTCUTS.split).toBe("S");
@@ -135,6 +139,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Unlink A/V pair");
     expect(text).toContain("Lift range (IN/OUT)");
     expect(text).toContain("Extract range (IN/OUT)");
+    expect(text).toContain("Close gap under playhead");
+    expect(text).toContain("G");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });
