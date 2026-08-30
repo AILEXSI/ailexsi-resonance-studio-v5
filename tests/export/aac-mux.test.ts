@@ -69,7 +69,8 @@ describe("MP4 mux audio track (synthetic AAC fixture)", () => {
     expect(ascii).toContain("soun");
     expect(ascii).toContain("mp4a");
     expect(ascii).toContain("esds");
-    expect(bytes).toEqual(expect.arrayContaining([...AAC_FRAME]));
+    const payload = bytes.subarray(bytes.length - AAC_FRAME.length);
+    expect([...payload]).toEqual([...AAC_FRAME]);
   });
 
   it("jsdom has no AudioEncoder so live AAC stays unverified here", async () => {
