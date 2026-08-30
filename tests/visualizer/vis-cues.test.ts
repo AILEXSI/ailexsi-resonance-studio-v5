@@ -9,6 +9,7 @@ import {
   nextSceneId,
   sceneAt,
   sceneIdAt,
+  sceneShortName,
   visualizerEventsOf,
 } from "../../src/core/visualizer";
 import { clip, projectWith } from "../helpers";
@@ -67,13 +68,37 @@ describe("VIS cues", () => {
     expect(events.some((e) => e.startMs === 3000 && e.sceneId === "tunnel-spiral")).toBe(true);
   });
 
-  it("nextSceneId walks the 12-id cycle including the four already-shipped scenes", () => {
+  it("nextSceneId walks the 16-id cycle including 3D scenes and sceneAt follows them", () => {
     expect(VISUALIZER_SCENE_IDS).toContain("particle-field");
     expect(VISUALIZER_SCENE_IDS).toContain("resonance-wave");
     expect(VISUALIZER_SCENE_IDS).toContain("tunnel-spiral");
     expect(VISUALIZER_SCENE_IDS).toContain("lita-bloom");
     expect(nextSceneId("ember-rain")).toBe("particle-field");
     expect(nextSceneId("particle-field")).toBe("resonance-wave");
-    expect(nextSceneId("lita-bloom")).toBe("spectrum-bars");
+    expect(nextSceneId("lita-bloom")).toBe("void-lattice");
+    expect(nextSceneId("void-lattice")).toBe("nebula-helix");
+    expect(nextSceneId("nebula-helix")).toBe("accretion-disk");
+    expect(nextSceneId("accretion-disk")).toBe("crystal-storm");
+    expect(nextSceneId("crystal-storm")).toBe("spectrum-bars");
+    expect(sceneShortName("void-lattice")).toBe("Lattice");
+    expect(sceneShortName("nebula-helix")).toBe("Helix");
+    expect(sceneShortName("accretion-disk")).toBe("Disk");
+    expect(sceneShortName("crystal-storm")).toBe("Crystal");
+    const project = createEmptyProject("3D");
+    project.visualizer = {
+      ...project.visualizer,
+      cues: [
+        { startMs: 0, sceneId: "lita-bloom" },
+        { startMs: 2000, sceneId: "void-lattice" },
+        { startMs: 4000, sceneId: "nebula-helix" },
+        { startMs: 6000, sceneId: "accretion-disk" },
+        { startMs: 8000, sceneId: "crystal-storm" },
+      ],
+    };
+    expect(sceneAt(project, 1999)).toBe("lita-bloom");
+    expect(sceneAt(project, 2000)).toBe("void-lattice");
+    expect(sceneIdAt(project, 4000)).toBe("nebula-helix");
+    expect(sceneAt(project, 6000)).toBe("accretion-disk");
+    expect(sceneAt(project, 8000)).toBe("crystal-storm");
   });
 });

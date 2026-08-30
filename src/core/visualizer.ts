@@ -65,6 +65,10 @@ const SCENE_SHORT: Record<VisualizerSceneId, string> = {
   "resonance-wave": "Wave",
   "tunnel-spiral": "Tunnel",
   "lita-bloom": "Bloom",
+  "void-lattice": "Lattice",
+  "nebula-helix": "Helix",
+  "accretion-disk": "Disk",
+  "crystal-storm": "Crystal",
 };
 
 /** 120 BPM grid (or `bpm`) from 0 inclusive to duration exclusive. */

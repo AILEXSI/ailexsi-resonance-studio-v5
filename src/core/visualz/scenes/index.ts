@@ -16,6 +16,10 @@ import { particleFieldScene } from "./particle-field";
 import { resonanceWaveScene } from "./resonance-wave";
 import { tunnelSpiralScene } from "./tunnel-spiral";
 import { litaBloomScene } from "./lita-bloom";
+import { voidLatticeScene } from "./void-lattice";
+import { nebulaHelixScene } from "./nebula-helix";
+import { accretionDiskScene } from "./accretion-disk";
+import { crystalStormScene } from "./crystal-storm";
 
 export const builtinScenes: Scene[] = [
   spectrumBarsScene,
@@ -30,6 +34,10 @@ export const builtinScenes: Scene[] = [
   resonanceWaveScene,
   tunnelSpiralScene,
   litaBloomScene,
+  voidLatticeScene,
+  nebulaHelixScene,
+  accretionDiskScene,
+  crystalStormScene,
 ];
 
 export {
@@ -45,4 +53,8 @@ export {
   resonanceWaveScene,
   tunnelSpiralScene,
   litaBloomScene,
+  voidLatticeScene,
+  nebulaHelixScene,
+  accretionDiskScene,
+  crystalStormScene,
 };

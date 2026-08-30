@@ -21,6 +21,10 @@ export const VISUALIZER_SCENE_IDS = [
   "resonance-wave",
   "tunnel-spiral",
   "lita-bloom",
+  "void-lattice",
+  "nebula-helix",
+  "accretion-disk",
+  "crystal-storm",
 ] as const;
 
 export type VisualizerSceneId = (typeof VISUALIZER_SCENE_IDS)[number];
