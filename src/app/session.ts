@@ -639,7 +639,7 @@ export function applyDuplicate(session: Session): Session {
   const ids = selectionOf(session);
   const clips = ids
     .map((id) => clipById(session.project, id))
-    .filter((c): c is Clip => Boolean(c) && !clipIsLocked(c));
+    .filter((c): c is Clip => c != null && !clipIsLocked(c));
   if (clips.length === 0) return session;
   const result = pasteClips(
     session.project,
