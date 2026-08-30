@@ -286,6 +286,29 @@ describe("linked A/V", () => {
     expect(rejected.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
   });
 
+  it("setClipRate of an unlocked clip skips a locked mate (P117)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const next = setClipRate(locked, "a1", 2);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "a1")!.rate).toBe(2);
+    expect(next.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "v1")!.rate).toBe(1);
+    expect(next.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(next.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+
+    const viaCommand = applyCommand(
+      { ...start, project: locked, selectedClipId: "a1", selectedClipIds: ["a1"] },
+      { type: "setClipRate", clipId: "a1", rate: 2 },
+    );
+    expect(viaCommand.project.clips.find((c) => c.id === "a1")!.rate).toBe(2);
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.rate).toBe(1);
+    expect(viaCommand.error).toBeNull();
+  });
+
   it("group slip follows a living mate of a member, or no-ops all", () => {
     const va = asset({
       id: "va",

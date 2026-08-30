@@ -1561,7 +1561,8 @@ function planClipRate(
  * Classic NLE speed: source in/out stay. durationMs = sourceSpan / rate.
  * Grows/shrinks to the right. Overlap with the next same-track clip is a
  * hard reject (no auto-ripple). Fades re-clamp to the new duration.
- * A living linked mate gets the same rate or both no-op.
+ * A living unlocked linked mate gets the same rate or both no-op.
+ * A locked mate is skipped (same as split/slip/move/trim).
  */
 export function setClipRate(
   project: Project,
@@ -1574,8 +1575,8 @@ export function setClipRate(
   const one = planClipRate(project, clip, rate);
   if ("error" in one) return { project, error: one.error };
   const mate = livingLinkedMate(project, clipId);
-  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
-  if (!mate) {
+  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  if (!liveMate) {
     if ("unchanged" in one) return { project };
     return {
       project: {
@@ -1585,17 +1586,17 @@ export function setClipRate(
       },
     };
   }
-  const two = planClipRate(project, mate, rate);
+  const two = planClipRate(project, liveMate, rate);
   if ("error" in two) return { project, error: two.error };
   if ("unchanged" in one && "unchanged" in two) return { project };
   const next = "unchanged" in one ? clip : one.clip;
-  const nextMate = "unchanged" in two ? mate : two.clip;
+  const nextMate = "unchanged" in two ? liveMate : two.clip;
   return {
     project: {
       ...project,
       clips: project.clips.map((c) => {
         if (c.id === clipId) return next;
-        if (c.id === mate.id) return nextMate;
+        if (c.id === liveMate.id) return nextMate;
         return c;
       }),
       updatedAt: new Date().toISOString(),
