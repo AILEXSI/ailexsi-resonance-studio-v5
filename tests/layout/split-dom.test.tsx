@@ -107,7 +107,13 @@ describe("preview / arrange splitter", () => {
     expect(low * available).toBeCloseTo(PREVIEW_MIN_PX, 0);
 
     act(() => {
-      split.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 600, buttons: 1 }));
+      split.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          clientY: PREVIEW_MIN_PX + ARRANGE_MIN_PX + 400 + SPLITTER_PX - 10,
+          buttons: 1,
+        }),
+      );
     });
     const high = Number(preview().getAttribute("data-preview-ratio"));
     expect((1 - high) * available).toBeCloseTo(ARRANGE_MIN_PX, 0);
