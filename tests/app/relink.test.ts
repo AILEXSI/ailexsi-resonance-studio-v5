@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, ingestRelinkFile, type Session } from "../../src/app/session";
-import { relinkSelectionForAsset } from "../../src/core/relink";
+import { relinkSelectionForAsset, relinkSelectionOf } from "../../src/core/relink";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -13,6 +13,40 @@ function fakeFile(name: string, type: string, size = 128): File {
 function probeMs(file: File) {
   const m = file.name.match(/(\d+)ms/);
   return Promise.resolve({ durationMs: m ? Number(m[1]) : 4000 });
+}
+
+function linkedAvRelinkSession(): Session {
+  const va = asset({ id: "va", kind: "video", durationMs: 2000, missing: true, hasAudio: true });
+  return {
+    ...createSession(createMemoryBlobStore()),
+    project: projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+      ],
+      [va],
+    ),
+    selectedClipId: "v1",
+    selectedClipIds: ["v1"],
+  };
 }
 
 function relinkSession(): Session {
@@ -145,6 +179,92 @@ describe("relinkClips", () => {
     expect(rejected).toEqual({ error: "Relink rejected: expected video, got audio" });
     expect(start.project.assets).toHaveLength(2);
     expect(start.project.clips.find((c) => c.id === "c1")!.assetId).toBe("va");
+  });
+
+  it("linked A/V: relink video selection remaps living same-asset audio (P63)", async () => {
+    const start = linkedAvRelinkSession();
+    expect(relinkSelectionOf(start.project, ["v1"])?.clipIds.sort()).toEqual(["a1", "v1"]);
+    const ingested = await ingestRelinkFile(start, fakeFile("pair-3000ms.mp4", "video/mp4"), "video", probeMs);
+    if (!("assetId" in ingested)) throw new Error("ingest failed");
+    const next = applyCommand(ingested.session, {
+      type: "relinkClips",
+      clipIds: ["v1"],
+      assetId: ingested.assetId,
+    });
+    const v1 = next.project.clips.find((c) => c.id === "v1")!;
+    const a1 = next.project.clips.find((c) => c.id === "a1")!;
+    expect(v1.assetId).toBe(ingested.assetId);
+    expect(a1.assetId).toBe(ingested.assetId);
+    expect(v1.startMs).toBe(0);
+    expect(a1.startMs).toBe(0);
+    expect(v1.durationMs).toBe(2000);
+    expect(a1.durationMs).toBe(2000);
+    expect(next.status).toBe("Relinked clips");
+  });
+
+  it("linked A/V: relink audio selection remaps living same-asset video (P63)", async () => {
+    const start = { ...linkedAvRelinkSession(), selectedClipId: "a1", selectedClipIds: ["a1"] };
+    expect(relinkSelectionOf(start.project, ["a1"])?.clipIds.sort()).toEqual(["a1", "v1"]);
+    const ingested = await ingestRelinkFile(start, fakeFile("pair-3000ms.mp4", "video/mp4"), "video", probeMs);
+    if (!("assetId" in ingested)) throw new Error("ingest failed");
+    const next = applyCommand(ingested.session, {
+      type: "relinkClips",
+      clipIds: ["a1"],
+      assetId: ingested.assetId,
+    });
+    expect(next.project.clips.find((c) => c.id === "v1")!.assetId).toBe(ingested.assetId);
+    expect(next.project.clips.find((c) => c.id === "a1")!.assetId).toBe(ingested.assetId);
+    expect(next.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+  });
+
+  it("linked A/V: shorter replacement clamps both mates; startMs unchanged (P63)", async () => {
+    const start = linkedAvRelinkSession();
+    const ingested = await ingestRelinkFile(start, fakeFile("short-800ms.mp4", "video/mp4"), "video", probeMs);
+    if (!("assetId" in ingested)) throw new Error("ingest failed");
+    const next = applyCommand(ingested.session, {
+      type: "relinkClips",
+      clipIds: ["v1"],
+      assetId: ingested.assetId,
+    });
+    const v1 = next.project.clips.find((c) => c.id === "v1")!;
+    const a1 = next.project.clips.find((c) => c.id === "a1")!;
+    expect(v1.assetId).toBe(ingested.assetId);
+    expect(a1.assetId).toBe(ingested.assetId);
+    expect(v1.startMs).toBe(0);
+    expect(a1.startMs).toBe(0);
+    expect(v1.sourceOutMs).toBe(800);
+    expect(a1.sourceOutMs).toBe(800);
+    expect(v1.durationMs).toBe(800);
+    expect(a1.durationMs).toBe(800);
+  });
+
+  it("unlinked same-asset mate is not auto-included (P63)", async () => {
+    const start = linkedAvRelinkSession();
+    const unlinked = applyCommand(start, { type: "unlinkClips", clipId: "v1" });
+    expect(relinkSelectionOf(unlinked.project, ["v1"])?.clipIds).toEqual(["v1"]);
+    const ingested = await ingestRelinkFile(unlinked, fakeFile("solo-3000ms.mp4", "video/mp4"), "video", probeMs);
+    if (!("assetId" in ingested)) throw new Error("ingest failed");
+    const next = applyCommand(ingested.session, {
+      type: "relinkClips",
+      clipIds: ["v1"],
+      assetId: ingested.assetId,
+    });
+    expect(next.project.clips.find((c) => c.id === "v1")!.assetId).toBe(ingested.assetId);
+    expect(next.project.clips.find((c) => c.id === "a1")!.assetId).toBe("va");
+  });
+
+  it("living mate with a different assetId is not pulled in (P63)", () => {
+    const start = linkedAvRelinkSession();
+    const aa = asset({ id: "aa", kind: "audio", durationMs: 2000 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, aa],
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, assetId: "aa" } : c)),
+    };
+    expect(relinkSelectionOf(project, ["v1"])?.clipIds).toEqual(["v1"]);
+    expect(relinkSelectionOf(project, ["a1"])?.clipIds).toEqual(["a1"]);
+    expect(relinkSelectionOf(project, ["v1"])?.kind).toBe("video");
+    expect(relinkSelectionOf(project, ["a1"])?.kind).toBe("audio");
   });
 
   it("undo restores previous assetId and source window", async () => {

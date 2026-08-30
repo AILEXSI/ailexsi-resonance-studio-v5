@@ -1,3 +1,4 @@
+import { livingLinkedMate } from "./link";
 import {
   clipById,
   kindOfTrack,
@@ -6,11 +7,27 @@ import {
   type Project,
 } from "./models";
 
+/** Living same-`linkId` mate that still shares this asset (P15 pair, no second model). */
+function clipIdsIncludingLinkedSameAsset(
+  project: Project,
+  clipIds: readonly string[],
+): string[] {
+  const ids = new Set<string>();
+  for (const id of clipIds) {
+    const clip = clipById(project, id);
+    if (!clip) continue;
+    ids.add(clip.id);
+    const mate = livingLinkedMate(project, clip.id);
+    if (mate && mate.assetId === clip.assetId) ids.add(mate.id);
+  }
+  return [...ids];
+}
+
 export function relinkSelectionOf(
   project: Project,
   clipIds: readonly string[],
 ): { clipIds: string[]; assetId: string; kind: MediaKind } | null {
-  const clips = clipIds
+  const clips = clipIdsIncludingLinkedSameAsset(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is NonNullable<typeof c> => !!c);
   if (clips.length === 0) return null;
