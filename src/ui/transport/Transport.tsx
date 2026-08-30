@@ -9,6 +9,8 @@ interface Props {
   onStop: () => void;
   onStep: (deltaMs: number) => void;
   onToggleLoop: () => void;
+  followPlayhead?: boolean;
+  onToggleFollow?: () => void;
   onIn: () => void;
   onOut: () => void;
   onClear: () => void;
@@ -37,6 +39,17 @@ export function Transport(props: Props) {
       <button type="button" className={props.project.loop ? "active" : ""} onClick={props.onToggleLoop}>
         Loop
       </button>
+      {props.onToggleFollow ? (
+        <button
+          type="button"
+          className={props.followPlayhead !== false ? "active" : ""}
+          data-testid="follow-playhead"
+          title="Keep playhead in view"
+          onClick={props.onToggleFollow}
+        >
+          Follow
+        </button>
+      ) : null}
       <button type="button" onClick={props.onIn}>
         IN
       </button>

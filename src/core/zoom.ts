@@ -73,7 +73,8 @@ function centerPlayheadScrollMs(
   return Math.max(0, playheadMs - half);
 }
 
-function clampScrollKeepPlayhead(
+/** Page the Arrange view so the playhead stays in the visible lane. */
+export function scrollKeepPlayheadInView(
   playheadMs: number,
   scrollMs: number,
   zoomPxPerSec: number,
@@ -107,5 +108,5 @@ export function scrollZoomAroundPlayhead(opts: {
     scroll = centerPlayheadScrollMs(playheadMs, zoomOld, timelineWidthPx, laneLabelPx);
   }
   const next = playheadMs - (playheadMs - scroll) * (zoomOld / Math.max(zoomNew, 1e-6));
-  return clampScrollKeepPlayhead(playheadMs, next, zoomNew, timelineWidthPx, laneLabelPx);
+  return scrollKeepPlayheadInView(playheadMs, next, zoomNew, timelineWidthPx, laneLabelPx);
 }

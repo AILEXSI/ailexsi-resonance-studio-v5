@@ -68,7 +68,9 @@ import {
   applyCycleVisualizerScene,
   applySelectVis,
   applySetVisualizer,
+  applyToggleFollow,
   applyToggleSnap,
+  applyTimelineViewport,
   applyUpdateClip,
   applyZoom,
   createSession,
@@ -187,6 +189,13 @@ export function App() {
   const runCommand = useCallback((command: EditorCommand) => {
     setSession((s) => applyCommand(s, command));
   }, []);
+
+  const onTimelineViewport = useCallback(
+    (widthPx: number) => {
+      setSession((s) => applyTimelineViewport(s, widthPx, laneLabelPx));
+    },
+    [laneLabelPx],
+  );
 
   const finishRelink = useCallback(async (file: File) => {
     const s = sessionRef.current;
@@ -1174,6 +1183,8 @@ export function App() {
         onStop={stop}
         onStep={(delta) => runCommand({ type: "nudgePlayhead", deltaMs: delta })}
         onToggleLoop={() => setSession(applyToggleLoop(session))}
+        followPlayhead={session.followPlayhead}
+        onToggleFollow={() => setSession(applyToggleFollow(session))}
         onIn={() => runCommand({ type: "markIn" })}
         onOut={() => runCommand({ type: "markOut" })}
         onClear={() => runCommand({ type: "clearInOut" })}
@@ -1266,6 +1277,7 @@ export function App() {
         onRippleTrimToPlayhead={(edge) => runCommand({ type: "rippleTrimToPlayhead", edge })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx, laneLabelPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx, laneLabelPx))}
+        onViewport={onTimelineViewport}
         laneLabelPx={laneLabelPx}
         laneHeights={laneHeights}
         onLaneLabelPx={onLaneLabelPx}

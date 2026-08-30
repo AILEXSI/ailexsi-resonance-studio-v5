@@ -111,7 +111,9 @@ import { formatDb, formatPan, linearToDb } from "../core/volume";
 import {
   clampZoomPxPerSec,
   fitZoomPxPerSec,
+  LANE_LABEL_PX,
   minZoomPxPerSec,
+  scrollKeepPlayheadInView,
   scrollZoomAroundPlayhead,
 } from "../core/zoom";
 
@@ -142,6 +144,12 @@ export interface Session {
   playing: boolean;
   /** 0 = paused. Space uses ±1. J/L step 1→2→4 (signed). */
   shuttleRate: number;
+  /** Last measured Arrange width. View state; used to keep the playhead on screen. */
+  timelineWidthPx: number;
+  /** Last measured lane-label gutter. View state. */
+  timelineLaneLabelPx: number;
+  /** When true, applyPlayhead pages scroll so the needle stays in view. */
+  followPlayhead: boolean;
   store: BlobStore;
 }
 
@@ -164,6 +172,9 @@ export function createSession(store?: BlobStore): Session {
     error: null,
     playing: false,
     shuttleRate: 0,
+    timelineWidthPx: 1000,
+    timelineLaneLabelPx: LANE_LABEL_PX,
+    followPlayhead: true,
     store: store ?? createIndexedDbBlobStore(),
   };
 }
@@ -955,7 +966,32 @@ export function applyMoveMarker(session: Session, markerId: string, timeMs: numb
 }
 
 export function applyPlayhead(session: Session, timeMs: number): Session {
-  return { ...session, project: setPlayhead(session.project, timeMs) };
+  const project = setPlayhead(session.project, timeMs);
+  if (!session.followPlayhead) return { ...session, project };
+  const scrollMs = scrollKeepPlayheadInView(
+    project.playheadMs,
+    project.scrollMs,
+    project.zoomPxPerSec,
+    session.timelineWidthPx,
+    session.timelineLaneLabelPx,
+  );
+  if (scrollMs === project.scrollMs) return { ...session, project };
+  return { ...session, project: { ...project, scrollMs } };
+}
+
+export function applyTimelineViewport(
+  session: Session,
+  timelineWidthPx: number,
+  laneLabelPx?: number,
+): Session {
+  const width = Math.max(1, timelineWidthPx);
+  const label = laneLabelPx != null && laneLabelPx > 0 ? laneLabelPx : session.timelineLaneLabelPx;
+  if (session.timelineWidthPx === width && session.timelineLaneLabelPx === label) return session;
+  return { ...session, timelineWidthPx: width, timelineLaneLabelPx: label };
+}
+
+export function applyToggleFollow(session: Session): Session {
+  return { ...session, followPlayhead: !session.followPlayhead };
 }
 
 export function applyGotoNextEdit(session: Session): Session {
@@ -1328,6 +1364,8 @@ export function applyZoom(
   const zoomNew = clampZoomPxPerSec(zoomPxPerSec, minZ);
   return {
     ...session,
+    timelineWidthPx,
+    timelineLaneLabelPx: laneLabelPx ?? session.timelineLaneLabelPx,
     project: {
       ...session.project,
       zoomPxPerSec: zoomNew,
@@ -1349,6 +1387,8 @@ export function applyFit(session: Session, timelineWidthPx: number, laneLabelPx?
   const minZ = minZoomPxPerSec(session.project, timelineWidthPx, laneLabelPx);
   return {
     ...session,
+    timelineWidthPx,
+    timelineLaneLabelPx: laneLabelPx ?? session.timelineLaneLabelPx,
     project: {
       ...session.project,
       zoomPxPerSec: clampZoomPxPerSec(z, minZ),

@@ -118,6 +118,7 @@ interface Props {
   onSetClipsEnabled?: (enabled: boolean) => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
+  onViewport?: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
   onLoopClick: (ms: number) => void;
   onLoopInLive: (ms: number) => void;
@@ -221,6 +222,7 @@ export function Timeline({
   onSetClipsEnabled,
   onZoom,
   onFit,
+  onViewport,
   onScroll,
   onLoopClick,
   onLoopInLive,
@@ -271,6 +273,10 @@ export function Timeline({
     setViewWidth(el.clientWidth || 1000);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    onViewport?.(viewWidth);
+  }, [viewWidth, onViewport]);
 
   const ticks = useMemo(
     () =>
