@@ -697,7 +697,7 @@ function clipStraddlesTime(clip: Clip, timeMs: number): boolean {
   return clip.startMs < timeMs && clipEndMs(clip) > timeMs;
 }
 
-/** Locked later clip, or locked clip that split cannot cut at IN/OUT. */
+/** Locked later clip, locked straddler, or locked mid lift left parked. */
 function lockedClipBlocksExtract(
   project: Project,
   range: { inMs: number; outMs: number },
@@ -705,14 +705,15 @@ function lockedClipBlocksExtract(
   return project.clips.some((c) => {
     if (!clipIsLocked(c)) return false;
     if (c.startMs >= range.outMs) return true;
-    return clipStraddlesTime(c, range.inMs) || clipStraddlesTime(c, range.outMs);
+    if (clipStraddlesTime(c, range.inMs) || clipStraddlesTime(c, range.outMs)) return true;
+    return c.startMs >= range.inMs && clipEndMs(c) <= range.outMs;
   });
 }
 
 /**
  * liftRange, then on each track shift clips that start at/after OUT left by (out−in).
- * A locked clip at/after OUT, or one that straddles IN/OUT, blocks the ripple
- * (splitClipAt no-ops the lock; later clips would slide into the parked body).
+ * A locked clip at/after OUT, one that straddles IN/OUT, or one fully inside
+ * the window blocks the ripple (later clips would slide into the parked body).
  */
 export function extractRange(project: Project): { project: Project; error?: string } {
   const range = editRangeOf(project);

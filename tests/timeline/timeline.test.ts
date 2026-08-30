@@ -1058,6 +1058,63 @@ describe("range lift / extract", () => {
     expect(extracted.error).toBeUndefined();
     expect(extracted.project.clips.find((c) => c.id === "later")!.startMs).toBe(3000);
   });
+
+  it("extractRange does not slide later clips into a locked clip fully inside IN/OUT (P112)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const p = {
+      ...projectWith(
+        [
+          clip({
+            id: "c1",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 3000,
+            sourceInMs: 0,
+            sourceOutMs: 3000,
+          }),
+          clip({
+            id: "parked",
+            assetId: "a",
+            trackId: "A2",
+            startMs: 1200,
+            durationMs: 600,
+            sourceInMs: 0,
+            sourceOutMs: 600,
+            locked: true,
+          }),
+          clip({
+            id: "later",
+            assetId: "a",
+            trackId: "A2",
+            startMs: 3000,
+            durationMs: 500,
+            sourceInMs: 0,
+            sourceOutMs: 500,
+          }),
+        ],
+        [a],
+      ),
+      inPointMs: 1000,
+      outPointMs: 2000,
+      snap: false,
+    };
+    const blocked = extractRange(p);
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project).toBe(p);
+    expect(blocked.project.clips.find((c) => c.id === "later")!.startMs).toBe(3000);
+    expect(blocked.project.clips.find((c) => c.id === "parked")!.startMs).toBe(1200);
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(3000);
+
+    const free = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "parked" ? { ...c, locked: undefined } : c)),
+    };
+    const extracted = extractRange(free);
+    expect(extracted.error).toBeUndefined();
+    expect(extracted.project.clips.find((c) => c.id === "later")!.startMs).toBe(2000);
+    expect(extracted.project.clips.find((c) => c.id === "parked")).toBeUndefined();
+  });
 });
 
 describe("roll edit", () => {
