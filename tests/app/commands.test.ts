@@ -280,6 +280,57 @@ describe("applyCommand determinism", () => {
     expect(rolled.history.past).toHaveLength(0);
   });
 
+  it("slide of a disabled clip does not trim living neighbors (P150)", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "M",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+              enabled: false,
+            }),
+            clip({
+              id: "R",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "M",
+    };
+    const slid = applyCommand(start, { type: "slideClip", clipId: "M", deltaMs: 200 });
+    expect(slid.error).toMatch(/disabled/i);
+    expect(slid.project.clips.find((c) => c.id === "L")!.durationMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "M")!.startMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "M")!.enabled).toBe(false);
+    expect(slid.project.clips.find((c) => c.id === "R")!.startMs).toBe(2000);
+    expect(slid.history.past).toHaveLength(0);
+  });
+
   it("nudge moves startMs by FRAME_MS and clamps at 0", () => {
     const start = twoClipSession();
     const right = applyCommand(start, { type: "nudgeClip", deltaMs: FRAME_MS });

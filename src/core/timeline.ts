@@ -1384,6 +1384,7 @@ function applySlideThroughNeighbors(
  * neighbor drops below SPLIT_EDGE_GUARD_MS and source windows stay in media.
  * A living unlocked linked mate takes the same edge/start delta. A locked
  * mate is skipped (same as roll/split/slip/rate).
+ * A disabled mid is refused (Ctrl+Alt-drag must not trim living neighbors).
  */
 export function slideClip(
   project: Project,
@@ -1393,6 +1394,7 @@ export function slideClip(
   const mid = clipById(project, clipId);
   if (!mid) return { project, error: "Clip not found" };
   if (clipIsLocked(mid)) return { project, error: "Clip is locked" };
+  if (!clipIsEnabled(mid)) return { project, error: "Clip is disabled" };
   if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
 
   const left = abuttingNeighbor(project, clipId, "in");

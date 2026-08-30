@@ -801,6 +801,22 @@ describe("slide", () => {
     expect(gap.error).toMatch(/abutting/i);
   });
 
+  it("does not slide a disabled clip or trim living neighbors (P150)", () => {
+    const p = threeAbuttingA1();
+    const dimmed = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "M" ? { ...c, enabled: false } : c)),
+    };
+    const next = slideClip(dimmed, "M", 200);
+    expect(next.error).toMatch(/disabled/i);
+    expect(next.project).toBe(dimmed);
+    expect(next.project.clips.find((c) => c.id === "L")!.durationMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "M")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "M")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "R")!.startMs).toBe(2000);
+    expect(next.project.clips.find((c) => c.id === "R")!.durationMs).toBe(1000);
+  });
+
   it("does not treat a disabled abutting take as a slide neighbor (P138)", () => {
     const p = threeAbuttingA1();
     const dimmed = {
