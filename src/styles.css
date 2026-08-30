@@ -792,6 +792,72 @@ input[type="range"] { accent-color: var(--accent-2); }
   letter-spacing: 0.06em;
 }
 
+.export-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 72px;
+}
+.export-dialog {
+  pointer-events: auto;
+  width: min(360px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.export-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.export-dialog-head h2 { margin: 0; font-size: 14px; }
+.export-dialog-x {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+  font-size: 18px;
+}
+.export-dialog-file {
+  margin: 0 0 2px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.export-dialog-meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.export-dialog-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-2);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.export-dialog-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0;
+}
+.export-dialog-status {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.export-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .shortcuts-overlay {
   position: fixed;
   inset: 0;

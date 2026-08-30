@@ -51,6 +51,7 @@ export type ExportAudioKind = "aac" | "none";
 
 export interface ExportResult {
   success: boolean;
+  aborted?: boolean;
   error?: string;
   fileName: string;
   durationMs: number;

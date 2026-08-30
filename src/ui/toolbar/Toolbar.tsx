@@ -91,8 +91,14 @@ export function Toolbar({
         <button type="button" onClick={onImport}>
           Import
         </button>
-        <button type="button" className="primary" onClick={onExport} disabled={exporting}>
-          {exporting ? "Exporting…" : "Export"}
+        <button
+          type="button"
+          className="primary"
+          data-testid="export-btn"
+          onClick={onExport}
+          disabled={exporting}
+        >
+          Export
         </button>
       </div>
       <div className="toolbar-group" data-group="edit">

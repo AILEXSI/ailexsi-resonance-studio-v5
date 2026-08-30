@@ -22,10 +22,19 @@ import {
   type RecentProject,
 } from "../core/project-file";
 import {
+  abortExportDialog,
+  applyExportProgress,
+  closeExportDialog,
+  closedExportDialog,
   downloadMp4,
   exportTimeline,
+  failExportDialog,
+  isExportSuccess,
   jobFromProject,
+  openExportDialog,
+  succeedExportDialog,
   ExportPlanError,
+  type ExportJob,
 } from "../core/exporter";
 import { MediaBrowser } from "../ui/media-browser/MediaBrowser";
 import { Preview } from "../ui/preview/Preview";
@@ -36,6 +45,7 @@ import { Mixer, type MixPeaks } from "../ui/mixer/Mixer";
 import { ProjectFilePanel } from "../ui/project-file/ProjectFilePanel";
 import { Toolbar } from "../ui/toolbar/Toolbar";
 import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
+import { ExportDialog } from "../ui/export/ExportDialog";
 import {
   applyClearInOut,
   applyCopy,
@@ -99,6 +109,8 @@ export function App() {
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportDialog, setExportDialog] = useState(closedExportDialog);
+  const exportAbortRef = useRef<AbortController | null>(null);
   const [mixPeaks, setMixPeaks] = useState<MixPeaks>({
     V1: 0,
     V2: 0,
@@ -370,34 +382,82 @@ export function App() {
     }
   };
 
-  const runExport = async () => {
-    setExporting(true);
+  const cancelExport = () => {
+    exportAbortRef.current?.abort();
+    setExportDialog((d) => (d.phase === "running" ? closeExportDialog() : abortExportDialog(d)));
+    setExporting(false);
+    setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
+  };
+
+  const dismissExport = () => {
+    if (exportDialog.phase === "running") {
+      cancelExport();
+      return;
+    }
+    setExportDialog(closeExportDialog());
+  };
+
+  const runExport = () => {
+    if (exporting) return;
+    let job: ExportJob;
     try {
-      const job = jobFromProject(session.project);
-      const result = await exportTimeline(job, {
-        onProgress: (p) =>
-          setSession((s) => ({ ...s, status: `Export ${p.percent}% ${p.stage}` })),
-      });
-      if (!result.success || !result.blob) {
-        setSession((s) => ({
-          ...s,
-          error: result.error ?? "Export failed",
-          status: "Export failed",
-        }));
-        return;
-      }
-      downloadMp4(result);
-      setSession((s) => ({
-        ...s,
-        error: null,
-        status: `Exported ${result.fileName} (${result.fileSizeBytes} bytes)`,
-      }));
+      job = jobFromProject(session.project);
     } catch (e) {
       const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
+      setExportDialog(
+        failExportDialog(openExportDialog({ fileName: "export.mp4", width: 1280, height: 720, fps: 30 }), `FAIL: ${msg}`),
+      );
       setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
-    } finally {
-      setExporting(false);
+      return;
     }
+    const ac = new AbortController();
+    exportAbortRef.current = ac;
+    setExportDialog(openExportDialog(job));
+    setExporting(true);
+    void (async () => {
+      try {
+        const result = await exportTimeline(job, {
+          signal: ac.signal,
+          onProgress: (p) => {
+            setExportDialog((d) => applyExportProgress(d, p));
+            setSession((s) => ({ ...s, status: `Export ${p.percent}% ${p.stage}` }));
+          },
+        });
+        if (ac.signal.aborted || result.aborted) {
+          setExportDialog(closeExportDialog());
+          setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
+          return;
+        }
+        if (!isExportSuccess(result)) {
+          setExportDialog((d) => failExportDialog(d, result.error ?? "Export failed"));
+          setSession((s) => ({
+            ...s,
+            error: result.error ?? "Export failed",
+            status: "Export failed",
+          }));
+          return;
+        }
+        downloadMp4(result);
+        setExportDialog((d) => succeedExportDialog(d, result.fileName));
+        setSession((s) => ({
+          ...s,
+          error: null,
+          status: `Exported ${result.fileName} (${result.fileSizeBytes} bytes)`,
+        }));
+      } catch (e) {
+        if (ac.signal.aborted) {
+          setExportDialog(closeExportDialog());
+          setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
+          return;
+        }
+        const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
+        setExportDialog((d) => failExportDialog(d, `FAIL: ${msg}`));
+        setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
+      } finally {
+        setExporting(false);
+        if (exportAbortRef.current === ac) exportAbortRef.current = null;
+      }
+    })();
   };
 
   const onMoveLive = (clipId: string, startMs: number, trackId?: TrackId) => {
@@ -611,7 +671,7 @@ export function App() {
         fileSystemAccess={fsa}
         onOpenFile={(file) => void openProject(file)}
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
-        onExport={() => void runExport()}
+        onExport={runExport}
         onUndo={() => setSession(applyUndo(session))}
         onRedo={() => setSession(applyRedo(session))}
         onSplit={() => setSession(applySplit(session))}
@@ -792,6 +852,8 @@ export function App() {
       </div>
       </div>
       </div>
+
+      <ExportDialog state={exportDialog} onCancel={cancelExport} onClose={dismissExport} />
 
       <ShortcutsOverlay open={shortcutsOpen} />
 

@@ -3,14 +3,27 @@ import { missingOnlyVideoLabel } from "./job";
 import type { ExportHooks, ExportJob, ExportResult } from "./types";
 
 export type { ExportHooks, ExportJob, ExportProgress, ExportResult, ExportAudioKind } from "./types";
+export {
+  abortExportDialog,
+  applyExportProgress,
+  closeExportDialog,
+  closedExportDialog,
+  driveExportDialog,
+  failExportDialog,
+  isExportSuccess,
+  openExportDialog,
+  succeedExportDialog,
+  type ExportDialogState,
+} from "./dialog";
 export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnlyVideoLabel } from "./job";
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
 export { mp4HasAudioTrack } from "./mp4";
 
-function fail(job: ExportJob | undefined, error: string): ExportResult {
+function fail(job: ExportJob | undefined, error: string, aborted = false): ExportResult {
   return {
     success: false,
+    aborted,
     error,
     fileName: job?.fileName ?? "export.mp4",
     durationMs: job?.durationMs ?? 0,
@@ -18,11 +31,18 @@ function fail(job: ExportJob | undefined, error: string): ExportResult {
   };
 }
 
+export function abortedExportResult(job?: ExportJob): ExportResult {
+  return fail(job, "Export aborted", true);
+}
+
 export async function exportTimeline(
   job: ExportJob,
   hooks: ExportHooks = {},
 ): Promise<ExportResult> {
   hooks.onProgress?.({ percent: 0, stage: "Validating" });
+  if (hooks.signal?.aborted) {
+    return abortedExportResult(job);
+  }
   if (!job || job.durationMs <= 0) {
     return fail(job, "FAIL: empty export job");
   }
@@ -34,6 +54,9 @@ export async function exportTimeline(
   if (missingName) {
     return fail(job, `FAIL: missing:${missingName}`);
   }
+  if (hooks.signal?.aborted) {
+    return abortedExportResult(job);
+  }
   if (!canUseWebCodecs()) {
     return fail(job, webCodecsUnavailableMessage());
   }
@@ -41,7 +64,7 @@ export async function exportTimeline(
 }
 
 export function downloadMp4(result: ExportResult): void {
-  if (!result.success || !result.blob) {
+  if (result.aborted || !result.success || !result.blob) {
     throw new Error(result.error ?? "Export did not produce an MP4");
   }
   const url = URL.createObjectURL(result.blob);

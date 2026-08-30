@@ -21,14 +21,19 @@ export function webCodecsUnavailableMessage(): string {
   return "FAIL: WebCodecs unavailable. H.264 MP4 export requires VideoEncoder and VideoFrame. WebM is not a fallback.";
 }
 
-function fail(job: ExportJob, error: string): ExportResult {
+function fail(job: ExportJob, error: string, aborted = false): ExportResult {
   return {
     success: false,
+    aborted,
     error,
     fileName: job.fileName,
     durationMs: job.durationMs,
     fileSizeBytes: 0,
   };
+}
+
+function aborted(job: ExportJob): ExportResult {
+  return fail(job, "Export aborted", true);
 }
 
 function even(n: number): number {
@@ -286,6 +291,7 @@ export async function exportWithWebCodecs(
     clearFrameSources();
     clearMediaCache();
     const msg = e instanceof Error ? e.message : String(e);
+    if (hooks.signal?.aborted || /abort/i.test(msg)) return aborted(job);
     const prefixed = msg.startsWith("FAIL:") || msg.startsWith("missing:") ? msg : `FAIL: ${msg}`;
     return fail(job, prefixed.startsWith("missing:") ? `FAIL: ${prefixed}` : prefixed);
   }
@@ -293,6 +299,7 @@ export async function exportWithWebCodecs(
   clearFrameSources();
   clearMediaCache();
 
+  if (hooks.signal?.aborted) return aborted(job);
   if (!description) return fail(job, "FAIL: encoder did not emit AVC description");
   if (samples.length === 0) return fail(job, "FAIL: encoder produced no samples");
 
@@ -316,10 +323,13 @@ export async function exportWithWebCodecs(
         }
       }
     }
-  } catch {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (hooks.signal?.aborted || /abort/i.test(msg)) return aborted(job);
     audioKind = "none";
   }
 
+  if (hooks.signal?.aborted) return aborted(job);
   hooks.onProgress?.({ percent: 95, stage: "Muxing MP4" });
   let bytes: Uint8Array;
   try {

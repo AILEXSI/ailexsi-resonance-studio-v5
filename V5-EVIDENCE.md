@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:45 UTC. Marker move/delete + mixer Master-only + ns-resize preview/arrange split on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:50 UTC. Export cancel dialog follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -203,9 +203,11 @@ Fields exist in `src/ui/inspector/Inspector.tsx`. Not clicked this run.
 
 ## Export
 
-Status: TEST-VERIFIED (fail planner + ftyp). Successful H.264 encode: NOT VERIFIED this run.
+Status: TEST-VERIFIED (fail planner + ftyp + cancel dialog). Successful H.264 encode: NOT VERIFIED this run. Live cancel: NOT VERIFIED.
 
-This environment has no `VideoEncoder`. `exportTimeline` returns FAIL WebCodecs / WebM is not a fallback (unit).
+Export opens an in-app dialog (not a native OS window) with file name, 1280×720 / fps, percent + stage, and **Abbrechen**. Close/X while running is cancel. Abort uses `AbortController` (`hooks.signal`); result is `aborted: true`, `success: false`, no blob, no `downloadMp4`. No File System Access handle is created until a successful download click — cancel therefore leaves no partial success file. Preview/arrange stay interactive (`pointer-events: none` on the layer).
+
+This environment has no `VideoEncoder`. `exportTimeline` returns FAIL WebCodecs / WebM is not a fallback (unit), or `aborted` if the signal is already aborted.
 
 Also unit-green:
 - empty project / empty job FAIL
@@ -277,7 +279,11 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:45 UTC)
+## Changelog this follow-up (2026-08-30 05:50 UTC)
+
+- Export opens an in-app dialog with progress and Abbrechen (AbortController). Cancel is not success; no download. TEST-VERIFIED. Live cancel: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 05:45 UTC)
 
 - Markers: drag time, per-marker Delete/Backspace/×/context menu. TEST-VERIFIED. Live drag: NOT VERIFIED.
 - Mixer collapse at pane top-left: collapsed = MST only. TEST-VERIFIED. Live click this run: NOT VERIFIED.
