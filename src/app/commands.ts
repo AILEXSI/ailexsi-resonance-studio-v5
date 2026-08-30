@@ -11,6 +11,7 @@ import {
   applyIn,
   applyLiftRange,
   applyMarker,
+  applyRenameMarker,
   applyMoveClips,
   applyNudge,
   applyOut,
@@ -71,6 +72,7 @@ export type EditorCommand =
   | { type: "duplicate" }
   | { type: "split" }
   | { type: "addMarker" }
+  | { type: "renameMarker"; markerId: string; label: string }
   | { type: "clearInOut" }
   | { type: "markIn" }
   | { type: "markOut" }
@@ -143,6 +145,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySplit(session);
     case "addMarker":
       return applyMarker(session);
+    case "renameMarker":
+      return applyRenameMarker(session, command.markerId, command.label);
     case "clearInOut":
       return applyClearInOut(session);
     case "markIn":

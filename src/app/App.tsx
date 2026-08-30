@@ -1192,6 +1192,7 @@ export function App() {
             project={session.project}
             selectedClipId={session.selectedClipId}
             selectedClipIds={session.selectedClipIds}
+            selectedMarkerId={session.selectedMarkerId}
             selectedVis={session.selectedVis}
             selectedVisEventId={session.selectedVisEventId}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
@@ -1205,6 +1206,9 @@ export function App() {
             }
             onUnlink={(clipId) => setSession(applyCommand(session, { type: "unlinkClips", clipId }))}
             onRelink={() => void runRelink()}
+            onRenameMarker={(markerId, label) =>
+              setSession(applyCommand(session, { type: "renameMarker", markerId, label }))
+            }
             onTransition={(cmd) => setSession(applyCommand(session, cmd))}
             onVisualizer={(patch) => setSession(applySetVisualizer(session, patch))}
           />

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { applyCommand } from "../../src/app/commands";
 import {
   applyDelete,
   applyDeleteMarker,
@@ -59,6 +60,21 @@ describe("markers", () => {
     expect(live.project.markers.find((m) => m.id === m1.id)?.timeMs).toBe(3200);
     expect(live.selectedMarkerId).toBe(m1.id);
     expect(live.selectedClipId).toBeNull();
+  });
+
+  it("renameMarker writes label and persists (P68)", () => {
+    const { session, m1, m2 } = sessionWithMarkers();
+    const next = applyCommand(session, { type: "renameMarker", markerId: m1.id, label: " Chorus " });
+    expect(next.project.markers.find((m) => m.id === m1.id)?.label).toBe("Chorus");
+    expect(next.project.markers.find((m) => m.id === m2.id)?.label).toBe("M2");
+    expect(next.status).toBe("Marker renamed");
+    const raw = JSON.parse(projectJson(next)) as { markers: Array<{ id: string; label: string }> };
+    expect(raw.markers.find((m) => m.id === m1.id)?.label).toBe("Chorus");
+    expect(deserializeProject(projectJson(next)).markers.find((m) => m.id === m1.id)?.label).toBe("Chorus");
+    expect(applyCommand(session, { type: "renameMarker", markerId: m1.id, label: "M1" })).toBe(session);
+    expect(applyCommand(session, { type: "renameMarker", markerId: "nope", label: "X" }).error).toBe(
+      "Marker not found",
+    );
   });
 
   it("delete already exists; label is stored; no rename required (P66 KEEP)", () => {

@@ -1023,6 +1023,24 @@ export function deleteMarker(
   };
 }
 
+export function renameMarker(
+  project: Project,
+  markerId: string,
+  label: string,
+): { project: Project; error?: string } {
+  const marker = project.markers.find((m) => m.id === markerId);
+  if (!marker) return { project, error: "Marker not found" };
+  const nextLabel = label.trim();
+  if (!nextLabel || nextLabel === marker.label) return { project };
+  return {
+    project: {
+      ...project,
+      markers: project.markers.map((m) => (m.id === markerId ? { ...m, label: nextLabel } : m)),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 /** Same-kind track, clamped to V1/V2 or A1/A2. `delta` is a lane step within that kind. */
 export function clampSameKindTrack(trackId: TrackId, delta = 0): TrackId {
   const kind = kindOfTrack(trackId);

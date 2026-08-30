@@ -80,6 +80,40 @@ describe("inspector selection", () => {
     expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeNull();
   });
 
+  it("shows a marker label field and commits rename on blur (P68)", () => {
+    const project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 })],
+        [asset({ id: "a", kind: "audio", durationMs: 2000 })],
+      ),
+      markers: [{ id: "mk1", timeMs: 400, label: "M1" }],
+    };
+    const renamed: Array<{ id: string; label: string }> = [];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <Inspector
+          project={project}
+          selectedClipId={null}
+          selectedClipIds={[]}
+          selectedMarkerId="mk1"
+          onChange={() => {}}
+          onRenameMarker={(id, label) => renamed.push({ id, label })}
+        />,
+      );
+    });
+    const input = host.querySelector('[data-testid="inspector-marker-label"]') as HTMLInputElement;
+    expect(input.value).toBe("M1");
+    expect(host.textContent ?? "").not.toContain("No clip selected.");
+    act(() => {
+      input.value = "Chorus";
+      input.blur();
+    });
+    expect(renamed).toEqual([{ id: "mk1", label: "Chorus" }]);
+  });
+
   it("shows the empty copy when nothing is selected", () => {
     mount(null, []);
     expect(host!.textContent ?? "").toContain("No clip selected.");

@@ -48,6 +48,7 @@ import {
   addMarker,
   clearInOut,
   deleteMarker,
+  renameMarker,
   closeGapOnTrack,
   collectSnapTargets,
   collectVisEventSnapTargets,
@@ -1010,6 +1011,16 @@ export function applyNudge(session: Session, deltaMs: number): Session {
   if (result.error) return { ...session, error: result.error };
   const verb = deltaMs < 0 ? "Nudged left" : "Nudged right";
   return withHistory(session, result.project, verb);
+}
+
+export function applyRenameMarker(session: Session, markerId: string, label: string): Session {
+  const result = renameMarker(session.project, markerId, label);
+  if (result.error) return { ...session, error: result.error };
+  if (result.project === session.project) return session;
+  return {
+    ...withHistory(session, result.project, "Marker renamed"),
+    selectedMarkerId: markerId,
+  };
 }
 
 export function applyDeleteMarker(session: Session, markerId: string): Session {

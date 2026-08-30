@@ -31,6 +31,7 @@ interface Props {
   project: Project;
   selectedClipId: string | null;
   selectedClipIds?: string[];
+  selectedMarkerId?: string | null;
   selectedVis?: boolean;
   selectedVisEventId?: string | null;
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "enabled" | "locked">>) => void;
@@ -40,6 +41,7 @@ interface Props {
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
   onRelink?: () => void;
+  onRenameMarker?: (markerId: string, label: string) => void;
   onTransition?: (
     cmd: Extract<
       EditorCommand,
@@ -97,6 +99,7 @@ export function Inspector({
   project,
   selectedClipId,
   selectedClipIds,
+  selectedMarkerId,
   selectedVis,
   selectedVisEventId,
   onChange,
@@ -106,6 +109,7 @@ export function Inspector({
   onRate,
   onUnlink,
   onRelink,
+  onRenameMarker,
   onTransition,
   onVisualizer,
 }: Props) {
@@ -128,6 +132,9 @@ export function Inspector({
   const visScene = visEvent?.sceneId ?? vis.sceneId;
   const visStart = visEvent?.startMs ?? vis.startMs ?? 0;
   const visDuration = visEvent?.durationMs ?? vis.durationMs ?? 0;
+  const marker = selectedMarkerId
+    ? project.markers.find((m) => m.id === selectedMarkerId)
+    : undefined;
 
   return (
     <aside className="panel inspector" data-testid="inspector">
@@ -144,7 +151,24 @@ export function Inspector({
         onPick={(next) => onTransition?.({ type: "setTransitionAudio", audio: next })}
         onDuration={(ms) => onTransition?.({ type: "setTransitionAudioDuration", audioDurationMs: ms })}
       />
-      {selectedVis ? (
+      {marker ? (
+        <dl data-testid="inspector-marker">
+          <Field label="Marker">
+            <input
+              data-testid="inspector-marker-label"
+              defaultValue={marker.label}
+              key={marker.id}
+              onBlur={(e) => onRenameMarker?.(marker.id, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+            />
+          </Field>
+          <Field label="Time">
+            <span className="tc">{formatTimecode(marker.timeMs)}</span>
+          </Field>
+        </dl>
+      ) : selectedVis ? (
         <dl data-testid="inspector-vis">
           <Field label="VIS scene">
             <select
