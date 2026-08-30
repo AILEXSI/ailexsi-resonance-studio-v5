@@ -380,6 +380,15 @@ body.media-asset-dragging .project-overlay-drawer {
   cursor: pointer;
   background: var(--panel-2);
 }
+.media-thumb {
+  display: block;
+  width: 100%;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #111;
+}
 .media-item strong {
   display: block;
   overflow: hidden;

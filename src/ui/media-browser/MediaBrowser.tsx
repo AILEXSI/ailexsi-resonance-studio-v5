@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
-import type { Project, TrackId } from "../../core/models";
+import { useEffect, useMemo, useState } from "react";
+import type { MediaAsset, Project, TrackId } from "../../core/models";
 import { displayMediaName, filterMediaAssets, type MediaKindFilter } from "../../core/media-display";
 import { MEDIA_FILE_ACCEPT, writeAssetDrag } from "../../core/media";
 import { describeMissing } from "../../core/persistence";
+import { binPosterKind, posterThumbForAsset } from "../timeline/ClipPreview";
 
 interface Props {
   project: Project;
@@ -13,6 +14,7 @@ interface Props {
   onImport: (files: FileList) => void;
   onPlace: (assetId: string) => void;
   onRelinkAsset?: (assetId: string) => void;
+  posterOf?: (asset: MediaAsset) => Promise<string | null>;
 }
 
 export function MediaBrowser({
@@ -24,13 +26,34 @@ export function MediaBrowser({
   onImport,
   onPlace,
   onRelinkAsset,
+  posterOf = posterThumbForAsset,
 }: Props) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<MediaKindFilter>("all");
+  const [posters, setPosters] = useState<Record<string, string>>({});
   const visible = useMemo(
     () => filterMediaAssets(project.assets, { query, kind }),
     [project.assets, query, kind],
   );
+  useEffect(() => {
+    let cancelled = false;
+    const wanted = visible.filter((a) => binPosterKind(a));
+    if (wanted.length === 0) return;
+    void (async () => {
+      const next: Record<string, string> = {};
+      for (const asset of wanted) {
+        const src = await posterOf(asset);
+        if (cancelled) return;
+        if (src) next[asset.id] = src;
+      }
+      if (!cancelled && Object.keys(next).length > 0) {
+        setPosters((prev) => ({ ...prev, ...next }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, posterOf]);
   return (
     <aside className="panel" data-testid="media-browser">
       <h2>Media</h2>
@@ -109,6 +132,14 @@ export function MediaBrowser({
                 document.body.classList.remove("media-asset-dragging");
               }}
             >
+              {posters[asset.id] ? (
+                <img
+                  className="media-thumb"
+                  data-testid={`media-thumb-${asset.id}`}
+                  src={posters[asset.id]}
+                  alt=""
+                />
+              ) : null}
               <strong title={asset.name}>
                 {asset.missing ? describeMissing(asset) : displayMediaName(asset.name)}
               </strong>

@@ -117,4 +117,44 @@ describe("MediaBrowser stills + drag", () => {
     expect(host.querySelector('[data-testid="media-item-still"]')).toBeNull();
     expect(host.querySelector('[data-testid="media-item-bed"]')).toBeTruthy();
   });
+
+  it("shows video/image posters from the timeline thumb helper; audio/missing stay empty", async () => {
+    const project = {
+      ...createEmptyProject(),
+      assets: [
+        asset({ id: "vid", kind: "video", name: "cut.mp4", objectUrl: "blob:vid", durationMs: 2000 }),
+        asset({ id: "still", kind: "image", name: "still.png", objectUrl: "blob:still", durationMs: 5000 }),
+        asset({ id: "bed", kind: "audio", name: "bed.wav", objectUrl: "blob:bed" }),
+        asset({ id: "gone", kind: "video", name: "gone.mp4", missing: true }),
+      ],
+    };
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(
+        <MediaBrowser
+          project={project}
+          targetTrackId="V1"
+          selectedAssetId={null}
+          onSelectAsset={() => undefined}
+          onTargetTrack={() => undefined}
+          onImport={() => undefined}
+          onPlace={() => undefined}
+          posterOf={async (a) =>
+            a.kind === "video" || a.kind === "image" ? `data:image/png,${a.id}` : null
+          }
+        />,
+      );
+      await Promise.resolve();
+    });
+    expect(host.querySelector('[data-testid="media-thumb-vid"]')?.getAttribute("src")).toBe(
+      "data:image/png,vid",
+    );
+    expect(host.querySelector('[data-testid="media-thumb-still"]')?.getAttribute("src")).toBe(
+      "data:image/png,still",
+    );
+    expect(host.querySelector('[data-testid="media-thumb-bed"]')).toBeNull();
+    expect(host.querySelector('[data-testid="media-thumb-gone"]')).toBeNull();
+  });
 });

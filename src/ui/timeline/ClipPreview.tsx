@@ -107,6 +107,34 @@ async function grabThumb(url: string, timeMs: number): Promise<string | null> {
   }
 }
 
+/** Same poster as timeline filmstrip/still — one cache, no second store. */
+export function binPosterKind(asset: MediaAsset): "video" | "image" | null {
+  if (asset.missing || !asset.objectUrl || !isPlayableSource(asset.objectUrl)) return null;
+  if (asset.kind === "image" || asset.kind === "video") return asset.kind;
+  return null;
+}
+
+export function binPosterTimeMs(asset: MediaAsset): number | null {
+  const kind = binPosterKind(asset);
+  if (!kind) return null;
+  if (kind === "image") return 0;
+  const times = filmstripTimes({
+    sourceInMs: 0,
+    sourceOutMs: Math.max(1, asset.durationMs),
+    clipWidthPx: FILMSTRIP_THUMB_PX,
+    kind: "video",
+  });
+  return times[0] ?? 0;
+}
+
+export async function posterThumbForAsset(asset: MediaAsset): Promise<string | null> {
+  const kind = binPosterKind(asset);
+  if (!kind || !asset.objectUrl) return null;
+  if (kind === "image") return grabStillThumb(asset.objectUrl);
+  const timeMs = binPosterTimeMs(asset) ?? 0;
+  return grabThumb(asset.objectUrl, timeMs);
+}
+
 async function grabStillThumb(url: string): Promise<string | null> {
   const key = `${url}@still`;
   const hit = thumbCache.get(key);

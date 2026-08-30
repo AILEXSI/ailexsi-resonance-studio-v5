@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  FILMSTRIP_THUMB_PX,
   buildPeakMipmap,
   collectFilmstripTimes,
   envelopeForWidth,
@@ -8,6 +9,8 @@ import {
   peaksFromChannel,
   peaksToPath,
 } from "../../src/core/clip-preview";
+import { binPosterKind, binPosterTimeMs } from "../../src/ui/timeline/ClipPreview";
+import { asset } from "../helpers";
 
 function sine(length: number, cycles: number): Float32Array {
   const out = new Float32Array(length);
@@ -175,5 +178,26 @@ describe("video filmstrip", () => {
     expect(planned).toHaveLength(2);
     expect(planned[0]).toBeGreaterThan(1000);
     expect(planned[1]).toBeLessThan(5000);
+  });
+});
+
+describe("bin poster uses timeline filmstrip/still times", () => {
+  it("video poster time is the first filmstrip tick; image is still; audio/missing skip", () => {
+    const video = asset({ id: "v", kind: "video", objectUrl: "blob:v", durationMs: 4000 });
+    const image = asset({ id: "i", kind: "image", objectUrl: "blob:i", durationMs: 5000 });
+    const audio = asset({ id: "a", kind: "audio", objectUrl: "blob:a" });
+    const gone = asset({ id: "g", kind: "video", missing: true, objectUrl: "blob:g" });
+    expect(binPosterKind(video)).toBe("video");
+    expect(binPosterKind(image)).toBe("image");
+    expect(binPosterKind(audio)).toBeNull();
+    expect(binPosterKind(gone)).toBeNull();
+    const first = filmstripTimes({
+      sourceInMs: 0,
+      sourceOutMs: 4000,
+      clipWidthPx: FILMSTRIP_THUMB_PX,
+      kind: "video",
+    })[0];
+    expect(binPosterTimeMs(video)).toBe(first);
+    expect(binPosterTimeMs(image)).toBe(0);
   });
 });
