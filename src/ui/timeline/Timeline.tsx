@@ -29,7 +29,9 @@ export { RULER_PAD_PX };
 
 /** Compatible V/A lane under the pointer (header or body). VIS is not a TrackId. */
 function trackIdFromPoint(clientX: number, clientY: number): TrackId | undefined {
-  const hit = document.elementFromPoint(clientX, clientY);
+  const fromPoint = document.elementFromPoint;
+  if (typeof fromPoint !== "function") return undefined;
+  const hit = fromPoint.call(document, clientX, clientY);
   let node: Element | null = hit;
   while (node) {
     const raw = node.getAttribute("data-testid");

@@ -30,6 +30,11 @@ describe("ScreenNav click + TAB", () => {
     expect(cutterBtn?.tagName).toBe("BUTTON");
     expect(arrangeBtn?.tagName).toBe("BUTTON");
     expect(arrangeBtn?.getAttribute("data-active")).toBe("true");
+    const toolbar = host.querySelector("[data-testid=toolbar]");
+    const nav = host.querySelector("[data-testid=screen-nav]");
+    expect(toolbar?.contains(nav)).toBe(true);
+    expect(host.querySelector("[data-testid=stage]")?.contains(nav)).toBe(false);
+    expect(host.querySelector(".app > .screen-nav")).toBeNull();
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
     expect(host.querySelector("[data-testid=preview]")).toBeTruthy();
@@ -89,6 +94,24 @@ describe("ScreenNav click + TAB", () => {
     });
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
+  });
+
+  it("ScreenNav buttons still call setScreen", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const seen: string[] = [];
+    act(() => {
+      root!.render(<ScreenNav screen="arrange" onSelect={(s) => seen.push(s)} />);
+    });
+    act(() => {
+      host!.querySelector<HTMLButtonElement>('[data-testid="screen-nav-cutter"]')!.click();
+    });
+    expect(seen).toEqual(["cutter"]);
+    act(() => {
+      host!.querySelector<HTMLButtonElement>('[data-testid="screen-nav-arrange"]')!.click();
+    });
+    expect(seen).toEqual(["cutter", "arrange"]);
   });
 
   it("onSelect uses the same screen ids TAB uses", () => {

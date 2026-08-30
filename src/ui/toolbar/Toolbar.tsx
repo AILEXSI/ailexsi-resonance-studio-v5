@@ -1,8 +1,12 @@
+import type { ProductionScreen } from "../../app/screens";
+import { ScreenNav } from "../screens/ScreenNav";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 
 interface Props {
   snap: boolean;
   exporting: boolean;
+  screen?: ProductionScreen;
+  onSelectScreen?: (screen: ProductionScreen) => void;
   onNew: () => void;
   onSave: () => void;
   onOpen: () => void;
@@ -21,6 +25,8 @@ interface Props {
 export function Toolbar({
   snap,
   exporting,
+  screen = "arrange",
+  onSelectScreen,
   onNew,
   onSave,
   onOpen,
@@ -39,6 +45,7 @@ export function Toolbar({
     <header className="toolbar" data-testid="toolbar">
       <div className="toolbar-group" data-group="file">
         <span className="toolbar-label">File</span>
+        <div className="toolbar-file-row">
         <button type="button" onClick={onNew}>
           New
         </button>
@@ -100,6 +107,8 @@ export function Toolbar({
         >
           Export
         </button>
+        </div>
+        <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
       </div>
       <div className="toolbar-group" data-group="edit">
         <span className="toolbar-label">Edit</span>

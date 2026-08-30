@@ -63,6 +63,14 @@ function baseProps(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function stubFromPoint(el: Element | null) {
+  Object.defineProperty(document, "elementFromPoint", {
+    configurable: true,
+    writable: true,
+    value: () => el,
+  });
+}
+
 describe("timeline drag to other video lane", () => {
   let host: HTMLDivElement | undefined;
   let root: Root | undefined;
@@ -111,9 +119,7 @@ describe("timeline drag to other video lane", () => {
       }),
     );
     const clipEl = el.querySelector('[data-testid="clip-v1"]')!;
-    const v2 = el.querySelector('[data-testid="lane-V2-body"]')!;
-    const fromPoint = document.elementFromPoint.bind(document);
-    document.elementFromPoint = () => v2;
+    stubFromPoint(el.querySelector('[data-testid="lane-V2-body"]'));
     act(() => {
       clipEl.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 40, clientY: 10 }));
     });
@@ -123,7 +129,6 @@ describe("timeline drag to other video lane", () => {
     act(() => {
       window.dispatchEvent(pointer("pointerup", { clientX: 40, clientY: 80 }));
     });
-    document.elementFromPoint = fromPoint;
     expect(commands.some((c) => c.type === "moveClips" && c.trackId === "V2")).toBe(true);
     expect(session.project.clips.find((c) => c.id === "v1")!.trackId).toBe("V2");
   });
@@ -140,9 +145,7 @@ describe("timeline drag to other video lane", () => {
       }),
     );
     const clipEl = el.querySelector('[data-testid="clip-v2"]')!;
-    const v1 = el.querySelector('[data-testid="lane-V1-body"]')!;
-    const fromPoint = document.elementFromPoint.bind(document);
-    document.elementFromPoint = () => v1;
+    stubFromPoint(el.querySelector('[data-testid="lane-V1-body"]'));
     act(() => {
       clipEl.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 200, clientY: 80 }));
     });
@@ -152,7 +155,6 @@ describe("timeline drag to other video lane", () => {
     act(() => {
       window.dispatchEvent(pointer("pointerup", { clientX: 200, clientY: 10 }));
     });
-    document.elementFromPoint = fromPoint;
     expect(seen).toContain("V1");
   });
 
@@ -168,9 +170,7 @@ describe("timeline drag to other video lane", () => {
       }),
     );
     const clipEl = el.querySelector('[data-testid="clip-v2"]')!;
-    const a1 = el.querySelector('[data-testid="lane-A1-body"]')!;
-    const fromPoint = document.elementFromPoint.bind(document);
-    document.elementFromPoint = () => a1;
+    stubFromPoint(el.querySelector('[data-testid="lane-A1-body"]'));
     act(() => {
       clipEl.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 200, clientY: 80 }));
     });
@@ -180,7 +180,6 @@ describe("timeline drag to other video lane", () => {
     act(() => {
       window.dispatchEvent(pointer("pointerup", { clientX: 200, clientY: 160 }));
     });
-    document.elementFromPoint = fromPoint;
     expect(seen.some((t) => t === "A1" || t === "A2")).toBe(false);
   });
 

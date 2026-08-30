@@ -85,7 +85,6 @@ import {
   type ProductionScreen,
 } from "./screens";
 import { Cutter } from "../ui/cutter/Cutter";
-import { ScreenNav } from "../ui/screens/ScreenNav";
 import {
   ARRANGE_MIN_PX,
   INSPECTOR_MIN_PX,
@@ -807,6 +806,8 @@ export function App() {
       <Toolbar
         snap={session.project.snap}
         exporting={exporting}
+        screen={screen}
+        onSelectScreen={setScreen}
         onNew={() => setSession(newProject(session))}
         onSave={onToolbarSave}
         onOpen={onToolbarOpen}
@@ -821,7 +822,6 @@ export function App() {
         onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
-      <ScreenNav screen={screen} onSelect={setScreen} />
       <input
         type="file"
         accept="audio/*,video/*"

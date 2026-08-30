@@ -37,7 +37,7 @@ function memoryStorage(initial: Record<string, string> = {}) {
 
 describe("layout prefs", () => {
   it("clamps the preview/arrange split to the min heights", () => {
-    const available = 600;
+    const available = 1200;
     expect(clampSplitRatio(0, available) * available).toBeCloseTo(PREVIEW_MIN_PX, 5);
     expect((1 - clampSplitRatio(1, available)) * available).toBeCloseTo(ARRANGE_MIN_PX, 5);
     expect(clampSplitRatio(0.5, available)).toBeCloseTo(0.5, 5);
