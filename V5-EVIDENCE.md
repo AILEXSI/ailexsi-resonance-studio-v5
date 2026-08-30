@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:54 UTC. Inspector Unlink + Ctrl+Shift+L on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:59 UTC. Group slip on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 154 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-Bc8mcmyi.css 17.23 kB
-- dist/assets/index-Bj3bY-DQ.js 699.90 kB
+- dist/assets/index-BiOsJ3PD.js 701.56 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **295 passed / 40 files**. Start 07:54:18 UTC. Duration 9.18s.
+exit 0. vitest 3.2.7. **304 passed / 41 files**. Start 07:59:11 UTC. Duration 9.19s.
 
-New this follow-up: inspector Unlink iff living mate; click/`unlinkClips` clears `linkId` and hides the control; Ctrl+Shift+L / Cmd+Shift+L map to `unlinkClips`; unlinked or orphan `linkId` hides Unlink; overlay lists Ctrl+Shift+L. Prior linked split/move/trim/slip/rate units stay green (291 → 295).
+New this follow-up: contiguous same-track pair slips together; gapped / mixed-track selection no-ops; source-bound on one member no-ops all; living mate of a member follows or whole no-ops; single slip still clamps; Alt+drag passes `clipIds` and does not steal Ctrl+Alt slide. Prior unlink / linked slip/rate units stay green (295 → 304).
 
 ## Visualizer
 
@@ -144,7 +144,7 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. **Ctrl+Shift+L** (Cmd+Shift+L via `ctrlKey || metaKey`) unlinks a living A/V pair. Ctrl+L without Shift is unused. Bare L stays shuttle. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (15): prior plus Ctrl+Shift+L / meta+Shift+L → `unlinkClips`; Ctrl+L alone is none; bare L still shuttle.
+`tests/app/keys.test.ts` (16): prior plus Alt+,/. group slip on a contiguous selection; gapped selection no-ops; Shift+Alt still slides.
 
 `tests/timeline/clip-menu.test.tsx` (4): prior plus overlay row Ctrl+Shift+L / Unlink A/V pair.
 
@@ -311,8 +311,8 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
-- Live linked A/V import / split / move / unlink click / Ctrl+Shift+L NOT VERIFIED (units only).
-- No group slip, elastic audio, crossfade objects, or automation curves.
+- Live linked A/V import / split / move / unlink click / Ctrl+Shift+L / group slip drag NOT VERIFIED (units only).
+- No elastic audio, crossfade objects, or automation curves.
 - No relink, link-picker, or nested sequences. Unlink chrome is inspector button + Ctrl+Shift+L only.
 - No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
 
@@ -390,7 +390,7 @@ Status: TEST-VERIFIED. Live Ctrl+C/X/V: NOT VERIFIED.
 
 Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
-`{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip — a living linked mate takes the same source delta, or both no-op. No group slip of an arbitrary multi-select. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
+`{ type: "slip", clipId, deltaMs, clipIds? }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Single unlinked clip clamps: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip — a living linked mate takes the same source delta, or both no-op. 2+ selected ids use `clipIds` (see Group slip). Alt+, / Alt+. = ±1 `FRAME_MS`. Undo restores. Ctrl+Alt stays slide.
 
 ## Slide
 
@@ -535,6 +535,20 @@ Ctrl+Alt+drag on a selected clip in a valid block slides the block (`clipIds`). 
 
 `tests/timeline/timeline.test.ts` group-slide cases. `tests/core/rate.test.ts` group-slide rate map. `tests/app/commands.test.ts` / `keys.test.ts`. `tests/timeline/group-slide.test.tsx` (2).
 
+## Group slip
+
+Status: TEST-VERIFIED (core + command + keys + DOM gesture). Live drag: NOT VERIFIED.
+
+One selected clip: `slipClip` is unchanged (unlinked clamp; living mate same source delta or both no-op). 2+ `selectedClipIds` on the **same** track, each pair abutting (≤1ms): the selection is one source-clock block. Every member gets the same source-in/source-out delta (from the primary clip’s rate). Start and duration stay. Neighbors do not move. Fades are not copied. Outer neighbors are not required (unlike group slide).
+
+Hard stop (same project + error): cross-track selection, internal gap > 1ms, or any member / living linked mate of any member would exceed source bounds. Do not leave picture and sound desynced.
+
+Alt+drag on a selected clip in a 2+ selection passes `clipIds`. Alt+,/. does the same. Gapped or mixed selection no-ops (does not fall back to slipping the primary). Ctrl+Alt stays slide.
+
+`slipClips` + `isSlipBlock` / `resolveSlipBlock` in `src/core/timeline.ts`. `{ type: "slip", clipId, deltaMs, clipIds? }`.
+
+`tests/timeline/timeline.test.ts` group-slip cases. `tests/core/linked-av.test.ts` mate-of-member. `tests/app/commands.test.ts` / `keys.test.ts`. `tests/timeline/group-slip.test.tsx` (2).
+
 ## Linked A/V
 
 Status: TEST-VERIFIED (import + mix skip + split/move/trim/slip/rate/unlink + inspector/shortcut). Live import / slip / rate / Unlink click: NOT VERIFIED.
@@ -549,9 +563,13 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 `{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. Inspector **Unlink** + **Ctrl+Shift+L** reach that command. No new track types. No relink.
 
-`tests/core/linked-av.test.ts` (12). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
+`tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 07:54 UTC)
+## Changelog this follow-up (2026-08-30 07:59 UTC)
+
+- Group slip for a contiguous same-track selection (`slipClips` / `slip`+`clipIds`). TEST-VERIFIED. Live drag: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:54 UTC)
 
 - Inspector Unlink + Ctrl+Shift+L dispatch existing `{ type: "unlinkClips" }`. TEST-VERIFIED. Live click: NOT VERIFIED.
 
@@ -692,7 +710,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: unlink UI evidence (this commit). Feature `dd59ce3`. Assigned start: `6681b36`. Prior slip/rate evidence: `6681b36`.
+Tip after this follow-up: group slip evidence (this commit). Feature `e049372`. Assigned start: `4a08900`. Prior unlink evidence: `4a08900`.
 
 ## Not added
 
