@@ -443,6 +443,44 @@ describe("ripple trim", () => {
     expect(rippled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
     expect(rippled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
   });
+
+  it("does not pack a later disabled clip (P134)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 500,
+          enabled: false,
+        }),
+        clip({
+          id: "c2",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 500,
+        }),
+      ],
+      [a],
+    );
+    const next = rippleTrimClip({ ...p, snap: false }, "c1", "out", 800);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1800);
+  });
 });
 
 describe("group move / delete", () => {

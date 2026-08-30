@@ -223,7 +223,7 @@ export function abuttingNeighbor(
  * slide by the duration delta (start returns to the original, end follows).
  * A living unlocked linked mate takes the same trim and pack. A locked mate
  * is skipped (same as split/slip/rate/roll/slide) so Q/W can trim the
- * unlocked clip.
+ * unlocked clip. Later disabled clips stay parked (same as G / ArrowUp).
  */
 export function rippleTrimClip(
   project: Project,
@@ -238,7 +238,7 @@ export function rippleTrimClip(
   const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
   const laterLocked = project.clips.some((c) => {
     if (c.id === clipId || c.id === liveMate?.id) return false;
-    if (!clipIsLocked(c)) return false;
+    if (!clipIsEnabled(c) || !clipIsLocked(c)) return false;
     const laterPrimary =
       c.trackId === before.trackId && c.startMs + ABUT_TOLERANCE_MS >= clipEndMs(before);
     const laterMate =
@@ -273,7 +273,10 @@ export function rippleTrimClip(
           Boolean(mateTrack) &&
           c.trackId === mateTrack &&
           c.startMs + ABUT_TOLERANCE_MS >= mateOldEnd;
-        if (laterPrimary || laterMate) return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        if (laterPrimary || laterMate) {
+          if (!clipIsEnabled(c)) return c;
+          return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        }
         return c;
       }),
       updatedAt: new Date().toISOString(),
