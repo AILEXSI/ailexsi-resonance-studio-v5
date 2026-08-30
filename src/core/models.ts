@@ -114,7 +114,8 @@ export interface Clip {
   /**
    * True = skip move, trim, slip, rate, roll/slide/ripple-trim-of-mate,
    * relocate-duplicate, drag, relink shrink of duration/sourceOut,
-   * ripple-delete packing through a locked later clip, and delete of an
+   * ripple-delete packing through a locked later clip, G when the next
+   * clip that would close the playhead gap is locked, and delete of an
    * unselected locked mate. A selected locked clip still deletes.
    * Missing = unlocked (same pattern as enabled).
    * Independent of linkId — locking one side of an A/V pair does not lock the mate.

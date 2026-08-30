@@ -177,6 +177,38 @@ describe("closeGap", () => {
     expect(next.history.past.length).toBe(start.history.past.length);
   });
 
+  it("refuses when the next clip that would close the gap is locked (P132)", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({ id: "a", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+            clip({
+              id: "wall",
+              assetId: "va",
+              trackId: "V1",
+              startMs: 2000,
+              durationMs: 500,
+              locked: true,
+            }),
+            clip({ id: "c", assetId: "va", trackId: "V1", startMs: 4000, durationMs: 500 }),
+          ],
+          [va],
+        ),
+        playheadMs: 1500,
+      },
+      selectedClipId: "a",
+      selectedClipIds: ["a"],
+    };
+    const next = applyCommand(start, { type: "closeGap" });
+    expect(next.error).toBe("Clip is locked");
+    expect(starts(next)).toEqual(starts(start));
+    expect(next.project.clips.find((c) => c.id === "c")!.startMs).toBe(4000);
+    expect(next.history.past.length).toBe(start.history.past.length);
+  });
+
   it("still packs unlocked later clips that do not hit a locked wall", () => {
     const va = asset({ id: "va", kind: "video", durationMs: 8000 });
     const start: Session = {

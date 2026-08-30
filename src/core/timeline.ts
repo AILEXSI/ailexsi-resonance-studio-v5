@@ -355,6 +355,9 @@ export function closeGapOnTrack(
 ): { project: Project } | { unchanged: true } | { error: string } {
   const gap = findGapOnTrack(project, trackId, timeMs);
   if (!gap) return { unchanged: true };
+  // The clip that would close THIS gap is locked — refuse. Do not pack
+  // later unlocked clips that are not filling the playhead gap (P132).
+  if (clipIsLocked(gap.nextClip)) return { error: "Clip is locked" };
   const onTrack = project.clips.filter((c) => c.trackId === trackId);
   const movers = onTrack.filter((c) => c.startMs >= gap.nextClip.startMs);
   if (movers.length === 0) return { unchanged: true };
