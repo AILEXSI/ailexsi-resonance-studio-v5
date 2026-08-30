@@ -639,7 +639,7 @@ Does not steal clip-body move, edge-trim, ripple, roll, slip, slide, fade handle
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `3ecfaaa` (marquee evidence). Feature `f03530d`; jsdom guard `c56f45e`. Assigned start: `1c1a3da`. Prior fade handles: `82fa382` / evidence `1c1a3da`.
+Tip after this follow-up: `ccf990e` (marquee evidence). Feature `f03530d`; jsdom guard `c56f45e`. Assigned start: `1c1a3da`. Prior fade handles: `82fa382` / evidence `1c1a3da`.
 
 ## Not added
 
