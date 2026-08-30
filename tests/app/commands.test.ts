@@ -175,6 +175,52 @@ describe("applyCommand determinism", () => {
     expect(undone.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
   });
 
+  it("rollEdit does not roll a later disabled abutting take (P138)", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 2000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "c2",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+              enabled: false,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "c1",
+    };
+    const rolled = applyCommand(start, {
+      type: "rollEdit",
+      clipId: "c1",
+      edge: "out",
+      nextEdgeMs: 1200,
+    });
+    expect(rolled.error).toMatch(/abutting/i);
+    expect(rolled.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+    expect(rolled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(rolled.project.clips.find((c) => c.id === "c2")!.enabled).toBe(false);
+    expect(rolled.history.past).toHaveLength(0);
+  });
+
   it("nudge moves startMs by FRAME_MS and clamps at 0", () => {
     const start = twoClipSession();
     const right = applyCommand(start, { type: "nudgeClip", deltaMs: FRAME_MS });

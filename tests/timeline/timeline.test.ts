@@ -720,6 +720,34 @@ describe("slide", () => {
     expect(gap.project).toBe(gapped);
     expect(gap.error).toMatch(/abutting/i);
   });
+
+  it("does not treat a disabled abutting take as a slide neighbor (P138)", () => {
+    const p = threeAbuttingA1();
+    const dimmed = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "R" ? { ...c, enabled: false } : c)),
+    };
+    expect(abuttingNeighbor(dimmed, "M", "out")).toBeUndefined();
+    expect(abuttingNeighbor(dimmed, "M", "in")?.id).toBe("L");
+    const againstDim = slideClip(dimmed, "M", 200);
+    expect(againstDim.project).toBe(dimmed);
+    expect(againstDim.error).toMatch(/abutting/i);
+    expect(againstDim.project.clips.find((c) => c.id === "R")!.startMs).toBe(2000);
+    expect(againstDim.project.clips.find((c) => c.id === "R")!.durationMs).toBe(1000);
+    expect(againstDim.project.clips.find((c) => c.id === "M")!.startMs).toBe(1000);
+
+    const lockedDim = {
+      ...p,
+      clips: p.clips.map((c) =>
+        c.id === "R" ? { ...c, enabled: false, locked: true } : c,
+      ),
+    };
+    expect(abuttingNeighbor(lockedDim, "M", "out")).toBeUndefined();
+    const againstLockedDim = slideClip(lockedDim, "M", 200);
+    expect(againstLockedDim.project).toBe(lockedDim);
+    expect(againstLockedDim.error).toMatch(/abutting/i);
+    expect(againstLockedDim.project.clips.find((c) => c.id === "R")!.startMs).toBe(2000);
+  });
 });
 
 function fiveAbuttingA1(): ReturnType<typeof projectWith> {
@@ -1368,6 +1396,17 @@ describe("roll edit", () => {
     expect(rejected.error).toMatch(/50ms/);
     expect(rejected.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
     expect(rejected.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
+
+  it("does not treat a disabled abutting take as a roll neighbor (P138)", () => {
+    const p = {
+      ...abuttingA1(),
+      clips: abuttingA1().clips.map((c) =>
+        c.id === "c2" ? { ...c, enabled: false } : c,
+      ),
+    };
+    expect(abuttingNeighbor(p, "c1", "out")).toBeUndefined();
+    expect(abuttingNeighbor(p, "c2", "in")?.id).toBe("c1");
   });
 });
 

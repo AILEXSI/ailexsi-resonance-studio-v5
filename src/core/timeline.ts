@@ -191,7 +191,11 @@ export function trimClip(
 
 export const ABUT_TOLERANCE_MS = 1;
 
-/** Neighbor that shares this edge (end of A == start of B within 1ms). */
+/**
+ * Neighbor that shares this edge (end of A == start of B within 1ms).
+ * Disabled clips are not neighbors (same as G / Q/W / extract / rate).
+ * After import+disable, roll/slide treat a dimmed take as a gap.
+ */
 export function abuttingNeighbor(
   project: Project,
   clipId: string,
@@ -205,6 +209,7 @@ export function abuttingNeighbor(
       (c) =>
         c.id !== clipId &&
         c.trackId === clip.trackId &&
+        clipIsEnabled(c) &&
         Math.abs(c.startMs - end) <= ABUT_TOLERANCE_MS,
     );
   }
@@ -212,6 +217,7 @@ export function abuttingNeighbor(
     (c) =>
       c.id !== clipId &&
       c.trackId === clip.trackId &&
+      clipIsEnabled(c) &&
       Math.abs(clipEndMs(c) - clip.startMs) <= ABUT_TOLERANCE_MS,
   );
 }
