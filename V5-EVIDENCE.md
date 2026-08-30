@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:38 UTC. Group slide on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:46 UTC. Linked A/V on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 153 modules. Outputs:
+exit 0. vite 7.3.6, 154 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-BIOCqzoX.css 17.20 kB
-- dist/assets/index-COaT-pkg.js 694.89 kB
+- dist/assets/index-DRohNEV9.js 698.38 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **277 passed / 39 files**. Start 07:38:07 UTC. Duration 7.97s.
+exit 0. vitest 3.2.7. **286 passed / 40 files**. Start 07:45:41 UTC. Duration 7.94s.
 
-New this follow-up: two-clip and three-clip block slide, internal gap / missing outer / cross-track no-op, single `slideClip` match, rate-aware neighbors, `slideClip`+`clipIds` undo, Shift+Alt+ block nudge + gap fallback, Ctrl+Alt+drag block vs plain group-move. Prior marquee units stay green (266 → 277; +1 file).
+New this follow-up: video+audio import pair + `linkId`, video-only stays V-only, sequential AV simultaneous pair, mix skips linked V, split/move both, unlink then move one, lift-delete mate, legacy JSON without `linkId`. Prior group-slide units stay green (277 → 286; +1 file).
 
 ## Visualizer
 
@@ -81,9 +81,11 @@ UI click-cycle this run: see UI chrome (VIS button only).
 
 Status: TEST-VERIFIED (sequential place). Multi-file picker UI: NOT VERIFIED.
 
-`importFiles` now places each new clip at `lastClipEndMsOnTrack` for the matching track (V1 or A1 unless the session target is already V2/A2). Same-kind files in one import sit end-to-end. Mixed picker: videos sequential on video track(s), audio sequential on audio track(s). Existing clips are not moved; new clips append after the last end on that track. Empty track → start 0. Media-browser Place-at-playhead is unchanged.
+`importFiles` now places each new clip at `lastClipEndMsOnTrack` for the matching track (V1 or A1 unless the session target is already V2/A2). Same-kind files in one import sit end-to-end. Mixed picker: videos sequential on video track(s), audio sequential on audio track(s). Existing clips are not moved; new clips append after the last end on that track. Empty track → start 0. Media-browser Place-at-playhead still uses `placeAsset` (pairs when `hasAudio`).
 
-`tests/media/import.test.ts` (11):
+A video file with `hasAudio: true` also places an A clip on the first free A lane (A1 then A2) at the **same** start without overlap. Same duration/source/rate. Shared `linkId`. Sequential files still abut; the pair inside one file is simultaneous. Video-only / unknown audio / no free A lane → V-only (P11 V-audio). Audio-only stays A-only.
+
+`tests/media/import.test.ts` (13):
 - text/png throw `ImportError` WRONG_TYPE
 - wav → audio, mp4 → video
 - place video on V1 and V2, audio on A1 and A2
@@ -93,6 +95,8 @@ Status: TEST-VERIFIED (sequential place). Multi-file picker UI: NOT VERIFIED.
 - mixed video+audio independent tracks
 - append after an existing V1 clip (start 200 dur 800 → new at 1000; old start unchanged)
 - single file on empty A1 starts at 0
+- video+audio (`hasAudio`) creates V+A pair + `linkId`; video-only does not
+- two AV files abut on V; each A clip starts with its V mate (not after the previous A end)
 
 No live multi-file picker this follow-up.
 
@@ -208,6 +212,7 @@ Memory store hydrate + serialize strip blob URLs: pass.
 Visualizer field round-trips; missing `visualizer` deserializes to `{ enabled: true, muted: false, sceneId: "resonance-wave" }`.
 Legacy clip JSON without `fadeInMs` / `fadeOutMs` loads as 0 / 0 (`tests/core/fades.test.ts` + persist deserialize).
 Legacy clip JSON without `rate` loads as 1.
+Legacy clip JSON without `linkId` loads unlinked.
 Legacy track JSON without `pan` loads as 0.
 `createIndexedDbBlobStore` exercised with an in-process IDB shim (`tests/helpers/fake-indexeddb.ts`). That is not a browser IndexedDB and not a page reload.
 
@@ -237,7 +242,7 @@ Also unit-green:
 
 audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain, then sets `playbackRate` from `Clip.rate` and plays the source-window length. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video `sourceTimeSec` is sourceIn + localMs × rate. Visualizer paint is not faded. Live export of fades/rate: NOT VERIFIED.
 
-`audioClipsForMix` includes present V1/V2 clips (not audio-kind only). `mixJobAudio` still skips a decode that throws or has no channels (video-only file). Mute/solo already empty the job track. V-track volume/pan/fades/rate use the same path as A. Live V-audio in an exported file: NOT VERIFIED. AAC still NOT IMPLEMENTED.
+`audioClipsForMix` includes present V1/V2 clips (not audio-kind only) unless that V clip has a living linked A clip (A carries the sound). `mixJobAudio` still skips a decode that throws or has no channels (video-only file). Mute/solo already empty the job track. V-track volume/pan/fades/rate use the same path as A. Live V-audio in an exported file: NOT VERIFIED. AAC still NOT IMPLEMENTED.
 
 No `artifacts/v5-user-export.mp4` in this workspace this run.
 
@@ -306,14 +311,16 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
-- No linked A/V split, elastic audio, crossfade objects, or automation curves.
+- Live linked A/V import / split / move NOT VERIFIED (units only).
+- No group slip, elastic audio, crossfade objects, or automation curves.
+- No unlink UI chrome beyond `{ type: "unlinkClips" }`.
 - No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
 
 ## Command dispatch
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `slideClip` may carry optional `clipIds` for a contiguous block. Prior: `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `unlinkClips`. `slideClip` may carry optional `clipIds` for a contiguous block. Prior: `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -480,11 +487,11 @@ No elastic audio. Group slide is contiguous same-track only. Marquee is empty-la
 
 Status: TEST-VERIFIED (mix candidates + gain/pan bake + decode skip). Live preview/export hear: NOT VERIFIED.
 
-`audioClipsForMix` takes every non-missing clip on V1/V2/A1/A2. Mute/solo still empty the job track first. `mixJobAudio` decodes; 0 channels or throw → skip that clip, mix still succeeds. Same fade envelope, track pan, clip rate as A.
+`audioClipsForMix` takes every non-missing clip on V1/V2/A1/A2 except a V clip whose living linked A clip is also in the job. Mute/solo still empty the job track first. `mixJobAudio` decodes; 0 channels or throw → skip that clip, mix still succeeds. Same fade envelope, track pan, clip rate as A.
 
-Preview: `<video>` muted. Hidden `<audio>` per V lane, same object URL, same `sourceTimeAt` / `playbackRate` / `gainAtClipTime` / fader / mute-solo / pan as A. One playback tap (not a second mixer). MixPeaks V1/V2 are analyser peaks from those lanes.
+Preview: `<video>` muted. Hidden `<audio>` per V lane, same object URL, same `sourceTimeAt` / `playbackRate` / `gainAtClipTime` / fader / mute-solo / pan as A — skipped when a living linked A clip carries the sound. One playback tap (not a second mixer). MixPeaks V1/V2 are analyser peaks from those lanes.
 
-No linked A/V split-to-new-track. No elastic audio. Marquee is empty-lane only. Group slide is contiguous same-track only.
+Unlinked V clips keep this mix. No elastic audio. Marquee is empty-lane only. Group slide is contiguous same-track only.
 
 `tests/export/vtrack-audio.test.ts` (4). `mixClipsAt` in `tests/foundation/models.test.ts`.
 
@@ -498,7 +505,7 @@ Clip width under 48 px → handles hidden, trim edges stay. Alt / Ctrl / Meta on
 
 Drag → `applyCommand` `{ type: "setClipFades" }` from the drag base (same live/commit as slip). `normalizeClipFades`: 0..duration, scale if they would overlap. One history entry. Inspector fields unchanged.
 
-Marquee is empty-lane only (does not steal fade handles). Group slide does not steal fade handles. No linked A/V split. No elastic audio. No crossfade objects. No automation curves.
+Marquee is empty-lane only (does not steal fade handles). Group slide does not steal fade handles. Linked A/V does not steal fade handles. No elastic audio. No crossfade objects. No automation curves.
 
 `tests/core/fade-handles.test.ts` (4). `tests/timeline/fade-handles.test.tsx` (4). `tests/core/fades.test.ts` (12) still green.
 
@@ -528,7 +535,27 @@ Ctrl+Alt+drag on a selected clip in a valid block slides the block (`clipIds`). 
 
 `tests/timeline/timeline.test.ts` group-slide cases. `tests/core/rate.test.ts` group-slide rate map. `tests/app/commands.test.ts` / `keys.test.ts`. `tests/timeline/group-slide.test.tsx` (2).
 
-## Changelog this follow-up (2026-08-30 07:38 UTC)
+## Linked A/V
+
+Status: TEST-VERIFIED (import + mix skip + split/move/unlink). Live import: NOT VERIFIED.
+
+`Clip.linkId` optional. Legacy JSON missing `linkId` stays unlinked. `MediaAsset.hasAudio` optional; probe may set it on video (`audioTracks` / `mozHasAudio`). Unknown → no pair (V-only + P11 mix).
+
+Import/place of video + `hasAudio: true`: V clip on the chosen V track and an A clip on the first free A lane (A1 then A2) that can take `[start, start+duration)` without overlap. Same start/duration/source in/out/rate. Shared `linkId`. Same video asset on both clips. Sequential files still abut on the V track; the A mate starts with its V clip, not after the last A end. No free A lane → V-only, no silent drop.
+
+Mix: living linked A clip carries audio; that V clip is omitted from `audioClipsForMix` and from the preview V hidden-audio bind. Unlinked V clips keep P11 V-audio. `<video>` stays muted.
+
+Edits that follow a living mate: split (S) at the same timeline time (lefts keep `linkId`, rights get a new shared id), move (same delta; track change stays same-kind), lift-delete and ripple-delete of one lift the other, trim / ripple-trim / roll of a linked edge apply to both. Slip / slide / rate / fades do not auto-copy.
+
+`{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. No new track types. No unlink button.
+
+`tests/core/linked-av.test.ts` (7). Import pair cases in `tests/media/import.test.ts`.
+
+## Changelog this follow-up (2026-08-30 07:46 UTC)
+
+- Linked A/V pair on video+audio import (`linkId`, mix skip, split/move/trim/delete follow, `unlinkClips`). TEST-VERIFIED. Live import: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:38 UTC)
 
 - Group slide for a contiguous same-track selection (`slideClips` / `slideClip`+`clipIds`). TEST-VERIFIED. Live drag: NOT VERIFIED.
 
@@ -657,7 +684,7 @@ Ctrl+Alt+drag on a selected clip in a valid block slides the block (`clipIds`). 
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: group-slide evidence (this commit). Feature `d6d70b1`. Assigned start: `d2a3d44`. Prior marquee evidence: `ccf990e`.
+Tip after this follow-up: linked-A/V evidence (this commit). Feature `052edc1`. Assigned start: `8527bd6`. Prior group-slide evidence: `8527bd6`.
 
 ## Not added
 
