@@ -807,7 +807,8 @@ export function applyPaste(session: Session): Session {
   );
 }
 
-/** Clone the selection at the playhead. Does not write `session.clipboard`. */
+/** Clone the selection at the playhead. Does not write `session.clipboard`.
+ * A disabled take clones as enabled so the new instance is audible. */
 export function applyDuplicate(session: Session): Session {
   const ids = selectionOf(session);
   const clips = ids
