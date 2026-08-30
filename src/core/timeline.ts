@@ -684,7 +684,7 @@ export function splitAtPlayhead(
   const hits = project.clips.filter(
     (c) =>
       (!allow || allow.has(c.id)) &&
-      (allow ? true : clipIsEnabled(c)) &&
+      clipIsEnabled(c) &&
       project.playheadMs > c.startMs &&
       project.playheadMs < clipEndMs(c),
   );

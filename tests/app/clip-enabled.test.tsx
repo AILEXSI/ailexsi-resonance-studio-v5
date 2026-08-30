@@ -105,6 +105,24 @@ describe("clip enable / disable (P45)", () => {
     expect(same).toBe(disabled);
   });
 
+  it("S with a multi-select still skips a disabled clip under the playhead (P144)", () => {
+    const start = stackedSession();
+    start.project.playheadMs = 500;
+    start.project.frontVideoTrackId = "V1";
+    const disabled = applyCommand(start, { type: "setClipsEnabled", enabled: false });
+    const multi = {
+      ...disabled,
+      selectedClipId: "v1",
+      selectedClipIds: ["v1", "v2"],
+    };
+    const split = applyCommand(multi, { type: "split" });
+    expect(split.error).toBeNull();
+    expect(split.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(split.project.clips.find((c) => c.id === "v1")!.enabled).toBe(false);
+    expect(split.project.clips.filter((c) => c.assetId === "vb")).toHaveLength(2);
+    expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(1);
+  });
+
   it("S splits the covering enabled clip, not a disabled clip under the playhead (P102)", () => {
     const start = stackedSession();
     start.project.playheadMs = 500;
