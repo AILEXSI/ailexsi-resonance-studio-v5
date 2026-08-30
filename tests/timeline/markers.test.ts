@@ -62,6 +62,29 @@ describe("markers", () => {
     expect(live.selectedClipId).toBeNull();
   });
 
+  it("snaps marker drag to clip edges, not to itself (P85)", () => {
+    const { session, m1, m2 } = sessionWithMarkers();
+    expect(session.project.snap).toBe(true);
+    expect(m1.timeMs).toBe(1000);
+    expect(m2.timeMs).toBe(2500);
+
+    const toClipEnd = applyMoveMarker(session, m1.id, 2070);
+    expect(toClipEnd.project.markers.find((m) => m.id === m1.id)?.timeMs).toBe(2000);
+
+    const toOther = applyMoveMarker(session, m1.id, 2550);
+    expect(toOther.project.markers.find((m) => m.id === m1.id)?.timeMs).toBe(2500);
+
+    const pastSelf = applyMoveMarker(session, m1.id, 1050);
+    expect(pastSelf.project.markers.find((m) => m.id === m1.id)?.timeMs).toBe(1050);
+
+    const off = applyMoveMarker(
+      { ...session, project: { ...session.project, snap: false } },
+      m1.id,
+      2070,
+    );
+    expect(off.project.markers.find((m) => m.id === m1.id)?.timeMs).toBe(2070);
+  });
+
   it("renameMarker writes label and persists (P68)", () => {
     const { session, m1, m2 } = sessionWithMarkers();
     const next = applyCommand(session, { type: "renameMarker", markerId: m1.id, label: " Chorus " });

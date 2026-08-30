@@ -1156,7 +1156,10 @@ export function applyDeleteMarker(session: Session, markerId: string): Session {
 }
 
 export function applyMoveMarker(session: Session, markerId: string, timeMs: number): Session {
-  const result = moveMarker(session.project, markerId, timeMs);
+  const snapped = session.project.snap
+    ? snapTime(timeMs, collectSnapTargets(session.project, undefined, markerId)).timeMs
+    : timeMs;
+  const result = moveMarker(session.project, markerId, snapped);
   if (result.error) return { ...session, error: result.error };
   return {
     ...withClipSelection(session, []),

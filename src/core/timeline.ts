@@ -701,6 +701,7 @@ export interface SnapTarget {
 export function collectSnapTargets(
   project: Project,
   ignoreClipId?: string | readonly string[],
+  ignoreMarkerId?: string,
 ): SnapTarget[] {
   const ignore = new Set(
     ignoreClipId == null ? [] : typeof ignoreClipId === "string" ? [ignoreClipId] : ignoreClipId,
@@ -716,6 +717,7 @@ export function collectSnapTargets(
       targets.push({ timeMs: clipEndMs(clip), kind: "clip-end" });
     }
     for (const marker of project.markers) {
+      if (marker.id === ignoreMarkerId) continue;
       targets.push({ timeMs: marker.timeMs, kind: "marker" });
     }
   }
