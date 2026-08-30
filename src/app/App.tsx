@@ -1162,6 +1162,7 @@ export function App() {
           selectedClipId={session.selectedClipId}
           selectedClipIds={session.selectedClipIds}
           apply={runCommand}
+          onPlayhead={(ms) => setSession((s) => applyPlayhead(s, ms))}
         />
       ) : null}
       <div

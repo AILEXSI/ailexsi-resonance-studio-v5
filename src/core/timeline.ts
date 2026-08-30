@@ -733,6 +733,22 @@ export function collectEditPoints(project: Project): number[] {
   return [...times].filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
 }
 
+/** Nearest time in `collectEditPoints`. Empty project → undefined. */
+export function nearestEditPointMs(project: Project, fromMs: number): number | undefined {
+  const points = collectEditPoints(project);
+  if (!points.length) return undefined;
+  let best = points[0]!;
+  let bestDist = Math.abs(best - fromMs);
+  for (const t of points) {
+    const d = Math.abs(t - fromMs);
+    if (d < bestDist) {
+      best = t;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
 export function nextEditPointMs(project: Project, fromMs: number): number | null {
   for (const t of collectEditPoints(project)) {
     if (t > fromMs) return t;
