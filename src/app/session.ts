@@ -29,6 +29,8 @@ import {
   splitAtPlayhead,
   toggleLoop,
   toggleSnap,
+  setMasterVolume,
+  setTrackVolume,
   toggleTrackMute,
   trimClip,
   undo as undoHistory,
@@ -36,6 +38,7 @@ import {
   type HistoryStack,
 } from "../core/timeline";
 import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
+import { formatDb, linearToDb } from "../core/volume";
 import {
   clampZoomPxPerSec,
   fitZoomPxPerSec,
@@ -377,6 +380,24 @@ export function applyToggleLoop(session: Session): Session {
 
 export function applyToggleSnap(session: Session): Session {
   return { ...session, project: toggleSnap(session.project) };
+}
+
+export function applyTrackVolume(session: Session, trackId: TrackId, volume: number): Session {
+  return {
+    ...session,
+    project: setTrackVolume(session.project, trackId, volume),
+    status: `${trackId} ${formatDb(linearToDb(volume))}`,
+    error: null,
+  };
+}
+
+export function applyMasterVolume(session: Session, volume: number): Session {
+  return {
+    ...session,
+    project: setMasterVolume(session.project, volume),
+    status: `Master ${formatDb(linearToDb(volume))}`,
+    error: null,
+  };
 }
 
 export function applyToggleMute(session: Session, trackId: TrackId): Session {

@@ -4,6 +4,7 @@ import {
   kindOfTrack,
   type Project,
 } from "../models";
+import { mixLinearGain } from "../volume";
 import { exportRangeMs } from "../timeline";
 import type { ExportClip, ExportJob, ExportTrack } from "./types";
 
@@ -45,7 +46,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           sourceUrl: asset?.objectUrl && !asset.missing ? asset.objectUrl : "",
           sourceInMs: c.sourceInMs,
           sourceOutMs: c.sourceOutMs,
-          gain: c.gain,
+          gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, false),
           missing: !asset || asset.missing || !asset.objectUrl,
           label: asset?.name ?? c.id,
         };

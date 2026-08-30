@@ -8,10 +8,18 @@
 import { createFeatureExtractor, type FeatureExtractor } from "./feature-extractor";
 import type { AudioFeatures } from "./types";
 
+export interface MixPeaks {
+  A1: number;
+  A2: number;
+  master: number;
+}
+
 export interface PlaybackTap {
   sample(timeMs: number): AudioFeatures;
   resume(): void;
   disconnect(): void;
+  setGains(gains: { A1: number; A2: number; master: number }): void;
+  peaks(): MixPeaks;
 }
 
 const sourceCache = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
@@ -58,14 +66,27 @@ export function createPlaybackTap(
 
   const mixer = ctx.createGain();
   mixer.gain.value = 1;
-  mixer.connect(ctx.destination);
+  const masterAnalyser = ctx.createAnalyser();
+  masterAnalyser.fftSize = 512;
+  mixer.connect(masterAnalyser);
+  masterAnalyser.connect(ctx.destination);
 
+  const trackGains: GainNode[] = [];
+  const trackAnalysers: AnalyserNode[] = [];
   let connected = 0;
   for (const el of media) {
     const source = sourceFor(ctx, el);
     if (!source) continue;
     try {
-      source.connect(mixer);
+      const gain = ctx.createGain();
+      gain.gain.value = 1;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(gain);
+      gain.connect(analyser);
+      analyser.connect(mixer);
+      trackGains.push(gain);
+      trackAnalysers.push(analyser);
       connected += 1;
     } catch {
       // already wired this tick
@@ -93,12 +114,38 @@ export function createPlaybackTap(
     return null;
   }
 
+  const peakBuf = new Float32Array(512);
+  const readPeak = (node: AnalyserNode): number => {
+    try {
+      node.getFloatTimeDomainData(peakBuf);
+    } catch {
+      return 0;
+    }
+    let p = 0;
+    for (let i = 0; i < peakBuf.length; i += 1) p = Math.max(p, Math.abs(peakBuf[i] ?? 0));
+    return p;
+  };
+
   return {
     sample(timeMs: number) {
       return extractor.sample(timeMs);
     },
     resume() {
       if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
+    },
+    setGains(gains) {
+      const a1 = trackGains[0];
+      const a2 = trackGains[1];
+      if (a1) a1.gain.value = Math.max(0, gains.A1);
+      if (a2) a2.gain.value = Math.max(0, gains.A2);
+      mixer.gain.value = Math.max(0, gains.master);
+    },
+    peaks() {
+      return {
+        A1: trackAnalysers[0] ? readPeak(trackAnalysers[0]) : 0,
+        A2: trackAnalysers[1] ? readPeak(trackAnalysers[1]) : 0,
+        master: readPeak(masterAnalyser),
+      };
     },
     disconnect() {
       extractor.disconnect();

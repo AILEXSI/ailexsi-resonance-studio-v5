@@ -35,6 +35,7 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     zoomPxPerSec: 80,
     scrollMs: 0,
     visualizer: defaultVisualizer(),
+    masterVolume: 1,
   };
 }
 
@@ -102,7 +103,13 @@ function sanitizeTracks(raw: unknown): Track[] {
     const found = raw.find((t) => t && typeof t === "object" && (t as Track).id === track.id) as
       | Track
       | undefined;
-    return found ? { ...track, muted: Boolean(found.muted) } : track;
+    if (!found) return track;
+    const vol = Number((found as Track).volume);
+    return {
+      ...track,
+      muted: Boolean(found.muted),
+      volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
+    };
   });
 }
 
@@ -194,6 +201,10 @@ export function deserializeProject(text: string): Project {
     zoomPxPerSec: Math.max(0.05, Math.min(400, Number(raw.zoomPxPerSec) || 80)),
     scrollMs: Math.max(0, Number(raw.scrollMs) || 0),
     visualizer: sanitizeVisualizer(raw.visualizer),
+    masterVolume: (() => {
+      const v = Number(raw.masterVolume);
+      return Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 1;
+    })(),
   };
 }
 

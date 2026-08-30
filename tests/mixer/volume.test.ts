@@ -1,0 +1,69 @@
+import { describe, expect, it } from "vitest";
+import { applyMasterVolume, applyTrackVolume, createSession } from "../../src/app/session";
+import { createMemoryBlobStore } from "../../src/core/persistence";
+import { deserializeProject, serializeProject } from "../../src/core/project";
+import {
+  dbToLinear,
+  formatDb,
+  linearToDb,
+  mixLinearGain,
+  peakToDb,
+} from "../../src/core/volume";
+import { asset, clip, projectWith } from "../helpers";
+
+describe("mixer volume curve", () => {
+  it("0 dB is unity; -6 dB is ~0.5 linear (10^(dB/20)); bottom is silence", () => {
+    expect(dbToLinear(0)).toBeCloseTo(1, 8);
+    expect(linearToDb(1)).toBeCloseTo(0, 8);
+    // 20 * log10(0.5) = -6.0205999…
+    expect(dbToLinear(-6)).toBeCloseTo(0.501187, 4);
+    expect(linearToDb(0.5)).toBeCloseTo(-6.0206, 3);
+    expect(dbToLinear(Number.NEGATIVE_INFINITY)).toBe(0);
+    expect(linearToDb(0)).toBe(Number.NEGATIVE_INFINITY);
+    expect(formatDb(Number.NEGATIVE_INFINITY)).toBe("-∞ dB");
+  });
+
+  it("meter helper maps peak to dB", () => {
+    expect(peakToDb(1)).toBeCloseTo(0, 8);
+    expect(peakToDb(0.5)).toBeCloseTo(-6.0206, 3);
+    expect(peakToDb(0)).toBe(Number.NEGATIVE_INFINITY);
+  });
+
+  it("mute zeros the mix even if faders are up", () => {
+    expect(mixLinearGain(1, 1, 1, true)).toBe(0);
+    expect(mixLinearGain(1, 1, 1, false)).toBeCloseTo(1, 8);
+  });
+});
+
+describe("session + project volume persist", () => {
+  it("round-trips track and master volume in .resonance.json", () => {
+    let session = createSession(createMemoryBlobStore());
+    session.project = projectWith(
+      [clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 })],
+      [asset({ id: "a", kind: "audio", durationMs: 1000 })],
+    );
+    session = applyTrackVolume(session, "A1", dbToLinear(-6));
+    session = applyMasterVolume(session, dbToLinear(0));
+    const a1 = session.project.tracks.find((t) => t.id === "A1");
+    expect(a1?.volume).toBeCloseTo(dbToLinear(-6), 5);
+    expect(session.project.masterVolume).toBeCloseTo(1, 8);
+
+    const loaded = deserializeProject(serializeProject(session.project));
+    expect(loaded.tracks.find((t) => t.id === "A1")?.volume).toBeCloseTo(dbToLinear(-6), 5);
+    expect(loaded.masterVolume).toBeCloseTo(1, 8);
+    expect(loaded.tracks.find((t) => t.id === "V1")?.volume).toBe(1);
+  });
+
+  it("legacy JSON without volume defaults to unity", () => {
+    const session = createSession(createMemoryBlobStore());
+    const raw = JSON.parse(serializeProject(session.project)) as {
+      tracks: Array<{ volume?: number }>;
+      masterVolume?: number;
+    };
+    for (const t of raw.tracks) delete t.volume;
+    delete raw.masterVolume;
+    const loaded = deserializeProject(JSON.stringify(raw));
+    expect(loaded.tracks.every((t) => t.volume === 1)).toBe(true);
+    expect(loaded.masterVolume).toBe(1);
+  });
+});

@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 04:42 UTC. Project-folder Save/Open follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 04:46 UTC. Mixer channel-strip follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 142 modules. Outputs:
+exit 0. vite 7.3.6, 144 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-CMfYrtE-.css 8.87 kB
-- dist/assets/index-CYzqiFo5.js 641.80 kB
+- dist/assets/index-CNIg9MS1.css 10.20 kB
+- dist/assets/index-DQ-OMaKv.js 646.44 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **107 passed / 15 files**. Start 04:42:37 UTC. Duration 2.38s.
+exit 0. vitest 3.2.7. **112 passed / 16 files**. Start 04:46:06 UTC. Duration 2.65s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, project-file 4, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, project-file 4, mixer 5, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -157,6 +157,16 @@ Fallback (no FSA): download/upload; status says Browser-Downloads / Datei gewäh
 
 `tests/persistence/project-file.test.ts` (4): startIn memory, next-picker startIn, status contains filename, fallback has no fake path.
 
+## Mixer
+
+Status: TEST-VERIFIED (curve + persist). Live fader/meter drag: NOT VERIFIED.
+
+Right of the arrange window: V1 V2 A1 A2 + Master. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
+
+Curve: linear = 10^(dB/20). 0 dB = 1. -6 dB ≈ 0.501. Bottom / -∞ = 0. Track `volume` and `masterVolume` persist in `.resonance.json`. Preview applies track+master via GainNodes when Web Audio is up; export bakes the mix into clip gain. VIS is not a mixer channel.
+
+`tests/mixer/volume.test.ts` (5): unity / -6 dB / silence; peakToDb; mute zeros mix; session JSON round-trip; legacy missing volume → 1.
+
 ## Persistence
 
 Status: TEST-VERIFIED
@@ -233,7 +243,11 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:42 UTC)
+## Changelog this follow-up (2026-08-30 04:46 UTC)
+
+- Cubase-style mixer strip right of the timeline (V1–A2 + Master). TEST-VERIFIED (curve/persist). Live fader: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 04:42 UTC)
 
 - Save/Open remember last project folder via File System Access handles. TEST-VERIFIED (mocked). Live picker: NOT VERIFIED.
 - Status shows filename; fallback admits path unknown. TEST-VERIFIED.

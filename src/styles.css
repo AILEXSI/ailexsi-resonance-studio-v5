@@ -52,6 +52,12 @@ input[type="range"] { accent-color: var(--accent-2); }
   height: 100%;
   min-height: 0;
 }
+.arrange-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 228px;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
 
 .toolbar, .transport, .status {
   display: flex;
@@ -172,7 +178,7 @@ input[type="range"] { accent-color: var(--accent-2); }
   min-width: 86px;
 }
 
-.timeline { background: #0c1016; border-top: 1px solid var(--line); user-select: none; position: relative; }
+.timeline { background: #0c1016; border-top: none; user-select: none; position: relative; min-width: 0; }
 .timeline-tools {
   display: flex;
   gap: 8px;
@@ -405,6 +411,76 @@ input[type="range"] { accent-color: var(--accent-2); }
 .err { color: var(--danger); }
 
 .hidden-audio { display: none; }
+
+.mixer {
+  display: flex;
+  gap: 2px;
+  padding: 6px 6px 8px;
+  background: #0d1118;
+  border-left: 1px solid var(--line);
+  overflow-x: auto;
+  min-height: 0;
+}
+.mix-strip {
+  width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.mix-strip.selected { border-color: var(--accent-2); background: #161c28; }
+.mix-strip.muted { opacity: 0.55; }
+.mix-strip.master { border-left: 1px solid var(--line); margin-left: 2px; }
+.mix-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.mix-strip.video .mix-name { color: #8eb6e0; }
+.mix-strip.audio .mix-name { color: #6ec9a4; }
+.mix-strip.master .mix-name { color: var(--accent); }
+.mix-meter {
+  width: 8px;
+  height: 52px;
+  background: #1a202b;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.mix-meter-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(#e06c75, #d4b45a, #45b085);
+}
+.mix-fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 18px;
+  height: 120px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+.mix-db, .mix-peak {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.mix-peak { color: #8b95a6; }
+.mix-master-tag {
+  font-size: 8px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
 
 .shortcuts-overlay {
   position: fixed;

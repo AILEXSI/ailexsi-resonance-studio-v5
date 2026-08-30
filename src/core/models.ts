@@ -74,6 +74,8 @@ export interface Track {
   kind: MediaKind;
   name: string;
   muted: boolean;
+  /** Linear track fader. 1 = 0 dB unity. 0 = silence. */
+  volume: number;
 }
 
 export interface Marker {
@@ -100,6 +102,8 @@ export interface Project {
   zoomPxPerSec: number;
   scrollMs: number;
   visualizer: VisualizerState;
+  /** Linear master fader. 1 = 0 dB unity. */
+  masterVolume: number;
 }
 
 export const SPLIT_EDGE_GUARD_MS = 50;
@@ -116,6 +120,11 @@ export function formatTimecode(ms: number): string {
 
 export function isTrackMuted(project: Project, trackId: TrackId): boolean {
   return project.tracks.find((t) => t.id === trackId)?.muted === true;
+}
+
+export function trackVolumeOf(project: Project, trackId: TrackId): number {
+  const v = project.tracks.find((t) => t.id === trackId)?.volume;
+  return v == null || !Number.isFinite(v) ? 1 : Math.max(0, v);
 }
 
 export function clipEndMs(clip: Clip): number {
@@ -136,10 +145,10 @@ export function projectDurationMs(project: Project): number {
 
 export function defaultTracks(): Track[] {
   return [
-    { id: "V1", kind: "video", name: "V1", muted: false },
-    { id: "V2", kind: "video", name: "V2", muted: false },
-    { id: "A1", kind: "audio", name: "A1", muted: false },
-    { id: "A2", kind: "audio", name: "A2", muted: false },
+    { id: "V1", kind: "video", name: "V1", muted: false, volume: 1 },
+    { id: "V2", kind: "video", name: "V2", muted: false, volume: 1 },
+    { id: "A1", kind: "audio", name: "A1", muted: false, volume: 1 },
+    { id: "A2", kind: "audio", name: "A2", muted: false, volume: 1 },
   ];
 }
 

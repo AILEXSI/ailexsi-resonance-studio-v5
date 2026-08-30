@@ -28,6 +28,7 @@ import { Preview } from "../ui/preview/Preview";
 import { Inspector } from "../ui/inspector/Inspector";
 import { Transport } from "../ui/transport/Transport";
 import { Timeline } from "../ui/timeline/Timeline";
+import { Mixer, type MixPeaks } from "../ui/mixer/Mixer";
 import { Toolbar } from "../ui/toolbar/Toolbar";
 import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
 import {
@@ -49,6 +50,8 @@ import {
   applySelect,
   applySplit,
   applyToggleLoop,
+  applyMasterVolume,
+  applyTrackVolume,
   applyToggleMute,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
@@ -73,6 +76,13 @@ export function App() {
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [mixPeaks, setMixPeaks] = useState<MixPeaks>({
+    V1: 0,
+    V2: 0,
+    A1: 0,
+    A2: 0,
+    master: 0,
+  });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
   const projectFileRef = useRef(projectFile);
@@ -428,7 +438,7 @@ export function App() {
             setSession((s) => applyPlaceAsset(s, assetId, trackId));
           }}
         />
-        <Preview project={session.project} playing={session.playing} />
+        <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
         <Inspector
           project={session.project}
           selectedClipId={session.selectedClipId}
@@ -451,6 +461,7 @@ export function App() {
         onSplit={() => setSession(applySplit(session))}
       />
 
+      <div className="arrange-row">
       <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}
@@ -479,6 +490,16 @@ export function App() {
         onLoopMoveLive={onLoopMoveLive}
         onLoopCommit={onLoopCommit}
       />
+      <Mixer
+        project={session.project}
+        selectedTrackId={session.targetTrackId}
+        peaks={mixPeaks}
+        onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+        onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
+        onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
+        onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+      />
+      </div>
 
       <ShortcutsOverlay open={shortcutsOpen} />
 

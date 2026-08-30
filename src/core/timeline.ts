@@ -353,6 +353,20 @@ export function toggleSnap(project: Project): Project {
   return { ...project, snap: !project.snap };
 }
 
+export function setTrackVolume(project: Project, trackId: TrackId, volume: number): Project {
+  const v = Math.max(0, Math.min(2, Number(volume) || 0));
+  return {
+    ...project,
+    tracks: project.tracks.map((t) => (t.id === trackId ? { ...t, volume: v } : t)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function setMasterVolume(project: Project, volume: number): Project {
+  const v = Math.max(0, Math.min(2, Number(volume) || 0));
+  return { ...project, masterVolume: v, updatedAt: new Date().toISOString() };
+}
+
 export function toggleTrackMute(project: Project, trackId: TrackId): Project {
   return {
     ...project,

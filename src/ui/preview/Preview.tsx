@@ -1,12 +1,16 @@
 import { useEffect, useRef } from "react";
 import {
   audioClipsAt,
+  isTrackMuted,
   kindOfTrack,
   projectDurationMs,
   sourceTimeAt,
   topVideoClipAt,
+  trackVolumeOf,
   type Project,
 } from "../../core/models";
+import { mixLinearGain } from "../../core/volume";
+import type { MixPeaks } from "../mixer/Mixer";
 import {
   featuresAt,
   renderVisualizerScene,
@@ -17,9 +21,10 @@ import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../c
 interface Props {
   project: Project;
   playing: boolean;
+  onLevels?: (peaks: MixPeaks) => void;
 }
 
-export function Preview({ project, playing }: Props) {
+export function Preview({ project, playing, onLevels }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const a1Ref = useRef<HTMLAudioElement>(null);
   const a2Ref = useRef<HTMLAudioElement>(null);
@@ -56,7 +61,18 @@ export function Preview({ project, playing }: Props) {
         return;
       }
       if (el.src !== asset.objectUrl) el.src = asset.objectUrl;
-      el.volume = Math.max(0, Math.min(1, clip.gain));
+      const mix = mixLinearGain(
+        clip.gain,
+        trackVolumeOf(project, trackId),
+        project.masterVolume ?? 1,
+        isTrackMuted(project, trackId),
+      );
+      const tap = tapRef.current;
+      if (tap) {
+        el.volume = 1;
+      } else {
+        el.volume = Math.max(0, Math.min(1, mix));
+      }
       const want = sourceTimeAt(clip, project.playheadMs) / 1000;
       if (Math.abs(el.currentTime - want) > 0.08) el.currentTime = want;
       if (playing && el.paused) void el.play().catch(() => undefined);
@@ -64,7 +80,7 @@ export function Preview({ project, playing }: Props) {
     };
     bind(a1Ref.current, "A1");
     bind(a2Ref.current, "A2");
-  }, [audios, playing, project.assets, project.playheadMs]);
+  }, [audios, playing, project.assets, project.playheadMs, project.tracks, project.masterVolume]);
 
   useEffect(() => {
     if (tapRef.current) return;
@@ -80,6 +96,44 @@ export function Preview({ project, playing }: Props) {
   useEffect(() => {
     if (playing) tapRef.current?.resume();
   }, [playing]);
+
+  useEffect(() => {
+    const tap = tapRef.current;
+    if (!tap) return;
+    const gainOf = (trackId: "A1" | "A2") => {
+      const clip = audios.find((c) => c.trackId === trackId);
+      if (!clip) return 0;
+      return mixLinearGain(
+        clip.gain,
+        trackVolumeOf(project, trackId),
+        1,
+        isTrackMuted(project, trackId),
+      );
+    };
+    tap.setGains({
+      A1: gainOf("A1"),
+      A2: gainOf("A2"),
+      master: project.masterVolume ?? 1,
+    });
+  }, [audios, project]);
+
+  useEffect(() => {
+    if (!playing || !onLevels) return;
+    let raf = 0;
+    const tick = () => {
+      const p = tapRef.current?.peaks();
+      onLevels({
+        V1: 0,
+        V2: 0,
+        A1: p?.A1 ?? 0,
+        A2: p?.A2 ?? 0,
+        master: p?.master ?? 0,
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, onLevels]);
 
   useEffect(() => {
     if (!showViz) return;
