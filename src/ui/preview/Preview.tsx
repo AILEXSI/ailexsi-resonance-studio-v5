@@ -125,7 +125,7 @@ export function Preview({ project, playing, onLevels }: Props) {
         ? clipOnTrackAt(project, trackId, project.playheadMs)
         : undefined;
       const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
-      if (clip && !vClipMixesOwnAudio(project, clip)) {
+      if (clip && !vClipMixesOwnAudio(project, clip, project.playheadMs)) {
         el.pause();
         el.removeAttribute("src");
         return;
@@ -187,7 +187,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     const gainOf = (trackId: TrackId) => {
       if (!isTrackAudible(project, trackId)) return 0;
       const clip = clipOnTrackAt(project, trackId, project.playheadMs);
-      if (!clip || !vClipMixesOwnAudio(project, clip)) return 0;
+      if (!clip || !vClipMixesOwnAudio(project, clip, project.playheadMs)) return 0;
       return (
         mixLinearGain(
           gainAtClipTime(clip, project.playheadMs - clip.startMs),

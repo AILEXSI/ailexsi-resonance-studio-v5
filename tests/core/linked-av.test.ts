@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, type Session } from "../../src/app/session";
-import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
+import { audioClipsForMix, jobFromProject, mixWindowsForClip, presentLinkedAudioMates } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
+import { vClipMixesOwnAudio } from "../../src/core/link";
 import { moveClip, rippleTrimClip, rollEdit, setClipFades, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -94,6 +95,28 @@ describe("linked A/V", () => {
       clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, assetId: "aa-miss" } : c)),
     };
     expect(audioClipsForMix(jobFromProject(missingAsset)).map((c) => c.id)).toEqual([]);
+  });
+
+  it("V mixes own audio in the tail after a shorter linked A mate (P125)", () => {
+    const start = linkedPair();
+    const shortA = {
+      ...start.project,
+      clips: start.project.clips.map((c) =>
+        c.id === "a1" ? { ...c, durationMs: 800, sourceOutMs: 800 } : c,
+      ),
+    };
+    expect(vClipMixesOwnAudio(shortA, shortA.clips.find((c) => c.id === "v1")!, 400)).toBe(false);
+    expect(vClipMixesOwnAudio(shortA, shortA.clips.find((c) => c.id === "v1")!, 800)).toBe(true);
+    expect(vClipMixesOwnAudio(shortA, shortA.clips.find((c) => c.id === "v1")!, 1200)).toBe(true);
+    expect(vClipMixesOwnAudio(shortA, shortA.clips.find((c) => c.id === "v1")!)).toBe(false);
+
+    const job = jobFromProject(shortA);
+    const v = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    expect(v.skipMix).toBe(true);
+    expect(audioClipsForMix(job).map((c) => c.id).sort()).toEqual(["a1", "v1"]);
+    expect(mixWindowsForClip(v, presentLinkedAudioMates(job, v))).toEqual([
+      { startMs: 800, endMs: 2000 },
+    ]);
   });
 
   it("split at the same time cuts both and keeps each half-pair linked", () => {

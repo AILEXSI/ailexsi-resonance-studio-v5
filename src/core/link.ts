@@ -3,6 +3,8 @@ import {
   assetById,
   clipById,
   clipEndMs,
+  clipIsEnabled,
+  isTrackAudible,
   kindOfTrack,
   type Clip,
   type Project,
@@ -26,12 +28,22 @@ export function firstClipIdWithLivingMate(
   return undefined;
 }
 
-/** V clip mixes its own audio unless a living linked A clip carries it. */
-export function vClipMixesOwnAudio(project: Project, clip: Clip): boolean {
+/**
+ * V clip mixes its own audio unless a living linked A clip carries it.
+ * When `timeMs` is set, an enabled/present A mate only suppresses V at
+ * times it covers — the tail after Q/W on the soundtrack can play V audio.
+ * Disabled, muted, or missing A still silences all V (P113).
+ */
+export function vClipMixesOwnAudio(project: Project, clip: Clip, timeMs?: number): boolean {
   if (assetById(project, clip.assetId)?.kind === "image") return false;
   if (kindOfTrack(clip.trackId) !== "video") return true;
   const mate = livingLinkedMate(project, clip.id);
-  return !mate || kindOfTrack(mate.trackId) !== "audio";
+  if (!mate || kindOfTrack(mate.trackId) !== "audio") return true;
+  if (timeMs == null) return false;
+  if (!clipIsEnabled(mate) || !isTrackAudible(project, mate.trackId)) return false;
+  const asset = assetById(project, mate.assetId);
+  if (!asset || asset.missing || !asset.objectUrl) return false;
+  return timeMs < mate.startMs || timeMs >= clipEndMs(mate);
 }
 
 export function expandLinkedClipIds(project: Project, clipIds: readonly string[]): string[] {

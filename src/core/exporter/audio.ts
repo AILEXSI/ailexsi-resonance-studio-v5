@@ -2,7 +2,7 @@ import { scheduleGainEnvelope } from "../fades";
 import { clampClipRate } from "../models";
 import { scheduleTransitionAudioGain } from "../transition";
 import { clampPan, equalPowerPan } from "../volume";
-import { audioClipsForMix } from "./job";
+import { audioClipsForMix, mixWindowsForClip, presentLinkedAudioMates } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
 import type { AacSample } from "./mp4";
 import type { ExportHooks, ExportJob } from "./types";
@@ -112,6 +112,11 @@ export async function mixJobAudio(
       const gain = ctx.createGain();
       const peak = Number.isFinite(clip.gain) ? Math.max(0, clip.gain) : 1;
       const durationMs = Math.max(1, clip.endMs - clip.startMs);
+      const mates = clip.skipMix ? presentLinkedAudioMates(job, clip) : [];
+      const windows = clip.skipMix && mates.length > 0 ? mixWindowsForClip(clip, mates) : [
+        { startMs: clip.startMs, endMs: clip.endMs },
+      ];
+      if (windows.length === 0) continue;
       scheduleGainEnvelope(
         gain.gain,
         clip.startMs,
@@ -140,15 +145,23 @@ export async function mixJobAudio(
       } else {
         connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
       }
-      const startSec = Math.max(0, clip.startMs / 1000);
-      const offsetSec = Math.max(0, clip.sourceInMs / 1000);
       const rate = clampClipRate(clip.rate ?? 1);
       src.playbackRate.value = rate;
-      const sourceDurSec = Math.max(
-        0.01,
-        ((clip.sourceOutMs ?? clip.sourceInMs + durationMs * rate) - clip.sourceInMs) / 1000,
-      );
-      src.start(startSec, offsetSec, sourceDurSec);
+      const first = windows[0]!;
+      const startOne = (w: { startMs: number; endMs: number }, node: AudioBufferSourceNode) => {
+        const localMs = Math.max(0, w.startMs - clip.startMs);
+        const offsetSec = Math.max(0, (clip.sourceInMs + localMs * rate) / 1000);
+        const sourceDurSec = Math.max(0.01, ((w.endMs - w.startMs) * rate) / 1000);
+        node.start(Math.max(0, w.startMs / 1000), offsetSec, sourceDurSec);
+      };
+      startOne(first, src);
+      for (let i = 1; i < windows.length; i++) {
+        const extra = ctx.createBufferSource();
+        extra.buffer = decoded;
+        extra.playbackRate.value = rate;
+        extra.connect(gain);
+        startOne(windows[i]!, extra);
+      }
       added += 1;
     } catch {
       /* skip unreadable audio; video-only is still success */

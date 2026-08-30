@@ -172,15 +172,52 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
   return hits[0];
 }
 
+/** Present A clips that share this V clip's linkId. */
+export function presentLinkedAudioMates(job: ExportJob, clip: ExportClip): ExportClip[] {
+  if (!clip.linkId) return [];
+  return job.tracks
+    .flatMap((t) => t.clips)
+    .filter((c) => !c.missing && c.kind === "audio" && c.linkId === clip.linkId);
+}
+
+/** Job-time spans of `clip` not covered by `covers` (half-open). */
+export function mixWindowsForClip(
+  clip: ExportClip,
+  covers: readonly ExportClip[],
+): { startMs: number; endMs: number }[] {
+  let segs = [{ startMs: clip.startMs, endMs: clip.endMs }];
+  for (const cover of covers) {
+    const next: { startMs: number; endMs: number }[] = [];
+    for (const seg of segs) {
+      const a = Math.max(seg.startMs, cover.startMs);
+      const b = Math.min(seg.endMs, cover.endMs);
+      if (a >= b) {
+        next.push(seg);
+        continue;
+      }
+      if (seg.startMs < a) next.push({ startMs: seg.startMs, endMs: a });
+      if (b < seg.endMs) next.push({ startMs: b, endMs: seg.endMs });
+    }
+    segs = next;
+  }
+  return segs.filter((s) => s.endMs - s.startMs > 1);
+}
+
 /** Mix candidates: A and V clips that are present. Video-only files drop at decode. */
 export function audioClipsForMix(job: ExportJob): ExportClip[] {
   const clips = job.tracks.flatMap((t) => t.clips).filter((c) => !c.missing);
-  const livingAudioLinks = new Set(
-    clips.filter((c) => c.kind === "audio" && c.linkId).map((c) => c.linkId as string),
-  );
   return clips.filter((c) => {
-    if (c.still || c.skipMix) return false;
-    if (c.kind === "video" && c.linkId && livingAudioLinks.has(c.linkId)) return false;
+    if (c.still) return false;
+    if (c.kind === "video" && c.skipMix) {
+      const mates = presentLinkedAudioMates(job, c);
+      if (mates.length === 0) return false;
+      return mixWindowsForClip(c, mates).length > 0;
+    }
+    if (c.skipMix) return false;
+    if (c.kind === "video" && c.linkId) {
+      const mates = presentLinkedAudioMates(job, c);
+      if (mates.length > 0 && mixWindowsForClip(c, mates).length === 0) return false;
+    }
     return true;
   });
 }
