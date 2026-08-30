@@ -496,7 +496,7 @@ export function rippleDeleteClips(
   const group = explicit.size >= 2;
   const selected = expandDeletableClipIds(project, clipIds)
     .map((id) => clipById(project, id))
-    .filter((c): c is Clip => Boolean(c) && (!group || clipIsEnabled(c)));
+    .filter((c): c is Clip => c != null && (!group || clipIsEnabled(c)));
   if (selected.length === 0) return { project };
   const order = [...selected].sort((a, b) => {
     if (a.trackId !== b.trackId) return a.trackId.localeCompare(b.trackId);
