@@ -45,7 +45,7 @@ interface Props {
     mode?: "lift" | "ripple" | "roll",
   ) => void;
   onTrimCommit: () => void;
-  onSlipLive?: (clipId: string, deltaMs: number) => void;
+  onSlipLive?: (clipId: string, deltaMs: number, clipIds?: readonly string[]) => void;
   onSlipCommit?: () => void;
   onSlideLive?: (clipId: string, deltaMs: number, clipIds?: readonly string[]) => void;
   onSlideCommit?: () => void;
@@ -378,12 +378,14 @@ export function Timeline({
     if (e.altKey) {
       if (dragKindRef.current) return;
       if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+      const slippingIds =
+        selectedIds.includes(clip.id) && selectedIds.length >= 2 ? selectedIds : [clip.id];
       dragKindRef.current = "slip";
       const originX = e.clientX;
       const move = (ev: PointerEvent) => {
         if (dragKindRef.current !== "slip") return;
         const deltaMs = ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
-        onSlipLive?.(clip.id, deltaMs);
+        onSlipLive?.(clip.id, deltaMs, slippingIds);
       };
       const up = () => {
         window.removeEventListener("pointermove", move);

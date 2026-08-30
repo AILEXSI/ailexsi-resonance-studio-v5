@@ -24,6 +24,7 @@ import {
   deleteClips,
   pasteClips,
   slipClip,
+  slipClips,
   slideClip,
   slideClips,
   liftRange,
@@ -650,6 +651,95 @@ describe("slip", () => {
     expect(clamped.project.clips[0]!.sourceOutMs).toBe(3000);
     expect(clamped.project.clips[0]!.durationMs).toBe(2000);
     expect(clamped.project.clips[0]!.startMs).toBe(1000);
+  });
+});
+
+describe("group slip", () => {
+  it("slips a contiguous same-track pair; starts and neighbors stay", () => {
+    const p = fiveAbuttingA1();
+    const next = slipClips(p, ["B", "A"], 200);
+    expect(next.error).toBeUndefined();
+    const L = next.project.clips.find((c) => c.id === "L")!;
+    const A = next.project.clips.find((c) => c.id === "A")!;
+    const B = next.project.clips.find((c) => c.id === "B")!;
+    const C = next.project.clips.find((c) => c.id === "C")!;
+    expect(A.startMs).toBe(1000);
+    expect(B.startMs).toBe(2000);
+    expect(A.durationMs).toBe(1000);
+    expect(B.durationMs).toBe(1000);
+    expect(A.sourceInMs).toBe(300);
+    expect(A.sourceOutMs).toBe(1300);
+    expect(B.sourceInMs).toBe(400);
+    expect(B.sourceOutMs).toBe(1400);
+    expect(L.startMs).toBe(0);
+    expect(L.durationMs).toBe(1000);
+    expect(L.sourceInMs).toBe(0);
+    expect(L.sourceOutMs).toBe(1000);
+    expect(C.startMs).toBe(3000);
+    expect(C.sourceInMs).toBe(300);
+  });
+
+  it("no-ops a gapped selection and a mixed-track selection", () => {
+    const p = fiveAbuttingA1();
+    const gapped = slipClips(p, ["A", "C"], 200);
+    expect(gapped.project).toBe(p);
+    expect(gapped.error).toMatch(/contiguous|gap/i);
+
+    const mixed = {
+      ...p,
+      clips: [
+        ...p.clips,
+        clip({
+          id: "X",
+          assetId: "a",
+          trackId: "A2",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+      ],
+    };
+    const across = slipClips(mixed, ["A", "X"], 200);
+    expect(across.project).toBe(mixed);
+    expect(across.error).toMatch(/track/i);
+  });
+
+  it("source bound on one member no-ops the whole block", () => {
+    const p = fiveAbuttingA1();
+    p.clips = p.clips.map((c) =>
+      c.id === "A" ? { ...c, sourceInMs: 6900, sourceOutMs: 7900 } : c,
+    );
+    const blocked = slipClips(p, ["A", "B"], 200);
+    expect(blocked.project).toBe(p);
+    expect(blocked.error).toMatch(/slip/i);
+    expect(blocked.project.clips.find((c) => c.id === "A")!.sourceInMs).toBe(6900);
+    expect(blocked.project.clips.find((c) => c.id === "B")!.sourceInMs).toBe(200);
+  });
+
+  it("single selection still matches slipClip including clamp", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 3000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+        }),
+      ],
+      [a],
+    );
+    const one = slipClip(p, "c1", 200);
+    const via = slipClips(p, ["c1"], 200);
+    expect(via.project.clips[0]!.sourceInMs).toBe(one.project.clips[0]!.sourceInMs);
+    expect(via.project.clips[0]!.startMs).toBe(1000);
+    const clamped = slipClips(p, ["c1"], 2000);
+    expect(clamped.project.clips[0]!.sourceInMs).toBe(1000);
+    expect(clamped.project.clips[0]!.sourceOutMs).toBe(3000);
   });
 });
 

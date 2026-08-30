@@ -1021,6 +1021,72 @@ function slipSourceWindow(
   return { sourceInMs, sourceOutMs };
 }
 
+export type SlipBlock = { clips: Clip[] } | { error: string };
+
+/**
+ * 2+ same-track clips that abut (≤1ms). Cross-track or internal gap → error.
+ * Outer neighbors are not required (slip does not move them).
+ */
+export function resolveSlipBlock(
+  project: Project,
+  clipIds: readonly string[],
+): SlipBlock {
+  const unique = [...new Set(clipIds.filter(Boolean))];
+  if (unique.length === 0) return { error: "Clip not found" };
+  const found: Clip[] = [];
+  for (const id of unique) {
+    const clip = clipById(project, id);
+    if (!clip) return { error: "Clip not found" };
+    found.push(clip);
+  }
+  const trackId = found[0]!.trackId;
+  if (found.some((c) => c.trackId !== trackId)) {
+    return { error: "Slip block must be on one track" };
+  }
+  const clips = [...found].sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id));
+  for (let i = 1; i < clips.length; i++) {
+    if (Math.abs(clipEndMs(clips[i - 1]!) - clips[i]!.startMs) > ABUT_TOLERANCE_MS) {
+      return { error: "Slip requires a contiguous block" };
+    }
+  }
+  return { clips };
+}
+
+export function isSlipBlock(project: Project, clipIds: readonly string[]): boolean {
+  return clipIds.length >= 2 && !("error" in resolveSlipBlock(project, clipIds));
+}
+
+function applySlipSourceDelta(
+  project: Project,
+  clips: readonly Clip[],
+  sourceDelta: number,
+): { project: Project; error?: string } {
+  const targets = new Map<string, Clip>();
+  for (const clip of clips) {
+    targets.set(clip.id, clip);
+    const mate = livingLinkedMate(project, clip.id);
+    if (mate) targets.set(mate.id, mate);
+  }
+  const nextById = new Map<string, Clip>();
+  for (const clip of targets.values()) {
+    const asset = project.assets.find((a) => a.id === clip.assetId);
+    const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
+    const window = slipSourceWindow(clip, sourceDelta, maxOut);
+    if ("error" in window) return { project, error: "Cannot slip further" };
+    nextById.set(clip.id, { ...clip, sourceInMs: window.sourceInMs, sourceOutMs: window.sourceOutMs });
+  }
+  if ([...nextById.values()].every((next) => next.sourceInMs === targets.get(next.id)!.sourceInMs)) {
+    return { project };
+  }
+  return {
+    project: {
+      ...project,
+      clips: project.clips.map((c) => nextById.get(c.id) ?? c),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 /**
  * Slide source in/out. Timeline start and duration stay put.
  * Clamps sourceIn ≥ 0 and sourceOut ≤ asset duration.
@@ -1076,6 +1142,27 @@ export function slipClip(
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+/**
+ * Slip one clip (`slipClip`) or a contiguous same-track selection as one
+ * source-clock block. Start and duration stay. Neighbors do not move.
+ * Every member and any living linked mate take the same source delta, or
+ * the whole group no-ops. Mixed tracks or an internal gap no-op.
+ */
+export function slipClips(
+  project: Project,
+  clipIds: readonly string[],
+  deltaMs: number,
+): { project: Project; error?: string } {
+  const unique = [...new Set(clipIds.filter(Boolean))];
+  if (unique.length <= 1) return slipClip(project, unique[0] ?? "", deltaMs);
+  if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
+  const block = resolveSlipBlock(project, unique);
+  if ("error" in block) return { project, error: block.error };
+  const primary = clipById(project, unique[0]!) ?? block.clips[0]!;
+  const sourceDelta = timelineDeltaToSource(primary, deltaMs);
+  return applySlipSourceDelta(project, block.clips, sourceDelta);
 }
 
 export function duplicateClip(

@@ -16,7 +16,7 @@ import {
   createHistory,
   deleteClips,
   pasteClips,
-  slipClip,
+  slipClips,
   slideClips,
   setClipRate,
   maybeScrollToOrigin,
@@ -458,11 +458,21 @@ export function applyPaste(session: Session): Session {
   );
 }
 
-export function applySlip(session: Session, clipId: string, deltaMs: number): Session {
-  const result = slipClip(session.project, clipId, deltaMs);
+export function applySlip(
+  session: Session,
+  clipId: string,
+  deltaMs: number,
+  clipIds?: readonly string[],
+): Session {
+  const ids = clipIds && clipIds.length > 0 ? [...clipIds] : [clipId];
+  if (clipId && ids.includes(clipId)) {
+    ids.splice(ids.indexOf(clipId), 1);
+    ids.unshift(clipId);
+  }
+  const result = slipClips(session.project, ids, deltaMs);
   if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
-  return withHistory(session, result.project, "Slipped clip");
+  return withHistory(session, result.project, ids.length > 1 ? "Slipped clips" : "Slipped clip");
 }
 
 export function applyUnlinkClips(session: Session, clipId: string): Session {

@@ -536,12 +536,12 @@ export function App() {
     });
   };
 
-  const onSlipLive = (clipId: string, deltaMs: number) => {
+  const onSlipLive = (clipId: string, deltaMs: number, clipIds?: readonly string[]) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
       const preview = applyCommand(
         { ...dragBaseRef.current, history: { past: [], future: [] } },
-        { type: "slip", clipId, deltaMs },
+        { type: "slip", clipId, deltaMs, clipIds },
       );
       return {
         ...s,
@@ -559,7 +559,7 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Slipped clip",
+      status: selectionOf(s).length > 1 ? "Slipped clips" : "Slipped clip",
       error: null,
     }));
   };

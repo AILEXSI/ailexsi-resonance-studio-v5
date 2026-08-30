@@ -158,6 +158,82 @@ describe("editor keys", () => {
     expect(left.project.clips[0]!.startMs).toBe(1000);
   });
 
+  it("Alt+, / Alt+. slips a contiguous selected block; gapped no-ops; Shift+Alt still slides", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "A",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 50,
+              sourceOutMs: 1050,
+            }),
+            clip({
+              id: "B",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 80,
+              sourceOutMs: 1080,
+            }),
+            clip({
+              id: "R",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 3000,
+              durationMs: 1000,
+              sourceInMs: 400,
+              sourceOutMs: 1400,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "A",
+      selectedClipIds: ["A", "B"],
+    };
+    const slipped = sessionOf(dispatchEditorKey(start, false, { key: ".", altKey: true }));
+    expect(slipped.project.clips.find((c) => c.id === "A")!.sourceInMs).toBeCloseTo(50 + FRAME_MS, 5);
+    expect(slipped.project.clips.find((c) => c.id === "B")!.sourceInMs).toBeCloseTo(80 + FRAME_MS, 5);
+    expect(slipped.project.clips.find((c) => c.id === "A")!.startMs).toBe(1000);
+    expect(slipped.project.clips.find((c) => c.id === "B")!.startMs).toBe(2000);
+    expect(slipped.project.clips.find((c) => c.id === "L")!.durationMs).toBe(1000);
+    expect(slipped.project.clips.find((c) => c.id === "R")!.startMs).toBe(3000);
+
+    const gapped: Session = { ...start, selectedClipIds: ["A", "R"], selectedClipId: "A" };
+    const blocked = dispatchEditorKey(gapped, false, { key: ".", altKey: true });
+    expect(blocked.type).toBe("session");
+    if (blocked.type === "session") {
+      expect(blocked.session.project.clips.find((c) => c.id === "A")!.sourceInMs).toBe(50);
+      expect(blocked.session.project.clips.find((c) => c.id === "R")!.sourceInMs).toBe(400);
+      expect(blocked.session.error).toMatch(/contiguous|gap/i);
+    }
+
+    const slid = sessionOf(
+      dispatchEditorKey(start, false, { key: ".", altKey: true, shiftKey: true }),
+    );
+    expect(slid.project.clips.find((c) => c.id === "A")!.startMs).toBeCloseTo(1000 + FRAME_MS, 5);
+    expect(slid.project.clips.find((c) => c.id === "B")!.startMs).toBeCloseTo(2000 + FRAME_MS, 5);
+    expect(slid.project.clips.find((c) => c.id === "A")!.sourceInMs).toBe(50);
+  });
+
   it("Shift+Alt+, / Shift+Alt+. slide ±1 frame and do not slip source", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
     const start: Session = {

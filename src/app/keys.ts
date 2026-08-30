@@ -54,6 +54,10 @@ function commandFromKey(
       }
       return { type: "slideClip", clipId: session.selectedClipId, deltaMs };
     }
+    const ids = selectionOf(session);
+    if (ids.length >= 2) {
+      return { type: "slip", clipId: session.selectedClipId ?? ids[0]!, clipIds: ids, deltaMs };
+    }
     return { type: "slip", clipId: session.selectedClipId, deltaMs };
   }
 

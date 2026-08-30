@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, setClipRate, slipClip, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, setClipRate, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -202,6 +202,76 @@ describe("linked A/V", () => {
     expect(rejected.project.clips.find((c) => c.id === "v1")!.rate).toBe(1);
     expect(rejected.project.clips.find((c) => c.id === "a1")!.rate).toBe(1);
     expect(rejected.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+  });
+
+  it("group slip follows a living mate of a member, or no-ops all", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 4000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = {
+      ...projectWith(
+        [
+          clip({
+            id: "v1",
+            assetId: "va",
+            trackId: "V1",
+            startMs: 0,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            linkId: "lnk1",
+          }),
+          clip({
+            id: "v2",
+            assetId: "va",
+            trackId: "V1",
+            startMs: 1000,
+            durationMs: 1000,
+            sourceInMs: 200,
+            sourceOutMs: 1200,
+          }),
+          clip({
+            id: "a1",
+            assetId: "va",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            linkId: "lnk1",
+          }),
+        ],
+        [va],
+      ),
+      snap: false,
+    };
+    const slipped = slipClips(start, ["v1", "v2"], 200);
+    expect(slipped.error).toBeUndefined();
+    expect(slipped.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(200);
+    expect(slipped.project.clips.find((c) => c.id === "v2")!.sourceInMs).toBe(400);
+    expect(slipped.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(200);
+    expect(slipped.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(slipped.project.clips.find((c) => c.id === "v2")!.startMs).toBe(1000);
+    expect(slipped.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+
+    const tight = {
+      ...start,
+      assets: [
+        va,
+        asset({ id: "aa", kind: "audio", durationMs: 1000, objectUrl: "blob:a" }),
+      ],
+      clips: start.clips.map((c) => (c.id === "a1" ? { ...c, assetId: "aa" } : c)),
+    };
+    const blocked = slipClips(tight, ["v1", "v2"], 200);
+    expect(blocked.project).toBe(tight);
+    expect(blocked.error).toMatch(/slip/i);
+    expect(blocked.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "v2")!.sourceInMs).toBe(200);
+    expect(blocked.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(0);
   });
 
   it("unlink then slip one leaves the other", () => {
