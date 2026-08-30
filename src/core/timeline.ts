@@ -355,15 +355,28 @@ export function closeGapOnTrack(
 ): { project: Project } | { unchanged: true } | { error: string } {
   const gap = findGapOnTrack(project, trackId, timeMs);
   if (!gap) return { unchanged: true };
-  const movers = project.clips
-    .filter((c) => c.trackId === trackId && c.startMs >= gap.nextClip.startMs)
-    .map((c) => c.id);
+  const onTrack = project.clips.filter((c) => c.trackId === trackId);
+  const movers = onTrack.filter((c) => c.startMs >= gap.nextClip.startMs);
   if (movers.length === 0) return { unchanged: true };
-  const result = moveClipsByDelta(project, movers, -gap.gapMs, { skipLink: true });
+  const lockedWalls = onTrack.filter((c) => clipIsLocked(c));
+  const wouldOverlapLocked = movers.some((c) => {
+    if (clipIsLocked(c)) return false;
+    const nextStart = clampStartMs(c.startMs - gap.gapMs);
+    const nextEnd = nextStart + c.durationMs;
+    return lockedWalls.some((w) => nextStart < clipEndMs(w) && nextEnd > w.startMs);
+  });
+  if (wouldOverlapLocked) return { error: "Clip is locked" };
+  const result = moveClipsByDelta(
+    project,
+    movers.map((c) => c.id),
+    -gap.gapMs,
+    { skipLink: true },
+  );
   if (result.error) return { error: result.error };
   if (result.project === project) return { unchanged: true };
+  const moverIds = new Set(movers.map((c) => c.id));
   const minMoved = Math.min(
-    ...result.project.clips.filter((c) => movers.includes(c.id)).map((c) => c.startMs),
+    ...result.project.clips.filter((c) => moverIds.has(c.id)).map((c) => c.startMs),
   );
   if (minMoved < 0) return { unchanged: true };
   return { project: result.project };

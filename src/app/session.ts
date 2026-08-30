@@ -503,7 +503,7 @@ export function applyCloseGap(session: Session): Session {
   if (!trackId) return session;
   const result = closeGapOnTrack(session.project, trackId, session.project.playheadMs);
   if ("unchanged" in result) return session;
-  if ("error" in result) return session;
+  if ("error" in result) return { ...session, error: result.error };
   const playheadMs = session.project.playheadMs;
   if (result.project.playheadMs !== playheadMs) {
     return withHistory(
