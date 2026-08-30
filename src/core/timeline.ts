@@ -415,13 +415,39 @@ export function resolveRippleTrimToPlayheadClip(
   return null;
 }
 
-export function deleteClips(project: Project, clipIds: readonly string[]): Project {
-  const drop = new Set(expandLinkedClipIds(project, clipIds));
+/**
+ * Linked-pair expand, but an unselected locked mate is skipped
+ * (same as split/slip/rate). A locked clip that is itself selected still deletes.
+ */
+function expandDeletableClipIds(project: Project, clipIds: readonly string[]): string[] {
+  const explicit = new Set(clipIds.filter(Boolean));
+  return expandLinkedClipIds(project, clipIds).filter((id) => {
+    const clip = clipById(project, id);
+    if (!clip) return false;
+    if (clipIsLocked(clip) && !explicit.has(id)) return false;
+    return true;
+  });
+}
+
+function dropClipsAndOrphanLinks(project: Project, dropIds: ReadonlySet<string>): Project {
+  const remaining = project.clips.filter((c) => !dropIds.has(c.id));
+  const linkCount = new Map<string, number>();
+  for (const clip of remaining) {
+    if (clip.linkId) linkCount.set(clip.linkId, (linkCount.get(clip.linkId) ?? 0) + 1);
+  }
   return {
     ...project,
-    clips: project.clips.filter((c) => !drop.has(c.id)),
+    clips: remaining.map((c) =>
+      c.linkId && (linkCount.get(c.linkId) ?? 0) < 2 ? { ...c, linkId: undefined } : c,
+    ),
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function deleteClips(project: Project, clipIds: readonly string[]): Project {
+  const drop = new Set(expandDeletableClipIds(project, clipIds));
+  if (drop.size === 0) return project;
+  return dropClipsAndOrphanLinks(project, drop);
 }
 
 /**
@@ -429,12 +455,13 @@ export function deleteClips(project: Project, clipIds: readonly string[]): Proje
  * ripple shifts do not invalidate later selected starts.
  * A locked later clip on any affected track refuses the whole edit
  * (same wall as ripple-trim / G / extract).
+ * An unselected locked mate is skipped (same as lift-delete).
  */
 export function rippleDeleteClips(
   project: Project,
   clipIds: readonly string[],
 ): { project: Project; error?: string } {
-  const selected = expandLinkedClipIds(project, clipIds)
+  const selected = expandDeletableClipIds(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   const order = [...selected].sort((a, b) => {
@@ -1730,10 +1757,22 @@ export function rippleDeleteClip(
   clipId: string,
 ): { project: Project; error?: string } {
   const mate = livingLinkedMate(project, clipId);
+  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
   const one = rippleDeleteOne(project, clipId);
   if (one.error) return one;
-  if (!mate || !clipById(one.project, mate.id)) return one;
-  const two = rippleDeleteOne(one.project, mate.id);
+  if (mate && !liveMate) {
+    return {
+      project: {
+        ...one.project,
+        clips: one.project.clips.map((c) =>
+          c.id === mate.id ? { ...c, linkId: undefined } : c,
+        ),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+  if (!liveMate || !clipById(one.project, liveMate.id)) return one;
+  const two = rippleDeleteOne(one.project, liveMate.id);
   if (two.error) return { project, error: two.error };
   return two;
 }

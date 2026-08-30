@@ -214,6 +214,70 @@ describe("linked A/V", () => {
     expect(gone.project.clips).toHaveLength(0);
   });
 
+  it("lift-delete of an unlocked clip skips a locked mate and drops the pair (P129)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const gone = applyCommand(
+      { ...start, project: locked, selectedClipId: "a1", selectedClipIds: ["a1"] },
+      { type: "liftDelete" },
+    );
+    expect(gone.project.clips).toHaveLength(1);
+    const v1 = gone.project.clips.find((c) => c.id === "v1")!;
+    expect(v1.locked).toBe(true);
+    expect(v1.startMs).toBe(0);
+    expect(v1.durationMs).toBe(2000);
+    expect(v1.linkId).toBeUndefined();
+    expect(gone.project.clips.find((c) => c.id === "a1")).toBeUndefined();
+  });
+
+  it("lift-delete of a selected locked clip still lifts the unlocked mate (P129)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const gone = applyCommand(
+      { ...start, project: locked, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "liftDelete" },
+    );
+    expect(gone.project.clips).toHaveLength(0);
+  });
+
+  it("ripple-delete of an unlocked clip skips a locked mate (P129)", () => {
+    const start = linkedPair();
+    const project = {
+      ...start.project,
+      clips: [
+        ...start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 500,
+        }),
+      ],
+    };
+    const next = rippleDeleteClip(project, "a1");
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "a1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+    expect(next.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "v1")!.linkId).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "a2")!.startMs).toBe(0);
+
+    const viaCommand = applyCommand(
+      { ...start, project, selectedClipId: "a1", selectedClipIds: ["a1"] },
+      { type: "rippleDelete" },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(viaCommand.project.clips.find((c) => c.id === "a2")!.startMs).toBe(0);
+  });
+
   it("slip of an unlocked clip skips a locked mate (P116)", () => {
     const start = linkedPair();
     start.project.assets = [
