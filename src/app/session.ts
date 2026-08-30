@@ -1124,7 +1124,17 @@ export function applyRippleDelete(session: Session): Session {
 export function applyNudge(session: Session, deltaMs: number): Session {
   const ids = selectionOf(session);
   if (ids.length === 0) return { ...session, error: "No clip selected" };
-  const result = moveClipsByDelta(session.project, ids, deltaMs);
+  let moveBy = deltaMs;
+  if (session.project.snap && deltaMs !== 0) {
+    const primary = clipById(session.project, ids[0]!);
+    if (primary) {
+      const intended = primary.startMs + deltaMs;
+      const snapped = snapTime(intended, collectSnapTargets(session.project, ids)).timeMs;
+      const toward = deltaMs > 0 ? snapped > primary.startMs : snapped < primary.startMs;
+      if (toward) moveBy = snapped - primary.startMs;
+    }
+  }
+  const result = moveClipsByDelta(session.project, ids, moveBy);
   if (result.error) return { ...session, error: result.error };
   const verb = deltaMs < 0 ? "Nudged left" : "Nudged right";
   return withHistory(session, result.project, verb);

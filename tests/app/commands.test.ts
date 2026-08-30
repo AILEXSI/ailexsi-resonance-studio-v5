@@ -174,6 +174,29 @@ describe("applyCommand determinism", () => {
     expect(ten.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
   });
 
+  it("snaps keyboard nudge toward nearby edges, not back onto itself (P87)", () => {
+    const start = twoClipSession();
+    const near = {
+      ...start,
+      project: {
+        ...start.project,
+        markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+        clips: start.project.clips.map((c) => (c.id === "c1" ? { ...c, startMs: 1930 } : c)),
+      },
+    };
+    const snapped = applyCommand(near, { type: "nudgeClip", deltaMs: FRAME_MS });
+    expect(snapped.project.clips.find((c) => c.id === "c1")!.startMs).toBe(2000);
+
+    const off = applyCommand(
+      { ...near, project: { ...near.project, snap: false } },
+      { type: "nudgeClip", deltaMs: FRAME_MS },
+    );
+    expect(off.project.clips.find((c) => c.id === "c1")!.startMs).toBeCloseTo(1930 + FRAME_MS, 5);
+
+    const leave = applyCommand(snapped, { type: "nudgeClip", deltaMs: FRAME_MS });
+    expect(leave.project.clips.find((c) => c.id === "c1")!.startMs).toBeCloseTo(2000 + FRAME_MS, 5);
+  });
+
   it("toggles clip ids in one selection source of truth", () => {
     const start = twoClipSession();
     const added = applyCommand(start, { type: "select", clipId: "c2", toggle: true });
