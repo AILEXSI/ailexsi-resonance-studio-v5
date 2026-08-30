@@ -12,6 +12,8 @@ import { collectSnapTargets, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
+import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
+import { buildRulerTicks } from "../../core/ruler";
 
 export { RULER_PAD_PX };
 
@@ -91,15 +93,29 @@ export function Timeline({
   const bodyRef = useRef<HTMLDivElement>(null);
   const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
+  const [viewWidth, setViewWidth] = useState(1000);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
   const measureWidth = (): number => timelineRef.current?.clientWidth ?? 1000;
 
-  const ticks = useMemo(() => {
-    const step = project.zoomPxPerSec >= 120 ? 500 : project.zoomPxPerSec >= 40 ? 1000 : 2000;
-    const out: number[] = [];
-    for (let t = 0; t <= duration; t += step) out.push(t);
-    return out;
-  }, [duration, project.zoomPxPerSec]);
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setViewWidth(el.clientWidth || 1000));
+    ro.observe(el);
+    setViewWidth(el.clientWidth || 1000);
+    return () => ro.disconnect();
+  }, []);
+
+  const ticks = useMemo(
+    () =>
+      buildRulerTicks({
+        zoomPxPerSec: project.zoomPxPerSec,
+        durationMs: duration,
+        scrollMs: project.scrollMs,
+        viewWidthPx: Math.max(200, viewWidth - 56),
+      }),
+    [duration, project.scrollMs, project.zoomPxPerSec, viewWidth],
+  );
 
   useEffect(() => {
     const el = timelineRef.current;
@@ -361,11 +377,11 @@ export function Timeline({
         >
           {ticks.map((t) => (
             <div
-              key={t}
-              className="ruler-tick"
-              style={{ left: msToX(t, project.zoomPxPerSec, project.scrollMs) }}
+              key={`${t.kind}-${t.timeMs}`}
+              className={`ruler-tick ${t.kind}`}
+              style={{ left: msToX(t.timeMs, project.zoomPxPerSec, project.scrollMs) }}
             >
-              {(t / 1000).toFixed(t % 1000 === 0 ? 0 : 1)}s
+              {t.label}
             </div>
           ))}
           {project.markers.map((m) => (
@@ -462,18 +478,26 @@ export function Timeline({
                   const asset = project.assets.find((a) => a.id === clip.assetId);
                   const selected = selectedClipId === clip.id;
                   const label = asset?.missing ? `missing:${asset.name}` : asset?.name ?? clip.id;
+                  const clipW = Math.max(8, msToWidth(clip.durationMs, project.zoomPxPerSec));
+                  const kind = kindOfTrack(clip.trackId);
                   return (
                     <div
                       key={clip.id}
-                      className={`clip ${kindOfTrack(clip.trackId)}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}`}
+                      className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}`}
                       style={{
                         left: msToX(clip.startMs, project.zoomPxPerSec, project.scrollMs),
-                        width: Math.max(8, msToWidth(clip.durationMs, project.zoomPxPerSec)),
+                        width: clipW,
                       }}
                       title={label}
                       onPointerDown={(e) => onClipPointerDown(e, clip)}
                       onContextMenu={(e) => onClipContext(e, clip)}
                     >
+                      {asset && kind === "audio" && !asset.missing ? (
+                        <AudioClipWave clip={clip} asset={asset} />
+                      ) : null}
+                      {asset && kind === "video" && !asset.missing ? (
+                        <VideoClipStrip clip={clip} asset={asset} clipWidthPx={clipW} />
+                      ) : null}
                       <span className="clip-name">{label}</span>
                       {selected ? (
                         <>

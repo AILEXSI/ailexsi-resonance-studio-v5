@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 04:17 UTC. Keys/zoom/clip-menu follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 04:31 UTC. Ruler + clip-preview follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 137 modules. Outputs:
+exit 0. vite 7.3.6, 140 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-6-3iVymv.css 8.28 kB
-- dist/assets/index-BdHTjWW8.js 631.23 kB
+- dist/assets/index-CMfYrtE-.css 8.87 kB
+- dist/assets/index-BHAjma0O.js 635.66 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **95 passed / 11 files**. Start 04:22:36 UTC. Duration 1.88s.
+exit 0. vitest 3.2.7. **103 passed / 14 files**. Start 04:31:07 UTC. Duration 2.34s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 8, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -113,6 +113,22 @@ Zoom (`tests/timeline/zoom.test.ts`, 8):
 - zoom-out that is not Fit keeps the playhead on screen
 
 Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-anchored (scrollMs=0). Fit button / + / wheel were not clicked in a browser this run.
+
+## Ruler
+
+Status: TEST-VERIFIED (label gaps). Live Fit ruler pixels: NOT VERIFIED.
+
+`buildRulerTicks` at 2.5 px/s over 400s: consecutive major labels have a minimum pixel gap (no overlap). Zoom-in to 80 px/s uses a smaller step (higher density) without overlap. Fit + playhead-lock units still green.
+
+## Arrange clip previews
+
+Status: TEST-VERIFIED (peaks path + stubbed filmstrip). Live waveform/filmstrip pixels: NOT VERIFIED.
+
+Audio: `peaksFromChannel` + `peaksToPath` from fixture samples (real generator, no WebAudio in vitest). SVG path rendered in DOM when peaks are injected. Live decode via `decodeAudio` after import — not run in a browser this pass.
+
+Video: `filmstripTimes` / `collectFilmstripTimes` request N thumbs along source-in…source-out via a stubbed decoder. DOM paints stub `<img>`s. Live video-element thumbs: NOT VERIFIED.
+
+Import is not blocked. Empty fill stays until samples/thumbs arrive. No V4, no ffmpeg.wasm, no Butterchurn.
 
 ## Keys / clip menu
 
@@ -207,7 +223,12 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:21 UTC)
+## Changelog this follow-up (2026-08-30 04:31 UTC)
+
+- Adaptive ruler: no overlapping labels at 2.5 px/s / ~400s. TEST-VERIFIED. Live ruler: NOT VERIFIED.
+- Audio waveform + video filmstrip on arrange clips (async, non-blocking). TEST-VERIFIED (generator + stub). Live pixels: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 04:21 UTC)
 
 - Non-Fit zoom (+ / wheel / applyZoom) keeps the playhead in view (DAW-style). TEST-VERIFIED. Live + / wheel: NOT VERIFIED.
 - Fit still full-duration, scrollMs=0. TEST-VERIFIED.
