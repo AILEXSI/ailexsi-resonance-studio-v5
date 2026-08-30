@@ -4,6 +4,7 @@ import {
   DEFAULT_SPLIT_RATIO,
   MIXER_COLLAPSED_KEY,
   PREVIEW_MIN_PX,
+  SPLITTER_PX,
   SPLIT_RATIO_KEY,
   applySplitPointer,
   clampSplitRatio,
@@ -35,16 +36,18 @@ describe("layout prefs", () => {
   });
 
   it("pointer drag maps to a clamped ratio", () => {
-    const tall = applySplitPointer({ clientY: 80, stageTop: 0, stageHeight: 608 });
+    const stage = PREVIEW_MIN_PX + ARRANGE_MIN_PX + 400 + SPLITTER_PX;
+    const available = stage - SPLITTER_PX;
+    const tall = applySplitPointer({ clientY: 80, stageTop: 0, stageHeight: stage });
     expect(tall.previewPx).toBeGreaterThanOrEqual(PREVIEW_MIN_PX);
     expect(tall.arrangePx).toBeGreaterThanOrEqual(ARRANGE_MIN_PX);
 
-    const low = applySplitPointer({ clientY: 20, stageTop: 0, stageHeight: 608 });
+    const low = applySplitPointer({ clientY: 20, stageTop: 0, stageHeight: stage });
     expect(low.previewPx).toBe(PREVIEW_MIN_PX);
 
-    const high = applySplitPointer({ clientY: 590, stageTop: 0, stageHeight: 608 });
+    const high = applySplitPointer({ clientY: stage - 10, stageTop: 0, stageHeight: stage });
     expect(high.arrangePx).toBe(ARRANGE_MIN_PX);
-    expect(high.previewPx).toBe(600 - ARRANGE_MIN_PX);
+    expect(high.previewPx).toBe(available - ARRANGE_MIN_PX);
   });
 
   it("round-trips mixer collapsed and split ratio", () => {

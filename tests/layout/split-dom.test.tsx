@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   ARRANGE_MIN_PX,
   PREVIEW_MIN_PX,
+  SPLITTER_PX,
   applySplitPointer,
   loadSplitRatio,
   saveSplitRatio,
@@ -18,13 +19,13 @@ function SplitHarness({ storage }: { storage: StorageLike }) {
     const next = applySplitPointer({
       clientY,
       stageTop: 0,
-      stageHeight: 608,
+      stageHeight: PREVIEW_MIN_PX + ARRANGE_MIN_PX + 400 + SPLITTER_PX,
     });
     setRatio(next.ratio);
     saveSplitRatio(storage, next.ratio);
   };
   return (
-    <div className="stage" ref={stageRef} data-testid="stage" style={{ height: 608, width: 800 }}>
+    <div className="stage" ref={stageRef} data-testid="stage" style={{ height: PREVIEW_MIN_PX + ARRANGE_MIN_PX + 400 + SPLITTER_PX, width: 800 }}>
       <div
         className="workspace"
         data-testid="preview-pane"
@@ -34,8 +35,8 @@ function SplitHarness({ storage }: { storage: StorageLike }) {
       <div
         className="layout-split"
         data-testid="layout-split"
-        onPointerDown={(e) => drag(e.clientY)}
-        onPointerMove={(e) => {
+        onMouseDown={(e) => drag(e.clientY)}
+        onMouseMove={(e) => {
           if (e.buttons === 1) drag(e.clientY);
         }}
       />
@@ -84,7 +85,7 @@ describe("preview / arrange splitter", () => {
     expect(arrange().style.flex).toContain(`${ARRANGE_MIN_PX}px`);
 
     act(() => {
-      split.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 420, buttons: 1 }));
+      split.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 420, buttons: 1 }));
     });
     const mid = Number(preview().getAttribute("data-preview-ratio"));
     expect(mid).toBeGreaterThan(0.4);
@@ -93,16 +94,17 @@ describe("preview / arrange splitter", () => {
     expect(loadSplitRatio(storage)).toBeCloseTo(mid, 5);
 
     act(() => {
-      split.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 10, buttons: 1 }));
+      split.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 10, buttons: 1 }));
     });
+    const available = PREVIEW_MIN_PX + ARRANGE_MIN_PX + 400;
     const low = Number(preview().getAttribute("data-preview-ratio"));
-    expect(low * 600).toBeCloseTo(PREVIEW_MIN_PX, 0);
+    expect(low * available).toBeCloseTo(PREVIEW_MIN_PX, 0);
 
     act(() => {
-      split.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientY: 600, buttons: 1 }));
+      split.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientY: 600, buttons: 1 }));
     });
     const high = Number(preview().getAttribute("data-preview-ratio"));
-    expect((1 - high) * 600).toBeCloseTo(ARRANGE_MIN_PX, 0);
+    expect((1 - high) * available).toBeCloseTo(ARRANGE_MIN_PX, 0);
     expect(loadSplitRatio(storage)).toBeCloseTo(high, 5);
   });
 });

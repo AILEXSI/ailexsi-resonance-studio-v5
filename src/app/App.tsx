@@ -476,20 +476,22 @@ export function App() {
 
   const onSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    e.preventDefault();
     splitDragRef.current = true;
-    e.currentTarget.setPointerCapture(e.pointerId);
     applySplitFromEvent(e.clientY);
-  };
-
-  const onSplitPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!splitDragRef.current) return;
-    applySplitFromEvent(e.clientY);
-  };
-
-  const onSplitPointerUp = () => {
-    if (!splitDragRef.current) return;
-    splitDragRef.current = false;
-    saveSplitRatio(layoutStore, splitRatioRef.current);
+    const move = (ev: PointerEvent) => {
+      if (!splitDragRef.current) return;
+      applySplitFromEvent(ev.clientY);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (!splitDragRef.current) return;
+      splitDragRef.current = false;
+      saveSplitRatio(layoutStore, splitRatioRef.current);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   const onLoopCommit = () => {
@@ -580,9 +582,6 @@ export function App() {
         aria-orientation="horizontal"
         aria-label="Preview und Arrange teilen"
         onPointerDown={onSplitPointerDown}
-        onPointerMove={onSplitPointerMove}
-        onPointerUp={onSplitPointerUp}
-        onPointerCancel={onSplitPointerUp}
       />
 
       <div

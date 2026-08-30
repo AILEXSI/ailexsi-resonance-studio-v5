@@ -127,7 +127,10 @@ export function Mixer({
           aria-expanded={!collapsed}
           aria-controls="mixer-channels"
           title={collapsed ? "Kanäle ausklappen" : "Kanäle einklappen — nur Master"}
-          onClick={onToggleCollapsed}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapsed?.();
+          }}
         >
           <CollapseIcon collapsed={collapsed} />
         </button>
