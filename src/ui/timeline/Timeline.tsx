@@ -249,10 +249,15 @@ export function Timeline({
     const originLocal = localOf(originX, originY);
 
     const laneAt = (clientX: number, clientY: number): MarqueeLane => {
-      const hit = document.elementFromPoint(clientX, clientY);
-      const node = hit instanceof Element ? hit.closest("[data-marquee-lane]") : null;
-      const id = node?.getAttribute("data-marquee-lane");
-      if (isMarqueeLane(id)) return id;
+      try {
+        const probe = document.elementFromPoint;
+        const hit = typeof probe === "function" ? probe.call(document, clientX, clientY) : null;
+        const node = hit instanceof Element ? hit.closest("[data-marquee-lane]") : null;
+        const id = node?.getAttribute("data-marquee-lane");
+        if (isMarqueeLane(id)) return id;
+      } catch {
+        /* jsdom has no elementFromPoint */
+      }
       return lastLane;
     };
 
