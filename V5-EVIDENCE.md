@@ -23,14 +23,14 @@ npx vitest run => exit 0, 56 passed / 8 files
 
 ## Visualizer
 Status: CODE-VERIFIED
-Contract ported in V5 code (not a V4 file copy). Two scenes only: spectrum-bars, pulse-orb.
-Project.visualizer defaults enabled true, muted false, sceneId spectrum-bars.
+Six Visualz Canvas-2D scenes vendored from https://github.com/AILEXSI/ailexsi-visualz @ b67410c (@ailexsi/visualz 0.1.0-blueprint). Not V4. Not MilkDrop/Butterchurn. No live npm dep.
+Scene ids: pulse-orb, spectrum-bars, particle-field, resonance-wave (default / signature), tunnel-spiral, lita-bloom.
+Project.visualizer defaults enabled true, muted false, sceneId resonance-wave.
 TRACK_IDS unchanged: V1 V2 A1 A2. VIS is not a TrackId and is not a clip drop target.
-Core: src/core/visualizer.ts beatGrid, energyAt, featuresAt (120 BPM grid, not file FFT), renderVisualizerScene, nextSceneId, shouldShowVisualizer.
-Timeline: VIS lane above V1 with mute and scene cycle (Bars / Orb).
-Preview: no unmuted V1/V2 under playhead and enabled and not muted -> canvas visualizer-canvas. User video wins.
+Core: src/core/visualz/ engine + 6 scenes; src/core/visualizer.ts beatGrid, energyAt, featuresAt (synthetic 120 BPM AudioFeatures fallback, not file FFT), renderVisualizerScene, nextSceneId cycles all 6, shouldShowVisualizer.
+Preview: no unmuted V1/V2 under playhead and enabled and not muted -> canvas visualizer-canvas. User video wins. When A1/A2 play, Preview tries an AnalyserNode tap; if the graph is quiet or unavailable it keeps the synthetic grid so all 6 scenes still animate.
 Old projects missing visualizer deserialize to the default (unit).
-Not human-clicked. Canvas pixels not seen. Export draws user frames when source decodes; VIS scenes still preview-only.
+Not human-clicked. Canvas pixels not seen. Export paints VIS with the same synthetic AudioFeatures when no user video frame is available.
 COMPLETE: NO
 
 ## Import
@@ -74,7 +74,7 @@ package install => exit 0. Product scripts: dev, build, test. mediabunny ^1.55.3
 
 ## Known issues
 - MP4 has no AAC audio mix this run (audio=none). Preview still plays A1/A2.
-- Visualizer not in export; only two scenes; 120 BPM grid only.
+- Visualizer export uses the synthetic 120 BPM AudioFeatures grid (no live A1/A2 FFT during encode).
 - No GitHub remote, no publish, no sell claim.
 - UI chrome not human-clicked (IMPLEMENTED only).
 - IndexedDB hydrate not proven across a real page reload.

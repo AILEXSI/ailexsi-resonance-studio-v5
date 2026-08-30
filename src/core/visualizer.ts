@@ -1,19 +1,32 @@
 import {
   topVideoClipAt,
+  VISUALIZER_SCENE_IDS,
   type Project,
   type VisualizerSceneId,
 } from "./models";
+import { getRegisteredScene } from "./visualz";
+import type { AudioFeatures } from "./visualz";
 
 export const BEAT_WINDOW_MS = 90;
 export const DEFAULT_VISUALIZER_BPM = 120;
 
-export interface VisualizerFeatures {
-  timeMs: number;
+/**
+ * Host feature packet. Extends Visualz AudioFeatures.
+ * `energy` / `high` stay as aliases so existing V5 tests keep reading the 120 BPM grid.
+ */
+export interface VisualizerFeatures extends AudioFeatures {
   energy: number;
-  bass: number;
-  mid: number;
   high: number;
 }
+
+const SCENE_SHORT: Record<VisualizerSceneId, string> = {
+  "pulse-orb": "Orb",
+  "spectrum-bars": "Bars",
+  "particle-field": "Field",
+  "resonance-wave": "Wave",
+  "tunnel-spiral": "Tunnel",
+  "lita-bloom": "Bloom",
+};
 
 /** 120 BPM grid (or `bpm`) from 0 inclusive to duration exclusive. */
 export function beatGrid(durationMs: number, bpm = DEFAULT_VISUALIZER_BPM): number[] {
@@ -36,9 +49,17 @@ export function energyAt(timeMs: number, beatsMs: number[]): number {
   return 1 - nearest / BEAT_WINDOW_MS;
 }
 
+function clamp01(n: number): number {
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
+}
+
 /**
- * Synthetic bands from the 120 BPM grid (and its 2× subdivision).
- * Not an FFT of any media file — there is no network and no decode.
+ * SYNTHETIC fallback AudioFeatures from a 120 BPM beat grid (and its 2× hats).
+ * This is not an FFT of A1/A2. Preview prefers a live AnalyserNode tap when
+ * playback audio is present; export and tests always use this grid so scenes
+ * still animate without Web Audio.
  */
 export function featuresAt(timeMs: number, durationMs: number): VisualizerFeatures {
   const span = Math.max(0, durationMs);
@@ -46,21 +67,53 @@ export function featuresAt(timeMs: number, durationMs: number): VisualizerFeatur
   const energy = energyAt(timeMs, beats);
   const eighths = beatGrid(span, DEFAULT_VISUALIZER_BPM * 2);
   const hats = energyAt(timeMs, eighths);
+  const bass = energy;
+  const mid = clamp01(energy * 0.55 + hats * 0.45);
+  const high = clamp01(hats * (0.35 + 0.65 * (1 - energy)));
+  const spectrum = syntheticSpectrum(bass, mid, high, timeMs, energy);
+  const onset = energy > 0.92;
   return {
     timeMs,
     energy,
-    bass: energy,
-    mid: clamp01(energy * 0.55 + hats * 0.45),
-    high: clamp01(hats * (0.35 + 0.65 * (1 - energy))),
+    rms: energy,
+    bass,
+    mid,
+    high,
+    treble: high,
+    spectrum,
+    onset,
+    beatPulse: energy,
+    tempoBpm: DEFAULT_VISUALIZER_BPM,
   };
 }
 
+/** Fake 64-bin spectrum so Visualz scenes that read `spectrum` still move. */
+function syntheticSpectrum(
+  bass: number,
+  mid: number,
+  high: number,
+  timeMs: number,
+  energy: number,
+): Float32Array {
+  const bins = 64;
+  const spec = new Float32Array(bins);
+  for (let i = 0; i < bins; i++) {
+    const t = i / (bins - 1);
+    const band = t < 1 / 3 ? bass : t < 2 / 3 ? mid : high;
+    const wobble = 0.12 * Math.abs(Math.sin(timeMs / 130 + i * 0.45));
+    spec[i] = clamp01(band * 0.88 + wobble * energy);
+  }
+  return spec;
+}
+
 export function nextSceneId(current: VisualizerSceneId): VisualizerSceneId {
-  return current === "spectrum-bars" ? "pulse-orb" : "spectrum-bars";
+  const i = VISUALIZER_SCENE_IDS.indexOf(current);
+  const idx = i < 0 ? 0 : (i + 1) % VISUALIZER_SCENE_IDS.length;
+  return VISUALIZER_SCENE_IDS[idx]!;
 }
 
 export function sceneShortName(sceneId: VisualizerSceneId): string {
-  return sceneId === "pulse-orb" ? "Orb" : "Bars";
+  return SCENE_SHORT[sceneId] ?? sceneId;
 }
 
 /** Main Output fallback: visualizer only when no unmuted V1/V2 clip is under the playhead. */
@@ -94,77 +147,14 @@ export function renderVisualizerScene(
   w: number,
   h: number,
   sceneId: VisualizerSceneId,
-  features: VisualizerFeatures,
+  features: AudioFeatures,
   dt: number,
 ): void {
   if (w <= 0 || h <= 0) return;
-  if (sceneId === "pulse-orb") {
-    renderPulseOrb(ctx, w, h, features, dt);
-    return;
-  }
-  renderSpectrumBars(ctx, w, h, features, dt);
-}
-
-function clamp01(n: number): number {
-  if (n < 0) return 0;
-  if (n > 1) return 1;
-  return n;
-}
-
-function renderSpectrumBars(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  features: VisualizerFeatures,
-  dt: number,
-): void {
-  ctx.fillStyle = "#050608";
+  const scene = getRegisteredScene(sceneId);
+  if (!scene) return;
+  const params = scene.defaultParams;
+  ctx.fillStyle = (params.colorSecondary as string) || "#0a0a12";
   ctx.fillRect(0, 0, w, h);
-  const bars = 32;
-  const gap = Math.max(1, w / 220);
-  const barW = Math.max(1, (w - gap * (bars + 1)) / bars);
-  const attack = 1 + Math.min(0.25, Math.max(0, dt) * 4);
-  for (let i = 0; i < bars; i += 1) {
-    const t = i / (bars - 1);
-    const band = t < 1 / 3 ? features.bass : t < 2 / 3 ? features.mid : features.high;
-    const wobble = 0.12 * Math.abs(Math.sin(features.timeMs / 130 + i * 0.45));
-    const amp = clamp01(band * 0.88 + wobble * features.energy) * attack;
-    const height = Math.max(2, amp * h * 0.88);
-    const x = gap + i * (barW + gap);
-    const hue = 38 + t * 36;
-    const light = 42 + features.energy * 28;
-    ctx.fillStyle = `hsl(${hue} 72% ${light}%)`;
-    ctx.fillRect(x, h - height, barW, height);
-  }
-}
-
-function renderPulseOrb(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  features: VisualizerFeatures,
-  dt: number,
-): void {
-  ctx.fillStyle = "#050608";
-  ctx.fillRect(0, 0, w, h);
-  const cx = w / 2;
-  const cy = h / 2;
-  const base = Math.min(w, h) * 0.16;
-  const bloom = 1 + Math.min(0.2, Math.max(0, dt) * 3);
-  const r = base * (1 + features.energy * 1.45) * bloom;
-  const glow = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r * 2.4);
-  glow.addColorStop(0, `rgba(212, 180, 90, ${0.32 + features.energy * 0.55})`);
-  glow.addColorStop(0.5, `rgba(122, 162, 255, ${0.12 + features.energy * 0.28})`);
-  glow.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(238, 242, 247, ${0.18 + features.energy * 0.62})`;
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * (1.28 + features.energy * 0.45), 0, Math.PI * 2);
-  ctx.strokeStyle = `rgba(212, 180, 90, ${0.18 + features.energy * 0.72})`;
-  ctx.lineWidth = 2 + features.energy * 5;
-  ctx.stroke();
+  scene.render({ width: w, height: h, ctx }, features, params, dt);
 }

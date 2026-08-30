@@ -1,6 +1,23 @@
 export type MediaKind = "video" | "audio";
 export type TrackId = "V1" | "V2" | "A1" | "A2";
-export type VisualizerSceneId = "spectrum-bars" | "pulse-orb";
+
+/**
+ * Visualz Canvas-2D builtin scene ids (ported from @ailexsi/visualz 0.1.0-blueprint).
+ * VIS is an overlay lane, not a TrackId.
+ */
+export const VISUALIZER_SCENE_IDS = [
+  "pulse-orb",
+  "spectrum-bars",
+  "particle-field",
+  "resonance-wave",
+  "tunnel-spiral",
+  "lita-bloom",
+] as const;
+
+export type VisualizerSceneId = (typeof VISUALIZER_SCENE_IDS)[number];
+
+/** Visualz signature scene. New projects and missing-visualizer loads use this. */
+export const DEFAULT_VISUALIZER_SCENE_ID: VisualizerSceneId = "resonance-wave";
 
 export interface VisualizerState {
   enabled: boolean;
@@ -9,11 +26,11 @@ export interface VisualizerState {
 }
 
 export function defaultVisualizer(): VisualizerState {
-  return { enabled: true, muted: false, sceneId: "spectrum-bars" };
+  return { enabled: true, muted: false, sceneId: DEFAULT_VISUALIZER_SCENE_ID };
 }
 
 export function isVisualizerSceneId(value: unknown): value is VisualizerSceneId {
-  return value === "spectrum-bars" || value === "pulse-orb";
+  return typeof value === "string" && (VISUALIZER_SCENE_IDS as readonly string[]).includes(value);
 }
 
 export const TRACK_IDS: TrackId[] = ["V1", "V2", "A1", "A2"];

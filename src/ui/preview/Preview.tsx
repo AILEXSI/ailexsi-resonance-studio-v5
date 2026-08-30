@@ -12,6 +12,7 @@ import {
   renderVisualizerScene,
   shouldShowVisualizer,
 } from "../../core/visualizer";
+import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../core/visualz/playback-tap";
 
 interface Props {
   project: Project;
@@ -24,6 +25,7 @@ export function Preview({ project, playing }: Props) {
   const a2Ref = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastPlayheadRef = useRef(project.playheadMs);
+  const tapRef = useRef<PlaybackTap | null>(null);
 
   const videoClip = topVideoClipAt(project, project.playheadMs);
   const videoAsset = videoClip
@@ -65,6 +67,21 @@ export function Preview({ project, playing }: Props) {
   }, [audios, playing, project.assets, project.playheadMs]);
 
   useEffect(() => {
+    if (tapRef.current) return;
+    const tap = createPlaybackTap([a1Ref.current, a2Ref.current]);
+    if (!tap) return;
+    tapRef.current = tap;
+    return () => {
+      tap.disconnect();
+      tapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (playing) tapRef.current?.resume();
+  }, [playing]);
+
+  useEffect(() => {
     if (!showViz) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -83,7 +100,14 @@ export function Preview({ project, playing }: Props) {
         canvas.height = h;
       }
       const durationMs = Math.max(projectDurationMs(project), 10_000);
-      const features = featuresAt(project.playheadMs, durationMs);
+      const synthetic = featuresAt(project.playheadMs, durationMs);
+      let live = null as ReturnType<PlaybackTap["sample"]> | null;
+      try {
+        live = tapRef.current?.sample(project.playheadMs) ?? null;
+      } catch {
+        live = null;
+      }
+      const features = preferLiveFeatures(live, synthetic);
       renderVisualizerScene(ctx, canvas.width, canvas.height, project.visualizer.sceneId, features, dt);
     };
 
