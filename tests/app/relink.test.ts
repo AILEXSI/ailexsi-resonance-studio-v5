@@ -243,6 +243,30 @@ describe("relinkClips", () => {
     expect(next.status).toBe("Relinked clips");
   });
 
+  it("linked A/V: relink of a disabled clip does not remap a living mate (P152)", () => {
+    const start = linkedAvRelinkSession();
+    const short = asset({ id: "short", kind: "video", durationMs: 800 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, short],
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    expect(relinkSelectionOf(project, ["v1"])?.clipIds).toEqual(["v1"]);
+    const result = relinkClipsOnProject(project, ["v1"], "short");
+    expect("project" in result).toBe(true);
+    if (!("project" in result)) return;
+    const v1 = result.project.clips.find((c) => c.id === "v1")!;
+    const a1 = result.project.clips.find((c) => c.id === "a1")!;
+    expect(v1.assetId).toBe("short");
+    expect(v1.enabled).toBe(false);
+    expect(v1.sourceOutMs).toBe(800);
+    expect(v1.durationMs).toBe(800);
+    expect(a1.assetId).toBe("va");
+    expect(a1.durationMs).toBe(2000);
+    expect(a1.sourceOutMs).toBe(2000);
+    expect(a1.startMs).toBe(0);
+  });
+
   it("linked A/V: relink audio selection remaps living same-asset video (P63)", async () => {
     const start = { ...linkedAvRelinkSession(), selectedClipId: "a1", selectedClipIds: ["a1"] };
     expect(relinkSelectionOf(start.project, ["a1"])?.clipIds.sort()).toEqual(["a1", "v1"]);

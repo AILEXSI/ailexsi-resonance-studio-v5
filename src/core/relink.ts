@@ -1,6 +1,7 @@
 import { livingLinkedMate } from "./link";
 import {
   clipById,
+  clipIsEnabled,
   clipIsLocked,
   kindOfTrack,
   sourceDeltaToTimeline,
@@ -8,7 +9,8 @@ import {
   type Project,
 } from "./models";
 
-/** Living same-`linkId` mate that still shares this asset (P15 pair, no second model). */
+/** Living same-`linkId` mate that still shares this asset (P15 pair, no second model).
+ * A disabled primary does not remap a living mate (inverse of P141 / P151). */
 function clipIdsIncludingLinkedSameAsset(
   project: Project,
   clipIds: readonly string[],
@@ -18,6 +20,7 @@ function clipIdsIncludingLinkedSameAsset(
     const clip = clipById(project, id);
     if (!clip) continue;
     ids.add(clip.id);
+    if (!clipIsEnabled(clip)) continue;
     const mate = livingLinkedMate(project, clip.id);
     if (mate && mate.assetId === clip.assetId) ids.add(mate.id);
   }
