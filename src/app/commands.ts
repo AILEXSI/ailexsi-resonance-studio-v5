@@ -57,6 +57,7 @@ import {
   applyTrim,
   applyUndo,
   applyUnlinkClips,
+  revertToLastSave,
   type Session,
 } from "./session";
 
@@ -67,6 +68,7 @@ import {
 export type EditorCommand =
   | { type: "undo" }
   | { type: "redo" }
+  | { type: "revertToLastSave" }
   | { type: "copy" }
   | { type: "cut" }
   | { type: "paste" }
@@ -135,6 +137,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyUndo(session);
     case "redo":
       return applyRedo(session);
+    case "revertToLastSave":
+      return revertToLastSave(session);
     case "copy":
       return applyCopy(session);
     case "cut":

@@ -26,6 +26,7 @@ interface Props {
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
   onToggleShortcuts?: () => void;
+  onRevert?: () => void;
 }
 
 export function Toolbar({
@@ -52,6 +53,7 @@ export function Toolbar({
   onRenameProject,
   projectDirty = false,
   onToggleShortcuts,
+  onRevert,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -107,6 +109,11 @@ export function Toolbar({
         <button type="button" data-testid="save-project" onClick={onSave}>
           Save
         </button>
+        {projectDirty && onRevert ? (
+          <button type="button" data-testid="revert-project" onClick={onRevert}>
+            Revert
+          </button>
+        ) : null}
         <button type="button" onClick={onImport}>
           Import
         </button>

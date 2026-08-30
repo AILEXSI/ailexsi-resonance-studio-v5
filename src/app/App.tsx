@@ -1134,6 +1134,7 @@ export function App() {
         onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
+        onRevert={() => runCommand({ type: "revertToLastSave" })}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
       />
       <input

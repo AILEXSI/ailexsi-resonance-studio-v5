@@ -35,4 +35,12 @@ describe("revert to last save (P79)", () => {
     expect(redone.project.name).toBe("Chorus");
     expect(isProjectDirty(redone)).toBe(false);
   });
-});
+
+  it("command revertToLastSave uses the same history walk (P80)", () => {
+    const start = createSession(createMemoryBlobStore());
+    const named = applyCommand(start, { type: "renameProject", name: "Chorus" });
+    const reverted = applyCommand(named, { type: "revertToLastSave" });
+    expect(reverted.project.name).toBe(start.project.name);
+    expect(isProjectDirty(reverted)).toBe(false);
+  });
+}
