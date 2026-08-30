@@ -71,6 +71,21 @@ export interface AacTrack {
   samples: AacSample[];
 }
 
+/** Same object `exportWithWebCodecs` passes to `muxAvcToMp4`. Empty encode → no audio trak. */
+export function audioInputForMux(
+  encoded: { description: Uint8Array; samples: AacSample[] } | null | undefined,
+  probe: { sampleRate: number; channels: number } | null | undefined,
+): AacTrack | undefined {
+  if (!encoded || !probe) return undefined;
+  if (encoded.samples.length === 0 || encoded.description.byteLength === 0) return undefined;
+  return {
+    sampleRate: probe.sampleRate,
+    channels: probe.channels,
+    description: encoded.description,
+    samples: encoded.samples,
+  };
+}
+
 function extractAvcC(description: Uint8Array): Uint8Array {
   if (description.length >= 8) {
     const tag = String.fromCharCode(

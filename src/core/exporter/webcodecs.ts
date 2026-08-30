@@ -3,7 +3,7 @@ import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./fra
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
-import { mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
+import { audioInputForMux, mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
 import type { ExportClip, ExportHooks, ExportJob, ExportResult } from "./types";
 import { videoAlphaAtClipTime } from "../fades";
 import {
@@ -427,15 +427,8 @@ export async function exportWithWebCodecs(
       const mixed = await withTimeout(mixJobAudio(job, aacProbe, hooks.signal), 12000, null);
       if (mixed) {
         const encoded = await withTimeout(encodeAac(mixed, aacProbe, hooks), 12000, null);
-        if (encoded) {
-          audioTrack = {
-            sampleRate: aacProbe.sampleRate,
-            channels: aacProbe.channels,
-            description: encoded.description,
-            samples: encoded.samples,
-          };
-          audioKind = "aac";
-        }
+        audioTrack = audioInputForMux(encoded, aacProbe);
+        if (audioTrack) audioKind = "aac";
       }
     }
   } catch (e) {

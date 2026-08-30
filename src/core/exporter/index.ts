@@ -19,7 +19,7 @@ export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnly
 export { runExportWithDestination, type ExportDestinationOutcome } from "./destination";
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
-export { mp4HasAudioTrack } from "./mp4";
+export { audioInputForMux, mp4HasAudioTrack } from "./mp4";
 
 function fail(job: ExportJob | undefined, error: string, aborted = false): ExportResult {
   return {
