@@ -126,6 +126,20 @@ describe("goto next/prev edit", () => {
     expect(next.project.outPointMs).toBe(4500);
   });
 
+  it("ArrowUp/Down skip disabled clip edges (P104)", () => {
+    const start = editFixture({ abut: true });
+    const disabled = {
+      ...start,
+      project: {
+        ...start.project,
+        clips: start.project.clips.map((c) => (c.id === "c2" ? { ...c, enabled: false } : c)),
+      },
+    };
+    expect(collectEditPoints(disabled.project)).toEqual([0, 1000]);
+    expect(walkNext(disabled)).toEqual([1000]);
+    expect(walkNext(start)).toEqual([1000, 2000]);
+  });
+
   it("includes a finite VIS overlay window and dedupes linked A/V times", () => {
     const start = editFixture();
     const withVis = {

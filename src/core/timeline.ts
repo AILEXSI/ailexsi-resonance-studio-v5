@@ -760,6 +760,7 @@ export function collectVisEventSnapTargets(
 export function collectEditPoints(project: Project): number[] {
   const times = new Set<number>();
   for (const clip of project.clips) {
+    if (!clipIsEnabled(clip)) continue;
     times.add(clip.startMs);
     times.add(clipEndMs(clip));
   }
