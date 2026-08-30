@@ -220,6 +220,30 @@ describe("still images (P41)", () => {
     expect(failed.project.clips).toHaveLength(0);
   });
 
+  it("snaps bin-drop place to existing clip edges when snap is on (P84)", () => {
+    const session = createSession(createMemoryBlobStore());
+    session.project = {
+      ...projectWith(
+        [clip({ id: "old", assetId: "still", trackId: "V1", startMs: 0, durationMs: 2000 })],
+        [asset({ id: "still", kind: "image", durationMs: 5000 })],
+      ),
+      playheadMs: 9000,
+      snap: true,
+    };
+    const snapped = applyPlaceAsset(session, "still", "V2", 2070);
+    expect(snapped.project.clips.find((c) => c.id !== "old")!.startMs).toBe(2000);
+    expect(snapped.project.playheadMs).toBe(2000);
+
+    const off = applyPlaceAsset(
+      { ...session, project: { ...session.project, snap: false } },
+      "still",
+      "V2",
+      2070,
+    );
+    expect(off.project.clips.find((c) => c.id !== "old")!.startMs).toBe(2070);
+    expect(off.project.playheadMs).toBe(2070);
+  });
+
   it("filmstrip for a still is one thumb, not a video strip", () => {
     const times = filmstripTimes({
       sourceInMs: 0,
