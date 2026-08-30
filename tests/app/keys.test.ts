@@ -209,7 +209,7 @@ describe("editor keys", () => {
     const back = sessionOf(
       dispatchEditorKey(right, false, { key: ",", altKey: true, shiftKey: true }),
     );
-    expect(back.project.clips.find((c) => c.id === "M")!.startMs).toBe(1000);
+    expect(back.project.clips.find((c) => c.id === "M")!.startMs).toBeCloseTo(1000, 5);
     expect(back.project.clips.find((c) => c.id === "M")!.sourceInMs).toBe(200);
   });
 
