@@ -22,7 +22,6 @@ import {
   applyPlay,
   applyGotoNextEdit,
   applyGotoPrevEdit,
-  applyPlayhead,
   applyPlayPause,
   applyRedo,
   applyRelinkClips,
