@@ -1066,6 +1066,70 @@ describe("range lift / extract", () => {
     expect(liftRange({ ...p, inPointMs: 2000, outPointMs: 1000 }).project.clips).toHaveLength(2);
   });
 
+  it("extractRange does not slide a later disabled clip (P137)", () => {
+    const base = rangeA1();
+    const p = {
+      ...base,
+      clips: [
+        ...base.clips,
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 3500,
+          durationMs: 400,
+          enabled: false,
+        }),
+        clip({
+          id: "later",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 4000,
+          durationMs: 400,
+        }),
+      ],
+    };
+    const next = extractRange(p);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(3500);
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "later")!.startMs).toBe(3000);
+    const a1 = next.project.clips
+      .filter((c) => c.trackId === "A1" && c.enabled !== false && c.id !== "off")
+      .sort((x, y) => x.startMs - y.startMs);
+    expect(a1.find((c) => c.id === "later")!.startMs).toBe(3000);
+  });
+
+  it("later disabled locked is not an extract wall (P137)", () => {
+    const base = rangeA1();
+    const p = {
+      ...base,
+      clips: [
+        ...base.clips,
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 4000,
+          durationMs: 400,
+          enabled: false,
+          locked: true,
+        }),
+        clip({
+          id: "later",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 4500,
+          durationMs: 400,
+        }),
+      ],
+    };
+    const next = extractRange(p);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(4000);
+    expect(next.project.clips.find((c) => c.id === "later")!.startMs).toBe(3500);
+  });
+
   it("liftRange does not delete a locked clip inside IN/OUT, nor its locked mate (P110)", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
     const v = asset({ id: "v", kind: "video", durationMs: 4000 });

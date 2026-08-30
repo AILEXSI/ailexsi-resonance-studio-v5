@@ -772,23 +772,24 @@ function clipStraddlesTime(clip: Clip, timeMs: number): boolean {
   return clip.startMs < timeMs && clipEndMs(clip) > timeMs;
 }
 
-/** Locked later clip, locked straddler, or locked mid lift left parked. */
+/** Locked later enabled clip, locked straddler, or locked mid lift left parked. */
 function lockedClipBlocksExtract(
   project: Project,
   range: { inMs: number; outMs: number },
 ): boolean {
   return project.clips.some((c) => {
     if (!clipIsLocked(c)) return false;
-    if (c.startMs >= range.outMs) return true;
+    if (c.startMs >= range.outMs) return clipIsEnabled(c);
     if (clipStraddlesTime(c, range.inMs) || clipStraddlesTime(c, range.outMs)) return true;
     return c.startMs >= range.inMs && clipEndMs(c) <= range.outMs;
   });
 }
 
 /**
- * liftRange, then on each track shift clips that start at/after OUT left by (out−in).
- * A locked clip at/after OUT, one that straddles IN/OUT, or one fully inside
- * the window blocks the ripple (later clips would slide into the parked body).
+ * liftRange, then on each track shift enabled clips that start at/after OUT
+ * left by (out−in). Later disabled clips stay parked (same as G / Q/W /
+ * ripple-delete). A locked enabled clip at/after OUT, one that straddles
+ * IN/OUT, or one fully inside the window still blocks (P109–P112).
  */
 export function extractRange(project: Project): { project: Project; error?: string } {
   const range = editRangeOf(project);
@@ -801,6 +802,7 @@ export function extractRange(project: Project): { project: Project; error?: stri
   let moved = lifted !== project;
   const clips = lifted.clips.map((c) => {
     if (c.startMs < range.outMs) return c;
+    if (!clipIsEnabled(c)) return c;
     moved = true;
     return { ...c, startMs: clampStartMs(c.startMs - span) };
   });
