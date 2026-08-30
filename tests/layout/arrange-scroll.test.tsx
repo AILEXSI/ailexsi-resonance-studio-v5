@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,6 +9,11 @@ import { Mixer } from "../../src/ui/mixer/Mixer";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import type { TrackId } from "../../src/core/models";
 import "../../src/styles.css";
+
+const stylesCss = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "../../src/styles.css"),
+  "utf8",
+);
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
 const noop = () => {};
@@ -91,18 +99,7 @@ describe("arrange overflow", () => {
     expect(host.querySelector('[data-testid="mute-V2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-V1"]')).toBeTruthy();
-    const sheetOverflow =
-      [...document.styleSheets]
-        .flatMap((sheet) => {
-          try {
-            return [...sheet.cssRules];
-          } catch {
-            return [];
-          }
-        })
-        .filter((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule)
-        .find((rule) => rule.selectorText === ".timeline-lanes")?.style.overflowY ?? "";
-    const lanesOverflow = getComputedStyle(lanes).overflowY || sheetOverflow;
-    expect(lanesOverflow === "auto" || lanesOverflow === "scroll").toBe(true);
+    expect(lanes.classList.contains("timeline-lanes")).toBe(true);
+    expect(stylesCss).toMatch(/\.timeline-lanes\s*\{[^}]*overflow-y:\s*auto/);
   });
 });
