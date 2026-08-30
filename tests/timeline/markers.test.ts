@@ -61,6 +61,23 @@ describe("markers", () => {
     expect(live.selectedClipId).toBeNull();
   });
 
+  it("delete already exists; label is stored; no rename required (P66 KEEP)", () => {
+    const { session, m1, m2 } = sessionWithMarkers();
+    expect(m1.label).toBe("M1");
+    expect(m2.label).toBe("M2");
+    const gone = applyDeleteMarker(session, m1.id);
+    expect(gone.project.markers.map((m) => m.id)).toEqual([m2.id]);
+    expect(gone.project.markers[0]!.label).toBe("M2");
+    const viaKey = dispatchEditorKey(
+      { ...session, selectedMarkerId: m2.id, selectedClipId: null },
+      false,
+      { key: "Delete" },
+    );
+    expect(viaKey.type).toBe("session");
+    if (viaKey.type !== "session") throw new Error("expected session");
+    expect(viaKey.session.project.markers.map((m) => m.id)).toEqual([m1.id]);
+  });
+
   it("delete removes that marker only", () => {
     const { session, m1, m2 } = sessionWithMarkers();
     const next = applyDelete(session);

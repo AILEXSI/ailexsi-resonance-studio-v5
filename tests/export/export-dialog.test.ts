@@ -23,6 +23,13 @@ function projectReady() {
 }
 
 describe("export dialog state", () => {
+  it("jobFromProject uses one working 1280×720@30 default (P66 KEEP)", () => {
+    const job = jobFromProject(projectReady());
+    expect(job.width).toBe(1280);
+    expect(job.height).toBe(720);
+    expect(job.fps).toBe(30);
+  });
+
   it("starting export opens the dialog with job name and size", () => {
     const job = jobFromProject(projectReady());
     const closed = closedExportDialog();
