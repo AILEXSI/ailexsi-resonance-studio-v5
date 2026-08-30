@@ -496,7 +496,7 @@ Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still dele
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `14327c4` (fades). Prior range tip: `7e0efc8`. Prior clipboard/slip tip: `379bc62`.
+Tip after this follow-up: `03f4d23` (evidence; fades impl `14327c4`). Assigned start: `7e0efc8`. Prior clipboard/slip tip: `379bc62`.
 
 ## Not added
 
