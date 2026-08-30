@@ -96,6 +96,37 @@ describe("project persist + reload", () => {
     }
   });
 
+  it("round-trips a transition and treats missing transitions as empty", () => {
+    const p = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    p.transitions = [
+      {
+        id: "tr1",
+        type: "crossfade",
+        startMs: 1000,
+        durationMs: 800,
+        sourceAClipId: "v1",
+        sourceBClipId: "v2",
+        audioMode: "keepA",
+        audioDurationMs: 400,
+      },
+    ];
+    const loaded = deserializeProject(serializeProject(p));
+    expect(loaded.transitions).toEqual(p.transitions);
+    const raw = JSON.parse(serializeProject(p)) as Record<string, unknown>;
+    delete raw.transitions;
+    const legacy = deserializeProject(JSON.stringify(raw));
+    expect(legacy.transitions).toEqual([]);
+  });
+
   it("rejects unknown schema", () => {
     expect(() => deserializeProject(JSON.stringify({ schemaVersion: 4, id: "x", name: "old" }))).toThrow(
       /schemaVersion/,

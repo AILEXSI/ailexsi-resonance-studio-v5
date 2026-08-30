@@ -15,6 +15,7 @@ export const CLIP_MENU_SHORTCUTS = {
 
 export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "Space", action: "Play / Pause" },
+  { key: "Tab / Shift+Tab", action: "Arrange / Cutter" },
   { key: "J / K / L", action: "Shuttle reverse / pause / forward" },
   { key: CLIP_MENU_SHORTCUTS.split, action: "Split at playhead (selected if many)" },
   { key: "I", action: "Set IN" },

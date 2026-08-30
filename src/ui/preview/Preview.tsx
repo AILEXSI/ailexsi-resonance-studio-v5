@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   TRACK_IDS,
+  clipById,
   clipOnTrackAt,
   isTrackAudible,
   mixClipsAt,
@@ -14,7 +15,15 @@ import {
 } from "../../core/models";
 import { vClipMixesOwnAudio } from "../../core/link";
 import { gainAtClipTime, videoAlphaAtClipTime } from "../../core/fades";
+import {
+  compositeVideoAt,
+  contextFromProject,
+  primaryLayer,
+  transitionAudioGain,
+} from "../../core/transition";
 import { mixLinearGain } from "../../core/volume";
+
+export { compositeVideoAt as previewComposite } from "../../core/transition";
 import type { MixPeaks } from "../mixer/Mixer";
 import {
   featuresAt,
@@ -39,7 +48,12 @@ export function Preview({ project, playing, onLevels }: Props) {
   const lastPlayheadRef = useRef(project.playheadMs);
   const tapRef = useRef<PlaybackTap | null>(null);
 
-  const videoClip = topVideoClipAt(project, project.playheadMs);
+  const composite = compositeVideoAt(contextFromProject(project), project.playheadMs);
+  const primary = primaryLayer(composite);
+  const videoClip =
+    (primary ? clipById(project, primary.clipId) : undefined) ??
+    topVideoClipAt(project, project.playheadMs);
+  const layerA = primary && videoClip && primary.clipId === videoClip.id ? primary.alpha : 1;
   const videoAsset = videoClip
     ? project.assets.find((a) => a.id === videoClip.assetId)
     : undefined;
@@ -76,12 +90,13 @@ export function Preview({ project, playing, onLevels }: Props) {
         return;
       }
       if (el.src !== asset.objectUrl) el.src = asset.objectUrl;
-      const mix = mixLinearGain(
-        gainAtClipTime(clip, project.playheadMs - clip.startMs),
-        trackVolumeOf(project, trackId),
-        project.masterVolume ?? 1,
-        !isTrackAudible(project, trackId),
-      );
+      const mix =
+        mixLinearGain(
+          gainAtClipTime(clip, project.playheadMs - clip.startMs),
+          trackVolumeOf(project, trackId),
+          project.masterVolume ?? 1,
+          !isTrackAudible(project, trackId),
+        ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project);
       const tap = tapRef.current;
       if (tap) {
         el.volume = 1;
@@ -127,11 +142,13 @@ export function Preview({ project, playing, onLevels }: Props) {
       if (!isTrackAudible(project, trackId)) return 0;
       const clip = clipOnTrackAt(project, trackId, project.playheadMs);
       if (!clip || !vClipMixesOwnAudio(project, clip)) return 0;
-      return mixLinearGain(
-        gainAtClipTime(clip, project.playheadMs - clip.startMs),
-        trackVolumeOf(project, trackId),
-        1,
-        false,
+      return (
+        mixLinearGain(
+          gainAtClipTime(clip, project.playheadMs - clip.startMs),
+          trackVolumeOf(project, trackId),
+          1,
+          false,
+        ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project)
       );
     };
     tap.setGains({
@@ -219,16 +236,32 @@ export function Preview({ project, playing, onLevels }: Props) {
       </div>
       <div className="preview-stage">
         {videoAsset?.objectUrl && videoClip ? (
-          <video
-            ref={videoRef}
-            src={videoAsset.objectUrl}
-            muted
-            playsInline
-            data-testid="preview-video"
-            style={{
-              opacity: videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
-            }}
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={videoAsset.objectUrl}
+              muted
+              playsInline
+              data-testid="preview-video"
+              style={{
+                opacity:
+                  layerA *
+                  videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
+              }}
+            />
+            {composite.plate && composite.plate.alpha > 0 ? (
+              <div
+                data-testid="preview-plate"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: composite.plate.color,
+                  opacity: composite.plate.alpha,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+          </>
         ) : showViz ? (
           <canvas ref={canvasRef} data-testid="visualizer-canvas" />
         ) : (

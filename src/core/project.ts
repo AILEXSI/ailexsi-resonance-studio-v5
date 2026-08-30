@@ -1,5 +1,6 @@
 import { createId } from "./ids";
 import { normalizeClipFades } from "./fades";
+import { sanitizeTransitions } from "./transition";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import {
   clampClipRate,
@@ -30,6 +31,7 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     tracks: defaultTracks(),
     clips: [],
     markers: [],
+    transitions: [],
     playheadMs: 0,
     inPointMs: null,
     outPointMs: null,
@@ -197,6 +199,7 @@ export function deserializeProject(text: string): Project {
     assets,
     tracks: sanitizeTracks(raw.tracks),
     clips,
+    transitions: sanitizeTransitions(raw.transitions),
     markers: Array.isArray(raw.markers)
       ? raw.markers
           .filter((m) => m && typeof m === "object")

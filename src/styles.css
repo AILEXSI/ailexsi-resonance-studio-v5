@@ -962,3 +962,53 @@ input[type="range"] { accent-color: var(--accent-2); }
   background: var(--panel-2);
   color: var(--accent);
 }
+
+.screen-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 10px 6px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.screen-nav-item.on {
+  color: var(--accent);
+}
+
+.cutter {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+}
+.cutter-title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.cutter-empty { color: var(--muted); font-size: 13px; }
+.cutter-edit { display: grid; gap: 8px; max-width: 420px; }
+.cutter-pair { font-size: 13px; }
+.cutter-field {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cutter-field input,
+.cutter-field select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 6px;
+}

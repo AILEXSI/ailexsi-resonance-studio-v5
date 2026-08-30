@@ -1,4 +1,5 @@
 import { unlinkClips } from "../core/link";
+import { resolveEditPair, upsertTransition, type Transition } from "../core/transition";
 import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
 import { clipById, type Clip, type Project, type TrackId } from "../core/models";
 import {
@@ -521,6 +522,16 @@ export function applySetClipRate(session: Session, clipId: string, rate: number)
   if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
   return withHistory(session, result.project, "Clip rate");
+}
+
+export function applySetTransition(
+  session: Session,
+  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs">>,
+): Session {
+  const pair = resolveEditPair(session.project, selectionOf(session));
+  if (!pair) return session;
+  const { project } = upsertTransition(session.project, pair, patch);
+  return withHistory(session, project, "Set transition");
 }
 
 export function applyLiftRange(session: Session): Session {

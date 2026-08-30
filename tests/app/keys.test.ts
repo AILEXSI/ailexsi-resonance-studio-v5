@@ -477,4 +477,17 @@ describe("editor keys", () => {
     const metaS = dispatchEditorKey(start, false, { key: "s", metaKey: true });
     expect(metaS.type).toBe("none");
   });
+
+  it("Tab cycles screens; Shift+Tab reverses; form focus does not cycle", () => {
+    const start = clipSession();
+    const tab = dispatchEditorKey(start, false, { key: "Tab" });
+    expect(tab).toEqual({ type: "cycleScreen", dir: 1, preventDefault: true });
+    const shiftTab = dispatchEditorKey(start, false, { key: "Tab", shiftKey: true });
+    expect(shiftTab).toEqual({ type: "cycleScreen", dir: -1, preventDefault: true });
+    const inField = dispatchEditorKey(start, false, { key: "Tab", formFocus: true });
+    expect(inField.type).toBe("none");
+    const space = dispatchEditorKey(start, false, { key: " " });
+    expect(space.type).toBe("session");
+    if (space.type === "session") expect(space.session.playing).toBe(true);
+  });
 });

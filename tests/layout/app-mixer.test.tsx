@@ -44,5 +44,9 @@ describe("App arrange layout", () => {
     expect(host.querySelector('[data-testid="mixer-collapse"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="preview-pane"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="workspace-preview"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="screen-nav"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="screen-nav"]')?.textContent).toMatch(/ARRANGE/);
+    expect(host.querySelector('[data-testid="screen-nav"]')?.textContent).toMatch(/CUTTER/);
+    expect(host.querySelector('[data-testid="cutter"]')).toBeNull();
   });
 });

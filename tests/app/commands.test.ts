@@ -64,6 +64,7 @@ describe("applyCommand determinism", () => {
       { type: "setClipRate", clipId: "c1", rate: 2 } as const,
       { type: "setTrackPan", trackId: "A1", pan: -0.5 } as const,
       { type: "unlinkClips", clipId: "c1" } as const,
+      { type: "setTransition", transitionType: "crossfade", durationMs: 400 } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);
@@ -662,5 +663,41 @@ describe("shuttle rate table", () => {
     s = applyCommand(s, { type: "playPause" });
     expect(s.shuttleRate).toBe(0);
     expect(s.playing).toBe(false);
+  });
+
+  it("setTransition type/duration is undoable; no pair no-ops", () => {
+    const a = asset({ id: "va", kind: "video", durationMs: 4000 });
+    const b = asset({ id: "vb", kind: "video", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: projectWith(
+        [
+          clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 2000 }),
+          clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 2000 }),
+        ],
+        [a, b],
+      ),
+      selectedClipId: "v1",
+      selectedClipIds: ["v1"],
+    };
+    const typed = applyCommand(start, { type: "setTransition", transitionType: "crossfade" });
+    expect(typed.project.transitions[0]?.type).toBe("crossfade");
+    const dur = applyCommand(typed, { type: "setTransition", durationMs: 400 });
+    expect(dur.project.transitions[0]?.durationMs).toBe(400);
+    const undoneDur = applyCommand(dur, { type: "undo" });
+    expect(undoneDur.project.transitions[0]?.durationMs).not.toBe(400);
+    expect(undoneDur.project.transitions[0]?.type).toBe("crossfade");
+    const undoneType = applyCommand(undoneDur, { type: "undo" });
+    expect(undoneType.project.transitions).toEqual([]);
+    const lonely: Session = {
+      ...start,
+      project: projectWith(
+        [clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 500 })],
+        [a],
+      ),
+    };
+    const noop = applyCommand(lonely, { type: "setTransition", transitionType: "fadeBlack" });
+    expect(noop.project.transitions).toEqual([]);
+    expect(noop).toBe(lonely);
   });
 });

@@ -6,6 +6,13 @@ import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media
 import { mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
 import type { ExportClip, ExportHooks, ExportJob, ExportResult } from "./types";
 import { videoAlphaAtClipTime } from "../fades";
+import {
+  compositeVideoAt,
+  contextFromExportClips,
+  layerAlpha,
+} from "../transition";
+
+export { compositeVideoAt as exportComposite } from "../transition";
 import { featuresAt, renderVisualizerScene } from "../visualizer";
 
 const AVC_CODEC = "avc1.42001f";
@@ -44,6 +51,42 @@ function even(n: number): number {
 function clearCanvas(ctx: CanvasRenderingContext2D, width: number, height: number): void {
   ctx.fillStyle = "#101318";
   ctx.fillRect(0, 0, width, height);
+}
+
+function jobComposite(job: ExportJob, timeMs: number) {
+  const clips = job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
+  return compositeVideoAt(contextFromExportClips(clips, job.transitions ?? []), timeMs);
+}
+
+function paintTransitionPlate(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  job: ExportJob,
+  timeMs: number,
+): void {
+  const plate = jobComposite(job, timeMs).plate;
+  if (!plate || plate.alpha <= 0) return;
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * plate.alpha;
+  ctx.fillStyle = plate.color;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalAlpha = prev;
+}
+
+function beginExportFrame(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  job: ExportJob,
+  timeMs: number,
+): void {
+  clearCanvas(ctx, width, height);
+  paintTransitionPlate(ctx, width, height, job, timeMs);
+}
+
+function exportPaintAlpha(job: ExportJob, clip: ExportClip, timeMs: number): number {
+  return exportClipVideoAlpha(clip, timeMs) * layerAlpha(jobComposite(job, timeMs), clip.id);
 }
 
 function paintVisualizer(ctx: CanvasRenderingContext2D, job: ExportJob, timeMs: number, dt: number): void {
@@ -92,12 +135,13 @@ function exportClipVideoAlpha(clip: ExportClip, timeMs: number): number {
 
 function withVideoClipAlpha(
   ctx: CanvasRenderingContext2D,
+  job: ExportJob,
   clip: ExportClip,
   timeMs: number,
   draw: () => void,
 ): void {
   const prev = ctx.globalAlpha;
-  ctx.globalAlpha = prev * exportClipVideoAlpha(clip, timeMs);
+  ctx.globalAlpha = prev * exportPaintAlpha(job, clip, timeMs);
   try {
     draw();
   } finally {
@@ -230,7 +274,7 @@ export async function exportWithWebCodecs(
 
   const paintFallback = (i: number) => {
     const timeMs = (i / job.fps) * 1000;
-    clearCanvas(ctx, width, height);
+    beginExportFrame(ctx, width, height, job, timeMs);
     paintVisualizer(ctx, job, timeMs, dt);
   };
 
@@ -272,10 +316,10 @@ export async function exportWithWebCodecs(
               stage: "Encoding H.264",
               currentTimeMs: (i / job.fps) * 1000,
             });
-            clearCanvas(ctx, width, height);
             const timeMs = (i / job.fps) * 1000;
+            beginExportFrame(ctx, width, height, job, timeMs);
             if (sample) {
-              withVideoClipAlpha(ctx, clip, timeMs, () => {
+              withVideoClipAlpha(ctx, job, clip, timeMs, () => {
                 sample.drawWithFit(ctx, { fit: "contain" });
               });
               sample.close();
@@ -286,7 +330,7 @@ export async function exportWithWebCodecs(
                 canvas,
                 clip.sourceUrl,
                 timestamps[k] ?? 0,
-                exportClipVideoAlpha(clip, timeMs),
+                exportPaintAlpha(job, clip, timeMs),
               )
             ) {
               painted += 1;
@@ -303,15 +347,15 @@ export async function exportWithWebCodecs(
         while (k < run.count) {
           if (hooks.signal?.aborted) throw new Error("Export aborted");
           const i = run.startIndex + k;
-          clearCanvas(ctx, width, height);
           const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
           if (
             await paintHtmlVideo(
               ctx,
               canvas,
               clip.sourceUrl,
               timestamps[k]!,
-              exportClipVideoAlpha(clip, timeMs),
+              exportPaintAlpha(job, clip, timeMs),
             )
           )
             painted += 1;
@@ -328,15 +372,15 @@ export async function exportWithWebCodecs(
             stage: "Encoding H.264",
             currentTimeMs: (i / job.fps) * 1000,
           });
-          clearCanvas(ctx, width, height);
           const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
           if (
             await paintHtmlVideo(
               ctx,
               canvas,
               clip.sourceUrl,
               timestamps[k]!,
-              exportClipVideoAlpha(clip, timeMs),
+              exportPaintAlpha(job, clip, timeMs),
             )
           )
             painted += 1;

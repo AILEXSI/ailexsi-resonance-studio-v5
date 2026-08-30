@@ -11,11 +11,14 @@ export interface EditorKeyEvent {
   metaKey?: boolean;
   shiftKey?: boolean;
   altKey?: boolean;
+  /** True when focus is an input/textarea/select/contenteditable/spinbutton. */
+  formFocus?: boolean;
 }
 
 export type EditorKeyAction =
   | { type: "session"; session: Session; preventDefault?: boolean }
   | { type: "toggleShortcuts"; preventDefault: true }
+  | { type: "cycleScreen"; dir: 1 | -1; preventDefault: true }
   | { type: "none" };
 
 function commandFromKey(
@@ -96,6 +99,10 @@ export function dispatchEditorKey(
   _playing: boolean,
   e: EditorKeyEvent,
 ): EditorKeyAction {
+  if (e.key === "Tab") {
+    if (e.formFocus) return { type: "none" };
+    return { type: "cycleScreen", dir: e.shiftKey ? -1 : 1, preventDefault: true };
+  }
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };

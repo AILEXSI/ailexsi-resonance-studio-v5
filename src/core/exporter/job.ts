@@ -1,5 +1,6 @@
 import { createId } from "../ids";
 import {
+  TRACK_IDS,
   clipEndMs,
   isTrackAudible,
   kindOfTrack,
@@ -7,6 +8,11 @@ import {
 } from "../models";
 import { clampPan, mixLinearGain } from "../volume";
 import { exportRangeMs } from "../timeline";
+import {
+  compositeVideoAt,
+  contextFromExportClips,
+  primaryLayer,
+} from "../transition";
 import type { ExportClip, ExportJob, ExportTrack } from "./types";
 
 export class ExportPlanError extends Error {
@@ -66,13 +72,17 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   }
 
   const safe = (opts.fileName || project.name || "resonance").replace(/[^\w\-]+/g, "_");
+  const durationMs = endMs - startMs;
+  const transitions = (project.transitions ?? [])
+    .map((t) => ({ ...t, startMs: t.startMs - startMs }))
+    .filter((t) => t.durationMs > 0 && t.startMs + t.durationMs > 0 && t.startMs < durationMs);
   return {
     id: createId("job"),
     projectId: project.id,
     projectName: project.name,
     startMs,
     endMs,
-    durationMs: endMs - startMs,
+    durationMs,
     width: opts.width ?? 1280,
     height: opts.height ?? 720,
     fps: opts.fps ?? 30,
@@ -83,15 +93,30 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       muted: project.visualizer.muted,
       sceneId: project.visualizer.sceneId,
     },
+    transitions,
   };
 }
 
+function jobVideoClips(job: ExportJob): ExportClip[] {
+  return job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
+}
+
 export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefined {
-  const hits = job.tracks
-    .filter((t) => t.kind === "video")
-    .flatMap((t) => t.clips)
-    .filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
-  return hits.find((c) => c.trackId === "V2") ?? hits.find((c) => c.trackId === "V1");
+  const clips = jobVideoClips(job);
+  const composite = compositeVideoAt(
+    contextFromExportClips(clips, job.transitions ?? []),
+    timeMs,
+  );
+  const primary = primaryLayer(composite);
+  if (primary) {
+    const hit = clips.find(
+      (c) => c.id === primary.clipId && timeMs >= c.startMs && timeMs < c.endMs,
+    );
+    if (hit) return hit;
+  }
+  const hits = clips.filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
+  hits.sort((a, b) => TRACK_IDS.indexOf(b.trackId) - TRACK_IDS.indexOf(a.trackId));
+  return hits[0];
 }
 
 /** Mix candidates: A and V clips that are present. Video-only files drop at decode. */

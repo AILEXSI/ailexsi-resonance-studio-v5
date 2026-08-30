@@ -1,4 +1,5 @@
 import type { TrackId } from "../core/models";
+import type { TransitionAudioMode, TransitionType } from "../core/transition";
 import {
   applyClearInOut,
   applyCopy,
@@ -25,6 +26,7 @@ import {
   applySetClipFades,
   applySetClipRate,
   applySetTrackPan,
+  applySetTransition,
   applyShuttle,
   applySlideClip,
   applySlip,
@@ -77,7 +79,15 @@ export type EditorCommand =
   | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number }
   | { type: "setClipRate"; clipId: string; rate: number }
   | { type: "setTrackPan"; trackId: TrackId; pan: number }
-  | { type: "unlinkClips"; clipId: string };
+  | { type: "unlinkClips"; clipId: string }
+  | {
+      type: "setTransition";
+      transitionType?: TransitionType;
+      durationMs?: number;
+      audioMode?: TransitionAudioMode;
+      audioDurationMs?: number;
+      startMs?: number;
+    };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -151,6 +161,14 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySetTrackPan(session, command.trackId, command.pan);
     case "unlinkClips":
       return applyUnlinkClips(session, command.clipId);
+    case "setTransition":
+      return applySetTransition(session, {
+        type: command.transitionType,
+        durationMs: command.durationMs,
+        audioMode: command.audioMode,
+        audioDurationMs: command.audioDurationMs,
+        startMs: command.startMs,
+      });
     default: {
       const _never: never = command;
       return _never;

@@ -1,3 +1,5 @@
+import type { Transition } from "./transition";
+
 export type MediaKind = "video" | "audio";
 export type TrackId = "V1" | "V2" | "A1" | "A2";
 
@@ -108,6 +110,8 @@ export interface Project {
   tracks: Track[];
   clips: Clip[];
   markers: Marker[];
+  /** Edit-point objects. Missing/empty = hard cuts. Not React state. */
+  transitions: Transition[];
   playheadMs: number;
   inPointMs: number | null;
   outPointMs: number | null;

@@ -76,6 +76,9 @@ import {
 } from "./session";
 import { applyCommand, type EditorCommand } from "./commands";
 import { dispatchEditorKey } from "./keys";
+import { cycleProductionScreen, isFormFocus, type ProductionScreen } from "./screens";
+import { Cutter } from "../ui/cutter/Cutter";
+import { ScreenNav } from "../ui/screens/ScreenNav";
 import {
   ARRANGE_MIN_PX,
   INSPECTOR_MIN_PX,
@@ -118,6 +121,7 @@ export function App() {
   const [hSplitRatio, setHSplitRatio] = useState(() => loadHSplitRatio(layoutStore));
   const hSplitRatioRef = useRef(hSplitRatio);
   hSplitRatioRef.current = hSplitRatio;
+  const [screen, setScreen] = useState<ProductionScreen>("arrange");
   const [projectPanelOpen, setProjectPanelOpen] = useState(false);
   const projectPanelOpenRef = useRef(false);
   projectPanelOpenRef.current = projectPanelOpen;
@@ -205,14 +209,26 @@ export function App() {
         setProjectPanelOpen(false);
         return;
       }
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const formFocus = isFormFocus(e.target);
+      if (formFocus && e.key !== "Tab") return;
       const s = sessionRef.current;
-      const action = dispatchEditorKey(s, s.playing, e);
+      const action = dispatchEditorKey(s, s.playing, {
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        formFocus,
+      });
       if (action.type === "none") return;
       if ("preventDefault" in action && action.preventDefault) e.preventDefault();
       if (action.type === "toggleShortcuts") {
         setShortcutsOpen((open) => !open);
+        return;
+      }
+      if (action.type === "cycleScreen") {
+        setScreen((cur) => cycleProductionScreen(cur, action.dir));
         return;
       }
       setSession(action.session);
@@ -798,6 +814,7 @@ export function App() {
         onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
+      <ScreenNav screen={screen} />
       <input
         type="file"
         accept="audio/*,video/*"
@@ -936,12 +953,20 @@ export function App() {
         onSplit={() => runCommand({ type: "split" })}
       />
 
+      {screen === "cutter" ? (
+        <Cutter
+          project={session.project}
+          selectedClipId={session.selectedClipId}
+          selectedClipIds={session.selectedClipIds}
+          apply={runCommand}
+        />
+      ) : (
       <div
         className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
         data-testid="arrange-row"
         style={{ overflowY: "auto" }}
       >
-      <Timeline
+      <Timeline>
         project={session.project}
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
@@ -1004,6 +1029,7 @@ export function App() {
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
       />
       </div>
+      )}
       </div>
       </div>
 

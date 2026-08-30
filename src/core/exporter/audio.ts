@@ -1,5 +1,6 @@
 import { scheduleGainEnvelope } from "../fades";
 import { clampClipRate } from "../models";
+import { scheduleTransitionAudioGain } from "../transition";
 import { clampPan, equalPowerPan } from "../volume";
 import { audioClipsForMix } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
@@ -120,7 +121,24 @@ export async function mixJobAudio(
         peak,
       );
       src.connect(gain);
-      connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
+      const transitions = job.transitions ?? [];
+      if (transitions.length > 0) {
+        const transGain = ctx.createGain();
+        const peers = job.tracks.flatMap((t) => t.clips);
+        scheduleTransitionAudioGain(
+          transGain.gain,
+          transitions,
+          clip.id,
+          clip.startMs,
+          clip.endMs,
+          undefined,
+          peers,
+        );
+        gain.connect(transGain);
+        connectTrackPan(ctx, transGain, trackPanOfJob(job, clip.trackId));
+      } else {
+        connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
+      }
       const startSec = Math.max(0, clip.startMs / 1000);
       const offsetSec = Math.max(0, clip.sourceInMs / 1000);
       const rate = clampClipRate(clip.rate ?? 1);
