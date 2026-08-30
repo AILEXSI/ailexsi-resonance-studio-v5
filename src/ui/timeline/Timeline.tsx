@@ -113,7 +113,7 @@ interface Props {
   onExtractRange?: () => void;
   onRelink?: (clipIds?: readonly string[]) => void;
   onCloseGap?: () => void;
-  onRippleTrimToPlayhead?: (edge: "in" | "out") => void;
+  onRippleTrimToPlayhead?: (edge: "in" | "out", timeMs?: number) => void;
   onSelectAll?: () => void;
   onSelectAllOnTrack?: () => void;
   onSetClipsEnabled?: (enabled: boolean) => void;
@@ -1643,7 +1643,7 @@ export function Timeline({
                 type="button"
                 data-testid="clip-menu-ripple-trim-in"
                 onClick={() => {
-                  onRippleTrimToPlayhead("in");
+                  onRippleTrimToPlayhead("in", menu.timeMs);
                   setMenu(null);
                 }}
               >
@@ -1654,7 +1654,7 @@ export function Timeline({
                 type="button"
                 data-testid="clip-menu-ripple-trim-out"
                 onClick={() => {
-                  onRippleTrimToPlayhead("out");
+                  onRippleTrimToPlayhead("out", menu.timeMs);
                   setMenu(null);
                 }}
               >

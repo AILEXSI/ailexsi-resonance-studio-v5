@@ -1390,7 +1390,13 @@ export function App() {
         onExtractRange={() => runCommand({ type: "extractRange" })}
         onRelink={(clipIds) => void runRelink(clipIds)}
         onCloseGap={() => runCommand({ type: "closeGap" })}
-        onRippleTrimToPlayhead={(edge) => runCommand({ type: "rippleTrimToPlayhead", edge })}
+        onRippleTrimToPlayhead={(edge, timeMs) => {
+          setSession((s) => {
+            const parked =
+              timeMs != null ? applyPlayhead(s, snapPlayheadSeek(s.project, timeMs)) : s;
+            return applyCommand(parked, { type: "rippleTrimToPlayhead", edge });
+          });
+        }}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx, laneLabelPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx, laneLabelPx))}
         onViewport={onTimelineViewport}

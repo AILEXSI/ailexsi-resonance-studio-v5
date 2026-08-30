@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
-import { createSession, type Session } from "../../src/app/session";
+import { applyPlayhead, createSession, type Session } from "../../src/app/session";
+import { snapPlayheadSeek } from "../../src/core/timeline";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -155,5 +156,31 @@ describe("rippleTrimToPlayhead", () => {
     expect(w1.sourceOutMs).toBe(1600);
     expect(w1.rate).toBe(2);
     expect(w.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+  });
+
+  it("menu ripple trim parks at snapped click time then trims (P90)", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [clip({ id: "c1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 4000 })],
+          [va],
+        ),
+        markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+        playheadMs: 0,
+        snap: true,
+      },
+      selectedClipId: "c1",
+      selectedClipIds: ["c1"],
+    };
+    const parked = applyPlayhead(start, snapPlayheadSeek(start.project, 2070));
+    expect(parked.project.playheadMs).toBe(2000);
+    const out = applyCommand(parked, { type: "rippleTrimToPlayhead", edge: "out" });
+    expect(out.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(2000);
+    expect(out.project.playheadMs).toBe(2000);
+
+    const stale = applyCommand(start, { type: "rippleTrimToPlayhead", edge: "out" });
+    expect(stale.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(4000);
   });
 });
