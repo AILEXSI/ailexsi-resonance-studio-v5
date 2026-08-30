@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 09:05 UTC. P27 flush Preview + 120px split floor, then P26 Shift+click range on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 09:20 UTC. P28 next/prev edit on PR #1 after P27 layout and P26 Shift+click. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -56,11 +56,13 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **365 passed / 52 files**. Start 09:03:03 UTC. Duration 8.89s.
+exit 0. vitest 3.2.7. **372 passed / 53 files**. Start 09:08:41 UTC. Duration 9.05s.
 
 P27: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor.
 
 P26: Shift+click inclusive same-track range via existing `select` / `selectClips`. Ctrl/Cmd+click toggle and Shift+marquee union stay. VIS is not in the range.
+
+P28: `{ type: "gotoNextEdit" }` / `{ type: "gotoPrevEdit" }` jump the playhead via `applyPlayhead`. ArrowDown / ArrowUp (not form fields). ArrowLeft / ArrowRight still ±1 frame.
 
 ## Visualizer
 
@@ -125,6 +127,12 @@ Zoom (`tests/timeline/zoom.test.ts`):
 - serialize/deserialize keeps 12000; 50000 loads as 48000
 
 Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-anchored (scrollMs=0). Live `+` past 400: NOT VERIFIED this run.
+
+## Edit-point jump
+
+Status: TEST-VERIFIED. Live Chromium ArrowUp/Down: pending this follow-up.
+
+`collectEditPoints` is the sorted unique union of clip start/end (V1 V2 A1 A2), marker times, IN/OUT when set, and a finite VIS overlay window (`durationMs > 0`). Linked A/V times collapse. Next = smallest point > playhead; prev = largest < playhead. No point → same session, no history. Playing stays playing. Loop IN/OUT are not rewritten. Keys: **ArrowDown** next, **ArrowUp** prev. TAB / S / I / O / ; / ' / Ctrl+C/X/V untouched. ArrowLeft/Right still `nudgePlayhead` ±1 frame.
 
 ## Ruler
 
@@ -755,7 +763,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P26 Shift+click (this commit) after P27 layout. Layout `7f619a2` / `b306ccb` / `0df8458`. P25 mux `c3487e8`. P24 `1be297d`.
+Tip after this follow-up: P28 goto next/prev edit (this commit). P26 `fcf47fc`. P27 layout `7f619a2` / `0df8458`. P25 mux `c3487e8`.
 
 ## Not added
 

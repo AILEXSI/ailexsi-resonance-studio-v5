@@ -81,6 +81,8 @@ function commandFromKey(
   }
   if (e.key === "ArrowLeft") return { type: "nudgePlayhead", deltaMs: -FRAME_MS };
   if (e.key === "ArrowRight") return { type: "nudgePlayhead", deltaMs: FRAME_MS };
+  if (e.key === "ArrowDown") return { type: "gotoNextEdit" };
+  if (e.key === "ArrowUp") return { type: "gotoPrevEdit" };
 
   if (comma || period) {
     const frames = e.shiftKey || e.key === "<" || e.key === ">" ? 10 : 1;
@@ -103,6 +105,9 @@ export function dispatchEditorKey(
     if (e.formFocus) return { type: "none" };
     return { type: "cycleScreen", dir: e.shiftKey ? -1 : 1, preventDefault: true };
   }
+  if (e.formFocus && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+    return { type: "none" };
+  }
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
@@ -122,7 +127,9 @@ export function dispatchEditorKey(
     command.type === "slideClip" ||
     command.type === "liftRange" ||
     command.type === "extractRange" ||
-    command.type === "unlinkClips";
+    command.type === "unlinkClips" ||
+    command.type === "gotoNextEdit" ||
+    command.type === "gotoPrevEdit";
   return {
     type: "session",
     session: applyCommand(session, command),

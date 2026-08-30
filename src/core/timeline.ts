@@ -607,6 +607,42 @@ export function collectSnapTargets(
   return targets;
 }
 
+/** Deduped clip/marker/IN/OUT/VIS-window times. durationMs<=0 VIS covers the whole timeline and is not a stop. */
+export function collectEditPoints(project: Project): number[] {
+  const times = new Set<number>();
+  for (const clip of project.clips) {
+    times.add(clip.startMs);
+    times.add(clipEndMs(clip));
+  }
+  for (const marker of project.markers) {
+    times.add(marker.timeMs);
+  }
+  if (project.inPointMs != null) times.add(project.inPointMs);
+  if (project.outPointMs != null) times.add(project.outPointMs);
+  const visDur = project.visualizer.durationMs ?? 0;
+  if (visDur > 0) {
+    const visStart = Math.max(0, project.visualizer.startMs ?? 0);
+    times.add(visStart);
+    times.add(visStart + visDur);
+  }
+  return [...times].filter((t) => Number.isFinite(t)).sort((a, b) => a - b);
+}
+
+export function nextEditPointMs(project: Project, fromMs: number): number | null {
+  for (const t of collectEditPoints(project)) {
+    if (t > fromMs) return t;
+  }
+  return null;
+}
+
+export function prevEditPointMs(project: Project, fromMs: number): number | null {
+  const points = collectEditPoints(project);
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i]! < fromMs) return points[i]!;
+  }
+  return null;
+}
+
 export function snapTime(
   timeMs: number,
   targets: SnapTarget[],

@@ -22,6 +22,7 @@ describe("production screens", () => {
 
   it("isFormFocus matches input/textarea/select/contenteditable/spinbutton", () => {
     const input = document.createElement("input");
+    input.type = "number";
     const textarea = document.createElement("textarea");
     const select = document.createElement("select");
     const spin = document.createElement("div");

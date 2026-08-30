@@ -15,6 +15,8 @@ import {
   applyPaste,
   applyPause,
   applyPlay,
+  applyGotoNextEdit,
+  applyGotoPrevEdit,
   applyPlayhead,
   applyPlayPause,
   applyRedo,
@@ -59,6 +61,8 @@ export type EditorCommand =
   | { type: "rippleDelete" }
   | { type: "nudgeClip"; deltaMs: number }
   | { type: "nudgePlayhead"; deltaMs: number }
+  | { type: "gotoNextEdit" }
+  | { type: "gotoPrevEdit" }
   | { type: "play" }
   | { type: "pause" }
   | { type: "playPause" }
@@ -119,6 +123,10 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyNudge(session, command.deltaMs);
     case "nudgePlayhead":
       return applyPlayhead(session, session.project.playheadMs + command.deltaMs);
+    case "gotoNextEdit":
+      return applyGotoNextEdit(session);
+    case "gotoPrevEdit":
+      return applyGotoPrevEdit(session);
     case "play":
       return applyPlay(session);
     case "pause":

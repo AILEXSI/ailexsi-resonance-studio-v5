@@ -65,6 +65,8 @@ describe("applyCommand determinism", () => {
       { type: "setTrackPan", trackId: "A1", pan: -0.5 } as const,
       { type: "unlinkClips", clipId: "c1" } as const,
       { type: "setTransition", transitionType: "crossfade", durationMs: 400 } as const,
+      { type: "gotoNextEdit" } as const,
+      { type: "gotoPrevEdit" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

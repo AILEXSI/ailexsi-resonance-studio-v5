@@ -490,4 +490,25 @@ describe("editor keys", () => {
     expect(space.type).toBe("session");
     if (space.type === "session") expect(space.session.playing).toBe(true);
   });
+
+  it("ArrowDown / ArrowUp jump next/prev edit; inspector form focus does not", () => {
+    const start = clipSession();
+    expect(start.project.playheadMs).toBe(1000);
+    const down = dispatchEditorKey(start, false, { key: "ArrowDown" });
+    expect(down.type).toBe("session");
+    if (down.type === "session") {
+      expect(down.preventDefault).toBe(true);
+      expect(down.session.project.playheadMs).toBe(1800);
+    }
+    const up = dispatchEditorKey(start, false, { key: "ArrowUp" });
+    expect(up.type).toBe("session");
+    if (up.type === "session") {
+      expect(up.preventDefault).toBe(true);
+      expect(up.session.project.playheadMs).toBe(200);
+    }
+    expect(dispatchEditorKey(start, false, { key: "ArrowDown", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: "ArrowUp", formFocus: true }).type).toBe("none");
+    const stepped = sessionOf(dispatchEditorKey(start, false, { key: "ArrowRight" }));
+    expect(stepped.project.playheadMs).toBe(start.project.playheadMs + FRAME_MS);
+  });
 });

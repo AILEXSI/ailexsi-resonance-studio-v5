@@ -15,6 +15,8 @@ import {
   deleteMarker,
   collectSnapTargets,
   createHistory,
+  nextEditPointMs,
+  prevEditPointMs,
   deleteClips,
   pasteClips,
   slipClips,
@@ -619,6 +621,18 @@ export function applyMoveMarker(session: Session, markerId: string, timeMs: numb
 
 export function applyPlayhead(session: Session, timeMs: number): Session {
   return { ...session, project: setPlayhead(session.project, timeMs) };
+}
+
+export function applyGotoNextEdit(session: Session): Session {
+  const next = nextEditPointMs(session.project, session.project.playheadMs);
+  if (next == null) return session;
+  return applyPlayhead(session, next);
+}
+
+export function applyGotoPrevEdit(session: Session): Session {
+  const prev = prevEditPointMs(session.project, session.project.playheadMs);
+  if (prev == null) return session;
+  return applyPlayhead(session, prev);
 }
 
 export function applyToggleLoop(session: Session): Session {

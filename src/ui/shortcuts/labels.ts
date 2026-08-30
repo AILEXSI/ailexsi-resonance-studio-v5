@@ -31,6 +31,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: ", / .", action: "Nudge clip ±1 frame" },
   { key: "Shift+, / Shift+.", action: "Nudge clip ±10 frames" },
   { key: "← / →", action: "Step playhead ±1 frame" },
+  { key: "↑ / ↓", action: "Previous / next edit point" },
   { key: "Ctrl+Z", action: "Undo" },
   { key: "Ctrl+Y", action: "Redo" },
   { key: CLIP_MENU_SHORTCUTS.cut, action: "Cut selected clip(s)" },
