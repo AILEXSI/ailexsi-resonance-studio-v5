@@ -231,6 +231,59 @@ describe("disabled clips are not edit pairs (P106)", () => {
       clipId: "v2",
     });
   });
+
+  it("stored transition is ignored when a pair clip is disabled (P107)", () => {
+    const project = stackedV1OverV2();
+    const { project: withTr } = upsertTransition(project, resolveEditPair(project, ["v1"])!, {
+      type: "crossfade",
+      durationMs: 1000,
+      startMs: 1000,
+    });
+    expect(compositeVideoAt(contextFromProject(withTr), 1500).layers).toEqual([
+      { clipId: "v1", alpha: 0.5 },
+      { clipId: "v2", alpha: 0.5 },
+    ]);
+    const off = {
+      ...withTr,
+      clips: withTr.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    expect(compositeVideoAt(contextFromProject(off), 1500).layers).toEqual([
+      { clipId: "v2", alpha: 1 },
+    ]);
+    expect(resolvePictureSource(contextFromProject(off), 1500)).toMatchObject({
+      kind: "V2",
+      clipId: "v2",
+    });
+  });
+});
+
+describe("orphan transition audio and export job (P108)", () => {
+  it("preview mix and export job drop a transition whose mate is disabled", () => {
+    const project = stackedV1OverV2();
+    const { project: withTr } = upsertTransition(project, resolveEditPair(project, ["v1"])!, {
+      type: "crossfade",
+      audioMode: "crossfade",
+      audioDurationMs: 1000,
+      durationMs: 1000,
+      startMs: 1000,
+    });
+    expect(transitionAudioGain(withTr.transitions, "v2", 1500, withTr)).toBeCloseTo(
+      Math.sin((0.5 * Math.PI) / 2),
+    );
+    const off = {
+      ...withTr,
+      clips: withTr.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    expect(transitionAudioGain(off.transitions, "v2", 1500, off)).toBe(1);
+    const assets = [
+      asset({ id: "va", kind: "video", durationMs: 4000, objectUrl: "blob:v", missing: false }),
+      asset({ id: "vb", kind: "video", durationMs: 4000, objectUrl: "blob:v2", missing: false }),
+    ];
+    const job = jobFromProject({ ...off, assets });
+    expect(job.transitions).toEqual([]);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips).toEqual([]);
+    expect(job.tracks.find((t) => t.id === "V2")!.clips.map((c) => c.id)).toEqual(["v2"]);
+  });
 });
 
 describe("preview and export compositor", () => {

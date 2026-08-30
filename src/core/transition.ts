@@ -314,9 +314,19 @@ export function topVideoClipId(
   return hits[0]!.id;
 }
 
+/** Both pair clips must be present (disabled / out-of-range clips drop the window). */
+export function transitionSourcesIn(
+  t: Pick<Transition, "sourceAClipId" | "sourceBClipId">,
+  clipIds: ReadonlySet<string>,
+): boolean {
+  return clipIds.has(t.sourceAClipId) && clipIds.has(t.sourceBClipId);
+}
+
 function coveringTransition(ctx: CompositeContext, timeMs: number): Transition | undefined {
   const t = transitionAt(ctx.transitions, timeMs);
   if (!t || t.durationMs <= 0) return undefined;
+  const ids = new Set(ctx.clips.map((c) => c.id));
+  if (!transitionSourcesIn(t, ids)) return undefined;
   return t;
 }
 
@@ -587,6 +597,11 @@ export function transitionAudioGain(
   let gain = 1;
   for (const t of transitions) {
     if (isIdentityAudio(t)) continue;
+    if (project) {
+      const a = clipById(project, t.sourceAClipId);
+      const b = clipById(project, t.sourceBClipId);
+      if (!a || !b || !clipIsEnabled(a) || !clipIsEnabled(b)) continue;
+    }
     const aIds = clipIdsForSource(t.sourceAClipId, project, peers);
     const bIds = clipIdsForSource(t.sourceBClipId, project, peers);
     const inA = aIds.has(clipId);
