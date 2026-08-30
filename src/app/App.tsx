@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { assetById, clipById, type TrackId } from "../core/models";
 import { MEDIA_FILE_ACCEPT, preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
+import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapPlayheadSeek, snapTime } from "../core/timeline";
 import { downloadText, projectFilename, windowTitleFor } from "../core/project";
 import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import {
@@ -1374,7 +1374,11 @@ export function App() {
         onSetClipsEnabled={(enabled) => runCommand({ type: "setClipsEnabled", enabled })}
         onSetClipsLocked={(locked) => runCommand({ type: "setClipsLocked", locked })}
         onSplitHere={(clipId, timeMs) => {
-          setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
+          setSession((s) =>
+            applyCommand(applyPlayhead(applySelect(s, clipId), snapPlayheadSeek(s.project, timeMs)), {
+              type: "split",
+            }),
+          );
         }}
         onCut={() => runCommand({ type: "cut" })}
         onCopy={() => runCommand({ type: "copy" })}

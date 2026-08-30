@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
-import { createSession, selectionOf, type Session } from "../../src/app/session";
+import { applyPlayhead, applySelect, createSession, selectionOf, type Session } from "../../src/app/session";
+import { snapPlayheadSeek } from "../../src/core/timeline";
 import { FRAME_MS, isTrackId } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { nextShuttleRate } from "../../src/core/playback";
@@ -303,6 +304,33 @@ describe("applyCommand determinism", () => {
     const undone = applyCommand(rippled, { type: "undo" });
     expect(clipStarts(undone)).toEqual(clipStarts(start));
     expect(undone.project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(0);
+  });
+
+  it("Split here snaps the click then splits at that playhead (P89)", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith([clip({ id: "c1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 4000 })], [a]),
+        markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+        playheadMs: 0,
+        snap: true,
+      },
+      selectedClipId: "c1",
+    };
+    const parked = applyPlayhead(applySelect(start, "c1"), snapPlayheadSeek(start.project, 2070));
+    expect(parked.project.playheadMs).toBe(2000);
+    const split = applyCommand(parked, { type: "split" });
+    expect(split.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(2000);
+    expect(split.project.clips.some((c) => c.id !== "c1" && c.startMs === 2000 && c.durationMs === 2000)).toBe(
+      true,
+    );
+
+    const raw = applyPlayhead(
+      applySelect({ ...start, project: { ...start.project, snap: false } }, "c1"),
+      snapPlayheadSeek({ ...start.project, snap: false }, 2070),
+    );
+    expect(raw.project.playheadMs).toBe(2070);
   });
 
   it("split with many selected only cuts those under the playhead", () => {

@@ -877,7 +877,7 @@ export function Timeline({
       x: e.clientX,
       y: e.clientY,
       clipId: clip.id,
-      timeMs: timeFromEvent(e.clientX, bodyRef.current),
+      timeMs: snapPlayheadSeek(project, timeFromEvent(e.clientX, bodyRef.current)),
     });
   };
 
