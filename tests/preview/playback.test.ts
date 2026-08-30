@@ -63,4 +63,25 @@ describe("preview / playback", () => {
     ]);
     expect(playbackBounds(p).endMs).toBe(800);
   });
+
+  it("Play/loop matches export range: skip disabled tail, keep VIS events (P103)", () => {
+    const p = projectWith([
+      clip({ id: "on", assetId: "a", trackId: "V1", startMs: 0, durationMs: 800 }),
+      clip({ id: "off", assetId: "a", trackId: "V1", startMs: 800, durationMs: 4000, enabled: false }),
+    ]);
+    p.markers = [{ id: "m", timeMs: 9000, label: "M" }];
+    expect(playbackBounds(p).endMs).toBe(800);
+    p.playheadMs = 750;
+    const stopped = advancePlayhead(p, 200);
+    expect(stopped.stopped).toBe(true);
+    expect(stopped.playheadMs).toBe(800);
+
+    p.visualizer = {
+      ...p.visualizer,
+      enabled: true,
+      muted: false,
+      events: [{ id: "e1", sceneId: "pulse-orb", startMs: 500, durationMs: 1500 }],
+    };
+    expect(playbackBounds(p).endMs).toBe(2000);
+  });
 });

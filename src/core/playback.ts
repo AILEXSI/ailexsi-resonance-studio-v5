@@ -1,9 +1,10 @@
-import { FRAME_MS, projectDurationMs, type Project } from "./models";
+import { FRAME_MS, type Project } from "./models";
+import { exportRangeMs } from "./timeline";
 
+/** Same window as export: IN/OUT, else last enabled clip or finite VIS. */
 export function playbackBounds(project: Project): { startMs: number; endMs: number } {
-  const startMs = project.inPointMs ?? 0;
-  const endMs = project.outPointMs ?? Math.max(startMs + FRAME_MS, projectDurationMs(project));
-  return { startMs, endMs };
+  const { startMs, endMs } = exportRangeMs(project);
+  return { startMs, endMs: Math.max(startMs + FRAME_MS, endMs) };
 }
 
 /** JKL shuttle steps. 0 = paused. Cap ±4. */
