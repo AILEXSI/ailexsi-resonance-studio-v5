@@ -3,9 +3,12 @@ import { createId } from "./ids";
 import {
   SPLIT_EDGE_GUARD_MS,
   SNAP_THRESHOLD_MS,
+  clampClipRate,
   clipById,
   clipEndMs,
   kindOfTrack,
+  sourceSpanMs,
+  timelineDurationForRate,
   TRACK_IDS,
   type Clip,
   type Marker,
@@ -848,13 +851,14 @@ export function slipClip(
   if (!clip) return { project, error: "Clip not found" };
   const asset = project.assets.find((a) => a.id === clip.assetId);
   const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
-  const maxIn = maxOut - clip.durationMs;
+  const span = sourceSpanMs(clip);
+  const maxIn = maxOut - span;
   const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + deltaMs), Math.max(0, maxIn));
   if (sourceInMs === clip.sourceInMs) return { project };
   const next: Clip = {
     ...clip,
     sourceInMs,
-    sourceOutMs: sourceInMs + clip.durationMs,
+    sourceOutMs: sourceInMs + span,
   };
   return {
     project: {
@@ -912,8 +916,52 @@ export function updateClip(
   }
   next.startMs = clampStartMs(next.startMs);
   next.gain = Math.max(0, Math.min(4, next.gain));
+  next.rate = clampClipRate(next.rate);
   next = applyNormalizedFades(next);
 
+  return {
+    project: {
+      ...project,
+      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Classic NLE speed: source in/out stay. durationMs = sourceSpan / rate.
+ * Grows/shrinks to the right. Overlap with the next same-track clip is a
+ * hard reject (no auto-ripple). Fades re-clamp to the new duration.
+ */
+export function setClipRate(
+  project: Project,
+  clipId: string,
+  rate: number,
+): { project: Project; error?: string } {
+  const clip = clipById(project, clipId);
+  if (!clip) return { project, error: "Clip not found" };
+  const nextRate = clampClipRate(rate);
+  const wanted = timelineDurationForRate(sourceSpanMs(clip), nextRate);
+  const nextNeighbor = project.clips
+    .filter((c) => c.trackId === clip.trackId && c.id !== clipId && c.startMs > clip.startMs)
+    .sort((a, b) => a.startMs - b.startMs)[0];
+  const available = nextNeighbor
+    ? Math.max(0, nextNeighbor.startMs - clip.startMs)
+    : Number.POSITIVE_INFINITY;
+  if (wanted > available + ABUT_TOLERANCE_MS) {
+    const clamped = Math.max(1, available);
+    if (Math.abs(clamped * nextRate - sourceSpanMs(clip)) > 1) {
+      return { project, error: "Rate would overlap the next clip" };
+    }
+  }
+  const durationMs = Math.min(wanted, available);
+  if (durationMs < 1) return { project, error: "Rate would overlap the next clip" };
+  if (nextRate === clip.rate && durationMs === clip.durationMs) return { project };
+  const next = applyNormalizedFades({
+    ...clip,
+    rate: nextRate,
+    durationMs,
+  });
   return {
     project: {
       ...project,
@@ -984,6 +1032,7 @@ export function placeAsset(
     gain: 1,
     fadeInMs: 0,
     fadeOutMs: 0,
+    rate: 1,
   };
   return {
     project: {

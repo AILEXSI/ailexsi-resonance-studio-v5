@@ -16,6 +16,8 @@ describe("preview / playback", () => {
     });
     expect(sourceTimeAt(c, 1000)).toBe(200);
     expect(sourceTimeAt(c, 1250)).toBe(450);
+    const fast = { ...c, rate: 2, durationMs: 250 };
+    expect(sourceTimeAt(fast, 1250)).toBe(700);
   });
 
   it("loops inside IN/OUT and stops without loop", () => {

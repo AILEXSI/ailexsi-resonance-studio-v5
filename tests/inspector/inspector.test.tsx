@@ -47,6 +47,8 @@ describe("inspector selection", () => {
     expect(text).toContain("Start (ms)");
     expect(text).toContain("Fade in (ms)");
     expect(text).toContain("Fade out (ms)");
+    expect(text).toContain("Rate");
+    expect(host!.querySelector('[data-testid="inspector-rate"]')).toBeTruthy();
     expect(text).not.toContain("3 clips");
     expect(host!.querySelector('[data-testid="inspector-selection-count"]')).toBeNull();
     expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeTruthy();
@@ -60,6 +62,7 @@ describe("inspector selection", () => {
     expect(host!.textContent ?? "").not.toContain("Start (ms)");
     expect(host!.textContent ?? "").not.toContain("Gain");
     expect(host!.textContent ?? "").not.toContain("Fade in (ms)");
+    expect(host!.querySelector('[data-testid="inspector-rate"]')).toBeNull();
     expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeNull();
   });
 

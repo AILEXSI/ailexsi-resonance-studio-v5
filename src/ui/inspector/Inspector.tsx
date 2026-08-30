@@ -7,6 +7,7 @@ interface Props {
   selectedClipIds?: string[];
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
+  onRate?: (clipId: string, rate: number) => void;
 }
 
 function Field({
@@ -48,7 +49,7 @@ function MsField({
   );
 }
 
-export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades }: Props) {
+export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades, onRate }: Props) {
   const ids = selectedClipIds?.length ? selectedClipIds : selectedClipId ? [selectedClipId] : [];
   const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
@@ -88,6 +89,17 @@ export function Inspector({ project, selectedClipId, selectedClipIds, onChange, 
               max={4}
               value={clip.gain}
               onChange={(e) => onChange(clip.id, { gain: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Rate">
+            <input
+              type="number"
+              step="0.05"
+              min={0.25}
+              max={4}
+              data-testid="inspector-rate"
+              value={clip.rate}
+              onChange={(e) => onRate?.(clip.id, Number(e.target.value))}
             />
           </Field>
           <MsField

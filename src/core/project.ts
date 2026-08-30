@@ -2,6 +2,7 @@ import { createId } from "./ids";
 import { normalizeClipFades } from "./fades";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import {
+  clampClipRate,
   defaultTracks,
   defaultVisualizer,
   isTrackId,
@@ -102,6 +103,7 @@ function sanitizeClip(raw: unknown): Clip | null {
     gain: Math.max(0, Number(c.gain) || 1),
     fadeInMs: fades.fadeInMs,
     fadeOutMs: fades.fadeOutMs,
+    rate: c.rate == null ? 1 : clampClipRate(Number(c.rate)),
   };
 }
 

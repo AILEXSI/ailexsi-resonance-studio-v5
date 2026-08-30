@@ -50,6 +50,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, false),
           fadeInMs: c.fadeInMs,
           fadeOutMs: c.fadeOutMs,
+          rate: c.rate ?? 1,
           missing: !asset || asset.missing || !asset.objectUrl,
           label: asset?.name ?? c.id,
         };

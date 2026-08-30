@@ -17,6 +17,7 @@ import {
   pasteClips,
   slipClip,
   slideClip,
+  setClipRate,
   maybeScrollToOrigin,
   moveClip,
   moveClipsByDelta,
@@ -485,6 +486,13 @@ export function applySetClipFades(
   const result = updateClip(session.project, clipId, { fadeInMs, fadeOutMs });
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Clip fades");
+}
+
+export function applySetClipRate(session: Session, clipId: string, rate: number): Session {
+  const result = setClipRate(session.project, clipId, rate);
+  if (result.error) return { ...session, error: result.error };
+  if (result.project === session.project) return session;
+  return withHistory(session, result.project, "Clip rate");
 }
 
 export function applyLiftRange(session: Session): Session {

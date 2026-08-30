@@ -22,6 +22,7 @@ import {
   applyRoll,
   applySelect,
   applySetClipFades,
+  applySetClipRate,
   applySetTrackPan,
   applyShuttle,
   applySlideClip,
@@ -71,6 +72,7 @@ export type EditorCommand =
   | { type: "liftRange" }
   | { type: "extractRange" }
   | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number }
+  | { type: "setClipRate"; clipId: string; rate: number }
   | { type: "setTrackPan"; trackId: TrackId; pan: number };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
@@ -137,6 +139,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyExtractRange(session);
     case "setClipFades":
       return applySetClipFades(session, command.clipId, command.fadeInMs, command.fadeOutMs);
+    case "setClipRate":
+      return applySetClipRate(session, command.clipId, command.rate);
     case "setTrackPan":
       return applySetTrackPan(session, command.trackId, command.pan);
     default: {

@@ -48,6 +48,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     if (Math.abs(video.currentTime - want) > 0.08) {
       video.currentTime = want;
     }
+    video.playbackRate = videoClip.rate > 0 ? videoClip.rate : 1;
     if (playing && video.paused) void video.play().catch(() => undefined);
     if (!playing && !video.paused) video.pause();
   }, [project.playheadMs, playing, videoClip, videoAsset?.objectUrl]);
@@ -77,6 +78,7 @@ export function Preview({ project, playing, onLevels }: Props) {
       }
       const want = sourceTimeAt(clip, project.playheadMs) / 1000;
       if (Math.abs(el.currentTime - want) > 0.08) el.currentTime = want;
+      el.playbackRate = clip.rate > 0 ? clip.rate : 1;
       if (playing && el.paused) void el.play().catch(() => undefined);
       if (!playing && !el.paused) el.pause();
     };

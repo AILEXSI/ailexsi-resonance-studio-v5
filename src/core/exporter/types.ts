@@ -12,6 +12,7 @@ export interface ExportClip {
   gain: number;
   fadeInMs: number;
   fadeOutMs: number;
+  rate: number;
   missing: boolean;
   label: string;
 }

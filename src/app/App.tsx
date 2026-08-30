@@ -853,6 +853,9 @@ export function App() {
             onFades={(clipId, fadeInMs, fadeOutMs) =>
               setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
             }
+            onRate={(clipId, rate) =>
+              setSession(applyCommand(session, { type: "setClipRate", clipId, rate }))
+            }
           />
         </div>
       </div>

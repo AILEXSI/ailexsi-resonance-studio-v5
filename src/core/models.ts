@@ -71,6 +71,8 @@ export interface Clip {
   fadeInMs: number;
   /** Linear fade-out length. 0 = none. */
   fadeOutMs: number;
+  /** Playback rate. 1 = unity. Source window stays; durationMs = (sourceOut−sourceIn) / rate. */
+  rate: number;
 }
 
 export interface Track {
@@ -112,6 +114,26 @@ export interface Project {
   visualizer: VisualizerState;
   /** Linear master fader. 1 = 0 dB unity. */
   masterVolume: number;
+}
+
+export const CLIP_RATE_MIN = 0.25;
+export const CLIP_RATE_MAX = 4;
+
+export function clampClipRate(rate: number): number {
+  if (!Number.isFinite(rate) || rate <= 0) return 1;
+  return Math.max(CLIP_RATE_MIN, Math.min(CLIP_RATE_MAX, rate));
+}
+
+export function clipRateOf(clip: { rate?: number }): number {
+  return clampClipRate(clip.rate ?? 1);
+}
+
+export function sourceSpanMs(clip: { sourceInMs: number; sourceOutMs: number }): number {
+  return Math.max(1, clip.sourceOutMs - clip.sourceInMs);
+}
+
+export function timelineDurationForRate(sourceSpan: number, rate: number): number {
+  return Math.max(1, sourceSpan / clampClipRate(rate));
 }
 
 export const SPLIT_EDGE_GUARD_MS = 50;
@@ -221,5 +243,5 @@ export function audioClipsAt(project: Project, timeMs: number): Clip[] {
 
 export function sourceTimeAt(clip: Clip, timelineMs: number): number {
   const offset = Math.max(0, timelineMs - clip.startMs);
-  return clip.sourceInMs + offset;
+  return clip.sourceInMs + offset * clipRateOf(clip);
 }

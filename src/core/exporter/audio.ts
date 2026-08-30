@@ -1,4 +1,5 @@
 import { scheduleGainEnvelope } from "../fades";
+import { clampClipRate } from "../models";
 import { clampPan, equalPowerPan } from "../volume";
 import { audioClipsForMix } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
@@ -114,8 +115,13 @@ export async function mixJobAudio(
       connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
       const startSec = Math.max(0, clip.startMs / 1000);
       const offsetSec = Math.max(0, clip.sourceInMs / 1000);
-      const durSec = Math.max(0.01, durationMs / 1000);
-      src.start(startSec, offsetSec, durSec);
+      const rate = clampClipRate(clip.rate ?? 1);
+      src.playbackRate.value = rate;
+      const sourceDurSec = Math.max(
+        0.01,
+        ((clip.sourceOutMs ?? clip.sourceInMs + durationMs * rate) - clip.sourceInMs) / 1000,
+      );
+      src.start(startSec, offsetSec, sourceDurSec);
       added += 1;
     } catch {
       /* skip unreadable audio; video-only is still success */
