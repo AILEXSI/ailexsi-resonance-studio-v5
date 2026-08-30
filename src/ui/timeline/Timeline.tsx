@@ -111,7 +111,7 @@ interface Props {
   onRippleDelete?: () => void;
   onLiftRange?: () => void;
   onExtractRange?: () => void;
-  onRelink?: () => void;
+  onRelink?: (clipIds?: readonly string[]) => void;
   onCloseGap?: () => void;
   onRippleTrimToPlayhead?: (edge: "in" | "out") => void;
   onSelectAll?: () => void;
@@ -1260,6 +1260,20 @@ export function Timeline({
                       ) : null}
                       {asset && kind === "video" && !asset.missing ? (
                         <VideoClipStrip clip={clip} asset={asset} clipWidthPx={clipW} />
+                      ) : null}
+                      {asset?.missing && onRelink ? (
+                        <button
+                          type="button"
+                          className="clip-relink"
+                          data-testid={`clip-relink-${clip.id}`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRelink([clip.id]);
+                          }}
+                        >
+                          Relink
+                        </button>
                       ) : null}
                       {(() => {
                         const fades = normalizeClipFades(
