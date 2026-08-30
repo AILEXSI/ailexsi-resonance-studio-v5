@@ -650,7 +650,25 @@ function splitAllAtTime(project: Project, timeMs: number): Project {
 }
 
 function clipsFullyInsideRange(project: Project, inMs: number, outMs: number): Clip[] {
-  return project.clips.filter((c) => c.startMs >= inMs && clipEndMs(c) <= outMs);
+  return project.clips.filter(
+    (c) => !clipIsLocked(c) && c.startMs >= inMs && clipEndMs(c) <= outMs,
+  );
+}
+
+/** Range lift deletes unlocked mids only — a locked mate stays parked. */
+function deleteUnlockedClips(project: Project, clipIds: readonly string[]): Project {
+  const drop = new Set(
+    expandLinkedClipIds(project, clipIds).filter((id) => {
+      const clip = clipById(project, id);
+      return Boolean(clip) && !clipIsLocked(clip);
+    }),
+  );
+  if (drop.size === 0) return project;
+  return {
+    ...project,
+    clips: project.clips.filter((c) => !drop.has(c.id)),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /** Split every clip that straddles IN or OUT (50ms guard). */
@@ -663,6 +681,8 @@ export function splitAtRangeBounds(project: Project): Project {
 /**
  * Split at IN/OUT, then lift pieces that lie fully inside [in, out).
  * Later clips stay. Invalid range is a no-op.
+ * Locked clips are not split or deleted (lock is relocate-only; range lift
+ * is not an explicit selection delete).
  */
 export function liftRange(project: Project): { project: Project } {
   const range = editRangeOf(project);
@@ -670,7 +690,7 @@ export function liftRange(project: Project): { project: Project } {
   const split = splitAtRangeBounds(project);
   const mids = clipsFullyInsideRange(split, range.inMs, range.outMs);
   if (mids.length === 0 && split === project) return { project };
-  return { project: deleteClips(split, mids.map((c) => c.id)) };
+  return { project: deleteUnlockedClips(split, mids.map((c) => c.id)) };
 }
 
 /**

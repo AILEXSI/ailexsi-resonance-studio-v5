@@ -903,6 +903,82 @@ describe("range lift / extract", () => {
     expect(liftRange({ ...p, inPointMs: 2000, outPointMs: 1000 }).project.clips).toHaveLength(2);
   });
 
+  it("liftRange does not delete a locked clip inside IN/OUT, nor its locked mate (P110)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const v = asset({ id: "v", kind: "video", durationMs: 4000 });
+    const inside = {
+      ...projectWith(
+        [
+          clip({
+            id: "c1",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 3000,
+            sourceInMs: 0,
+            sourceOutMs: 3000,
+          }),
+          clip({
+            id: "parked",
+            assetId: "a",
+            trackId: "A2",
+            startMs: 1200,
+            durationMs: 600,
+            sourceInMs: 0,
+            sourceOutMs: 600,
+            locked: true,
+          }),
+        ],
+        [a],
+      ),
+      inPointMs: 1000,
+      outPointMs: 2000,
+      snap: false,
+    };
+    const liftedInside = liftRange(inside).project;
+    expect(liftedInside.clips.find((c) => c.id === "parked")).toBeTruthy();
+    expect(liftedInside.clips.find((c) => c.id === "parked")!.startMs).toBe(1200);
+    const a1 = liftedInside.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1).toHaveLength(2);
+    expect(a1[0]!.durationMs).toBe(1000);
+    expect(a1[1]!.startMs).toBe(2000);
+
+    const linked = {
+      ...projectWith(
+        [
+          clip({
+            id: "v1",
+            assetId: "v",
+            trackId: "V1",
+            startMs: 0,
+            durationMs: 800,
+            sourceInMs: 0,
+            sourceOutMs: 800,
+            locked: true,
+            linkId: "pair",
+          }),
+          clip({
+            id: "a-mid",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 5000,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            linkId: "pair",
+          }),
+        ],
+        [a, v],
+      ),
+      inPointMs: 5000,
+      outPointMs: 6000,
+      snap: false,
+    };
+    const liftedMate = liftRange(linked).project;
+    expect(liftedMate.clips.find((c) => c.id === "v1")).toBeTruthy();
+    expect(liftedMate.clips.find((c) => c.id === "a-mid")).toBeUndefined();
+  });
+
   it("extractRange does not slide a locked clip that starts at/after OUT (P109)", () => {
     const base = rangeA1();
     const p = {
