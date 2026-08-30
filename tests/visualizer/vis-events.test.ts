@@ -146,7 +146,7 @@ describe("VIS events", () => {
     expect(visualizerEventsOf(fallback.project)[0]!.sceneId).toBe("pulse-orb");
     const selected = applyCommand(sessionOf(project), { type: "selectVisEvent", eventId: "ve1" });
     const cycled = applyCycleVisualizerScene(selected);
-    expect(visualizerEventsOf(cycled.project)[0]!.sceneId).toBe("spectrum-bars");
+    expect(visualizerEventsOf(cycled.project)[0]!.sceneId).toBe("aurora-veil");
     expect(cycled.project.visualizer.sceneId).toBe(DEFAULT_VISUALIZER_SCENE_ID);
   });
 });

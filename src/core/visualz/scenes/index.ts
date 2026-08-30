@@ -1,18 +1,31 @@
 /**
- * AILEXSI Visualz — Built-in scenes (ported from b67410c).
+ * AILEXSI Visualz — Built-in scenes (ported from b67410c) plus V5 Canvas-2D additions.
+ * Cycle order matches VISUALIZER_SCENE_IDS.
  */
 
 import type { Scene } from "../types";
-import { pulseOrbScene } from "./pulse-orb";
 import { spectrumBarsScene } from "./spectrum-bars";
+import { pulseOrbScene } from "./pulse-orb";
+import { auroraVeilScene } from "./aurora-veil";
+import { starBloomScene } from "./star-bloom";
+import { liquidGoldScene } from "./liquid-gold";
+import { kaleidoHexScene } from "./kaleido-hex";
+import { sunCoreScene } from "./sun-core";
+import { emberRainScene } from "./ember-rain";
 import { particleFieldScene } from "./particle-field";
 import { resonanceWaveScene } from "./resonance-wave";
 import { tunnelSpiralScene } from "./tunnel-spiral";
 import { litaBloomScene } from "./lita-bloom";
 
 export const builtinScenes: Scene[] = [
-  pulseOrbScene,
   spectrumBarsScene,
+  pulseOrbScene,
+  auroraVeilScene,
+  starBloomScene,
+  liquidGoldScene,
+  kaleidoHexScene,
+  sunCoreScene,
+  emberRainScene,
   particleFieldScene,
   resonanceWaveScene,
   tunnelSpiralScene,
@@ -20,8 +33,14 @@ export const builtinScenes: Scene[] = [
 ];
 
 export {
-  pulseOrbScene,
   spectrumBarsScene,
+  pulseOrbScene,
+  auroraVeilScene,
+  starBloomScene,
+  liquidGoldScene,
+  kaleidoHexScene,
+  sunCoreScene,
+  emberRainScene,
   particleFieldScene,
   resonanceWaveScene,
   tunnelSpiralScene,

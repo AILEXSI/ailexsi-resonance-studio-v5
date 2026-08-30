@@ -2,7 +2,9 @@ import { createId } from "./ids";
 import {
   FRAME_MS,
   VISUALIZER_SCENE_IDS,
+  projectDurationMs,
   type Project,
+  type VisualizerCue,
   type VisualizerEvent,
   type VisualizerSceneId,
   type VisualizerState,
@@ -51,8 +53,14 @@ export interface VisualizerFeatures extends AudioFeatures {
 }
 
 const SCENE_SHORT: Record<VisualizerSceneId, string> = {
-  "pulse-orb": "Orb",
   "spectrum-bars": "Bars",
+  "pulse-orb": "Orb",
+  "aurora-veil": "Aurora",
+  "star-bloom": "Stars",
+  "liquid-gold": "Gold",
+  "kaleido-hex": "Kaleido",
+  "sun-core": "Sun",
+  "ember-rain": "Ember",
   "particle-field": "Field",
   "resonance-wave": "Wave",
   "tunnel-spiral": "Tunnel",
@@ -239,17 +247,157 @@ export function visualizerEventAt(
   return visualizerEventsOf(vis).find((event) => visualizerEventCovers(event, timeMs));
 }
 
-/** Event scene at t, else fallback sceneId when events are empty and the window covers. */
-export function visualizerSceneAt(
+export function cuesOf(vis: VisualizerState | Project): VisualizerCue[] {
+  const state = "visualizer" in vis ? vis.visualizer : vis;
+  return [...(state.cues ?? [])].sort((a, b) => a.startMs - b.startMs);
+}
+
+function lastCueAt(vis: VisualizerState | Project, timeMs: number): VisualizerCue | undefined {
+  let hit: VisualizerCue | undefined;
+  for (const cue of cuesOf(vis)) {
+    if (cue.startMs <= timeMs) hit = cue;
+    else break;
+  }
+  return hit;
+}
+
+function upsertCueList(cues: VisualizerCue[], startMs: number, sceneId: VisualizerSceneId): VisualizerCue[] {
+  const t = Math.max(0, roundVisMs(startMs));
+  const next = cues.filter((c) => c.startMs !== t);
+  next.push({ startMs: t, sceneId });
+  next.sort((a, b) => a.startMs - b.startMs);
+  return next;
+}
+
+function visCueSpanMs(project: Project, cues: VisualizerCue[]): number {
+  const lastCue = cues[cues.length - 1];
+  const lastEventEnd = Math.max(
+    0,
+    ...visualizerEventsOf(project).map((e) => e.startMs + Math.max(0, e.durationMs)),
+  );
+  const windowEnd =
+    (project.visualizer.durationMs ?? 0) > 0
+      ? (project.visualizer.startMs ?? 0) + (project.visualizer.durationMs ?? 0)
+      : 0;
+  return Math.max(
+    DEFAULT_VIS_EVENT_MS,
+    10_000,
+    projectDurationMs(project),
+    windowEnd,
+    lastEventEnd,
+    lastCue ? lastCue.startMs + DEFAULT_VIS_EVENT_MS : 0,
+  );
+}
+
+/** Rematerialize abutting VIS events from cues so export's existing event hook paints. */
+export function rematerializeEventsFromCues(project: Project, cues: VisualizerCue[]): VisualizerEvent[] {
+  const unique: VisualizerCue[] = [];
+  for (const cue of [...cues].sort((a, b) => a.startMs - b.startMs)) {
+    const last = unique[unique.length - 1];
+    if (last && last.startMs === cue.startMs) unique[unique.length - 1] = cue;
+    else unique.push(cue);
+  }
+  if (unique.length === 0) return visualizerEventsOf(project);
+  const span = visCueSpanMs(project, unique);
+  const existing = visualizerEventsOf(project);
+  return unique.map((cue, i) => {
+    const next = unique[i + 1];
+    const end = next ? next.startMs : span;
+    const durationMs = Math.max(1, roundVisMs(end - cue.startMs));
+    const reuse = existing.find((e) => e.startMs === cue.startMs && e.sceneId === cue.sceneId);
+    return {
+      id: reuse?.id ?? createId("ve"),
+      sceneId: cue.sceneId,
+      startMs: cue.startMs,
+      durationMs,
+    };
+  });
+}
+
+/**
+ * Covering event, else last cue with startMs <= t, else sceneId when the window covers.
+ * Preview and tests use this; export reads rematerialized events[] via the same compositor.
+ */
+export function sceneAt(
   vis: VisualizerState | Project,
   timeMs: number,
 ): VisualizerSceneId | undefined {
   const state = "visualizer" in vis ? vis.visualizer : vis;
   const covering = visualizerEventAt(state, timeMs);
   if (covering) return covering.sceneId;
+  const cue = lastCueAt(state, timeMs);
+  if (cue) {
+    if (visualizerEventsOf(state).length > 0) return undefined;
+    if (!visWindowCovers(state, timeMs)) return undefined;
+    return cue.sceneId;
+  }
   if (visualizerEventsOf(state).length > 0) return undefined;
   if (!visWindowCovers(state, timeMs)) return undefined;
   return state.sceneId;
+}
+
+export const sceneIdAt = sceneAt;
+
+/** Event / cue / window scene at t. */
+export function visualizerSceneAt(
+  vis: VisualizerState | Project,
+  timeMs: number,
+): VisualizerSceneId | undefined {
+  return sceneAt(vis, timeMs);
+}
+
+export function insertCueAtPlayhead(
+  project: Project,
+  timeMs: number,
+): { project: Project; event?: VisualizerEvent } {
+  const t = Math.max(0, roundVisMs(timeMs));
+  const hadCues = cuesOf(project).length > 0;
+  const hadEvents = visualizerEventsOf(project).length > 0;
+  const stamp = new Date().toISOString();
+
+  if (t === 0) {
+    const nextId = nextSceneId(project.visualizer.sceneId);
+    const nextCues = upsertCueList(cuesOf(project), 0, nextId);
+    const shouldRemat = !hadEvents || hadCues;
+    const events = shouldRemat ? rematerializeEventsFromCues(project, nextCues) : visualizerEventsOf(project);
+    const nextProject: Project = {
+      ...project,
+      visualizer: {
+        ...project.visualizer,
+        sceneId: nextId,
+        cues: nextCues,
+        events,
+      },
+      updatedAt: stamp,
+    };
+    return {
+      project: nextProject,
+      event: shouldRemat ? events.find((e) => e.startMs === 0) : undefined,
+    };
+  }
+
+  let nextCues = cuesOf(project);
+  if (!nextCues.some((c) => c.startMs === 0)) {
+    nextCues = [{ startMs: 0, sceneId: project.visualizer.sceneId }, ...nextCues];
+  }
+  const left = sceneAt({ ...project.visualizer, cues: nextCues }, Math.max(0, t - 1)) ?? project.visualizer.sceneId;
+  const right = nextSceneId(left);
+  nextCues = upsertCueList(nextCues, t, right);
+  const events = rematerializeEventsFromCues({ ...project, visualizer: { ...project.visualizer, cues: nextCues } }, nextCues);
+  const nextProject: Project = {
+    ...project,
+    visualizer: {
+      ...project.visualizer,
+      sceneId: right,
+      cues: nextCues,
+      events,
+    },
+    updatedAt: stamp,
+  };
+  return {
+    project: nextProject,
+    event: events.find((e) => e.startMs === t),
+  };
 }
 
 /**

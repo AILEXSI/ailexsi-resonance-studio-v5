@@ -7,9 +7,16 @@ export type TrackId = "V1" | "V2" | "A1" | "A2";
  * Visualz Canvas-2D builtin scene ids (ported from @ailexsi/visualz 0.1.0-blueprint).
  * VIS is an overlay lane, not a TrackId.
  */
+/** Cycle order. Unused ids (do not implement): silk-ribbons, orbit-rings, mist-mirror, prismatic-cut, ash-drift, pulse-lattice. */
 export const VISUALIZER_SCENE_IDS = [
-  "pulse-orb",
   "spectrum-bars",
+  "pulse-orb",
+  "aurora-veil",
+  "star-bloom",
+  "liquid-gold",
+  "kaleido-hex",
+  "sun-core",
+  "ember-rain",
   "particle-field",
   "resonance-wave",
   "tunnel-spiral",
@@ -28,6 +35,12 @@ export interface VisualizerEvent {
   durationMs: number;
 }
 
+/** In-song mode change. Last cue with startMs <= t wins until the next cue. */
+export interface VisualizerCue {
+  startMs: number;
+  sceneId: VisualizerSceneId;
+}
+
 export interface VisualizerState {
   enabled: boolean;
   muted: boolean;
@@ -37,6 +50,8 @@ export interface VisualizerState {
   durationMs?: number;
   /** Scene clips on the VIS lane. Empty = use sceneId + window. Not TrackId clips. */
   events?: VisualizerEvent[];
+  /** Playhead VIS-button cues. Empty = sceneId (+ events if present). */
+  cues?: VisualizerCue[];
 }
 
 export function defaultVisualizer(): VisualizerState {
@@ -47,6 +62,7 @@ export function defaultVisualizer(): VisualizerState {
     startMs: 0,
     durationMs: 0,
     events: [],
+    cues: [],
   };
 }
 

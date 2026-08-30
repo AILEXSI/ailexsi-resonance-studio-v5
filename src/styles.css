@@ -1327,6 +1327,18 @@ body.media-asset-dragging .project-overlay-drawer {
   white-space: nowrap;
   pointer-events: none;
 }
+.vis-span[data-scene="spectrum-bars"] { background: rgba(0, 80, 62, 0.82); color: #7dffe0; }
+.vis-span[data-scene="pulse-orb"] { background: rgba(90, 32, 12, 0.82); color: #ffb08a; }
+.vis-span[data-scene="aurora-veil"] { background: rgba(6, 70, 48, 0.82); color: #7dffc4; }
+.vis-span[data-scene="star-bloom"] { background: rgba(18, 28, 72, 0.86); color: #ffe08a; }
+.vis-span[data-scene="liquid-gold"] { background: rgba(72, 48, 8, 0.86); color: #ffd76a; }
+.vis-span[data-scene="kaleido-hex"] { background: rgba(72, 12, 64, 0.86); color: #ff8ae8; }
+.vis-span[data-scene="sun-core"] { background: rgba(80, 36, 6, 0.86); color: #ffe08a; }
+.vis-span[data-scene="ember-rain"] { background: rgba(72, 16, 8, 0.86); color: #ff8a5a; }
+.vis-span[data-scene="particle-field"] { background: rgba(36, 20, 80, 0.86); color: #c4b0ff; }
+.vis-span[data-scene="resonance-wave"] { background: rgba(72, 28, 12, 0.82); color: #ffb08a; }
+.vis-span[data-scene="tunnel-spiral"] { background: rgba(8, 48, 72, 0.86); color: #7de8ff; }
+.vis-span[data-scene="lita-bloom"] { background: rgba(72, 16, 36, 0.86); color: #ff8aac; }
 
 .cutter {
   flex: 0 0 auto;

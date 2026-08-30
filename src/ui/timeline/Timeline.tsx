@@ -32,7 +32,7 @@ import {
   type LaneHeights,
 } from "../../core/layout-prefs";
 import { clampScrollMs, maxScrollMs, RULER_PAD_PX } from "../../core/zoom";
-import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
+import { formatVisEventLabel, sceneAt, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
 import { buildRulerTicks } from "../../core/ruler";
@@ -1083,7 +1083,9 @@ export function Timeline({
               title={
                 (selectedVisEventId
                   ? visualizerEventsOf(project).find((e) => e.id === selectedVisEventId)?.sceneId
-                  : undefined) ?? project.visualizer.sceneId
+                  : undefined) ??
+                sceneAt(project, project.playheadMs) ??
+                project.visualizer.sceneId
               }
               data-testid="visualizer-scene"
               onClick={(e) => {
@@ -1094,7 +1096,9 @@ export function Timeline({
               {sceneShortName(
                 (selectedVisEventId
                   ? visualizerEventsOf(project).find((e) => e.id === selectedVisEventId)?.sceneId
-                  : undefined) ?? project.visualizer.sceneId,
+                  : undefined) ??
+                  sceneAt(project, project.playheadMs) ??
+                  project.visualizer.sceneId,
               )}
             </button>
           </div>

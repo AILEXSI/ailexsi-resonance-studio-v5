@@ -103,6 +103,7 @@ import { nextShuttleRate } from "../core/playback";
 import {
   cycleVisualizerScene,
   deleteVisualizerEvent,
+  insertCueAtPlayhead,
   insertVisualizerEvent,
   moveVisualizerEvent,
   pasteVisualizerEvent,
@@ -1332,12 +1333,31 @@ export function applyToggleVisualizerMute(session: Session): Session {
 
 export function applyCycleVisualizerScene(session: Session): Session {
   const eventId = session.selectedVisEventId;
-  const next = cycleVisualizerScene(session.project, eventId);
-  const event = eventId ? visualizerEventsOf(next).find((e) => e.id === eventId) : undefined;
+  if (eventId) {
+    const selected = visualizerEventsOf(session.project).find((e) => e.id === eventId);
+    if (selected) {
+      const next = cycleVisualizerScene(session.project, eventId);
+      const event = visualizerEventsOf(next).find((e) => e.id === eventId);
+      return {
+        ...session,
+        project: next,
+        status: `Visualizer ${event?.sceneId ?? next.visualizer.sceneId}`,
+        error: null,
+      };
+    }
+  }
+  const at = snapPlayheadSeek(session.project, session.project.playheadMs);
+  const { project, event } = insertCueAtPlayhead(session.project, at);
   return {
     ...session,
-    project: next,
-    status: `Visualizer ${event?.sceneId ?? next.visualizer.sceneId}`,
+    project,
+    selectedClipId: null,
+    selectedClipIds: [],
+    selectedMarkerId: null,
+    selectedVis: true,
+    selectedVisEventId: event?.id ?? null,
+    selectedVisEventIds: event ? [event.id] : [],
+    status: `Visualizer ${event?.sceneId ?? project.visualizer.sceneId}`,
     error: null,
   };
 }

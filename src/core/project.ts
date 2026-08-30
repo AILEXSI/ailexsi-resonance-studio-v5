@@ -13,6 +13,7 @@ import {
   type MediaKind,
   type Project,
   type Track,
+  type VisualizerCue,
   type VisualizerEvent,
   type VisualizerState,
 } from "./models";
@@ -165,12 +166,26 @@ function sanitizeVisualizerEvent(raw: unknown): VisualizerEvent | null {
   };
 }
 
+function sanitizeVisualizerCue(raw: unknown): VisualizerCue | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  if (typeof rec.sceneId !== "string" || !isVisualizerSceneId(rec.sceneId)) return null;
+  if (typeof rec.startMs !== "number" || !Number.isFinite(rec.startMs)) return null;
+  return {
+    startMs: Math.max(0, roundVisMs(rec.startMs)),
+    sceneId: rec.sceneId,
+  };
+}
+
 function sanitizeVisualizer(raw: unknown): VisualizerState {
   const fallback = defaultVisualizer();
   if (!raw || typeof raw !== "object") return fallback;
   const v = raw as Record<string, unknown>;
   const events = Array.isArray(v.events)
     ? v.events.map((item) => sanitizeVisualizerEvent(item)).filter((item): item is VisualizerEvent => item !== null)
+    : [];
+  const cues = Array.isArray(v.cues)
+    ? v.cues.map((item) => sanitizeVisualizerCue(item)).filter((item): item is VisualizerCue => item !== null)
     : [];
   return {
     enabled: v.enabled !== false,
@@ -179,6 +194,7 @@ function sanitizeVisualizer(raw: unknown): VisualizerState {
     startMs: Math.max(0, roundVisMs(Number(v.startMs) || 0)),
     durationMs: Math.max(0, roundVisMs(Number(v.durationMs) || 0)),
     events,
+    cues,
   };
 }
 

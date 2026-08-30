@@ -30,8 +30,8 @@ import type { MixPeaks } from "../mixer/Mixer";
 import {
   featuresAt,
   renderVisualizerScene,
+  sceneAt,
   shouldShowVisualizer,
-  visualizerSceneAt,
 } from "../../core/visualizer";
 import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../core/visualz/playback-tap";
 import { loadStill, paintStill } from "../../core/still";
@@ -255,7 +255,7 @@ export function Preview({ project, playing, onLevels }: Props) {
         live = null;
       }
       const features = preferLiveFeatures(live, synthetic);
-      const sceneId = visualizerSceneAt(project, project.playheadMs) ?? project.visualizer.sceneId;
+      const sceneId = sceneAt(project, project.playheadMs) ?? project.visualizer.sceneId;
       renderVisualizerScene(ctx, canvas.width, canvas.height, sceneId, features, dt);
     };
 

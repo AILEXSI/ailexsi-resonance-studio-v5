@@ -71,6 +71,7 @@ describe("project persist + reload", () => {
       startMs: 0,
       durationMs: 0,
       events: [],
+      cues: [],
     });
     const raw = JSON.parse(serializeProject(p)) as Record<string, unknown>;
     delete raw.visualizer;
@@ -82,6 +83,7 @@ describe("project persist + reload", () => {
       startMs: 0,
       durationMs: 0,
       events: [],
+      cues: [],
     });
   });
 

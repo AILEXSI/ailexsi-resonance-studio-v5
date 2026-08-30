@@ -28,9 +28,9 @@ export const pulseOrbScene: Scene = {
     const flash = features.onset ? 1.35 : 1 + features.beatPulse * 0.45;
     const radius = baseRadius * breath * flash;
 
-    for (let i = 4; i >= 1; i--) {
-      const r = radius * (1 + i * 0.35);
-      const alpha = (0.08 / i) * params.intensity * (0.6 + features.rms);
+    for (let i = 8; i >= 1; i--) {
+      const r = radius * (1 + i * 0.28);
+      const alpha = (0.07 / i) * params.intensity * (0.6 + features.rms);
       const g = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, r);
       g.addColorStop(0, hexToRgba(params.colorPrimary as string, alpha * 1.5));
       g.addColorStop(1, hexToRgba(params.colorPrimary as string, 0));
@@ -49,12 +49,23 @@ export const pulseOrbScene: Scene = {
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    if (features.beatPulse > 0.05) {
+    if (features.beatPulse > 0.05 || features.onset) {
       ctx.strokeStyle = hexToRgba("#ffffff", features.beatPulse * 0.5);
       ctx.lineWidth = 2 + features.beatPulse * 4;
       ctx.beginPath();
       ctx.arc(cx, cy, radius * (1.15 + features.beatPulse * 0.3), 0, Math.PI * 2);
       ctx.stroke();
+
+      const sparks = 12;
+      for (let s = 0; s < sparks; s++) {
+        const a = (s / sparks) * Math.PI * 2 + features.timeMs * 0.002;
+        const d = radius * (1.35 + (s % 3) * 0.12 + features.beatPulse * 0.2);
+        const sr = 1.4 + features.beatPulse * 2.2;
+        ctx.fillStyle = s % 2 === 0 ? hexToRgba("#ffffff", 0.55 + features.beatPulse * 0.4) : hexToRgba(params.colorPrimary as string, 0.7);
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
   },
 };
