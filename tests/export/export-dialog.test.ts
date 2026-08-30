@@ -54,6 +54,16 @@ describe("export dialog state", () => {
     expect(applyExportDialogSize(running, { width: 1280, height: 720 })).toBe(running);
   });
 
+  it("export size/fps stay dialog state, not project history (P70 KEEP)", () => {
+    const project = projectReady();
+    const snapshot = structuredClone(project);
+    let dialog = readyExportDialog({ width: 1280, height: 720, fps: 30 });
+    dialog = applyExportDialogSize(dialog, { width: 1920, height: 1080, fps: 24 });
+    expect(dialog.width).toBe(1920);
+    expect(dialog.fps).toBe(24);
+    expect(project).toEqual(snapshot);
+  });
+
   it("starting export opens the dialog with job name and size", () => {
     const job = jobFromProject(projectReady());
     const closed = closedExportDialog();

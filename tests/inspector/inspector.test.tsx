@@ -67,6 +67,21 @@ describe("inspector selection", () => {
     expect(host!.querySelector('[data-testid="inspector-clip-enabled"]')).toBeTruthy();
     expect(text).toContain("Locked");
     expect(host!.querySelector('[data-testid="inspector-clip-locked"]')).toBeTruthy();
+    expect(text).toContain("Asset");
+    expect(text).toContain("a");
+  });
+
+  it("shows the asset filename — no second clip name (P70 KEEP)", () => {
+    mount(
+      "c1",
+      ["c1"],
+      projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 })],
+        [asset({ id: "a", kind: "audio", name: "verse-01.wav", durationMs: 2000 })],
+      ),
+    );
+    expect(host!.textContent ?? "").toContain("verse-01.wav");
+    expect(host!.querySelector('[data-testid="inspector-clip-name"]')).toBeNull();
   });
 
   it("shows only a count when two or more clips are selected", () => {

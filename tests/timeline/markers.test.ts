@@ -75,6 +75,10 @@ describe("markers", () => {
     expect(applyCommand(session, { type: "renameMarker", markerId: "nope", label: "X" }).error).toBe(
       "Marker not found",
     );
+    const undone = applyCommand(next, { type: "undo" });
+    expect(undone.project.markers.find((m) => m.id === m1.id)?.label).toBe("M1");
+    const redone = applyCommand(undone, { type: "redo" });
+    expect(redone.project.markers.find((m) => m.id === m1.id)?.label).toBe("Chorus");
   });
 
   it("delete already exists; label is stored; no rename required (P66 KEEP)", () => {
