@@ -39,6 +39,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: ", / .", action: "Nudge clip ±1 frame" },
   { key: "Shift+, / Shift+.", action: "Nudge clip ±10 frames" },
   { key: "← / →", action: "Step playhead ±1 frame" },
+  { key: "Home / End", action: "Playhead to project start / duration" },
   { key: "↑ / ↓", action: "Previous / next edit point" },
   { key: CLIP_MENU_SHORTCUTS.closeGap, action: "Close gap under playhead (one track)" },
   { key: CLIP_MENU_SHORTCUTS.rippleTrimInToPlayhead, action: "Ripple trim in to playhead" },

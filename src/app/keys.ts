@@ -1,8 +1,8 @@
 import { firstClipIdWithLivingMate } from "../core/link";
-import { FRAME_MS } from "../core/models";
+import { FRAME_MS, projectDurationMs } from "../core/models";
 import { isSlideBlock } from "../core/timeline";
 import { applyCommand, type EditorCommand } from "./commands";
-import { selectionOf, type Session } from "./session";
+import { applyPlayhead, selectionOf, type Session } from "./session";
 
 export interface EditorKeyEvent {
   key: string;
@@ -111,6 +111,17 @@ export function dispatchEditorKey(
     return { type: "cycleScreen", dir: e.shiftKey ? -1 : 1, preventDefault: true };
   }
   if (e.formFocus) return { type: "none" };
+  const mod = Boolean(e.ctrlKey || e.metaKey);
+  if (!mod && (e.key === "Home" || e.code === "Home")) {
+    return { type: "session", session: applyPlayhead(session, 0), preventDefault: true };
+  }
+  if (!mod && (e.key === "End" || e.code === "End")) {
+    return {
+      type: "session",
+      session: applyPlayhead(session, projectDurationMs(session.project)),
+      preventDefault: true,
+    };
+  }
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
