@@ -46,6 +46,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: CLIP_MENU_SHORTCUTS.rippleTrimInToPlayhead, action: "Ripple trim in to playhead" },
   { key: CLIP_MENU_SHORTCUTS.rippleTrimOutToPlayhead, action: "Ripple trim out to playhead" },
   { key: "Ctrl+S", action: "Save project" },
+  { key: "Ctrl+Shift+S", action: "Save project as" },
   { key: "Ctrl+Z", action: "Undo" },
   { key: "Ctrl+Y", action: "Redo" },
   { key: CLIP_MENU_SHORTCUTS.cut, action: "Cut selected clip(s)" },

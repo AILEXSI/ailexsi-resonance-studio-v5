@@ -129,6 +129,7 @@ export function App() {
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const saveProjectRef = useRef<() => void>(() => {});
+  const saveProjectAsRef = useRef<() => void>(() => {});
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -343,6 +344,10 @@ export function App() {
         saveProjectRef.current();
         return;
       }
+      if (action.type === "saveAs") {
+        saveProjectAsRef.current();
+        return;
+      }
       setSession(action.session);
     };
     window.addEventListener("keydown", onKey);
@@ -402,6 +407,7 @@ export function App() {
   const saveProject = () => persistSave(runSave);
   const saveProjectAs = () => persistSave(runSaveAs);
   saveProjectRef.current = saveProject;
+  saveProjectAsRef.current = saveProjectAs;
 
   const chooseFolder = () => {
     void (async () => {

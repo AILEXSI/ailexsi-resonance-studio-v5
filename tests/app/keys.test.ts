@@ -496,9 +496,15 @@ describe("editor keys", () => {
       type: "save",
       preventDefault: true,
     });
-    expect(dispatchEditorKey(start, false, { key: "s", ctrlKey: true, shiftKey: true }).type).toBe(
-      "none",
-    );
+    expect(dispatchEditorKey(start, false, { key: "s", ctrlKey: true, shiftKey: true })).toEqual({
+      type: "saveAs",
+      preventDefault: true,
+    });
+    expect(dispatchEditorKey(start, false, { key: "s", metaKey: true, shiftKey: true })).toEqual({
+      type: "saveAs",
+      preventDefault: true,
+    });
+    expect(start.project.clips).toHaveLength(1);
     for (const key of ["m", "i", "o"] as const) {
       expect(dispatchEditorKey(start, false, { key, ctrlKey: true }).type).toBe("none");
     }
