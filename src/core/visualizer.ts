@@ -194,8 +194,10 @@ export function visFeaturesForExport(
   timeMs: number,
   durationMs: number,
   mix?: MixPcm | null,
+  opts?: { timelineOriginMs?: number },
 ): VisualizerFeatures {
-  const fallback = featuresAt(timeMs, durationMs);
+  const origin = opts?.timelineOriginMs ?? 0;
+  const fallback = featuresAt(origin + timeMs, origin + durationMs);
   if (!mix || mix.length < 8) return fallback;
   return preferLiveFeatures(featuresFromMix(mix, timeMs), fallback) as VisualizerFeatures;
 }

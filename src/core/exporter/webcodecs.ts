@@ -118,7 +118,9 @@ function paintVisualizer(
       ? job.visualizer.sceneId
       : undefined;
   if (!sceneId) return;
-  const features = visFeaturesForExport(timeMs, job.durationMs, mix);
+  const features = visFeaturesForExport(timeMs, job.durationMs, mix, {
+    timelineOriginMs: job.startMs,
+  });
   renderVisualizerScene(ctx, job.width, job.height, sceneId, features, dt);
 }
 

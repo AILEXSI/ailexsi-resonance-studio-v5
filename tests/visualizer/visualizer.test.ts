@@ -128,6 +128,19 @@ describe("visualizer energy", () => {
     expect(silent.tempoBpm).toBe(120);
     expect(silent.energy).toBeCloseTo(0, 5);
   });
+
+  it("no-mix fallback uses project time so IN does not restart the 120 BPM grid (P100)", () => {
+    const inMs = 2250;
+    const durationMs = 1750;
+    const preview = featuresAt(inMs, inMs + durationMs);
+    const restarted = visFeaturesForExport(0, durationMs);
+    const shifted = visFeaturesForExport(0, durationMs, null, { timelineOriginMs: inMs });
+    expect(restarted.energy).toBeCloseTo(1, 5);
+    expect(shifted.energy).toBeCloseTo(preview.energy, 5);
+    expect(shifted.energy).toBeCloseTo(0, 5);
+    expect(shifted.timeMs).toBe(inMs);
+    expect(shifted.tempoBpm).toBe(120);
+  });
 });
 
 describe("visualizer fallback rules", () => {

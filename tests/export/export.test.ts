@@ -6,7 +6,7 @@ import { hexHeader, looksLikeWebm, validateMp4Ftyp } from "../../src/core/export
 import { muxAvcToMp4 } from "../../src/core/exporter/mp4";
 import { DEFAULT_VISUALIZER_SCENE_ID, sourceTimeAt } from "../../src/core/models";
 import { contextFromExportClips, contextFromProject, resolvePictureSource } from "../../src/core/transition";
-import { featuresAt } from "../../src/core/visualizer";
+import { featuresAt, visFeaturesForExport } from "../../src/core/visualizer";
 import { asset, clip, projectWith } from "../helpers";
 import type { ExportJob } from "../../src/core/exporter/types";
 
@@ -99,6 +99,29 @@ describe("export planner + fail path", () => {
     expect(jc.sourceInMs).toBe(sourceTimeAt(previewSrc, 200));
     expect(jc.startMs).toBe(0);
     expect(jc.endMs).toBe(600);
+  });
+
+  it("no-mix VIS features at job t=0 match preview-at-IN (P100)", () => {
+    const p = createEmptyProject("VIS");
+    p.inPointMs = 2250;
+    p.outPointMs = 4000;
+    p.visualizer = {
+      ...p.visualizer,
+      enabled: true,
+      muted: false,
+      startMs: 0,
+      durationMs: 0,
+      events: [],
+    };
+    const job = jobFromProject(p);
+    expect(job.startMs).toBe(2250);
+    expect(job.durationMs).toBe(1750);
+    const preview = featuresAt(2250, 2250 + job.durationMs);
+    const exported = visFeaturesForExport(0, job.durationMs, null, {
+      timelineOriginMs: job.startMs,
+    });
+    expect(exported.energy).toBeCloseTo(preview.energy, 5);
+    expect(exported.energy).not.toBeCloseTo(featuresAt(0, job.durationMs).energy, 5);
   });
 
   it("shifts the legacy VIS window by IN like events (P96)", () => {
