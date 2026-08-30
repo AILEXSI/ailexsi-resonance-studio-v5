@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, setClipRate, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, rollEdit, setClipRate, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -307,6 +307,158 @@ describe("linked A/V", () => {
     expect(viaCommand.project.clips.find((c) => c.id === "a1")!.rate).toBe(2);
     expect(viaCommand.project.clips.find((c) => c.id === "v1")!.rate).toBe(1);
     expect(viaCommand.error).toBeNull();
+  });
+
+  it("roll of an unlocked pair skips locked mates (P119)", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 4000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "v2",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 1000,
+          sourceOutMs: 2000,
+          linkId: "lnk2",
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnk1",
+          locked: true,
+        }),
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 1000,
+          sourceOutMs: 2000,
+          linkId: "lnk2",
+          locked: true,
+        }),
+      ],
+      [va],
+    );
+    const rolled = rollEdit({ ...start, snap: false }, "v1", "v2", 1200);
+    expect(rolled.error).toBeUndefined();
+    const v1 = rolled.project.clips.find((c) => c.id === "v1")!;
+    const v2 = rolled.project.clips.find((c) => c.id === "v2")!;
+    const a1 = rolled.project.clips.find((c) => c.id === "a1")!;
+    const a2 = rolled.project.clips.find((c) => c.id === "a2")!;
+    expect(v1.durationMs).toBe(1200);
+    expect(v1.sourceOutMs).toBe(1200);
+    expect(v2.startMs).toBe(1200);
+    expect(v2.durationMs).toBe(800);
+    expect(v2.sourceInMs).toBe(1200);
+    expect(a1.startMs).toBe(0);
+    expect(a1.durationMs).toBe(1000);
+    expect(a1.sourceOutMs).toBe(1000);
+    expect(a1.locked).toBe(true);
+    expect(a2.startMs).toBe(1000);
+    expect(a2.durationMs).toBe(1000);
+    expect(a2.sourceInMs).toBe(1000);
+    expect(a2.locked).toBe(true);
+
+    const viaCommand = applyCommand(
+      {
+        ...createSession(createMemoryBlobStore()),
+        project: { ...start, snap: false },
+        selectedClipId: "v1",
+        selectedClipIds: ["v1"],
+      },
+      { type: "rollEdit", clipId: "v1", edge: "out", nextEdgeMs: 1200 },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(1200);
+    expect(viaCommand.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(1000);
+    expect(viaCommand.project.clips.find((c) => c.id === "a2")!.startMs).toBe(1000);
+  });
+
+  it("roll of a linked pair applies the same cut to unlocked mates", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 4000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "v2",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 1000,
+          sourceOutMs: 2000,
+          linkId: "lnk2",
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "a2",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 1000,
+          sourceOutMs: 2000,
+          linkId: "lnk2",
+        }),
+      ],
+      [va],
+    );
+    const rolled = rollEdit({ ...start, snap: false }, "v1", "v2", 1200);
+    expect(rolled.error).toBeUndefined();
+    expect(rolled.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(1200);
+    expect(rolled.project.clips.find((c) => c.id === "a1")!.sourceOutMs).toBe(1200);
+    expect(rolled.project.clips.find((c) => c.id === "a2")!.startMs).toBe(1200);
+    expect(rolled.project.clips.find((c) => c.id === "a2")!.durationMs).toBe(800);
+    expect(rolled.project.clips.find((c) => c.id === "a2")!.sourceInMs).toBe(1200);
   });
 
   it("group slip follows a living mate of a member, or no-ops all", () => {

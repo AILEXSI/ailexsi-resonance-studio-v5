@@ -425,6 +425,8 @@ export function rippleDeleteClips(project: Project, clipIds: readonly string[]):
 
 /**
  * Move the shared cut between two abutting clips. Total A+B span stays constant.
+ * A living unlocked linked mate takes the same edge delta. A locked mate is
+ * skipped (same as split/slip/rate/move/trim).
  */
 export function rollEdit(
   project: Project,
@@ -491,22 +493,24 @@ export function rollEdit(
   });
   const leftMate = livingLinkedMate(project, leftId);
   const rightMate = livingLinkedMate(project, rightId);
-  const nextLeftMate = leftMate
+  const liveLeftMate = leftMate && !clipIsLocked(leftMate) ? leftMate : undefined;
+  const liveRightMate = rightMate && !clipIsLocked(rightMate) ? rightMate : undefined;
+  const nextLeftMate = liveLeftMate
     ? applyNormalizedFades({
-        ...leftMate,
-        startMs: clampStartMs(leftMate.startMs + (nextLeft.startMs - left.startMs)),
-        durationMs: leftMate.durationMs + (nextLeft.durationMs - left.durationMs),
-        sourceInMs: leftMate.sourceInMs + (nextLeft.sourceInMs - left.sourceInMs),
-        sourceOutMs: leftMate.sourceOutMs + (nextLeft.sourceOutMs - left.sourceOutMs),
+        ...liveLeftMate,
+        startMs: clampStartMs(liveLeftMate.startMs + (nextLeft.startMs - left.startMs)),
+        durationMs: liveLeftMate.durationMs + (nextLeft.durationMs - left.durationMs),
+        sourceInMs: liveLeftMate.sourceInMs + (nextLeft.sourceInMs - left.sourceInMs),
+        sourceOutMs: liveLeftMate.sourceOutMs + (nextLeft.sourceOutMs - left.sourceOutMs),
       })
     : undefined;
-  const nextRightMate = rightMate
+  const nextRightMate = liveRightMate
     ? applyNormalizedFades({
-        ...rightMate,
-        startMs: clampStartMs(rightMate.startMs + (nextRight.startMs - right.startMs)),
-        durationMs: rightMate.durationMs + (nextRight.durationMs - right.durationMs),
-        sourceInMs: rightMate.sourceInMs + (nextRight.sourceInMs - right.sourceInMs),
-        sourceOutMs: rightMate.sourceOutMs + (nextRight.sourceOutMs - right.sourceOutMs),
+        ...liveRightMate,
+        startMs: clampStartMs(liveRightMate.startMs + (nextRight.startMs - right.startMs)),
+        durationMs: liveRightMate.durationMs + (nextRight.durationMs - right.durationMs),
+        sourceInMs: liveRightMate.sourceInMs + (nextRight.sourceInMs - right.sourceInMs),
+        sourceOutMs: liveRightMate.sourceOutMs + (nextRight.sourceOutMs - right.sourceOutMs),
       })
     : undefined;
   const byId = new Map<string, Clip>([
