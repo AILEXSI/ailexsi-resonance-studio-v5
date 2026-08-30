@@ -724,6 +724,14 @@ export function collectSnapTargets(
   return targets;
 }
 
+/** Ruler/lane seek: same snap as clip move, but ignore current playhead so the needle is not sticky. */
+export function snapPlayheadSeek(project: Project, timeMs: number): number {
+  const raw = Math.max(0, timeMs);
+  if (!project.snap) return raw;
+  const targets = collectSnapTargets(project).filter((t) => t.kind !== "playhead");
+  return Math.max(0, snapTime(raw, targets).timeMs);
+}
+
 /** Clip/IN/OUT/playhead/marker snaps plus other VIS event edges. */
 export function collectVisEventSnapTargets(
   project: Project,

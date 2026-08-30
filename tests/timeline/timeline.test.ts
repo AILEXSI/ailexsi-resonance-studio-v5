@@ -17,6 +17,7 @@ import {
   setInPoint,
   setOutPoint,
   collectSnapTargets,
+  snapPlayheadSeek,
   snapTime,
   splitClipAt,
   rippleDeleteClip,
@@ -172,6 +173,20 @@ describe("timeline move/split/snap/undo", () => {
     expect(nearMarker.snapped).toBe(true);
     expect(nearMarker.timeMs).toBe(1500);
     expect(nearMarker.target?.kind).toBe("marker");
+  });
+
+  it("ruler/lane seek snaps to clip edges, not to the current playhead (P86)", () => {
+    const p: Project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 })],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: true,
+      playheadMs: 5000,
+    };
+    expect(snapPlayheadSeek(p, 2070)).toBe(2000);
+    expect(snapPlayheadSeek(p, 5050)).toBe(5050);
+    expect(snapPlayheadSeek({ ...p, snap: false }, 2070)).toBe(2070);
   });
 
   it("undo/redo restores clip position", () => {

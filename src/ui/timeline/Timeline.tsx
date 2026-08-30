@@ -21,7 +21,7 @@ import {
   isMarqueeLane,
   type MarqueeLane,
 } from "../../core/marquee";
-import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapTime } from "../../core/timeline";
+import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapPlayheadSeek, snapTime } from "../../core/timeline";
 import {
   DEFAULT_LANE_HEIGHT_PX,
   DEFAULT_LANE_LABEL_PX,
@@ -344,7 +344,7 @@ export function Timeline({
     setMenu(null);
     setMarkerMenu(null);
     setVisMenu(null);
-    onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
+    onPlayhead(snapPlayheadSeek(project, timeFromEvent(e.clientX, e.currentTarget)));
   };
 
   const onEmptyContext = (e: ReactMouseEvent<HTMLDivElement>) => {
@@ -362,7 +362,7 @@ export function Timeline({
     setMarkerMenu(null);
     setVisMenu(null);
     const originEl = e.currentTarget;
-    onPlayhead(timeFromEvent(e.clientX, originEl));
+    onPlayhead(snapPlayheadSeek(project, timeFromEvent(e.clientX, originEl)));
     dragKindRef.current = "marquee";
     const originX = e.clientX;
     const originY = e.clientY;
