@@ -4,8 +4,10 @@ import {
   clipEndMs,
   defaultTracks,
   formatTimecode,
+  isTrackId,
   kindOfTrack,
   projectDurationMs,
+  TRACK_IDS,
   topVideoClipAt,
 } from "../../src/core/models";
 import { createEmptyProject } from "../../src/core/project";
@@ -20,6 +22,9 @@ describe("foundation models", () => {
     expect(p.clips).toEqual([]);
     expect(p.inPointMs).toBeNull();
     expect(p.outPointMs).toBeNull();
+    expect(TRACK_IDS).toEqual(["V1", "V2", "A1", "A2"]);
+    expect(isTrackId("VIS")).toBe(false);
+    expect(p.tracks.some((t) => t.id === ("VIS" as never))).toBe(false);
   });
 
   it("computes duration from clips and out point", () => {

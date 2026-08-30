@@ -4,6 +4,8 @@ import { jobFromProject, ExportPlanError } from "../../src/core/exporter/job";
 import { exportTimeline, canUseWebCodecs, webCodecsUnavailableMessage } from "../../src/core/exporter";
 import { hexHeader, looksLikeWebm, validateMp4Ftyp } from "../../src/core/exporter/ftyp";
 import { muxAvcToMp4 } from "../../src/core/exporter/mp4";
+import { DEFAULT_VISUALIZER_SCENE_ID } from "../../src/core/models";
+import { featuresAt } from "../../src/core/visualizer";
 import { asset, clip, projectWith } from "../helpers";
 import type { ExportJob } from "../../src/core/exporter/types";
 
@@ -50,6 +52,23 @@ describe("export planner + fail path", () => {
     p.inPointMs = 800;
     p.outPointMs = 200;
     expect(() => jobFromProject(p)).toThrow(/empty/);
+  });
+
+  it("copies visualizer onto the job; encode features stay the synthetic 120 BPM grid", () => {
+    const p = projectReady();
+    p.visualizer = { enabled: true, muted: false, sceneId: "lita-bloom" };
+    const job = jobFromProject(p);
+    expect(job.visualizer).toEqual({
+      enabled: true,
+      muted: false,
+      sceneId: "lita-bloom",
+    });
+    // Export paintVisualizer calls featuresAt — not an A1/A2 AnalyserNode FFT.
+    const f = featuresAt(0, job.durationMs);
+    expect(f.tempoBpm).toBe(120);
+    expect(f.spectrum).toHaveLength(64);
+    expect(f.rms).toBeCloseTo(1, 5);
+    expect(jobFromProject(projectReady()).visualizer.sceneId).toBe(DEFAULT_VISUALIZER_SCENE_ID);
   });
 
   it("plans IN/OUT range and shifts clip times", () => {
@@ -138,6 +157,21 @@ describe("export mute skip", () => {
     const job = jobFromProject(p);
     expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(0);
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
+  });
+
+  it("copies visualizer onto the job; export featuresAt is the synthetic 120 BPM grid", () => {
+    const p = projectReady();
+    p.visualizer = { enabled: true, muted: false, sceneId: "lita-bloom" };
+    const job = jobFromProject(p);
+    expect(job.visualizer).toEqual({
+      enabled: true,
+      muted: false,
+      sceneId: "lita-bloom",
+    });
+    const f = featuresAt(0, job.durationMs);
+    expect(f.tempoBpm).toBe(120);
+    expect(f.spectrum).toHaveLength(64);
+    expect(f.rms).toBeCloseTo(1, 5);
   });
 
   it("omits muted A1 from the job", () => {

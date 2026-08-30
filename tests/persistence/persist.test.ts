@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createMemoryBlobStore, hydrateProject, persistAssetBlob } from "../../src/core/persistence";
+import {
+  createIndexedDbBlobStore,
+  createMemoryBlobStore,
+  hydrateProject,
+  persistAssetBlob,
+} from "../../src/core/persistence";
 import { deserializeProject, serializeProject, createEmptyProject } from "../../src/core/project";
+import { DEFAULT_VISUALIZER_SCENE_ID } from "../../src/core/models";
 import { placeAsset } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
+import { installFakeIndexedDB } from "../helpers/fake-indexeddb";
 
 describe("project persist + reload", () => {
   it("serializes without durable blob URLs", () => {
@@ -46,6 +53,43 @@ describe("project persist + reload", () => {
     expect(hydrated.clips[0]!.trackId).toBe("A2");
     expect(hydrated.clips[0]!.startMs).toBe(250);
     expect(hydrated.assets[0]!.missing).toBe(false);
+    expect(hydrated.visualizer.sceneId).toBe(DEFAULT_VISUALIZER_SCENE_ID);
+  });
+
+  it("serializes visualizer and restores a missing visualizer field to the documented default", () => {
+    const p = createEmptyProject("Viz");
+    p.visualizer = { enabled: true, muted: true, sceneId: "lita-bloom" };
+    const loaded = deserializeProject(serializeProject(p));
+    expect(loaded.visualizer).toEqual({
+      enabled: true,
+      muted: true,
+      sceneId: "lita-bloom",
+    });
+    const raw = JSON.parse(serializeProject(p)) as Record<string, unknown>;
+    delete raw.visualizer;
+    const legacy = deserializeProject(JSON.stringify(raw));
+    expect(legacy.visualizer).toEqual({
+      enabled: true,
+      muted: false,
+      sceneId: DEFAULT_VISUALIZER_SCENE_ID,
+    });
+  });
+
+  it("hydrates through createIndexedDbBlobStore against an in-process IDB shim (not a browser reload)", async () => {
+    const restore = installFakeIndexedDB();
+    try {
+      const store = createIndexedDbBlobStore();
+      await store.clear();
+      const media = asset({ id: "idb1", kind: "audio", durationMs: 400, missing: true });
+      await persistAssetBlob(store, media, new Blob([new Uint8Array([9, 8, 7])], { type: "audio/wav" }));
+      const project = projectWith([], [media]);
+      project.visualizer = { enabled: true, muted: false, sceneId: "tunnel-spiral" };
+      const hydrated = await hydrateProject(deserializeProject(serializeProject(project)), store);
+      expect(hydrated.assets[0]!.missing).toBe(false);
+      expect(hydrated.visualizer.sceneId).toBe("tunnel-spiral");
+    } finally {
+      restore();
+    }
   });
 
   it("rejects unknown schema", () => {

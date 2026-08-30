@@ -18,6 +18,7 @@ import { builtinScenes, createVisualEngine, getRegisteredScene } from "../../src
 import { preferLiveFeatures } from "../../src/core/visualz/playback-tap";
 import type { AudioFeatures } from "../../src/core/visualz";
 import { clip, projectWith } from "../helpers";
+import { createPixelCanvas } from "../helpers/pixel-canvas";
 
 function stubCtx(): CanvasRenderingContext2D {
   const noop = () => undefined;
@@ -199,6 +200,20 @@ describe("Visualz scene registry", () => {
     expect(seen).toEqual([...VISUALIZER_SCENE_IDS]);
     expect(current).toBe(VISUALIZER_SCENE_IDS[0]);
     expect(nextSceneId("lita-bloom")).toBe("pulse-orb");
+  });
+
+  it("each Visualz scene paints non-empty pixels and the six frames differ", () => {
+    const features = featuresAt(0, 10_000);
+    const prints = new Map<string, string>();
+    for (const id of VISUALIZER_SCENE_IDS) {
+      const buf = createPixelCanvas(96, 54);
+      renderVisualizerScene(buf.ctx, 96, 54, id, features, 1 / 30);
+      const painted = buf.nonemptyCount();
+      expect(painted, `${id} painted ${painted} pixels`).toBeGreaterThan(20);
+      prints.set(id, buf.fingerprint());
+    }
+    const unique = new Set(prints.values());
+    expect(unique.size, `fingerprints ${JSON.stringify(Object.fromEntries(prints))}`).toBe(6);
   });
 
   it("each scene render function can be called without throwing", () => {

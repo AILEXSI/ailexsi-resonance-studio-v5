@@ -216,7 +216,6 @@ export async function exportWithWebCodecs(
 
       let painted = 0;
       const decoded = await withTimeout(getDecoder(clip.sourceUrl), 20000, null);
-      console.info("[export] decoder", Boolean(decoded), clip.label);
       if (decoded) {
         let k = 0;
         try {
