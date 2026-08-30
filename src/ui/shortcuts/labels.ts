@@ -15,6 +15,8 @@ export const CLIP_MENU_SHORTCUTS = {
   closeGap: "G",
   rippleTrimInToPlayhead: "Q",
   rippleTrimOutToPlayhead: "W",
+  selectAll: "Ctrl+A",
+  selectAllOnTrack: "Ctrl+Shift+A",
 } as const;
 
 export const SHORTCUT_ROWS: { key: string; action: string }[] = [
@@ -32,6 +34,8 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: CLIP_MENU_SHORTCUTS.liftRange, action: "Lift range (IN/OUT)" },
   { key: CLIP_MENU_SHORTCUTS.extractRange, action: "Extract range (IN/OUT)" },
   { key: "Ctrl+click clip", action: "Toggle clip in selection" },
+  { key: CLIP_MENU_SHORTCUTS.selectAll, action: "Select all clips (or all VIS events if a VIS event is focused)" },
+  { key: CLIP_MENU_SHORTCUTS.selectAllOnTrack, action: "Select all clips on the primary clip’s track" },
   { key: ", / .", action: "Nudge clip ±1 frame" },
   { key: "Shift+, / Shift+.", action: "Nudge clip ±10 frames" },
   { key: "← / →", action: "Step playhead ±1 frame" },

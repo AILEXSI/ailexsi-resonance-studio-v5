@@ -48,6 +48,8 @@ function timelineProps() {
     onRelink: noop,
     onCloseGap: noop,
     onRippleTrimToPlayhead: (_edge: "in" | "out") => {},
+    onSelectAll: noop,
+    onSelectAllOnTrack: noop,
   };
 }
 
@@ -91,6 +93,12 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+V");
     expect(text).toContain("Duplicate");
     expect(text).toContain("Ctrl+D");
+    expect(text).toContain("Select All");
+    expect(text).toContain("Ctrl+A");
+    expect(text).toContain("Select All on Track");
+    expect(text).toContain("Ctrl+Shift+A");
+    expect(menu!.querySelector('[data-testid="clip-menu-select-all"]')).toBeTruthy();
+    expect(menu!.querySelector('[data-testid="clip-menu-select-all-on-track"]')).toBeTruthy();
     expect(menu!.querySelector('[data-testid="clip-menu-duplicate"]')).toBeTruthy();
     expect(text).toContain("Delete");
     expect(text).toContain("Ripple delete");

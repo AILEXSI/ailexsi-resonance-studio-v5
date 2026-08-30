@@ -39,6 +39,7 @@ function commandFromKey(
     if (letter === "x") return { type: "cut" };
     if (letter === "v") return { type: "paste" };
     if (letter === "d") return { type: "duplicate" };
+    if (letter === "a") return e.shiftKey ? { type: "selectAllOnTrack" } : { type: "selectAll" };
     if (letter === "l" && e.shiftKey) {
       const clipId = firstClipIdWithLivingMate(session.project, selectionOf(session));
       return clipId ? { type: "unlinkClips", clipId } : null;
@@ -118,6 +119,10 @@ export function dispatchEditorKey(
   if (e.formFocus && (e.key === "q" || e.key === "Q" || e.key === "w" || e.key === "W")) {
     return { type: "none" };
   }
+  const formLetter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (e.formFocus && (e.ctrlKey || e.metaKey) && formLetter === "a") {
+    return { type: "none" };
+  }
   const command = commandFromKey(e, session);
   if (!command) return { type: "none" };
   if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
@@ -142,7 +147,9 @@ export function dispatchEditorKey(
     command.type === "gotoNextEdit" ||
     command.type === "gotoPrevEdit" ||
     command.type === "closeGap" ||
-    command.type === "rippleTrimToPlayhead";
+    command.type === "rippleTrimToPlayhead" ||
+    command.type === "selectAll" ||
+    command.type === "selectAllOnTrack";
   return {
     type: "session",
     session: applyCommand(session, command),

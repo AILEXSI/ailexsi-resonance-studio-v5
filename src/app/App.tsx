@@ -1245,6 +1245,9 @@ export function App() {
           setSession((s) => applyCommand(s, { type: "setFrontVideoTrack", trackId }))
         }
         selectedVisEventId={session.selectedVisEventId}
+        selectedVisEventIds={session.selectedVisEventIds}
+        onSelectAll={() => runCommand({ type: "selectAll" })}
+        onSelectAllOnTrack={() => runCommand({ type: "selectAllOnTrack" })}
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
         }}

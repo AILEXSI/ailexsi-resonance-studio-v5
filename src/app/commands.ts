@@ -28,6 +28,8 @@ import {
   applyRippleTrimToPlayhead,
   applyRoll,
   applySelect,
+  applySelectAll,
+  applySelectAllOnTrack,
   applySelectClips,
   applySelectVisEvent,
   applySetFrontVideoTrack,
@@ -90,6 +92,8 @@ export type EditorCommand =
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "select"; clipId: string | null; toggle?: boolean; range?: boolean }
   | { type: "selectClips"; clipIds: readonly string[]; union?: boolean }
+  | { type: "selectAll" }
+  | { type: "selectAllOnTrack" }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
   | { type: "slideClip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
@@ -181,6 +185,10 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySelect(session, command.clipId, { toggle: command.toggle, range: command.range });
     case "selectClips":
       return applySelectClips(session, command.clipIds, { union: command.union });
+    case "selectAll":
+      return applySelectAll(session);
+    case "selectAllOnTrack":
+      return applySelectAllOnTrack(session);
     case "moveClips":
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
     case "slip":

@@ -125,6 +125,8 @@ export interface Session {
   selectedVis: boolean;
   /** Selected VIS event id. Null = fallback sceneId+window. */
   selectedVisEventId: string | null;
+  /** VIS multi-select. Empty = use `selectedVisEventId` alone. */
+  selectedVisEventIds: string[];
   /** Last plain-clicked clip. Shift+click ranges from here. View state only. */
   selectionAnchorClipId: string | null;
   /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
@@ -151,6 +153,7 @@ export function createSession(store?: BlobStore): Session {
     selectedMarkerId: null,
     selectedVis: false,
     selectedVisEventId: null,
+    selectedVisEventIds: [],
     selectionAnchorClipId: null,
     clipboard: [],
     visClipboard: null,
@@ -180,6 +183,7 @@ export function withClipSelection(session: Session, ids: string[]): Session {
     selectedClipId: unique[0] ?? null,
     selectedVis: false,
     selectedVisEventId: null,
+    selectedVisEventIds: [],
   };
 }
 
@@ -1050,6 +1054,7 @@ export function applySelectVis(session: Session): Session {
     selectedMarkerId: null,
     selectedVis: true,
     selectedVisEventId: null,
+    selectedVisEventIds: [],
     selectionAnchorClipId: null,
   };
 }
@@ -1064,6 +1069,7 @@ export function applySelectVisEvent(session: Session, eventId: string): Session 
     selectedMarkerId: null,
     selectedVis: true,
     selectedVisEventId: event.id,
+    selectedVisEventIds: [event.id],
     selectionAnchorClipId: null,
   };
 }
@@ -1220,7 +1226,13 @@ export function applySelect(
     const anchor = hadNone ? clipId : session.selectionAnchorClipId;
     return { ...withClipSelection(session, next), selectedMarkerId: null, selectionAnchorClipId: anchor };
   }
-  return { ...withClipSelection(session, [clipId]), selectedMarkerId: null, selectionAnchorClipId: clipId };
+  const clicked = clipById(session.project, clipId);
+  return {
+    ...withClipSelection(session, [clipId]),
+    selectedMarkerId: null,
+    selectionAnchorClipId: clipId,
+    targetTrackId: clicked?.trackId ?? session.targetTrackId,
+  };
 }
 
 /** Marquee / multi-select. Union keeps existing ids (Shift+marquee). */
@@ -1237,6 +1249,46 @@ export function applySelectClips(
     return { ...withClipSelection(session, next), selectedMarkerId: null };
   }
   return { ...withClipSelection(session, [...clipIds]), selectedMarkerId: null };
+}
+
+function visEventFocused(session: Session): boolean {
+  if (selectionOf(session).length > 0) return false;
+  return Boolean(session.selectedVisEventId || session.selectedVis);
+}
+
+/** All clips on V1–A2. VIS-focused: all VIS events, no clips. Empty = no-op. Selection-only (no history). */
+export function applySelectAll(session: Session): Session {
+  if (visEventFocused(session)) {
+    const events = visualizerEventsOf(session.project);
+    if (events.length === 0) return session;
+    const ids = events.map((e) => e.id);
+    return {
+      ...session,
+      selectedClipId: null,
+      selectedClipIds: [],
+      selectedMarkerId: null,
+      selectedVis: true,
+      selectedVisEventId: session.selectedVisEventId && ids.includes(session.selectedVisEventId)
+        ? session.selectedVisEventId
+        : ids[0]!,
+      selectedVisEventIds: ids,
+      selectionAnchorClipId: null,
+    };
+  }
+  const ids = session.project.clips.map((c) => c.id);
+  if (ids.length === 0) return session;
+  return { ...withClipSelection(session, ids), selectedMarkerId: null };
+}
+
+/** Clips on the primary clip’s track, else `targetTrackId` (last mixer/bin/track click). */
+export function applySelectAllOnTrack(session: Session): Session {
+  const primary = session.selectedClipId
+    ? clipById(session.project, session.selectedClipId)
+    : undefined;
+  const trackId = primary?.trackId ?? session.targetTrackId;
+  const ids = session.project.clips.filter((c) => c.trackId === trackId).map((c) => c.id);
+  if (ids.length === 0) return session;
+  return { ...withClipSelection(session, ids), selectedMarkerId: null };
 }
 
 export function applySelectMarker(session: Session, markerId: string | null): Session {
@@ -1303,6 +1355,7 @@ export function openSerialized(session: Session, text: string): Session {
     selectedMarkerId: null,
     selectedVis: false,
     selectedVisEventId: null,
+    selectedVisEventIds: [],
     status: `Opened ${project.name}`,
     error: null,
     playing: false,

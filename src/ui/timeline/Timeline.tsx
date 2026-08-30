@@ -60,6 +60,7 @@ interface Props {
   selectedClipIds?: string[];
   selectedMarkerId?: string | null;
   selectedVisEventId?: string | null;
+  selectedVisEventIds?: string[];
   onSelect: (clipId: string | null, opts?: { toggle?: boolean; range?: boolean }) => void;
   onSelectMarker?: (markerId: string | null) => void;
   onMarkerMoveLive?: (markerId: string, timeMs: number) => void;
@@ -112,6 +113,8 @@ interface Props {
   onRelink?: () => void;
   onCloseGap?: () => void;
   onRippleTrimToPlayhead?: (edge: "in" | "out") => void;
+  onSelectAll?: () => void;
+  onSelectAllOnTrack?: () => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -165,6 +168,7 @@ export function Timeline({
   selectedClipIds,
   selectedMarkerId = null,
   selectedVisEventId = null,
+  selectedVisEventIds,
   onSelect,
   onSelectMarker,
   onMarkerMoveLive,
@@ -211,6 +215,8 @@ export function Timeline({
   onRelink,
   onCloseGap,
   onRippleTrimToPlayhead,
+  onSelectAll,
+  onSelectAllOnTrack,
   onZoom,
   onFit,
   onScroll,
@@ -1060,7 +1066,13 @@ export function Timeline({
                   key={event.id}
                   role="button"
                   tabIndex={0}
-                  className={`vis-span${selectedVisEventId === event.id ? " selected" : ""}`}
+                  className={`vis-span${
+                    (selectedVisEventIds?.length
+                      ? selectedVisEventIds.includes(event.id)
+                      : selectedVisEventId === event.id)
+                      ? " selected"
+                      : ""
+                  }`}
                   data-testid={`vis-event-${event.id}`}
                   data-vis-event={event.id}
                   data-scene={event.sceneId}
@@ -1431,6 +1443,32 @@ export function Timeline({
             >
               <span>Duplicate</span>
               <kbd>{CLIP_MENU_SHORTCUTS.duplicate}</kbd>
+            </button>
+          ) : null}
+          {onSelectAll ? (
+            <button
+              type="button"
+              data-testid="clip-menu-select-all"
+              onClick={() => {
+                onSelectAll();
+                setMenu(null);
+              }}
+            >
+              <span>Select All</span>
+              <kbd>{CLIP_MENU_SHORTCUTS.selectAll}</kbd>
+            </button>
+          ) : null}
+          {onSelectAllOnTrack ? (
+            <button
+              type="button"
+              data-testid="clip-menu-select-all-on-track"
+              onClick={() => {
+                onSelectAllOnTrack();
+                setMenu(null);
+              }}
+            >
+              <span>Select All on Track</span>
+              <kbd>{CLIP_MENU_SHORTCUTS.selectAllOnTrack}</kbd>
             </button>
           ) : null}
           <button

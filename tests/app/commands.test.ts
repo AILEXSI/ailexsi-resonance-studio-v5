@@ -52,6 +52,8 @@ describe("applyCommand determinism", () => {
       { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 } as const,
       { type: "select", clipId: "c2", toggle: true } as const,
       { type: "selectClips", clipIds: ["c2", "c3"], union: true } as const,
+      { type: "selectAll" } as const,
+      { type: "selectAllOnTrack" } as const,
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", clipIds: ["c1", "c2"], deltaMs: 50 } as const,
