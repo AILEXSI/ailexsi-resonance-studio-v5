@@ -158,7 +158,18 @@ describe("still images (P41)", () => {
       mediaDropPlace({ assetId: "wav", assetKind: "audio", overTrackId: "V1", startMs: 0 }),
     ).toBeUndefined();
 
-    const dt = new DataTransfer();
+    const bag = new Map<string, string>();
+    const dt = {
+      types: [] as string[],
+      effectAllowed: "none",
+      setData(type: string, value: string) {
+        bag.set(type, value);
+        if (!this.types.includes(type)) this.types.push(type);
+      },
+      getData(type: string) {
+        return bag.get(type) ?? "";
+      },
+    } as unknown as DataTransfer;
     writeAssetDrag(dt, "still");
     expect(readAssetDrag(dt)).toBe("still");
 
