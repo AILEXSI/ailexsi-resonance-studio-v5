@@ -462,8 +462,16 @@ function dropClipsAndOrphanLinks(project: Project, dropIds: ReadonlySet<string>)
   };
 }
 
+function expandDroppableClipIds(project: Project, clipIds: readonly string[]): string[] {
+  const explicit = new Set(clipIds.filter(Boolean));
+  return expandDeletableClipIds(project, clipIds).filter((id) => {
+    const clip = clipById(project, id);
+    return clip != null && (clipIsEnabled(clip) || explicit.has(id));
+  });
+}
+
 export function deleteClips(project: Project, clipIds: readonly string[]): Project {
-  const drop = new Set(expandDeletableClipIds(project, clipIds));
+  const drop = new Set(expandDroppableClipIds(project, clipIds));
   if (drop.size === 0) return project;
   return dropClipsAndOrphanLinks(project, drop);
 }
@@ -473,13 +481,13 @@ export function deleteClips(project: Project, clipIds: readonly string[]): Proje
  * ripple shifts do not invalidate later selected starts.
  * A locked later clip on any affected track refuses the whole edit
  * (same wall as ripple-trim / G / extract).
- * An unselected locked mate is skipped (same as lift-delete).
+ * An unselected locked or disabled mate is skipped (same as lift-delete).
  */
 export function rippleDeleteClips(
   project: Project,
   clipIds: readonly string[],
 ): { project: Project; error?: string } {
-  const selected = expandDeletableClipIds(project, clipIds)
+  const selected = expandDroppableClipIds(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   const order = [...selected].sort((a, b) => {
@@ -1788,7 +1796,7 @@ export function rippleDeleteClip(
   clipId: string,
 ): { project: Project; error?: string } {
   const mate = livingLinkedMate(project, clipId);
-  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  const liveMate = editableLinkedMate(project, clipId);
   const one = rippleDeleteOne(project, clipId);
   if (one.error) return one;
   if (mate && !liveMate) {

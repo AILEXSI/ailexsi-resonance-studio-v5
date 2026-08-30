@@ -334,6 +334,56 @@ describe("linked A/V", () => {
     expect(gone.project.clips).toHaveLength(0);
   });
 
+  it("lift-delete of an unlocked clip skips a disabled mate (P142)", () => {
+    const start = linkedPair();
+    const dimmed = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+    };
+    const gone = applyCommand(
+      { ...start, project: dimmed, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "liftDelete" },
+    );
+    expect(gone.project.clips.find((c) => c.id === "v1")).toBeUndefined();
+    const parked = gone.project.clips.find((c) => c.id === "a1")!;
+    expect(parked.enabled).toBe(false);
+    expect(parked.startMs).toBe(0);
+    expect(parked.durationMs).toBe(2000);
+    expect(parked.linkId).toBeUndefined();
+  });
+
+  it("ripple-delete of an unlocked clip skips a disabled mate (P142)", () => {
+    const start = linkedPair();
+    const project = {
+      ...start.project,
+      clips: [
+        ...start.project.clips.map((c) => (c.id === "a1" ? { ...c, enabled: false } : c)),
+        clip({
+          id: "v2",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 2000,
+          durationMs: 500,
+        }),
+      ],
+    };
+    const next = rippleDeleteClip(project, "v1");
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "v1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "a1")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "a1")!.linkId).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "v2")!.startMs).toBe(0);
+
+    const viaCommand = applyCommand(
+      { ...start, project, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "rippleDelete" },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+    expect(viaCommand.project.clips.find((c) => c.id === "v2")!.startMs).toBe(0);
+  });
+
   it("ripple-delete of an unlocked clip skips a locked mate (P129)", () => {
     const start = linkedPair();
     const project = {
