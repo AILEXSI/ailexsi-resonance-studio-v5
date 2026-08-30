@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:55 UTC. Zoom ceiling 48000 px/s on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:18 UTC. Command dispatch + ripple + solo + JKL + nudge on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 149 modules. Outputs:
+exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BFBgj5JU.css 16.16 kB
-- dist/assets/index-CJhQxeTP.js 666.01 kB
+- dist/assets/index-BznfVux6.css 16.33 kB
+- dist/assets/index-HbEWASl1.js 670.07 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **154 passed / 29 files**. Start 05:46:03 UTC. Duration 6.39s.
+exit 0. vitest 3.2.7. **177 passed / 30 files**. Start 06:17:42 UTC. Duration 5.78s.
 
-New this follow-up: export dialog open/progress/abort (mocked encoder) + exportTimeline aborted signal + dialog DOM Abbrechen. Prior marker / mixer / split / waveform tests remain green.
+New this follow-up: `applyCommand` determinism (same session+command → same clips/tracks/rate); ripple-delete + undo; solo audible rule + persist; JKL rate table + key dispatch; comma/period nudge; mixer S on V1–A2 not Master. Prior suites remain green.
 
 ## Visualizer
 
@@ -100,7 +100,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (18): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut.
+Existing units still green (20): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -140,15 +140,16 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (7): S splits; bare V does not split; Ctrl+V pastes (does not split); Ctrl+C leaves the clip; Ctrl+X removes it and fills clipboard; bare X clears IN/OUT; Ctrl+S/M/I/O do not fire the bare-letter actions.
+`tests/app/keys.test.ts` (10): prior 7 plus Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
 
-`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete; overlay text matches and does not say Split/Cut is V; toolbar + transport Split show S.
+`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Mixer S; toolbar + transport Split show S.
 
 ## Preview / playback
 
 Status: TEST-VERIFIED
 
-`tests/preview/playback.test.ts` (3): sourceTimeAt, loop IN/OUT stop, bounds from clip extent.
+`tests/preview/playback.test.ts` (5): sourceTimeAt, loop IN/OUT stop, bounds from clip extent, reverse shuttle stop/wrap, 1→2→4 rate table.
+Live JKL shuttle in a browser: NOT VERIFIED (not required this VM).
 No video frame seen and no audio heard this run.
 
 ## Project file Save / Open
@@ -187,7 +188,9 @@ Layout CSS: mixer `min-width`/`width` 228px, not `display:none`. Arrange row has
 
 Curve: linear = 10^(dB/20). 0 dB = 1. -6 dB ≈ 0.501. Bottom / -∞ = 0. Track `volume` and `masterVolume` persist in `.resonance.json`. Preview applies track+master via GainNodes when Web Audio is up; export bakes the mix into clip gain. VIS is not a mixer channel.
 
-`tests/mixer/volume.test.ts` (5): unity / -6 dB / silence; peakToDb; mute zeros mix; session JSON round-trip; legacy missing volume → 1.
+`tests/mixer/volume.test.ts` (6): unity / -6 dB / silence; peakToDb; mute zeros mix; session JSON round-trip; legacy missing volume → 1; solo persist + legacy missing solo → false.
+
+Mixer S sits next to M on V1–A2 only (not Master). TEST-VERIFIED (DOM). Chrome S buttons seen this run: RUNTIME-VERIFIED (empty project, no click). Live S click / audible mix: NOT VERIFIED.
 
 ## Persistence
 
@@ -283,7 +286,45 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:55 UTC)
+## Command dispatch
+
+Status: TEST-VERIFIED
+
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+
+## Ripple delete
+
+Status: TEST-VERIFIED
+
+Delete/Backspace stay lift (gap remains). Shift+Delete / Shift+Backspace remove the selected clip and shift later clips on the **same** track left by that clip's duration. Other tracks unchanged. Undo restores. Clip menu: Ripple delete / Shift+Delete. Live menu click: NOT VERIFIED.
+
+## Solo
+
+Status: TEST-VERIFIED (rule + persist + mixer DOM). Live S click / audible mix: NOT VERIFIED.
+
+`Track.solo` defaults false; legacy JSON missing solo → false. If any track is soloed, only soloed tracks are audible; mute still wins on a soloed track. `isTrackAudible` is shared by preview (`topVideoClipAt` / `audioClipsAt` / mix gain) and export `jobFromProject`. Mixer S next to M on V1–A2, not Master.
+
+## JKL shuttle
+
+Status: TEST-VERIFIED (keys + rate table + reverse `advancePlayhead`). Live shuttle: NOT VERIFIED.
+
+Session `shuttleRate` (0 = paused). J reverse, K pause/rate 0, L forward. Repeat L/J: 1× → 2× → 4×, cap 4. Space is play/pause at 1× (pauses any shuttle, then plays +1). rAF advances `delta * rate`. Reverse stops at IN without loop and wraps with loop.
+
+## Nudge
+
+Status: TEST-VERIFIED
+
+`,` / `.` move the selected clip ±1 `FRAME_MS`. Shift+, / Shift+. = 10 frames. Start clamps at 0. Track/kind is unchanged (kind-change still rejected by `moveClip`). ArrowLeft/Right still step the playhead.
+
+## Changelog this follow-up (2026-08-30 06:18 UTC)
+
+- Named `applyCommand` / `EditorCommand`. TEST-VERIFIED.
+- Ripple delete (Shift+Delete). TEST-VERIFIED. Live: NOT VERIFIED.
+- Track solo + mixer S + shared audible rule. TEST-VERIFIED. Live mix: NOT VERIFIED.
+- JKL shuttle 1/2/4. TEST-VERIFIED. Live: NOT VERIFIED.
+- Clip nudge `,` / `.`. TEST-VERIFIED.
+
+## Changelog prior (2026-08-30 05:55 UTC)
 
 - Zoom max is 48000 px/s (was 400). Persist accepts the new range. Ruler steps down to milliseconds. Playhead-lock tested at 2000 and 12000. TEST-VERIFIED. Live `+` past 400: NOT VERIFIED.
 
@@ -347,7 +388,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Commits on this branch (tip)
 
-See git log after this follow-up. Prior tip included sequential-import (`a072957` / `cd63a28`).
+Tip after this follow-up is recorded in git. Prior zoom tip: `4efb67c`.
 
 ## Not added
 
