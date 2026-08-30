@@ -33,6 +33,8 @@ describe("export dialog DOM", () => {
     });
     expect(host.querySelector('[data-testid="export-dialog"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="export-dialog-file"]')?.textContent).toContain("cut.mp4");
+    expect(host.querySelector('[data-testid="export-dialog-file"]')?.textContent).not.toMatch(/C:\\/);
+    expect(host.textContent ?? "").not.toMatch(/C:\\Users/);
     expect(host.querySelector('[data-testid="export-dialog-meta"]')?.textContent).toMatch(/1280×720/);
     expect(host.querySelector('[data-testid="export-dialog-status"]')?.textContent).toMatch(/40%/);
     expect(host.querySelector('[data-testid="export-cancel"]')?.textContent).toBe("Abbrechen");

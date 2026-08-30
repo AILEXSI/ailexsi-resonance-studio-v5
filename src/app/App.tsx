@@ -32,9 +32,9 @@ import {
   isExportSuccess,
   jobFromProject,
   openExportDialog,
+  runExportWithDestination,
   succeedExportDialog,
   ExportPlanError,
-  type ExportJob,
 } from "../core/exporter";
 import { MediaBrowser } from "../ui/media-browser/MediaBrowser";
 import { Preview } from "../ui/preview/Preview";
@@ -101,6 +101,7 @@ export function App() {
   const [exporting, setExporting] = useState(false);
   const [exportDialog, setExportDialog] = useState(closedExportDialog);
   const exportAbortRef = useRef<AbortController | null>(null);
+  const exportBusyRef = useRef(false);
   const [mixPeaks, setMixPeaks] = useState<MixPeaks>({
     V1: 0,
     V2: 0,
@@ -382,10 +383,10 @@ export function App() {
   };
 
   const runExport = () => {
-    if (exporting) return;
-    let job: ExportJob;
+    if (exporting || exportBusyRef.current) return;
+    let planned;
     try {
-      job = jobFromProject(session.project);
+      planned = jobFromProject(session.project);
     } catch (e) {
       const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
       setExportDialog(
@@ -394,39 +395,49 @@ export function App() {
       setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
       return;
     }
-    const ac = new AbortController();
-    exportAbortRef.current = ac;
-    setExportDialog(openExportDialog(job));
-    setExporting(true);
+    exportBusyRef.current = true;
     void (async () => {
+      const ac = new AbortController();
       try {
-        const result = await exportTimeline(job, {
+        const outcome = await runExportWithDestination({
+          job: planned,
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          encode: exportTimeline,
+          downloadMp4,
           signal: ac.signal,
+          onBeforeEncode: (job) => {
+            exportAbortRef.current = ac;
+            setExportDialog(openExportDialog(job));
+            setExporting(true);
+          },
           onProgress: (p) => {
             setExportDialog((d) => applyExportProgress(d, p));
             setSession((s) => ({ ...s, status: `Export ${p.percent}% ${p.stage}` }));
           },
         });
-        if (ac.signal.aborted || result.aborted) {
+        if (outcome.kind === "cancelled") return;
+        setProjectFile(outcome.memory);
+        if (ac.signal.aborted || outcome.result.aborted) {
           setExportDialog(closeExportDialog());
           setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
           return;
         }
-        if (!isExportSuccess(result)) {
-          setExportDialog((d) => failExportDialog(d, result.error ?? "Export failed"));
+        if (!isExportSuccess(outcome.result)) {
+          setExportDialog((d) => failExportDialog(d, outcome.result.error ?? "Export failed"));
           setSession((s) => ({
             ...s,
-            error: result.error ?? "Export failed",
+            error: outcome.result.error ?? "Export failed",
             status: "Export failed",
           }));
           return;
         }
-        downloadMp4(result);
-        setExportDialog((d) => succeedExportDialog(d, result.fileName));
+        setExportDialog((d) => succeedExportDialog(d, outcome.job.fileName));
         setSession((s) => ({
           ...s,
           error: null,
-          status: `Exported ${result.fileName} (${result.fileSizeBytes} bytes)`,
+          status: outcome.status,
         }));
       } catch (e) {
         if (ac.signal.aborted) {
@@ -439,6 +450,7 @@ export function App() {
         setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
       } finally {
         setExporting(false);
+        exportBusyRef.current = false;
         if (exportAbortRef.current === ac) exportAbortRef.current = null;
       }
     })();

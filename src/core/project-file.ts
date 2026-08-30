@@ -76,6 +76,13 @@ const PROJECT_TYPES = [
   },
 ];
 
+const MP4_TYPES = [
+  {
+    description: "MP4 video",
+    accept: { "video/mp4": [".mp4"] },
+  },
+];
+
 export function emptyProjectFileMemory(): ProjectFileMemory {
   return { fileHandle: null, directoryHandle: null, lastFileName: null, recents: [] };
 }
@@ -167,6 +174,68 @@ export function openPickerOptions(memory: ProjectFileMemory): OpenPickerOptions 
     startIn: startInForPicker(memory),
     types: PROJECT_TYPES,
   };
+}
+
+/** MP4 save picker. Do not reuse PROJECT_TYPES (json). */
+export function exportPickerOptions(suggestedName: string, memory: ProjectFileMemory): SavePickerOptions {
+  return {
+    suggestedName,
+    startIn: startInForPicker(memory),
+    types: MP4_TYPES,
+  };
+}
+
+export type ExportDestination =
+  | { kind: "cancelled" }
+  | { kind: "fallback" }
+  | { kind: "picked"; handle: FileHandleLike; fileName: string; memory: ProjectFileMemory };
+
+/**
+ * Native save picker before encode. Cancel is AbortError — no encode.
+ * Remembers the parent directory for next startIn; does not replace the
+ * project .json fileHandle with the MP4 handle.
+ */
+export async function pickExportDestination(opts: {
+  host: PickerHost;
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+  suggestedName: string;
+}): Promise<ExportDestination> {
+  if (typeof opts.host.showSaveFilePicker !== "function") {
+    return { kind: "fallback" };
+  }
+  let handle: FileHandleLike;
+  try {
+    handle = await opts.host.showSaveFilePicker(exportPickerOptions(opts.suggestedName, opts.memory));
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "AbortError") return { kind: "cancelled" };
+    throw e;
+  }
+  if (!handle) return { kind: "cancelled" };
+  const fileName = handle.name || opts.suggestedName;
+  const dir = await directoryOf(handle);
+  const memory = dir
+    ? await rememberDirectoryHandle(opts.store, dir, opts.memory)
+    : opts.memory;
+  return { kind: "picked", handle, fileName, memory };
+}
+
+export async function writeExportBlob(handle: FileHandleLike, blob: Blob): Promise<void> {
+  if (typeof handle.createWritable !== "function") {
+    throw new Error("Export file handle is not writable");
+  }
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
+export function exportStatusFsa(fileName: string, bytes?: number): string {
+  return bytes != null ? `Exported ${fileName} (${bytes} bytes)` : `Exported ${fileName}`;
+}
+
+export function exportStatusFallback(fileName: string, bytes?: number): string {
+  return `${exportStatusFsa(fileName, bytes)} — Browser-Downloads (Pfad unbekannt)`;
 }
 
 export function saveStatusFsa(fileName: string): string {

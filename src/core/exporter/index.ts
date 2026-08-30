@@ -16,6 +16,7 @@ export {
   type ExportDialogState,
 } from "./dialog";
 export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnlyVideoLabel } from "./job";
+export { runExportWithDestination, type ExportDestinationOutcome } from "./destination";
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
 export { mp4HasAudioTrack } from "./mp4";
