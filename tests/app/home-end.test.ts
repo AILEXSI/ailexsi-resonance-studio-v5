@@ -46,6 +46,31 @@ describe("Home / End seek (P49)", () => {
     expect(next.project.playheadMs).toBe(0);
   });
 
+  it("VIS-only End seeks to the last VIS event (P54)", () => {
+    const empty = createSession(createMemoryBlobStore());
+    const visOnly = {
+      ...empty,
+      project: {
+        ...empty.project,
+        playheadMs: 100,
+        visualizer: {
+          ...empty.project.visualizer,
+          events: [
+            {
+              id: "e1",
+              sceneId: empty.project.visualizer.sceneId,
+              startMs: 0,
+              durationMs: 8000,
+            },
+          ],
+        },
+      },
+    };
+    expect(projectDurationMs(visOnly.project)).toBe(8000);
+    const next = sessionOf(dispatchEditorKey(visOnly, false, { key: "End" }));
+    expect(next.project.playheadMs).toBe(8000);
+  });
+
   it("focused TimecodeField Home/End do not seek", () => {
     const start = clipSession();
     expect(dispatchEditorKey(start, false, { key: "Home", formFocus: true }).type).toBe("none");

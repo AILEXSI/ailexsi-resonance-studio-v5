@@ -77,6 +77,29 @@ describe("foundation models", () => {
   it("empty project has zero duration", () => {
     expect(projectDurationMs(createEmptyProject())).toBe(0);
   });
+
+  it("VIS events and a finite VIS window extend project duration (P54)", () => {
+    const empty = createEmptyProject();
+    expect(projectDurationMs(empty)).toBe(0);
+    const withEvent = {
+      ...empty,
+      visualizer: {
+        ...empty.visualizer,
+        events: [{ id: "e1", sceneId: empty.visualizer.sceneId, startMs: 500, durationMs: 4000 }],
+      },
+    };
+    expect(projectDurationMs(withEvent)).toBe(4500);
+    const withWindow = {
+      ...empty,
+      visualizer: { ...empty.visualizer, startMs: 1000, durationMs: 2500, events: [] },
+    };
+    expect(projectDurationMs(withWindow)).toBe(3500);
+    const wholeTimeline = {
+      ...empty,
+      visualizer: { ...empty.visualizer, startMs: 0, durationMs: 0, events: [] },
+    };
+    expect(projectDurationMs(wholeTimeline)).toBe(0);
+  });
 });
 
 describe("mute skip", () => {

@@ -289,6 +289,14 @@ export function projectDurationMs(project: Project): number {
     max = Math.max(max, marker.timeMs);
   }
   if (project.outPointMs != null) max = Math.max(max, project.outPointMs);
+  const vis = project.visualizer;
+  if (vis) {
+    const windowDur = vis.durationMs ?? 0;
+    if (windowDur > 0) max = Math.max(max, (vis.startMs ?? 0) + windowDur);
+    for (const event of vis.events ?? []) {
+      max = Math.max(max, event.startMs + Math.max(0, event.durationMs));
+    }
+  }
   return max;
 }
 
