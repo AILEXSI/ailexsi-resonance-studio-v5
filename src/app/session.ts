@@ -392,9 +392,10 @@ export async function importFiles(
   const failNote = [recovered ? `${recovered} need Relink` : null, errors.length ? `${errors.length} failed` : null]
     .filter(Boolean)
     .join(", ");
+  const project = maybeScrollToOrigin(next.project, { prevScrollMs, prevClipCount });
+  const parked = applyPlayhead({ ...next, project }, next.project.playheadMs);
   return {
-    ...next,
-    project: maybeScrollToOrigin(next.project, { prevScrollMs, prevClipCount }),
+    ...parked,
     error: [...probeMsgs, ...errors].join(" · ") || null,
     status:
       imported === 0 && recovered
@@ -432,15 +433,14 @@ async function placeImportedAsset(
   const placedIds = placed.audioClip
     ? [placed.clip.id, placed.audioClip.id]
     : [placed.clip.id];
-  return {
-    session: {
-      ...withClipSelection(
-        withHistory(session, placed.project, asset.missing ? `Missing ${asset.name}` : `Imported ${asset.name}`),
-        placedIds,
-      ),
-      targetTrackId: preferred,
-    },
+  const placedSession = {
+    ...withClipSelection(
+      withHistory(session, placed.project, asset.missing ? `Missing ${asset.name}` : `Imported ${asset.name}`),
+      placedIds,
+    ),
+    targetTrackId: preferred,
   };
+  return { session: applyPlayhead(placedSession, placed.clip.startMs) };
 }
 
 export function applyPlaceAsset(

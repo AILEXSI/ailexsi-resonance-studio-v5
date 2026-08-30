@@ -210,6 +210,26 @@ describe("import sequential placement", () => {
     expect(session.project.clips[0]!.durationMs).toBe(1500);
   });
 
+  it("parks playhead on the newly imported clip so preview is not empty (P82)", async () => {
+    let session = createSession(createMemoryBlobStore());
+    session = { ...session, project: { ...session.project, playheadMs: 5000 } };
+    session = await importNamed(session, ["solo-1500ms.wav"]);
+    expect(session.project.clips[0]!.startMs).toBe(0);
+    expect(session.project.playheadMs).toBe(0);
+
+    session = await importNamed(session, ["next-800ms.wav"]);
+    const appended = session.project.clips.find((c) => c.startMs === 1500);
+    expect(appended).toBeTruthy();
+    expect(session.project.playheadMs).toBe(1500);
+
+    const empty = createSession(createMemoryBlobStore());
+    const batch = await importNamed(
+      { ...empty, project: { ...empty.project, playheadMs: 9000 } },
+      ["one-1000ms.mp4", "two-2000ms.mp4"],
+    );
+    expect(batch.project.playheadMs).toBe(1000);
+  });
+
   it("video+audio import creates a linked pair; video-only does not", async () => {
     const av = await importFiles(
       createSession(createMemoryBlobStore()),
