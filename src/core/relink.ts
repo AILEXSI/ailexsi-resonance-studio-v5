@@ -1,6 +1,7 @@
 import { livingLinkedMate } from "./link";
 import {
   clipById,
+  clipIsLocked,
   kindOfTrack,
   sourceDeltaToTimeline,
   type MediaKind,
@@ -67,10 +68,19 @@ export function relinkClipsOnProject(
     return { error: `Relink rejected: expected ${sel.kind}, got ${asset.kind}` };
   }
   let changed = false;
+  let lockedShrink = false;
   const clips = project.clips.map((clip) => {
     if (!sel.clipIds.includes(clip.id)) return clip;
+    const wouldShrink = asset.durationMs < clip.sourceOutMs;
+    // Lock is relocate-only: remapping assetId is recovery, shrinking
+    // duration/sourceOut is not. Skip a locked clip that would shrink
+    // (same as skip-locked-mate). Unlocked clips in the selection still relink.
+    if (clipIsLocked(clip) && wouldShrink) {
+      lockedShrink = true;
+      return clip;
+    }
     let next = { ...clip, assetId: newAssetId };
-    if (asset.durationMs < clip.sourceOutMs) {
+    if (wouldShrink) {
       const sourceOutMs = asset.durationMs;
       const durationMs = Math.max(0, sourceDeltaToTimeline(clip, sourceOutMs - clip.sourceInMs));
       next = { ...next, sourceOutMs, durationMs };
@@ -84,7 +94,10 @@ export function relinkClipsOnProject(
     }
     return next;
   });
-  if (!changed) return { unchanged: true };
+  if (!changed) {
+    if (lockedShrink) return { error: "Clip is locked" };
+    return { unchanged: true };
+  }
   return {
     project: {
       ...project,

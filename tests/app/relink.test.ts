@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, ingestRelinkFile, type Session } from "../../src/app/session";
-import { relinkSelectionForAsset, relinkSelectionOf } from "../../src/core/relink";
+import { relinkClipsOnProject, relinkSelectionForAsset, relinkSelectionOf } from "../../src/core/relink";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -236,6 +236,74 @@ describe("relinkClips", () => {
     expect(a1.sourceOutMs).toBe(800);
     expect(v1.durationMs).toBe(800);
     expect(a1.durationMs).toBe(800);
+  });
+
+  it("does not shrink a locked clip when the replacement is shorter (P127)", () => {
+    const start = linkedAvRelinkSession();
+    const short = asset({ id: "short", kind: "video", durationMs: 800 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, short],
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const result = relinkClipsOnProject(project, ["v1"], "short");
+    expect("project" in result).toBe(true);
+    if (!("project" in result)) return;
+    const v1 = result.project.clips.find((c) => c.id === "v1")!;
+    const a1 = result.project.clips.find((c) => c.id === "a1")!;
+    expect(v1.assetId).toBe("va");
+    expect(v1.durationMs).toBe(2000);
+    expect(v1.sourceOutMs).toBe(2000);
+    expect(v1.startMs).toBe(0);
+    expect(v1.locked).toBe(true);
+    expect(a1.assetId).toBe("short");
+    expect(a1.durationMs).toBe(800);
+    expect(a1.sourceOutMs).toBe(800);
+    expect(a1.startMs).toBe(0);
+  });
+
+  it("refuses when every clip that would shrink is locked (P127)", async () => {
+    const start = relinkSession();
+    const locked = applyCommand(start, { type: "setClipsLocked", locked: true });
+    const ingested = await ingestRelinkFile(
+      locked,
+      fakeFile("short-800ms.mp4", "video/mp4"),
+      "video",
+      probeMs,
+    );
+    if (!("assetId" in ingested)) throw new Error("ingest failed");
+    const next = applyCommand(ingested.session, {
+      type: "relinkClips",
+      clipIds: ["c1"],
+      assetId: ingested.assetId,
+    });
+    expect(next.error).toBe("Clip is locked");
+    expect(next.status).toBe("Relink failed");
+    const c1 = next.project.clips.find((c) => c.id === "c1")!;
+    expect(c1.assetId).toBe("va");
+    expect(c1.durationMs).toBe(2000);
+    expect(c1.sourceOutMs).toBe(2000);
+    expect(c1.startMs).toBe(250);
+    expect(next.history.past.length).toBe(ingested.session.history.past.length);
+  });
+
+  it("still remaps a locked clip when the replacement is long enough (P127)", () => {
+    const start = relinkSession();
+    const long = asset({ id: "long", kind: "video", durationMs: 4000 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, long],
+      clips: start.project.clips.map((c) => (c.id === "c1" ? { ...c, locked: true } : c)),
+    };
+    const result = relinkClipsOnProject(project, ["c1"], "long");
+    expect("project" in result).toBe(true);
+    if (!("project" in result)) return;
+    const c1 = result.project.clips.find((c) => c.id === "c1")!;
+    expect(c1.assetId).toBe("long");
+    expect(c1.durationMs).toBe(2000);
+    expect(c1.sourceOutMs).toBe(2000);
+    expect(c1.startMs).toBe(250);
+    expect(c1.locked).toBe(true);
   });
 
   it("unlinked same-asset mate is not auto-included (P63)", async () => {
