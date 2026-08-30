@@ -15,6 +15,7 @@ interface Props {
   lastFileName?: string | null;
   fileSystemAccess?: boolean;
   onImport: () => void;
+  onMedia?: () => void;
   onExport: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -35,6 +36,7 @@ export function Toolbar({
   lastFileName,
   fileSystemAccess,
   onImport,
+  onMedia,
   onExport,
   onUndo,
   onRedo,
@@ -97,6 +99,9 @@ export function Toolbar({
         </button>
         <button type="button" onClick={onImport}>
           Import
+        </button>
+        <button type="button" data-testid="open-media" onClick={onMedia ?? onSave}>
+          Media
         </button>
         <button
           type="button"

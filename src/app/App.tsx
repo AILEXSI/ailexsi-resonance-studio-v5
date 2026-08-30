@@ -1018,6 +1018,7 @@ export function App() {
         fileSystemAccess={fsa}
         onOpenFile={(file) => void openProject(file)}
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
+        onMedia={openProjectPanel}
         onExport={runExport}
         onUndo={() => runCommand({ type: "undo" })}
         onRedo={() => runCommand({ type: "redo" })}
@@ -1048,13 +1049,21 @@ export function App() {
       />
 
       {projectPanelOpen ? (
-        <div className="project-overlay" data-testid="project-overlay">
+        <div className="project-overlay pass-through" data-testid="project-overlay">
           <div
             className="project-overlay-backdrop"
             data-testid="project-overlay-backdrop"
-            onClick={closeProjectPanel}
+            aria-hidden="true"
           />
-          <div className="project-overlay-drawer" role="dialog" aria-label="Projekt">
+          <div className="project-overlay-drawer" role="dialog" aria-label="Projekt" aria-modal="false">
+            <button
+              type="button"
+              className="project-overlay-close"
+              data-testid="project-overlay-close"
+              onClick={closeProjectPanel}
+            >
+              Close
+            </button>
             <ProjectFilePanel
               memory={projectFile}
               fileSystemAccess={fsa}

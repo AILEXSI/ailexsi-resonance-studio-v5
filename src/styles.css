@@ -226,11 +226,26 @@ input[type="range"] { accent-color: var(--accent-2); }
   inset: 0;
   z-index: 35;
 }
+.project-overlay.pass-through,
+.project-overlay.pass-through .project-overlay-backdrop {
+  pointer-events: none;
+  background: transparent;
+}
+.project-overlay.pass-through .project-overlay-drawer {
+  pointer-events: auto;
+}
 body.media-asset-dragging .project-overlay {
   pointer-events: none;
 }
 body.media-asset-dragging .project-overlay-drawer {
   pointer-events: auto;
+}
+.project-overlay-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  font-size: 11px;
 }
 .project-overlay-backdrop {
   position: absolute;
@@ -246,6 +261,7 @@ body.media-asset-dragging .project-overlay-drawer {
   overflow: auto;
   display: flex;
   flex-direction: column;
+  padding-top: 28px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
