@@ -32,3 +32,61 @@ export function minZoomPxPerSec(project: Project, timelineWidthPx: number): numb
 export function clampZoomPxPerSec(zoom: number, minZoom: number): number {
   return Math.max(minZoom, Math.min(ZOOM_MAX_PX_PER_SEC, zoom));
 }
+
+export function visibleDurationMs(zoomPxPerSec: number, timelineWidthPx: number): number {
+  return (usableLanePx(timelineWidthPx) / Math.max(zoomPxPerSec, 1e-6)) * 1000;
+}
+
+/** Playhead is in the time span drawn after the ruler pad. */
+export function playheadInView(
+  playheadMs: number,
+  scrollMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+): boolean {
+  const viewEnd = scrollMs + visibleDurationMs(zoomPxPerSec, timelineWidthPx);
+  return playheadMs >= scrollMs && playheadMs <= viewEnd;
+}
+
+function centerPlayheadScrollMs(
+  playheadMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+): number {
+  const half = visibleDurationMs(zoomPxPerSec, timelineWidthPx) / 2;
+  return Math.max(0, playheadMs - half);
+}
+
+function clampScrollKeepPlayhead(
+  playheadMs: number,
+  scrollMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+): number {
+  const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx);
+  let scroll = Math.max(0, scrollMs);
+  if (playheadMs < scroll) scroll = Math.max(0, playheadMs);
+  if (playheadMs > scroll + visible) scroll = Math.max(0, playheadMs - visible);
+  return scroll;
+}
+
+/**
+ * DAW-style zoom around the playhead: keep it at the same screen-x.
+ * If it is off-screen first, center it, then zoom around that position.
+ */
+export function scrollZoomAroundPlayhead(opts: {
+  playheadMs: number;
+  scrollMs: number;
+  zoomOld: number;
+  zoomNew: number;
+  timelineWidthPx: number;
+}): number {
+  const { playheadMs, zoomNew, timelineWidthPx } = opts;
+  const zoomOld = Math.max(opts.zoomOld, 1e-6);
+  let scroll = opts.scrollMs;
+  if (!playheadInView(playheadMs, scroll, zoomOld, timelineWidthPx)) {
+    scroll = centerPlayheadScrollMs(playheadMs, zoomOld, timelineWidthPx);
+  }
+  const next = playheadMs - (playheadMs - scroll) * (zoomOld / Math.max(zoomNew, 1e-6));
+  return clampScrollKeepPlayhead(playheadMs, next, zoomNew, timelineWidthPx);
+}

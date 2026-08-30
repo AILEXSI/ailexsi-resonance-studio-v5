@@ -36,7 +36,12 @@ import {
   type HistoryStack,
 } from "../core/timeline";
 import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
-import { clampZoomPxPerSec, fitZoomPxPerSec, minZoomPxPerSec } from "../core/zoom";
+import {
+  clampZoomPxPerSec,
+  fitZoomPxPerSec,
+  minZoomPxPerSec,
+  scrollZoomAroundPlayhead,
+} from "../core/zoom";
 
 export interface Session {
   project: Project;
@@ -403,11 +408,20 @@ export function applySelect(session: Session, clipId: string | null): Session {
 
 export function applyZoom(session: Session, zoomPxPerSec: number, timelineWidthPx = 1000): Session {
   const minZ = minZoomPxPerSec(session.project, timelineWidthPx);
+  const zoomOld = session.project.zoomPxPerSec;
+  const zoomNew = clampZoomPxPerSec(zoomPxPerSec, minZ);
   return {
     ...session,
     project: {
       ...session.project,
-      zoomPxPerSec: clampZoomPxPerSec(zoomPxPerSec, minZ),
+      zoomPxPerSec: zoomNew,
+      scrollMs: scrollZoomAroundPlayhead({
+        playheadMs: session.project.playheadMs,
+        scrollMs: session.project.scrollMs,
+        zoomOld,
+        zoomNew,
+        timelineWidthPx,
+      }),
     },
   };
 }

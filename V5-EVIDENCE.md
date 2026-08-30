@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **90 passed / 11 files**. Start 04:17:17 UTC. Duration 1.89s.
+exit 0. vitest 3.2.7. **95 passed / 11 files**. Start 04:22:36 UTC. Duration 1.88s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 3, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 8, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -102,12 +102,17 @@ Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED
 
 Existing units still green (18): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut.
 
-Zoom (`tests/timeline/zoom.test.ts`, 3):
+Zoom (`tests/timeline/zoom.test.ts`, 8):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
 - zoom-out from 10 still decreases
 - Fit does not clamp at 10; scrollMs=0
+- from Fit (scrollMs=0) with playhead at 27s, zoom-in keeps the playhead in view
+- further zoom-in (80 → 160 px/s) still keeps it
+- Fit after that still shows the full duration at scroll 0
+- off-screen playhead is scrolled into view on zoom-in
+- zoom-out that is not Fit keeps the playhead on screen
 
-Fit button and wheel exist in `Timeline.tsx`. Neither was clicked/scrolled in a browser this run.
+Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-anchored (scrollMs=0). Fit button / + / wheel were not clicked in a browser this run.
 
 ## Keys / clip menu
 
@@ -202,7 +207,12 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:17 UTC)
+## Changelog this follow-up (2026-08-30 04:21 UTC)
+
+- Non-Fit zoom (+ / wheel / applyZoom) keeps the playhead in view (DAW-style). TEST-VERIFIED. Live + / wheel: NOT VERIFIED.
+- Fit still full-duration, scrollMs=0. TEST-VERIFIED.
+
+## Changelog prior (2026-08-30 04:17 UTC)
 
 - Split key is S (not V). Ctrl+V pastes. TEST-VERIFIED.
 - Cut = Ctrl+X (`applyCut`). Copy stays non-destructive. TEST-VERIFIED.
