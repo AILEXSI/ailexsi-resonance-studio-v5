@@ -5,14 +5,13 @@ import { applyCommand } from "../../src/app/commands";
 import { dispatchEditorKey } from "../../src/app/keys";
 import { createSession, selectionOf, type Session } from "../../src/app/session";
 import { jobFromProject } from "../../src/core/exporter/job";
-import { mixClipsAt, topVideoClipAt } from "../../src/core/models";
+import { mixClipsAt, topVideoClipAt, type TrackId } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
 import { compositeVideoAt, contextFromProject, resolvePictureSource } from "../../src/core/transition";
 import { Inspector } from "../../src/ui/inspector/Inspector";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import { asset, clip, projectWith } from "../helpers";
-import type { TrackId } from "../../src/core/models";
 
 function stackedSession(): Session {
   return {
@@ -85,7 +84,10 @@ describe("clip enable / disable (P45)", () => {
     expect(loaded.clips.find((c) => c.id === "v1")?.enabled).toBe(false);
     expect(loaded.clips.find((c) => c.id === "v2")?.enabled).toBeUndefined();
     expect(topVideoClipAt(loaded, 500)?.id).toBe("v2");
-    expect(JSON.parse(serializeProject(next.project)).clips.find((c: { id: string }) => c.id === "v2").enabled).toBeUndefined();
+    expect(
+      JSON.parse(serializeProject(next.project)).clips.find((c: { id: string }) => c.id === "v2")
+        .enabled,
+    ).toBeUndefined();
   });
 
   it("empty selection is a no-op; disable pushes history and undo restores", () => {
@@ -202,8 +204,8 @@ describe("clip enable UI", () => {
           onLoopOutLive={noop}
           onLoopMoveLive={noop}
           onLoopCommit={noop}
-          onSetClipsEnabled={(enabled) => {
-            last = enabled;
+          onSetClipsEnabled={(value) => {
+            last = value;
           }}
         />,
       );
@@ -253,8 +255,8 @@ describe("clip enable UI", () => {
           onLoopOutLive={noop}
           onLoopMoveLive={noop}
           onLoopCommit={noop}
-          onSetClipsEnabled={(enabled) => {
-            last = enabled;
+          onSetClipsEnabled={(value) => {
+            last = value;
           }}
         />,
       );
