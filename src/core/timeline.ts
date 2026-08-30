@@ -382,7 +382,7 @@ export function resolveRippleTrimToPlayheadClip(
   const timeMs = project.playheadMs;
   if (!opts.selectedVis) {
     const primary = opts.selectedClipId ? clipById(project, opts.selectedClipId) : undefined;
-    if (primary && isTrackId(primary.trackId)) {
+    if (primary && isTrackId(primary.trackId) && clipIsEnabled(primary)) {
       if (playheadStrictlyInsideClip(primary, timeMs)) return primary;
       const onTrack = clipOnTrackAt(project, primary.trackId, timeMs);
       if (onTrack && playheadStrictlyInsideClip(onTrack, timeMs)) return onTrack;

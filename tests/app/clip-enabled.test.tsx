@@ -121,6 +121,23 @@ describe("clip enable / disable (P45)", () => {
     expect(halves[1]!.startMs).toBe(500);
   });
 
+  it("Q/W ripple-trim the covering enabled clip, not a selected disabled clip (P105)", () => {
+    const start = stackedSession();
+    start.project.playheadMs = 500;
+    start.project.frontVideoTrackId = "V1";
+    const disabled = applyCommand(start, { type: "setClipsEnabled", enabled: false });
+    expect(disabled.selectedClipId).toBe("v1");
+    expect(topVideoClipAt(disabled.project, 500)?.id).toBe("v2");
+    const q = applyCommand(disabled, { type: "rippleTrimToPlayhead", edge: "in" });
+    expect(q.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(q.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    const v2 = q.project.clips.find((c) => c.id === "v2")!;
+    expect(v2.startMs).toBe(0);
+    expect(v2.durationMs).toBe(1500);
+    expect(v2.sourceInMs).toBe(500);
+    expect(q.selectedClipId).toBe("v2");
+  });
+
   it("does not steal a key for enable/disable", () => {
     const start = stackedSession();
     for (const key of ["e", "d", "b"]) {
