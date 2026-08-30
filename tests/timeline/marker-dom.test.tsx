@@ -10,28 +10,40 @@ import "../../src/styles.css";
 const noop = () => {};
 const noopMs = (_ms: number) => {};
 
+function pointer(type: string, init: MouseEventInit = {}): Event {
+  const Ctor = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
+  return new Ctor(type, { bubbles: true, cancelable: true, ...init });
+}
+
+function seedProject(): Project {
+  let p = { ...createEmptyProject(), zoomPxPerSec: 100, scrollMs: 0 };
+  p = addMarker(p, 1000, "M1");
+  p = addMarker(p, 2500, "M2");
+  return p;
+}
+
 function MarkerHarness() {
-  const [project, setProject] = useState<Project>(() => {
-    let p = { ...createEmptyProject(), zoomPxPerSec: 100, scrollMs: 0 };
-    p = addMarker(p, 1000, "M1");
-    p = addMarker(p, 2500, "M2");
-    return p;
+  const [state, setState] = useState<{ project: Project; selectedMarkerId: string | null }>(() => {
+    const project = seedProject();
+    return { project, selectedMarkerId: project.markers[0]?.id ?? null };
   });
-  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(project.markers[0]!.id);
+  const { project, selectedMarkerId } = state;
   return (
     <Timeline
       project={project}
       selectedClipId={null}
       selectedMarkerId={selectedMarkerId}
-      onSelect={() => setSelectedMarkerId(null)}
-      onSelectMarker={setSelectedMarkerId}
+      onSelect={() => setState((s) => ({ ...s, selectedMarkerId: null }))}
+      onSelectMarker={(id) => setState((s) => ({ ...s, selectedMarkerId: id }))}
       onMarkerMoveLive={(id, ms) => {
-        setProject((prev) => moveMarker(prev, id, ms).project);
+        setState((s) => ({ ...s, project: moveMarker(s.project, id, ms).project }));
       }}
       onMarkerMoveCommit={noop}
       onDeleteMarker={(id) => {
-        setProject((prev) => deleteMarker(prev, id).project);
-        setSelectedMarkerId((cur) => (cur === id ? null : cur));
+        setState((s) => ({
+          project: deleteMarker(s.project, id).project,
+          selectedMarkerId: s.selectedMarkerId === id ? null : s.selectedMarkerId,
+        }));
       }}
       onPlayhead={noopMs}
       onMoveLive={(_id: string, _start: number, _track?: TrackId) => {}}
@@ -87,13 +99,13 @@ describe("marker DOM", () => {
     const secondId = markers[1]!.getAttribute("data-testid")!.slice("marker-".length);
 
     act(() => {
-      first.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 200 }));
+      first.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 200 }));
     });
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 300 }));
+      window.dispatchEvent(pointer("pointermove", { clientX: 300 }));
     });
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointerup", {}));
+      window.dispatchEvent(pointer("pointerup", {}));
     });
 
     const afterDrag = host.querySelector(`[data-testid="marker-${firstId}"]`) as HTMLElement;

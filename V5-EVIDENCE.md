@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 147 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-gbxsonfE.css 14.31 kB
-- dist/assets/index-CfoWhFQf.js 658.68 kB
+- dist/assets/index-Da3DB-3p.css 14.89 kB
+- dist/assets/index-UL-UMS9s.js 661.91 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **138 passed / 25 files**. Start 05:38:42 UTC. Duration 5.55s.
+exit 0. vitest 3.2.7. **145 passed / 27 files**. Start 05:43:04 UTC. Duration 5.28s.
 
-New this follow-up: clip-preview envelope (width ≈ pixels, zoom-in grows count, empty fill fallback, adjacent-x path) + clip-preview-dom (gapless path, zoom peak-count, not-ready null). Overlay / arrange-scroll tests remain green.
+New this follow-up: markers (move time, per-id delete, clip-delete wins when a clip is selected, JSON timeMs) + marker-dom (drag / × / context menu). Mixer collapse and ns-resize split tests remain green. Waveform envelope tests unchanged.
 
 ## Visualizer
 
