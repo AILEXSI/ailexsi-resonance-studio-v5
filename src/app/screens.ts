@@ -15,7 +15,13 @@ export function isFormFocus(target: EventTarget | null): boolean {
   const el = target as HTMLElement;
   const tag = el.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  if (el.isContentEditable) return true;
+  if (
+    el.isContentEditable ||
+    el.contentEditable === "true" ||
+    el.getAttribute("contenteditable") === "true"
+  ) {
+    return true;
+  }
   if (el.getAttribute("role") === "spinbutton") return true;
   if (el.closest("[contenteditable='true'],[contenteditable=true],[role=spinbutton]")) return true;
   return false;

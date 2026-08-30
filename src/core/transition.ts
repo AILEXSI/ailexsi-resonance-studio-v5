@@ -99,7 +99,8 @@ export function resolveEditPair(
 ): EditPair | undefined {
   const selected = selectedIds
     .map((id) => clipById(project, id))
-    .filter((c): c is Clip => Boolean(c) && kindOfTrack(c.trackId) === "video");
+    .filter((c): c is Clip => c != null)
+    .filter((c) => kindOfTrack(c.trackId) === "video");
 
   const tryPair = (x: Clip, y: Clip): EditPair | undefined => {
     if (x.trackId === y.trackId) return undefined;

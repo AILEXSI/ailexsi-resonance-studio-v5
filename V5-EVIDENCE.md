@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:04 UTC. Export destination before encode on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:15 UTC. Cutter / transition core on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 155 modules. Outputs:
+exit 0. vite 7.3.6, 159 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-Bc8mcmyi.css 17.23 kB
-- dist/assets/index-BWuAMEoS.js 703.55 kB
+- dist/assets/index-Wy2NXykm.css 18.08 kB
+- dist/assets/index-Dp2zYLdS.js 713.17 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **309 passed / 42 files**. Start 08:04:43 UTC. Duration 8.27s.
+exit 0. vitest 3.2.7. **326 passed / 45 files**. Start 08:15:28 UTC. Duration 8.79s.
 
-New this follow-up: picker cancel → no dialog/encode; picker confirm → dialog `fileName` is the handle name and encode starts after; success writes via `createWritable` not `<a download>`; fallback without FSA uses `downloadMp4` after encode and says so; no `C:\` in status/dialog. Prior group slip units stay green (304 → 309).
+New this follow-up: persist+reload transition; legacy JSON missing `transitions` → `[]`; undo type/duration; V1→V2 and V2↑V1 resolve; compositor units for cut/crossfade/fadeBlack/fadeWhite in-window; `previewComposite === exportComposite === compositeVideoAt`; TAB / Shift+TAB cycle; form focus does not cycle; audioMode does not write `clip.fadeInMs`; Cutter empty + Source A/B labels. Prior export-destination + group slip units stay green (309 → 326).
 
 ## Visualizer
 
@@ -316,7 +316,8 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 - Live linked A/V import / split / move / unlink click / Ctrl+Shift+L / group slip drag / export save picker NOT VERIFIED (units only).
-- No elastic audio, crossfade objects, or automation curves.
+- No elastic audio or automation curves.
+- Transition objects exist for **stacked** video overlap only. No same-track transition handles. No dual live SOURCE A|B decode / second preview graph. No focused Cutter timeline. No EQ engine. No Mix/Color/Voice screens.
 - No relink, link-picker, or nested sequences. Unlink chrome is inspector button + Ctrl+Shift+L only.
 - No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
 
@@ -324,7 +325,25 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `unlinkClips`. `slideClip` may carry optional `clipIds` for a contiguous block. Prior: `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+
+## Cutter / transitions
+
+Status: TEST-VERIFIED (persist, undo, resolve, compositor identity, TAB, Cutter DOM). Live stacked media / export pixels / Cutter form: NOT VERIFIED.
+
+`Project.transitions: Transition[]`. Fields: `id`, `type` (`cut` | `crossfade` | `fadeBlack` | `fadeWhite`), `startMs`, `durationMs`, `sourceAClipId`, `sourceBClipId`, `audioMode` (`cut` | `crossfade` | `keepA` | `keepB`), `audioDurationMs`. Default at an edit with no object = hard cut. Legacy JSON without `transitions` loads as `[]`.
+
+`{ type: "setTransition", ... }` via `applyCommand` + `withHistory`. No pair → no-op (same session). Changing type/duration is undoable.
+
+Resolve: selected video clip(s) that overlap in time on **two video tracks** (any pair, not hard-coded only V1/V2). SOURCE A = outgoing (ends first; tie = lower→higher `TRACK_IDS`). Selecting V1 or V2 of the same overlap both resolve.
+
+ONE compositor: `compositeVideoAt` in `src/core/transition.ts`. Preview re-exports it as `previewComposite`; export as `exportComposite`. Unit: `previewComposite === exportComposite`. Cut = B after start; crossfade = lerp alpha; fadeBlack/White = A → plate → B. Outside the window, later `TRACK_IDS` video track stays on top. Preview binds the existing **one** `<video>` to the highest-alpha layer (plus a plate `div`, not a second decode graph). Export `videoClipAt` / frame paint call the same function and multiply clip-fade alpha by layer alpha. Do not assert live pixels.
+
+Audio: `audioMode` does not write `clip.gain` / `fadeInMs` / `fadeOutMs`. `cut` = existing overlap mix. `crossfade` = extra equal-power over `audioDurationMs` from `startMs`. `keepA`/`keepB` mute the other source (and living linked mate) in the **video** window. Extra `GainNode` after the existing fade envelope in `mixJobAudio`. AAC still NOT IMPLEMENTED.
+
+Screens: `productionScreens = ["arrange","cutter"]`. TAB forward, Shift+TAB back. `isFormFocus` (input/textarea/select/contenteditable/spinbutton) leaves native TAB. Screen is React view state only — does not reload, reset project/selection/playhead/zoom, or clone the session. Compact `[ARRANGE] [CUTTER]`. Cutter: Source A / Source B (names + tracks), type, duration ms, audioMode, audioDuration. Arrange stays the current editor. SPACE unchanged.
+
+Live media NOT VERIFIED. Dual A/B preview, focused Cutter timeline, same-track handles, EQ: not this slice.
 
 ## Ripple delete
 

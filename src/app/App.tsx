@@ -966,7 +966,7 @@ export function App() {
         data-testid="arrange-row"
         style={{ overflowY: "auto" }}
       >
-      <Timeline>
+      <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
