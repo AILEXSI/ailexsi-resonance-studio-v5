@@ -10,6 +10,12 @@ import {
 } from "../../core/models";
 import { fadeHandlesVisible, fadesFromHandleDrag } from "../../core/fade-handles";
 import { normalizeClipFades } from "../../core/fades";
+import {
+  MARQUEE_CLICK_SLOP_PX,
+  clipsIntersectingMarquee,
+  isMarqueeLane,
+  type MarqueeLane,
+} from "../../core/marquee";
 import { abuttingNeighbor, collectSnapTargets, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
@@ -45,6 +51,7 @@ interface Props {
   onSlideCommit?: () => void;
   onFadesLive?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onFadesCommit?: () => void;
+  onSelectClips?: (clipIds: readonly string[], opts?: { union?: boolean }) => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
@@ -113,6 +120,7 @@ export function Timeline({
   onSlideCommit,
   onFadesLive,
   onFadesCommit,
+  onSelectClips,
   onToggleMute,
   onToggleSolo,
   onToggleVisualizerMute,
@@ -137,10 +145,23 @@ export function Timeline({
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const dragKindRef = useRef<
-    "move" | "trim" | "fade" | "slip" | "slide" | "loop-in" | "loop-out" | "loop-move" | "marker" | null
+    | "move"
+    | "trim"
+    | "fade"
+    | "slip"
+    | "slide"
+    | "marquee"
+    | "loop-in"
+    | "loop-out"
+    | "loop-move"
+    | "marker"
+    | null
   >(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
+    null,
+  );
   const [viewWidth, setViewWidth] = useState(1000);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
   const measureWidth = (): number => timelineRef.current?.clientWidth ?? 1000;
@@ -205,12 +226,73 @@ export function Timeline({
     onLoopClick(snapIf(timeFromEvent(e.clientX, e.currentTarget)));
   };
 
-  const onLaneBodyPointer = (e: ReactPointerEvent<HTMLDivElement>) => {
+  const onLaneBodyPointer = (e: ReactPointerEvent<HTMLDivElement>, lane: MarqueeLane) => {
     if (e.button !== 0) return;
+    if (dragKindRef.current) return;
     setMenu(null);
     setMarkerMenu(null);
-    onSelect(null);
-    onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
+    const originEl = e.currentTarget;
+    onPlayhead(timeFromEvent(e.clientX, originEl));
+    dragKindRef.current = "marquee";
+    const originX = e.clientX;
+    const originY = e.clientY;
+    const originTime = timeFromEvent(e.clientX, originEl);
+    const union = e.shiftKey;
+    let lastLane: MarqueeLane = lane;
+    let lastTime = originTime;
+    let moved = false;
+
+    const localOf = (clientX: number, clientY: number) => {
+      const r = timelineRef.current?.getBoundingClientRect();
+      return { x: clientX - (r?.left ?? 0), y: clientY - (r?.top ?? 0) };
+    };
+    const originLocal = localOf(originX, originY);
+
+    const laneAt = (clientX: number, clientY: number): MarqueeLane => {
+      const hit = document.elementFromPoint(clientX, clientY);
+      const node = hit instanceof Element ? hit.closest("[data-marquee-lane]") : null;
+      const id = node?.getAttribute("data-marquee-lane");
+      if (isMarqueeLane(id)) return id;
+      return lastLane;
+    };
+
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "marquee") return;
+      if (
+        Math.abs(ev.clientX - originX) > MARQUEE_CLICK_SLOP_PX ||
+        Math.abs(ev.clientY - originY) > MARQUEE_CLICK_SLOP_PX
+      ) {
+        moved = true;
+      }
+      lastTime = timeFromEvent(ev.clientX, originEl);
+      lastLane = laneAt(ev.clientX, ev.clientY);
+      if (moved) {
+        const p = localOf(ev.clientX, ev.clientY);
+        setMarquee({ x0: originLocal.x, y0: originLocal.y, x1: p.x, y1: p.y });
+      }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      setMarquee(null);
+      if (!moved) {
+        onSelect(null);
+        return;
+      }
+      const hits = clipsIntersectingMarquee(project.clips, {
+        aMs: originTime,
+        bMs: lastTime,
+        aLane: lane,
+        bLane: lastLane,
+      });
+      onSelectClips?.(
+        hits.map((c) => c.id),
+        { union },
+      );
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   const onMarkerPointerDown = (e: ReactPointerEvent, markerId: string, timeMs: number) => {
@@ -640,7 +722,8 @@ export function Timeline({
         <div
           className="lane-body vis-body"
           data-testid="lane-VIS-body"
-          onPointerDown={onLaneBodyPointer}
+          data-marquee-lane="VIS"
+          onPointerDown={(e) => onLaneBodyPointer(e, "VIS")}
           onContextMenu={onEmptyContext}
         >
           {loopOverlay(false)}
@@ -688,7 +771,9 @@ export function Timeline({
             </div>
             <div
               className="lane-body"
-              onPointerDown={onLaneBodyPointer}
+              data-testid={`lane-${id}-body`}
+              data-marquee-lane={id}
+              onPointerDown={(e) => onLaneBodyPointer(e, id)}
               onContextMenu={onEmptyContext}
             >
               {loopOverlay(false)}
@@ -804,6 +889,18 @@ export function Timeline({
           </div>
         );
       })}
+      {marquee ? (
+        <div
+          className="marquee-rect"
+          data-testid="marquee-rect"
+          style={{
+            left: Math.min(marquee.x0, marquee.x1),
+            top: Math.min(marquee.y0, marquee.y1),
+            width: Math.abs(marquee.x1 - marquee.x0),
+            height: Math.abs(marquee.y1 - marquee.y0),
+          }}
+        />
+      ) : null}
       {menu ? (
         <div
           className="clip-menu"

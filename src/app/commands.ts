@@ -21,6 +21,7 @@ import {
   applyRippleTrim,
   applyRoll,
   applySelect,
+  applySelectClips,
   applySetClipFades,
   applySetClipRate,
   applySetTrackPan,
@@ -66,6 +67,7 @@ export type EditorCommand =
   | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "select"; clipId: string | null; toggle?: boolean }
+  | { type: "selectClips"; clipIds: readonly string[]; union?: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number }
   | { type: "slideClip"; clipId: string; deltaMs: number }
@@ -127,6 +129,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyRoll(session, command.clipId, command.edge, command.nextEdgeMs);
     case "select":
       return applySelect(session, command.clipId, { toggle: command.toggle });
+    case "selectClips":
+      return applySelectClips(session, command.clipIds, { union: command.union });
     case "moveClips":
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
     case "slip":

@@ -51,6 +51,7 @@ describe("applyCommand determinism", () => {
       { type: "liftDelete" } as const,
       { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 } as const,
       { type: "select", clipId: "c2", toggle: true } as const,
+      { type: "selectClips", clipIds: ["c2", "c3"], union: true } as const,
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
       { type: "slideClip", clipId: "c2", deltaMs: 100 } as const,
@@ -174,6 +175,23 @@ describe("applyCommand determinism", () => {
     const cleared = applyCommand(exclusive, { type: "select", clipId: null });
     expect(selectionOf(cleared)).toEqual([]);
     expect(cleared.selectedClipId).toBeNull();
+  });
+
+  it("selectClips replaces or unions; group move still uses the selection", () => {
+    const start = twoClipSession();
+    const boxed = applyCommand(start, { type: "selectClips", clipIds: ["c2", "c3"] });
+    expect(selectionOf(boxed)).toEqual(["c2", "c3"]);
+    expect(boxed.history.past.length).toBe(start.history.past.length);
+    const unioned = applyCommand(boxed, { type: "selectClips", clipIds: ["c1"], union: true });
+    expect(selectionOf(unioned)).toEqual(["c2", "c3", "c1"]);
+    const moved = applyCommand(unioned, {
+      type: "moveClips",
+      clipIds: selectionOf(unioned),
+      deltaMs: 50,
+    });
+    expect(moved.project.clips.find((c) => c.id === "c1")!.startMs).toBe(50);
+    expect(moved.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1050);
+    expect(moved.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1050);
   });
 
   it("group-moves selected clips by one delta and clamps at 0; one undo restores all", () => {

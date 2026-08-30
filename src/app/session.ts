@@ -681,6 +681,22 @@ export function applySelect(
   return { ...withClipSelection(session, [clipId]), selectedMarkerId: null };
 }
 
+/** Marquee / multi-select. Union keeps existing ids (Shift+marquee). */
+export function applySelectClips(
+  session: Session,
+  clipIds: readonly string[],
+  opts?: { union?: boolean },
+): Session {
+  if (opts?.union) {
+    const next = [...selectionOf(session)];
+    for (const id of clipIds) {
+      if (!next.includes(id)) next.push(id);
+    }
+    return { ...withClipSelection(session, next), selectedMarkerId: null };
+  }
+  return { ...withClipSelection(session, [...clipIds]), selectedMarkerId: null };
+}
+
 export function applySelectMarker(session: Session, markerId: string | null): Session {
   if (markerId) {
     return { ...withClipSelection(session, []), selectedMarkerId: markerId };

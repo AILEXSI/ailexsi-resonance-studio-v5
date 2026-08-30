@@ -936,6 +936,9 @@ export function App() {
         onSelect={(id, opts) =>
           setSession((s) => applyCommand(s, { type: "select", clipId: id, toggle: opts?.toggle }))
         }
+        onSelectClips={(ids, opts) =>
+          setSession((s) => applyCommand(s, { type: "selectClips", clipIds: ids, union: opts?.union }))
+        }
         onSelectMarker={(id) => setSession(applySelectMarker(session, id))}
         onMarkerMoveLive={onMarkerMoveLive}
         onMarkerMoveCommit={onMarkerMoveCommit}
