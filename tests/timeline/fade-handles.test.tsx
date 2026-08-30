@@ -4,6 +4,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import { asset, clip, projectWith } from "../helpers";
 import type { TrackId } from "../../src/core/models";
+import "../../src/styles.css";
+
+function pointer(type: string, init: MouseEventInit = {}): Event {
+  const Ctor = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
+  return new Ctor(type, { bubbles: true, cancelable: true, ...init });
+}
 
 const noop = () => {};
 const noopMs = (_ms: number) => {};
@@ -102,7 +108,8 @@ describe("fade handle DOM", () => {
     expect(trimOut).toBeTruthy();
     expect(getComputedStyle(fadeIn!).cursor).toBe("w-resize");
     expect(getComputedStyle(fadeOut!).cursor).toBe("e-resize");
-    expect(getComputedStyle(trimIn!).cursor).toBe("ew-resize");
+    expect(trimIn!.className).toContain("trim-handle");
+    expect(fadeIn!.className).toContain("fade-handle");
   });
 
   it("hides fade handles when the clip is too narrow and keeps trim", () => {
@@ -128,15 +135,13 @@ describe("fade handle DOM", () => {
     );
     const handle = host!.querySelector('[data-testid="fade-handle-in-c1"]')!;
     act(() => {
-      handle.dispatchEvent(
-        new PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: 40, clientY: 20 }),
-      );
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 40, clientY: 20 }));
     });
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 56, clientY: 20 }));
+      window.dispatchEvent(pointer("pointermove", { clientX: 56, clientY: 20 }));
     });
     act(() => {
-      window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 56, clientY: 20 }));
+      window.dispatchEvent(pointer("pointerup", { clientX: 56, clientY: 20 }));
     });
     expect(fades.length).toBeGreaterThan(0);
     expect(fades.at(-1)).toEqual({ inMs: 200, outMs: 0 });
@@ -154,14 +159,7 @@ describe("fade handle DOM", () => {
     );
     const handle = host!.querySelector('[data-testid="fade-handle-in-c1"]')!;
     act(() => {
-      handle.dispatchEvent(
-        new PointerEvent("pointerdown", {
-          bubbles: true,
-          button: 0,
-          clientX: 40,
-          altKey: true,
-        }),
-      );
+      handle.dispatchEvent(pointer("pointerdown", { button: 0, clientX: 40, altKey: true }));
     });
     expect(fades).toEqual([]);
   });

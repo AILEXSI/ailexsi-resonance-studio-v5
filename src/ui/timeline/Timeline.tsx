@@ -759,12 +759,14 @@ export function Timeline({
                                 className="fade-handle in"
                                 data-testid={`fade-handle-in-${clip.id}`}
                                 title="Fade in"
+                                style={{ cursor: "w-resize" }}
                                 onPointerDown={(e) => onFadePointerDown(e, clip, "in")}
                               />
                               <div
                                 className="fade-handle out"
                                 data-testid={`fade-handle-out-${clip.id}`}
                                 title="Fade out"
+                                style={{ cursor: "e-resize" }}
                                 onPointerDown={(e) => onFadePointerDown(e, clip, "out")}
                               />
                             </>
