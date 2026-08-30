@@ -107,6 +107,21 @@ describe("markers", () => {
     expect(loaded.markers.find((m) => m.id === m1.id)?.timeMs).toBe(4444);
   });
 
+  it("M adds a marker at the playhead (P64 KEEP)", () => {
+    const start = sessionWithMarkers().session;
+    expect(start.project.markers).toHaveLength(2);
+    const action = dispatchEditorKey(
+      { ...start, project: { ...start.project, playheadMs: 777 }, selectedMarkerId: null },
+      false,
+      { key: "m" },
+    );
+    expect(action.type).toBe("session");
+    if (action.type !== "session") throw new Error("expected session");
+    expect(action.session.project.markers).toHaveLength(3);
+    expect(action.session.project.markers.some((m) => m.timeMs === 777)).toBe(true);
+    expect(action.session.status).toBe("Marker added");
+  });
+
   it("add marker at playhead then deleteMarker removes only the new one", () => {
     const start = sessionWithMarkers().session;
     const added = applyMarker({ ...start, project: { ...start.project, playheadMs: 900 } });

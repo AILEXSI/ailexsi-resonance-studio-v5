@@ -62,6 +62,21 @@ describe("foundation models", () => {
     expect(audioClipsAt(p, 100).map((c) => c.id).sort()).toEqual(["a1", "a2"]);
   });
 
+  it("mixClipsAt / clipOnTrackAt only return clips under the playhead (P64)", () => {
+    const p = projectWith([
+      clip({ id: "v-early", assetId: "v", trackId: "V1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "v-late", assetId: "v", trackId: "V1", startMs: 5000, durationMs: 1000 }),
+      clip({ id: "a-early", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "a-late", assetId: "a", trackId: "A1", startMs: 5000, durationMs: 2000 }),
+    ]);
+    expect(clipOnTrackAt(p, "V1", 500)?.id).toBe("v-early");
+    expect(clipOnTrackAt(p, "V1", 5500)?.id).toBe("v-late");
+    expect(clipOnTrackAt(p, "V1", 3000)).toBeUndefined();
+    expect(mixClipsAt(p, 500).map((c) => c.id).sort()).toEqual(["a-early", "v-early"]);
+    expect(mixClipsAt(p, 5500).map((c) => c.id).sort()).toEqual(["a-late", "v-late"]);
+    expect(mixClipsAt(p, 3000)).toEqual([]);
+  });
+
   it("mixClipsAt includes V-track clips; audioClipsAt stays A-only", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "v", trackId: "V1", startMs: 0, durationMs: 2000 }),
