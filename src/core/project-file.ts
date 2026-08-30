@@ -1,3 +1,5 @@
+import type { MediaKind } from "./models";
+
 /** Well-known startIn. First run uses documents — never invent a C:\ path. */
 export const DEFAULT_START_IN = "documents" as const;
 
@@ -80,6 +82,20 @@ const MP4_TYPES = [
   {
     description: "MP4 video",
     accept: { "video/mp4": [".mp4"] },
+  },
+];
+
+const RELINK_VIDEO_TYPES = [
+  {
+    description: "Video",
+    accept: { "video/*": [".mp4", ".webm", ".mov", ".mkv", ".m4v"] },
+  },
+];
+
+const RELINK_AUDIO_TYPES = [
+  {
+    description: "Audio",
+    accept: { "audio/*": [".wav", ".mp3", ".ogg", ".m4a", ".aac", ".flac"] },
   },
 ];
 
@@ -174,6 +190,36 @@ export function openPickerOptions(memory: ProjectFileMemory): OpenPickerOptions 
     startIn: startInForPicker(memory),
     types: PROJECT_TYPES,
   };
+}
+
+export function relinkPickerOptions(kind: MediaKind, memory: ProjectFileMemory): OpenPickerOptions {
+  return {
+    multiple: false,
+    startIn: startInForPicker(memory),
+    types: kind === "video" ? RELINK_VIDEO_TYPES : RELINK_AUDIO_TYPES,
+  };
+}
+
+export function relinkAcceptAttr(kind: MediaKind): string {
+  return kind === "video" ? "video/*" : "audio/*";
+}
+
+export async function pickRelinkMediaFile(opts: {
+  host: PickerHost;
+  memory: ProjectFileMemory;
+  kind: MediaKind;
+}): Promise<{ kind: "picked"; file: File } | { kind: "cancelled" } | { kind: "fallback" }> {
+  if (typeof opts.host.showOpenFilePicker !== "function") return { kind: "fallback" };
+  try {
+    const [handle] = await opts.host.showOpenFilePicker(relinkPickerOptions(opts.kind, opts.memory));
+    if (!handle?.getFile) return { kind: "cancelled" };
+    const file = await handle.getFile();
+    return { kind: "picked", file };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "AbortError") return { kind: "cancelled" };
+    throw e;
+  }
 }
 
 /** MP4 save picker. Do not reuse PROJECT_TYPES (json). */

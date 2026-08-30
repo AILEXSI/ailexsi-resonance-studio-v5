@@ -11,6 +11,7 @@ import {
   type TrackId,
   type VisualizerSceneId,
 } from "../../core/models";
+import { canShowRelink } from "../../core/relink";
 import {
   TRANSITION_AUDIO_MODES,
   TRANSITION_TYPES,
@@ -29,6 +30,7 @@ interface Props {
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
+  onRelink?: () => void;
   onTransition?: (cmd: Extract<EditorCommand, { type: "setTransition" }>) => void;
   onVisualizer?: (
     patch: Partial<{ sceneId: VisualizerSceneId; startMs: number; durationMs: number }>,
@@ -83,6 +85,7 @@ export function Inspector({
   onFades,
   onRate,
   onUnlink,
+  onRelink,
   onTransition,
   onVisualizer,
 }: Props) {
@@ -90,6 +93,7 @@ export function Inspector({
   const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
   const unlinkId = firstClipIdWithLivingMate(project, ids);
+  const showRelink = !selectedVis && canShowRelink(project, ids);
   const pair = resolveEditPair(project, ids);
   const stored = pair
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
@@ -234,15 +238,24 @@ export function Inspector({
           />
         </dl>
       ) : null}
-      {unlinkId ? (
-        <button
-          type="button"
-          className="inspector-unlink"
-          data-testid="inspector-unlink"
-          onClick={() => onUnlink?.(unlinkId)}
-        >
-          Unlink
-        </button>
+      {showRelink || unlinkId ? (
+        <div className="inspector-clip-actions">
+          {showRelink ? (
+            <button type="button" data-testid="inspector-relink" onClick={() => onRelink?.()}>
+              Relink
+            </button>
+          ) : null}
+          {unlinkId ? (
+            <button
+              type="button"
+              className="inspector-unlink"
+              data-testid="inspector-unlink"
+              onClick={() => onUnlink?.(unlinkId)}
+            >
+              Unlink
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </aside>
   );

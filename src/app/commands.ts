@@ -20,6 +20,7 @@ import {
   applyPlayhead,
   applyPlayPause,
   applyRedo,
+  applyRelinkClips,
   applyRippleDelete,
   applyRippleTrim,
   applyRoll,
@@ -84,6 +85,7 @@ export type EditorCommand =
   | { type: "setClipRate"; clipId: string; rate: number }
   | { type: "setTrackPan"; trackId: TrackId; pan: number }
   | { type: "unlinkClips"; clipId: string }
+  | { type: "relinkClips"; clipIds: readonly string[]; assetId: string }
   | {
       type: "setTransition";
       transitionType?: TransitionType;
@@ -169,6 +171,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySetTrackPan(session, command.trackId, command.pan);
     case "unlinkClips":
       return applyUnlinkClips(session, command.clipId);
+    case "relinkClips":
+      return applyRelinkClips(session, command.clipIds, command.assetId);
     case "setTransition":
       return applySetTransition(session, {
         type: command.transitionType,

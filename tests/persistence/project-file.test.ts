@@ -6,6 +6,8 @@ import {
   loadStatusFallback,
   loadStatusFsa,
   openPickerOptions,
+  pickRelinkMediaFile,
+  relinkAcceptAttr,
   projectPanelView,
   rememberDirectoryHandle,
   rememberFileHandle,
@@ -266,5 +268,23 @@ describe("project file picker memory", () => {
       expect(opened.memory.fileHandle).toBe(file);
       expect(startInForPicker(opened.memory)).toBe(dir);
     }
+  });
+
+  it("relink picker cancel is AbortError and names no path", async () => {
+    expect(relinkAcceptAttr("video")).toBe("video/*");
+    expect(relinkAcceptAttr("audio")).toBe("audio/*");
+    const host: PickerHost = {
+      showOpenFilePicker: async () => {
+        const err = new Error("The user aborted a request.");
+        err.name = "AbortError";
+        throw err;
+      },
+    };
+    const result = await pickRelinkMediaFile({
+      host,
+      memory: emptyProjectFileMemory(),
+      kind: "video",
+    });
+    expect(result).toEqual({ kind: "cancelled" });
   });
 });

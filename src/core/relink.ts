@@ -1,0 +1,66 @@
+import {
+  clipById,
+  kindOfTrack,
+  sourceDeltaToTimeline,
+  type MediaKind,
+  type Project,
+} from "./models";
+
+export function relinkSelectionOf(
+  project: Project,
+  clipIds: readonly string[],
+): { clipIds: string[]; assetId: string; kind: MediaKind } | null {
+  const clips = clipIds
+    .map((id) => clipById(project, id))
+    .filter((c): c is NonNullable<typeof c> => !!c);
+  if (clips.length === 0) return null;
+  const assetId = clips[0]!.assetId;
+  if (clips.some((c) => c.assetId !== assetId)) return null;
+  const asset = project.assets.find((a) => a.id === assetId);
+  const kind = asset?.kind ?? kindOfTrack(clips[0]!.trackId);
+  return { clipIds: clips.map((c) => c.id), assetId, kind };
+}
+
+export function canShowRelink(project: Project, clipIds: readonly string[]): boolean {
+  return relinkSelectionOf(project, clipIds) != null;
+}
+
+export function relinkClipsOnProject(
+  project: Project,
+  clipIds: readonly string[],
+  newAssetId: string,
+): { project: Project } | { error: string } | { unchanged: true } {
+  const sel = relinkSelectionOf(project, clipIds);
+  if (!sel) return { unchanged: true };
+  const asset = project.assets.find((a) => a.id === newAssetId);
+  if (!asset) return { error: "Relink failed: replacement asset is missing" };
+  if (asset.kind !== sel.kind) {
+    return { error: `Relink rejected: expected ${sel.kind}, got ${asset.kind}` };
+  }
+  let changed = false;
+  const clips = project.clips.map((clip) => {
+    if (!sel.clipIds.includes(clip.id)) return clip;
+    let next = { ...clip, assetId: newAssetId };
+    if (asset.durationMs < clip.sourceOutMs) {
+      const sourceOutMs = asset.durationMs;
+      const durationMs = Math.max(0, sourceDeltaToTimeline(clip, sourceOutMs - clip.sourceInMs));
+      next = { ...next, sourceOutMs, durationMs };
+    }
+    if (
+      next.assetId !== clip.assetId ||
+      next.sourceOutMs !== clip.sourceOutMs ||
+      next.durationMs !== clip.durationMs
+    ) {
+      changed = true;
+    }
+    return next;
+  });
+  if (!changed) return { unchanged: true };
+  return {
+    project: {
+      ...project,
+      clips,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}

@@ -22,18 +22,23 @@ describe("inspector selection", () => {
     root = undefined;
   });
 
-  function mount(selectedClipId: string | null, selectedClipIds: string[]) {
-    host = document.createElement("div");
-    document.body.appendChild(host);
-    root = createRoot(host);
-    const project = projectWith(
+  function mount(
+    selectedClipId: string | null,
+    selectedClipIds: string[],
+    project = projectWith(
       [
         clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
         clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 1000, durationMs: 500 }),
         clip({ id: "c3", assetId: "a", trackId: "A2", startMs: 0, durationMs: 400 }),
       ],
       [asset({ id: "a", kind: "audio", durationMs: 2000 })],
-    );
+    ),
+  ) {
+    if (!host) {
+      host = document.createElement("div");
+      document.body.appendChild(host);
+      root = createRoot(host);
+    }
     act(() => {
       root!.render(
         <Inspector
@@ -74,6 +79,33 @@ describe("inspector selection", () => {
   it("shows the empty copy when nothing is selected", () => {
     mount(null, []);
     expect(host!.textContent ?? "").toContain("No clip selected.");
+  });
+
+  it("shows Relink for one clip or same-asset multi; hides for mixed / none", () => {
+    mount("c1", ["c1"]);
+    expect(host!.querySelector('[data-testid="inspector-relink"]')?.textContent).toBe("Relink");
+
+    mount("c1", ["c1", "c2", "c3"]);
+    expect(host!.querySelector('[data-testid="inspector-relink"]')).toBeTruthy();
+
+    mount(null, []);
+    expect(host!.querySelector('[data-testid="inspector-relink"]')).toBeNull();
+
+    mount(
+      "c1",
+      ["c1", "c2"],
+      projectWith(
+        [
+          clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+          clip({ id: "c2", assetId: "b", trackId: "A1", startMs: 1000, durationMs: 500 }),
+        ],
+        [
+          asset({ id: "a", kind: "audio", durationMs: 2000 }),
+          asset({ id: "b", kind: "audio", durationMs: 2000 }),
+        ],
+      ),
+    );
+    expect(host!.querySelector('[data-testid="inspector-relink"]')).toBeNull();
   });
 });
 

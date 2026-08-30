@@ -84,6 +84,7 @@ interface Props {
   onRippleDelete?: () => void;
   onLiftRange?: () => void;
   onExtractRange?: () => void;
+  onRelink?: () => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -155,6 +156,7 @@ export function Timeline({
   onRippleDelete,
   onLiftRange,
   onExtractRange,
+  onRelink,
   onZoom,
   onFit,
   onScroll,
@@ -1090,6 +1092,18 @@ export function Timeline({
             <span>Extract range</span>
             <kbd>{CLIP_MENU_SHORTCUTS.extractRange}</kbd>
           </button>
+          {onRelink ? (
+            <button
+              type="button"
+              data-testid="clip-menu-relink"
+              onClick={() => {
+                onRelink();
+                setMenu(null);
+              }}
+            >
+              <span>Relink</span>
+            </button>
+          ) : null}
         </div>
       ) : null}
       {markerMenu ? (

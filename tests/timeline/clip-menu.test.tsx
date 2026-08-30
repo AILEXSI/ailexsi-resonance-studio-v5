@@ -44,6 +44,7 @@ function timelineProps() {
     onLoopOutLive: noopMs,
     onLoopMoveLive: noopMs,
     onLoopCommit: noop,
+    onRelink: noop,
   };
 }
 
@@ -90,6 +91,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Shift+Delete");
     expect(text).toContain("Lift range");
     expect(text).toContain("Extract range");
+    expect(text).toContain("Relink");
+    expect(menu!.querySelector('[data-testid="clip-menu-relink"]')).toBeTruthy();
     expect(text).toContain(CLIP_MENU_SHORTCUTS.liftRange);
     expect(text).toContain(CLIP_MENU_SHORTCUTS.extractRange);
     expect(CLIP_MENU_SHORTCUTS.split).toBe("S");

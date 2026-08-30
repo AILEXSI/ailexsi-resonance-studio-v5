@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 09:20 UTC. P28 next/prev edit on PR #1 after P27 layout and P26 Shift+click. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 09:35 UTC. P29 Relink on PR #1 after P28 edit-jump. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -56,13 +56,15 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **373 passed / 53 files**. Start 09:21:47 UTC. Duration 8.93s.
+exit 0. vitest 3.2.7. **381 passed / 54 files**. Start 09:30:17 UTC. Duration 9.27s.
 
 P27: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor.
 
 P26: Shift+click inclusive same-track range via existing `select` / `selectClips`. Ctrl/Cmd+click toggle and Shift+marquee union stay. VIS is not in the range.
 
 P28: `{ type: "gotoNextEdit" }` / `{ type: "gotoPrevEdit" }` jump the playhead via `applyPlayhead`. ArrowDown / ArrowUp (not form fields). ArrowLeft / ArrowRight still ±1 frame.
+
+P29: Relink. `ingestRelinkFile` reuses `importMediaFile` + IDB. `{ type: "relinkClips", clipIds, assetId }` after the picker. Inspector + clip menu. No second importer.
 
 ## Visualizer
 
@@ -133,6 +135,12 @@ Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-an
 Status: TEST-VERIFIED. Live Chromium ArrowUp/Down: RUNTIME-VERIFIED (IN → marker → OUT; inspector number field does not jump).
 
 `collectEditPoints` is the sorted unique union of clip start/end (V1 V2 A1 A2), marker times, IN/OUT when set, and a finite VIS overlay window (`durationMs > 0`). Linked A/V times collapse. Next = smallest point > playhead; prev = largest < playhead. No point → same session, no history. Playing stays playing. Loop IN/OUT are not rewritten. Keys: **ArrowDown** next, **ArrowUp** prev. Guard uses event target **or** `document.activeElement` so an inspector number field wins even when the key event hits `body`. TAB / S / I / O / ; / ' / Ctrl+C/X/V untouched. ArrowLeft/Right still `nudgePlayhead` ±1 frame.
+
+## Relink
+
+Status: TEST-VERIFIED. Live Relink control: pending Chromium this follow-up. Live file swap: NOT VERIFIED unless a real file is picked.
+
+`ingestRelinkFile` classifies the file, reuses `importMediaFile` + `persistAssetBlob`, and does not `placeAsset`. `{ type: "relinkClips", clipIds, assetId }` then retargets clips that share one assetId. Mixed / empty selection is a no-op (no picker). Wrong kind is rejected in ingest (command not called). Short replacement clamps `sourceOutMs` and `durationMs` via `sourceDeltaToTimeline`; `startMs` stays. One undo restores assetId + source window. Old asset stays in the bin. Inspector Relink next to Unlink; clip menu Relink. Picker is FSA `showOpenFilePicker` or a hidden file input — no invented `C:\` path. AbortError cancel: no-op, no history.
 
 ## Ruler
 
@@ -234,7 +242,7 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 Status: TEST-VERIFIED (0 / 1 / 2+ / unlink). Live fields / Unlink click: NOT VERIFIED.
 
-0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. Field layout unchanged. **Unlink** (`data-testid="inspector-unlink"`) appears after the existing block when any selected id has a living same-`linkId` mate (including the 2+ count view). Hidden when unlinked, orphan `linkId`, or nothing selected. Click dispatches `{ type: "unlinkClips", clipId }` on the first selected member with a mate. After unlink the control hides. No relink. `tests/inspector/inspector.test.tsx` (6). Duration field writes `sourceOut = sourceIn + duration * rate`. Source-in / source-out resize timeline duration via `sourceSpan / rate`. Rate field still goes through `setClipRate` (unchanged).
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. Field layout unchanged. **Unlink** (`data-testid="inspector-unlink"`) appears after the existing block when any selected id has a living same-`linkId` mate (including the 2+ count view). Hidden when unlinked, orphan `linkId`, or nothing selected. Click dispatches `{ type: "unlinkClips", clipId }` on the first selected member with a mate. After unlink the control hides. **Relink** (`data-testid="inspector-relink"`) sits next to Unlink when one clip is selected or several share one `assetId` (present or missing). Hidden for mixed assets / none / VIS overlay. Clip menu Relink uses the same dispatch. `tests/inspector/inspector.test.tsx` + `tests/app/relink.test.ts`. Duration field writes `sourceOut = sourceIn + duration * rate`. Source-in / source-out resize timeline duration via `sourceSpan / rate`. Rate field still goes through `setClipRate` (unchanged).
 
 ## Export
 
@@ -330,8 +338,8 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Live linked A/V import / split / move / unlink click / Ctrl+Shift+L / group slip drag / export save picker NOT VERIFIED (units only).
 - No elastic audio or automation curves.
 - Transition objects exist for **stacked** video overlap only. No same-track transition handles. No dual live SOURCE A|B decode / second preview graph. No focused Cutter timeline. No EQ engine. No Mix/Color/Voice screens.
-- No relink, link-picker, or nested sequences. Unlink chrome is inspector button + Ctrl+Shift+L only.
-- No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
+- Relink is one picker + `{ type: "relinkClips" }` for clips that share one assetId. No folder auto-scan, no mixed-asset relink, no new clip place.
+- Nested sequences / link-picker: still not present. Unlink chrome is inspector button + Ctrl+Shift+L.
 
 ## Command dispatch
 
@@ -610,7 +618,7 @@ Mix: living linked A clip carries audio; that V clip is omitted from `audioClips
 
 Edits that follow a living mate: split (S) at the same timeline time (lefts keep `linkId`, rights get a new shared id), move (same delta; track change stays same-kind), lift-delete and ripple-delete of one lift the other, trim / ripple-trim / roll of a linked edge apply to both. Slip applies the same source-in/source-out delta (start/duration stay); if either side would exceed source bounds, both no-op. `setClipRate` writes the same rate and `durationMs = sourceSpan / rate` on both; if either would overlap the next clip, both no-op. Fades stay independent (each clip’s fades re-clamp to its own new duration). Slide does not follow (neighbors live on different tracks).
 
-`{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. Inspector **Unlink** + **Ctrl+Shift+L** reach that command. No new track types. No relink.
+`{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. Inspector **Unlink** + **Ctrl+Shift+L** reach that command. Relink is a separate command (`relinkClips`) and does not auto-unlink the mate. No new track types.
 
 `tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
@@ -763,7 +771,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P28 goto next/prev edit (this commit). P26 `fcf47fc`. P27 layout `7f619a2` / `0df8458`. P25 mux `c3487e8`.
+Tip after this follow-up: P29 Relink (this commit). P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
 
 ## Not added
 

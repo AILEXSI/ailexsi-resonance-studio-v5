@@ -10,7 +10,9 @@ import {
   hasFileSystemAccess,
   lastLoadedStatus,
   loadStatusFallback,
+  pickRelinkMediaFile,
   readFileText,
+  relinkAcceptAttr,
   rememberFileHandle,
   runChooseFolder,
   runOpen,
@@ -71,6 +73,7 @@ import {
   createSession,
   hydrateSession,
   importFiles,
+  ingestRelinkFile,
   newProject,
   openSerialized,
   projectJson,
@@ -84,6 +87,7 @@ import {
   tracksForScreen,
   type ProductionScreen,
 } from "./screens";
+import { relinkSelectionOf } from "../core/relink";
 import { Cutter } from "../ui/cutter/Cutter";
 import {
   ARRANGE_MIN_PX,
@@ -133,6 +137,7 @@ export function App() {
   projectPanelOpenRef.current = projectPanelOpen;
   const stageRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const relinkInputRef = useRef<HTMLInputElement>(null);
   const splitDragRef = useRef(false);
   const hSplitDragRef = useRef(false);
   const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
@@ -173,6 +178,45 @@ export function App() {
   const runCommand = useCallback((command: EditorCommand) => {
     setSession((s) => applyCommand(s, command));
   }, []);
+
+  const finishRelink = useCallback(async (file: File) => {
+    const s = sessionRef.current;
+    const sel = relinkSelectionOf(s.project, selectionOf(s));
+    if (!sel) return;
+    const ingested = await ingestRelinkFile(s, file, sel.kind);
+    if ("error" in ingested) {
+      setSession({ ...s, error: ingested.error, status: "Relink failed" });
+      return;
+    }
+    setSession(
+      applyCommand(ingested.session, {
+        type: "relinkClips",
+        clipIds: sel.clipIds,
+        assetId: ingested.assetId,
+      }),
+    );
+  }, []);
+
+  const runRelink = useCallback(async () => {
+    const s = sessionRef.current;
+    const sel = relinkSelectionOf(s.project, selectionOf(s));
+    if (!sel) return;
+    const picked = await pickRelinkMediaFile({
+      host: pickerHost,
+      memory: projectFileRef.current,
+      kind: sel.kind,
+    });
+    if (picked.kind === "cancelled") return;
+    if (picked.kind === "picked") {
+      await finishRelink(picked.file);
+      return;
+    }
+    const input = relinkInputRef.current;
+    if (!input) return;
+    input.accept = relinkAcceptAttr(sel.kind);
+    input.value = "";
+    input.click();
+  }, [finishRelink, pickerHost]);
   const play = useCallback(() => {
     runCommand({ type: "play" });
   }, [runCommand]);
@@ -833,6 +877,17 @@ export function App() {
           e.target.value = "";
         }}
       />
+      <input
+        ref={relinkInputRef}
+        type="file"
+        hidden
+        data-testid="relink-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void finishRelink(file);
+        }}
+      />
 
       {projectPanelOpen ? (
         <div className="project-overlay" data-testid="project-overlay">
@@ -924,6 +979,7 @@ export function App() {
               setSession(applyCommand(session, { type: "setClipRate", clipId, rate }))
             }
             onUnlink={(clipId) => setSession(applyCommand(session, { type: "unlinkClips", clipId }))}
+            onRelink={() => void runRelink()}
             onTransition={(cmd) => setSession(applyCommand(session, cmd))}
             onVisualizer={(patch) => setSession(applySetVisualizer(session, patch))}
           />
@@ -1020,6 +1076,7 @@ export function App() {
         onRippleDelete={() => runCommand({ type: "rippleDelete" })}
         onLiftRange={() => runCommand({ type: "liftRange" })}
         onExtractRange={() => runCommand({ type: "extractRange" })}
+        onRelink={() => void runRelink()}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}

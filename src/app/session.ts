@@ -1,7 +1,8 @@
 import { unlinkClips } from "../core/link";
 import { resolveEditPair, upsertTransition, type Transition } from "../core/transition";
-import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
-import { clipById, kindOfTrack, type Clip, type Project, type TrackId } from "../core/models";
+import { classifyFile, importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
+import { clipById, kindOfTrack, type Clip, type MediaKind, type Project, type TrackId } from "../core/models";
+import { relinkClipsOnProject, relinkSelectionOf } from "../core/relink";
 import {
   createIndexedDbBlobStore,
   hydrateProject,
@@ -488,6 +489,47 @@ export function applySlip(
   if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
   return withHistory(session, result.project, ids.length > 1 ? "Slipped clips" : "Slipped clip");
+}
+
+export async function ingestRelinkFile(
+  session: Session,
+  file: File,
+  expectedKind: MediaKind,
+  probe?: ProbeFn,
+): Promise<{ session: Session; assetId: string } | { error: string }> {
+  try {
+    const kind = classifyFile(file);
+    if (kind !== expectedKind) {
+      return { error: `Relink rejected: expected ${expectedKind}, got ${kind}` };
+    }
+    const asset = await importMediaFile(file, probe);
+    if (asset.kind !== expectedKind) {
+      return { error: `Relink rejected: expected ${expectedKind}, got ${asset.kind}` };
+    }
+    await persistAssetBlob(session.store, asset, file);
+    const project = {
+      ...session.project,
+      assets: [...session.project.assets, asset],
+      updatedAt: new Date().toISOString(),
+    };
+    return { session: { ...session, project, error: null }, assetId: asset.id };
+  } catch (e) {
+    if (e instanceof ImportError) return { error: e.message };
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export function applyRelinkClips(
+  session: Session,
+  clipIds: readonly string[],
+  assetId: string,
+): Session {
+  const sel = relinkSelectionOf(session.project, clipIds);
+  if (!sel) return session;
+  const result = relinkClipsOnProject(session.project, sel.clipIds, assetId);
+  if ("unchanged" in result) return session;
+  if ("error" in result) return { ...session, error: result.error, status: "Relink failed" };
+  return withHistory(session, result.project, sel.clipIds.length > 1 ? "Relinked clips" : "Relinked clip");
 }
 
 export function applyUnlinkClips(session: Session, clipId: string): Session {

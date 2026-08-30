@@ -67,6 +67,7 @@ describe("applyCommand determinism", () => {
       { type: "setTransition", transitionType: "crossfade", durationMs: 400 } as const,
       { type: "gotoNextEdit" } as const,
       { type: "gotoPrevEdit" } as const,
+      { type: "relinkClips", clipIds: ["c1"], assetId: "aa" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);

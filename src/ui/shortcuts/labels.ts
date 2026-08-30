@@ -38,6 +38,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: CLIP_MENU_SHORTCUTS.copy, action: "Copy selected clip(s)" },
   { key: CLIP_MENU_SHORTCUTS.paste, action: "Paste clip(s) at playhead" },
   { key: "Ctrl+Shift+L", action: "Unlink A/V pair" },
+  { key: "Inspector / clip menu", action: "Relink selected clip(s) to a new file" },
   { key: "Lane / Mixer S", action: "Solo track (V1–A2)" },
   { key: "Shift+edge-drag", action: "Ripple trim (same track)" },
   { key: "Abutting edge-drag", action: "Roll edit (shared cut)" },
