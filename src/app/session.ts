@@ -1,6 +1,6 @@
 import { createId } from "../core/ids";
 import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
-import type { Clip, Project, TrackId } from "../core/models";
+import { clipById, type Clip, type Project, type TrackId } from "../core/models";
 import {
   createIndexedDbBlobStore,
   hydrateProject,
@@ -15,9 +15,11 @@ import {
   collectSnapTargets,
   createHistory,
   deleteClip,
+  deleteClips,
   duplicateClip,
   maybeScrollToOrigin,
   moveClip,
+  moveClipsByDelta,
   moveMarker,
   moveInOut,
   lastClipEndMsOnTrack,
@@ -33,7 +35,7 @@ import {
   toggleSnap,
   setMasterVolume,
   setTrackVolume,
-  rippleDeleteClip,
+  rippleDeleteClips,
   rippleTrimClip,
   rollEdit,
   abuttingNeighbor,
@@ -58,6 +60,8 @@ export interface Session {
   project: Project;
   history: HistoryStack;
   selectedClipId: string | null;
+  /** Source of truth for clip selection. `selectedClipId` is the primary (first). */
+  selectedClipIds: string[];
   selectedMarkerId: string | null;
   clipboard: Clip | null;
   targetTrackId: TrackId;
@@ -74,6 +78,7 @@ export function createSession(store?: BlobStore): Session {
     project: createEmptyProject(),
     history: createHistory(),
     selectedClipId: null,
+    selectedClipIds: [],
     selectedMarkerId: null,
     clipboard: null,
     targetTrackId: "V1",
@@ -82,6 +87,23 @@ export function createSession(store?: BlobStore): Session {
     playing: false,
     shuttleRate: 0,
     store: store ?? createIndexedDbBlobStore(),
+  };
+}
+
+/** Clip ids currently selected. Falls back to `selectedClipId` so older tests stay valid. */
+export function selectionOf(session: Session): string[] {
+  if (session.selectedClipIds && session.selectedClipIds.length > 0) {
+    return [...new Set(session.selectedClipIds)];
+  }
+  return session.selectedClipId ? [session.selectedClipId] : [];
+}
+
+export function withClipSelection(session: Session, ids: string[]): Session {
+  const unique = [...new Set(ids)];
+  return {
+    ...session,
+    selectedClipIds: unique,
+    selectedClipId: unique[0] ?? null,
   };
 }
 
@@ -144,8 +166,10 @@ export async function importFiles(
       }
       await persistAssetBlob(next.store, asset, file);
       next = {
-        ...withHistory(next, placed.project, `Imported ${asset.name}`),
-        selectedClipId: placed.clip.id,
+        ...withClipSelection(
+          withHistory(next, placed.project, `Imported ${asset.name}`),
+          [placed.clip.id],
+        ),
         targetTrackId: preferred,
       };
       imported += 1;
@@ -189,8 +213,10 @@ export function applyPlaceAsset(
   const project = maybeScrollToOrigin(result.project, { prevScrollMs, prevClipCount });
   const asset = project.assets.find((a) => a.id === assetId);
   return {
-    ...withHistory(session, project, `Placed ${asset?.name ?? "clip"}`),
-    selectedClipId: result.clip.id,
+    ...withClipSelection(
+      withHistory(session, project, `Placed ${asset?.name ?? "clip"}`),
+      [result.clip.id],
+    ),
     error: null,
   };
 }
@@ -207,6 +233,27 @@ export function applyMove(
   const result = moveClip(session.project, clipId, snapped, trackId);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Moved clip");
+}
+
+export function applyMoveClips(
+  session: Session,
+  clipIds: readonly string[],
+  deltaMs: number,
+  trackId?: TrackId,
+): Session {
+  const ids = [...new Set(clipIds)];
+  if (ids.length === 0) return { ...session, error: "No clip selected" };
+  if (ids.length === 1 && trackId) {
+    const clip = clipById(session.project, ids[0]!);
+    if (!clip) return { ...session, error: "Clip not found" };
+    const result = moveClip(session.project, clip.id, clip.startMs + deltaMs, trackId);
+    if (result.error) return { ...session, error: result.error };
+    return withHistory(session, result.project, "Moved clip");
+  }
+  const result = moveClipsByDelta(session.project, ids, deltaMs);
+  if (result.error) return { ...session, error: result.error };
+  if (result.project === session.project) return session;
+  return withHistory(session, result.project, ids.length > 1 ? "Moved clips" : "Moved clip");
 }
 
 export function applyTrim(
@@ -249,7 +296,11 @@ export function applyRoll(
 }
 
 export function applySplit(session: Session): Session {
-  const result = splitAtPlayhead(session.project);
+  const ids = selectionOf(session);
+  const result =
+    ids.length >= 2
+      ? splitAtPlayhead(session.project, undefined, ids)
+      : splitAtPlayhead(session.project);
   if (result.error) return { ...session, error: result.error, status: "Split rejected" };
   return withHistory(session, result.project, "Split at playhead");
 }
@@ -348,9 +399,8 @@ export function applyMarker(session: Session): Session {
   const next = addMarker(session.project, session.project.playheadMs);
   const added = next.markers[next.markers.length - 1];
   return {
-    ...withHistory(session, next, "Marker added"),
+    ...withClipSelection(withHistory(session, next, "Marker added"), []),
     selectedMarkerId: added?.id ?? null,
-    selectedClipId: null,
   };
 }
 
@@ -366,9 +416,8 @@ export function applyCut(session: Session): Session {
   if (!clip) return { ...session, error: "No clip selected to cut" };
   const next = deleteClip(session.project, clip.id);
   return {
-    ...withHistory(session, next, "Cut clip"),
+    ...withClipSelection(withHistory(session, next, "Cut clip"), []),
     clipboard: clip,
-    selectedClipId: null,
     error: null,
   };
 }
@@ -382,15 +431,9 @@ export function applyPaste(session: Session): Session {
       startMs: Math.max(0, session.project.playheadMs),
     };
     const copy = duplicateFromClipboard(session.project, placed);
-    return {
-      ...withHistory(session, copy.project, "Pasted clip"),
-      selectedClipId: copy.clipId,
-    };
+    return withClipSelection(withHistory(session, copy.project, "Pasted clip"), [copy.clipId]);
   }
-  return {
-    ...withHistory(session, result.project, "Pasted clip"),
-    selectedClipId: result.clip.id,
-  };
+  return withClipSelection(withHistory(session, result.project, "Pasted clip"), [result.clip.id]);
 }
 
 function duplicateFromClipboard(project: Project, clip: Clip): { project: Project; clipId: string } {
@@ -412,9 +455,13 @@ export function applyUpdateClip(
 }
 
 export function applyDelete(session: Session): Session {
-  if (session.selectedClipId) {
-    const next = deleteClip(session.project, session.selectedClipId);
-    return { ...withHistory(session, next, "Clip deleted"), selectedClipId: null };
+  const ids = selectionOf(session);
+  if (ids.length > 0) {
+    const next = deleteClips(session.project, ids);
+    return withClipSelection(
+      withHistory(session, next, ids.length > 1 ? "Clips deleted" : "Clip deleted"),
+      [],
+    );
   }
   if (session.selectedMarkerId) {
     const result = deleteMarker(session.project, session.selectedMarkerId);
@@ -425,17 +472,18 @@ export function applyDelete(session: Session): Session {
 }
 
 export function applyRippleDelete(session: Session): Session {
-  if (!session.selectedClipId) {
+  const ids = selectionOf(session);
+  if (ids.length === 0) {
     return { ...session, error: "No clip selected" };
   }
-  const next = rippleDeleteClip(session.project, session.selectedClipId);
-  return { ...withHistory(session, next, "Ripple deleted"), selectedClipId: null };
+  const next = rippleDeleteClips(session.project, ids);
+  return withClipSelection(withHistory(session, next, "Ripple deleted"), []);
 }
 
 export function applyNudge(session: Session, deltaMs: number): Session {
-  const clip = session.project.clips.find((c) => c.id === session.selectedClipId);
-  if (!clip) return { ...session, error: "No clip selected" };
-  const result = moveClip(session.project, clip.id, clip.startMs + deltaMs);
+  const ids = selectionOf(session);
+  if (ids.length === 0) return { ...session, error: "No clip selected" };
+  const result = moveClipsByDelta(session.project, ids, deltaMs);
   if (result.error) return { ...session, error: result.error };
   const verb = deltaMs < 0 ? "Nudged left" : "Nudged right";
   return withHistory(session, result.project, verb);
@@ -453,7 +501,12 @@ export function applyDeleteMarker(session: Session, markerId: string): Session {
 export function applyMoveMarker(session: Session, markerId: string, timeMs: number): Session {
   const result = moveMarker(session.project, markerId, timeMs);
   if (result.error) return { ...session, error: result.error };
-  return { ...session, project: result.project, selectedMarkerId: markerId, selectedClipId: null, error: null };
+  return {
+    ...withClipSelection(session, []),
+    project: result.project,
+    selectedMarkerId: markerId,
+    error: null,
+  };
 }
 
 export function applyPlayhead(session: Session, timeMs: number): Session {
@@ -544,13 +597,27 @@ export function applyCycleVisualizerScene(session: Session): Session {
   };
 }
 
-export function applySelect(session: Session, clipId: string | null): Session {
-  return { ...session, selectedClipId: clipId, selectedMarkerId: null };
+export function applySelect(
+  session: Session,
+  clipId: string | null,
+  opts?: { toggle?: boolean },
+): Session {
+  if (clipId == null) {
+    return { ...withClipSelection(session, []), selectedMarkerId: null };
+  }
+  if (opts?.toggle) {
+    const current = selectionOf(session);
+    const next = current.includes(clipId)
+      ? current.filter((id) => id !== clipId)
+      : [clipId, ...current];
+    return { ...withClipSelection(session, next), selectedMarkerId: null };
+  }
+  return { ...withClipSelection(session, [clipId]), selectedMarkerId: null };
 }
 
 export function applySelectMarker(session: Session, markerId: string | null): Session {
   if (markerId) {
-    return { ...session, selectedMarkerId: markerId, selectedClipId: null };
+    return { ...withClipSelection(session, []), selectedMarkerId: markerId };
   }
   return { ...session, selectedMarkerId: null };
 }
@@ -602,6 +669,7 @@ export function openSerialized(session: Session, text: string): Session {
     project,
     history: createHistory(),
     selectedClipId: null,
+    selectedClipIds: [],
     selectedMarkerId: null,
     status: `Opened ${project.name}`,
     error: null,

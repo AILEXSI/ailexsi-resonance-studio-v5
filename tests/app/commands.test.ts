@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
-import { createSession, type Session } from "../../src/app/session";
+import { createSession, selectionOf, type Session } from "../../src/app/session";
 import { FRAME_MS } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { nextShuttleRate } from "../../src/core/playback";
@@ -50,6 +50,8 @@ describe("applyCommand determinism", () => {
       { type: "shuttle", dir: 1 } as const,
       { type: "liftDelete" } as const,
       { type: "rippleTrim", clipId: "c1", edge: "out", nextEdgeMs: 800 } as const,
+      { type: "select", clipId: "c2", toggle: true } as const,
+      { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);
@@ -145,6 +147,112 @@ describe("applyCommand determinism", () => {
 
     const ten = applyCommand(right, { type: "nudgeClip", deltaMs: -10 * FRAME_MS });
     expect(ten.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+  });
+
+  it("toggles clip ids in one selection source of truth", () => {
+    const start = twoClipSession();
+    const added = applyCommand(start, { type: "select", clipId: "c2", toggle: true });
+    expect(selectionOf(added)).toEqual(["c2", "c1"]);
+    expect(added.selectedClipId).toBe("c2");
+    expect(added.selectedClipIds).toEqual(["c2", "c1"]);
+
+    const removed = applyCommand(added, { type: "select", clipId: "c1", toggle: true });
+    expect(selectionOf(removed)).toEqual(["c2"]);
+    expect(removed.selectedClipId).toBe("c2");
+
+    const exclusive = applyCommand(added, { type: "select", clipId: "c3" });
+    expect(selectionOf(exclusive)).toEqual(["c3"]);
+
+    const cleared = applyCommand(exclusive, { type: "select", clipId: null });
+    expect(selectionOf(cleared)).toEqual([]);
+    expect(cleared.selectedClipId).toBeNull();
+  });
+
+  it("group-moves selected clips by one delta and clamps at 0; one undo restores all", () => {
+    const start = applyCommand(twoClipSession(), { type: "select", clipId: "c3", toggle: true });
+    const moved = applyCommand(start, { type: "moveClips", clipIds: selectionOf(start), deltaMs: 200 });
+    expect(moved.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    expect(moved.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(moved.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1200);
+    expect(moved.history.past).toHaveLength(1);
+
+    const clamped = applyCommand(moved, { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: -500 });
+    expect(clamped.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(clamped.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+
+    const undone = applyCommand(moved, { type: "undo" });
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+  });
+
+  it("group lift-delete removes all selected and leaves neighbors; one undo restores", () => {
+    const start = applyCommand(twoClipSession(), { type: "select", clipId: "c3", toggle: true });
+    const deleted = applyCommand(start, { type: "liftDelete" });
+    expect(deleted.project.clips.map((c) => c.id)).toEqual(["c2"]);
+    expect(deleted.project.clips[0]!.startMs).toBe(1000);
+    expect(deleted.selectedClipId).toBeNull();
+    expect(deleted.selectedClipIds).toEqual([]);
+    const undone = applyCommand(deleted, { type: "undo" });
+    expect(undone.project.clips).toHaveLength(3);
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+  });
+
+  it("group ripple-delete is later-first per track; one undo restores neighbors", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: projectWith(
+        [
+          clip({ id: "c1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 1000 }),
+          clip({ id: "c2", assetId: "aa", trackId: "A1", startMs: 1000, durationMs: 500 }),
+          clip({ id: "c4", assetId: "aa", trackId: "A1", startMs: 2000, durationMs: 400 }),
+          clip({ id: "c3", assetId: "aa", trackId: "A2", startMs: 1000, durationMs: 400 }),
+        ],
+        [a],
+      ),
+      selectedClipId: "c1",
+      selectedClipIds: ["c1", "c2"],
+    };
+    const deleted = applyCommand(start, { type: "rippleDelete" });
+    expect(deleted.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(deleted.project.clips.find((c) => c.id === "c2")).toBeUndefined();
+    expect(deleted.project.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
+    expect(deleted.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    const undone = applyCommand(deleted, { type: "undo" });
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+  });
+
+  it("ripple-trims first in-edge and packs later clips; undo restores neighbors", () => {
+    const start = twoClipSession();
+    start.project = { ...start.project, snap: false };
+    const lifted = applyCommand(start, { type: "liftTrim", clipId: "c1", edge: "in", nextEdgeMs: 200 });
+    expect(lifted.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    expect(lifted.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+
+    const rippled = applyCommand(start, { type: "rippleTrim", clipId: "c1", edge: "in", nextEdgeMs: 200 });
+    const a = rippled.project.clips.find((c) => c.id === "c1")!;
+    expect(a.startMs).toBe(0);
+    expect(a.durationMs).toBe(800);
+    expect(a.sourceInMs).toBe(200);
+    expect(rippled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+    const undone = applyCommand(rippled, { type: "undo" });
+    expect(clipStarts(undone)).toEqual(clipStarts(start));
+    expect(undone.project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(0);
+  });
+
+  it("split with many selected only cuts those under the playhead", () => {
+    const base = twoClipSession();
+    const start = applyCommand(
+      { ...base, project: { ...base.project, playheadMs: 500 } },
+      { type: "select", clipId: "c2", toggle: true },
+    );
+    expect(selectionOf(start)).toEqual(["c2", "c1"]);
+    const split = applyCommand(start, { type: "split" });
+    expect(split.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(3);
+    expect(split.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(split.project.clips.find((c) => c.id === "c2")!.durationMs).toBe(500);
+    const undone = applyCommand(split, { type: "undo" });
+    expect(undone.project.clips).toHaveLength(3);
   });
 });
 

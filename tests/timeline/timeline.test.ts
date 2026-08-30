@@ -18,7 +18,10 @@ import {
   snapTime,
   splitClipAt,
   rippleDeleteClip,
+  rippleDeleteClips,
   rippleTrimClip,
+  moveClipsByDelta,
+  deleteClips,
   rollEdit,
   abuttingNeighbor,
   toggleTrackMute,
@@ -243,6 +246,68 @@ describe("ripple trim", () => {
     const rejected = rippleTrimClip(p, "c1", "out", 40);
     expect(rejected.error).toMatch(/50ms/);
     expect(rejected.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
+
+  it("ripple-trims first in-edge and packs the track; lift-trim leaves a hole", () => {
+    const p = abuttingA1();
+    const lifted = trimClip(p, "c1", "in", 200);
+    expect(lifted.error).toBeUndefined();
+    expect(lifted.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    expect(lifted.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
+    expect(lifted.project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(200);
+    expect(lifted.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+
+    const rippled = rippleTrimClip(p, "c1", "in", 200);
+    expect(rippled.error).toBeUndefined();
+    const a = rippled.project.clips.find((c) => c.id === "c1")!;
+    expect(a.startMs).toBe(0);
+    expect(a.durationMs).toBe(800);
+    expect(a.sourceInMs).toBe(200);
+    expect(a.sourceOutMs).toBe(1000);
+    expect(rippled.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
+    expect(rippled.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+});
+
+describe("group move / delete", () => {
+  it("moves many clips by the same delta and clamps so none start below 0", () => {
+    const p = abuttingA1();
+    const moved = moveClipsByDelta(p, ["c1", "c3"], 200);
+    expect(moved.error).toBeUndefined();
+    expect(moved.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    expect(moved.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(moved.project.clips.find((c) => c.id === "c3")!.startMs).toBe(1200);
+
+    const offset = moveClipsByDelta(p, ["c1", "c2"], 200);
+    expect(offset.project.clips.find((c) => c.id === "c1")!.startMs).toBe(200);
+    const clamped = moveClipsByDelta(offset.project, ["c1", "c2"], -500);
+    expect(clamped.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(clamped.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
+
+  it("lift-deletes many clips and leaves later neighbors in place", () => {
+    const p = abuttingA1();
+    const next = deleteClips(p, ["c1", "c3"]);
+    expect(next.clips.map((c) => c.id)).toEqual(["c2"]);
+    expect(next.clips[0]!.startMs).toBe(1000);
+  });
+
+  it("ripple-deletes later clips first per track", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 1000, durationMs: 500 }),
+        clip({ id: "c4", assetId: "a", trackId: "A1", startMs: 2000, durationMs: 400 }),
+        clip({ id: "c3", assetId: "a", trackId: "A2", startMs: 1000, durationMs: 400 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClips(p, ["c1", "c2"]);
+    expect(next.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.clips.find((c) => c.id === "c2")).toBeUndefined();
+    expect(next.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
+    expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
   });
 });
 

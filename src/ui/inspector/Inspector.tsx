@@ -4,6 +4,7 @@ import { clipById, formatTimecode, kindOfTrack, type Clip, type Project, type Tr
 interface Props {
   project: Project;
   selectedClipId: string | null;
+  selectedClipIds?: string[];
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
 }
 
@@ -43,14 +44,19 @@ function MsField({
   );
 }
 
-export function Inspector({ project, selectedClipId, onChange }: Props) {
-  const clip = selectedClipId ? clipById(project, selectedClipId) : undefined;
+export function Inspector({ project, selectedClipId, selectedClipIds, onChange }: Props) {
+  const ids = selectedClipIds?.length ? selectedClipIds : selectedClipId ? [selectedClipId] : [];
+  const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
 
   return (
     <aside className="panel inspector" data-testid="inspector">
       <h2>Inspector</h2>
-      {!clip ? (
+      {ids.length >= 2 ? (
+        <p data-testid="inspector-selection-count" style={{ color: "var(--muted)" }}>
+          {ids.length} clips
+        </p>
+      ) : !clip ? (
         <p style={{ color: "var(--muted)" }}>No clip selected.</p>
       ) : (
         <dl>

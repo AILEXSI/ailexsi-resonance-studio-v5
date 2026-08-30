@@ -20,14 +20,15 @@ export { RULER_PAD_PX };
 interface Props {
   project: Project;
   selectedClipId: string | null;
+  selectedClipIds?: string[];
   selectedMarkerId?: string | null;
-  onSelect: (clipId: string | null) => void;
+  onSelect: (clipId: string | null, opts?: { toggle?: boolean }) => void;
   onSelectMarker?: (markerId: string | null) => void;
   onMarkerMoveLive?: (markerId: string, timeMs: number) => void;
   onMarkerMoveCommit?: () => void;
   onDeleteMarker?: (markerId: string) => void;
   onPlayhead: (ms: number) => void;
-  onMoveLive: (clipId: string, startMs: number, trackId?: TrackId) => void;
+  onMoveLive: (clipId: string, startMs: number, trackId?: TrackId, clipIds?: string[]) => void;
   onMoveCommit: () => void;
   onTrimLive: (
     clipId: string,
@@ -84,6 +85,7 @@ interface MarkerMenu {
 export function Timeline({
   project,
   selectedClipId,
+  selectedClipIds,
   selectedMarkerId = null,
   onSelect,
   onSelectMarker,
@@ -228,14 +230,27 @@ export function Timeline({
     setMarkerMenu({ x: e.clientX, y: e.clientY, markerId });
   };
 
+  const selectedIds = selectedClipIds?.length
+    ? selectedClipIds
+    : selectedClipId
+      ? [selectedClipId]
+      : [];
+  const primaryId = selectedClipId ?? selectedIds[0] ?? null;
+
   const onClipPointerDown = (e: ReactPointerEvent, clip: Clip) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     setMenu(null);
     setMarkerMenu(null);
+    if (e.ctrlKey || e.metaKey) {
+      onSelect(clip.id, { toggle: true });
+      return;
+    }
     if (dragKindRef.current) return;
+    const inGroup = selectedIds.includes(clip.id);
+    if (!inGroup) onSelect(clip.id);
+    const movingIds = inGroup ? selectedIds : [clip.id];
     dragKindRef.current = "move";
-    onSelect(clip.id);
     const originX = e.clientX;
     const originStart = clip.startMs;
     const originY = e.clientY;
@@ -246,12 +261,12 @@ export function Timeline({
       const nextStart = originStart + (dx / project.zoomPxPerSec) * 1000;
       const dy = ev.clientY - originY;
       let trackId: TrackId | undefined;
-      if (Math.abs(dy) > 24) {
+      if (movingIds.length === 1 && Math.abs(dy) > 24) {
         const idx = TRACK_IDS.indexOf(originTrack);
         const next = TRACK_IDS[idx + (dy > 0 ? 1 : -1)];
         if (next && kindOfTrack(next) === kindOfTrack(originTrack)) trackId = next;
       }
-      onMoveLive(clip.id, nextStart, trackId);
+      onMoveLive(clip.id, nextStart, trackId, movingIds);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -587,7 +602,8 @@ export function Timeline({
                 .filter((c) => c.trackId === id)
                 .map((clip) => {
                   const asset = project.assets.find((a) => a.id === clip.assetId);
-                  const selected = selectedClipId === clip.id;
+                  const selected = selectedIds.includes(clip.id);
+                  const primary = primaryId === clip.id;
                   const label = asset?.missing ? `missing:${asset.name}` : asset?.name ?? clip.id;
                   const clipW = Math.max(8, msToWidth(clip.durationMs, project.zoomPxPerSec));
                   const kind = kindOfTrack(clip.trackId);
@@ -595,6 +611,8 @@ export function Timeline({
                     <div
                       key={clip.id}
                       className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}`}
+                      data-testid={`clip-${clip.id}`}
+                      data-selected={selected ? "true" : "false"}
                       style={{
                         left: msToX(clip.startMs, project.zoomPxPerSec, project.scrollMs),
                         width: clipW,
@@ -610,7 +628,7 @@ export function Timeline({
                         <VideoClipStrip clip={clip} asset={asset} clipWidthPx={clipW} />
                       ) : null}
                       <span className="clip-name">{label}</span>
-                      {selected ? (
+                      {primary ? (
                         <>
                           <div
                             className={`trim-handle in${abuttingNeighbor(project, clip.id, "in") ? " roll" : ""}`}

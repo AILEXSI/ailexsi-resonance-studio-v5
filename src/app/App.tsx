@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
+import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
 import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import {
@@ -55,6 +55,7 @@ import {
   applyScroll,
   applySelect,
   applySelectMarker,
+  selectionOf,
   applyDeleteMarker,
   applyMoveMarker,
   applyToggleLoop,
@@ -443,15 +444,39 @@ export function App() {
     })();
   };
 
-  const onMoveLive = (clipId: string, startMs: number, trackId?: TrackId) => {
+  const onMoveLive = (clipId: string, startMs: number, trackId?: TrackId, clipIds?: string[]) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
-      const snapped = s.project.snap
-        ? snapTime(startMs, collectSnapTargets(s.project, clipId)).timeMs
-        : startMs;
-      const result = moveClip(s.project, clipId, snapped, trackId);
-      if (result.error) return { ...s, error: result.error };
-      return { ...s, project: result.project, selectedClipId: clipId };
+      const base = dragBaseRef.current;
+      const ids =
+        clipIds?.length
+          ? clipIds
+          : selectionOf(base).includes(clipId)
+            ? selectionOf(base)
+            : [clipId];
+      const leader = clipById(base.project, clipId);
+      if (!leader) return s;
+      let nextStart = startMs;
+      if (base.project.snap) {
+        nextStart = snapTime(startMs, collectSnapTargets(base.project, ids)).timeMs;
+      }
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        {
+          type: "moveClips",
+          clipIds: ids,
+          deltaMs: nextStart - leader.startMs,
+          trackId: ids.length === 1 ? trackId : undefined,
+        },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: ids[0] ?? clipId,
+        selectedClipIds: ids,
+        error: preview.error,
+        status: preview.status,
+      };
     });
   };
 
@@ -462,7 +487,7 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Moved clip",
+      status: selectionOf(s).length > 1 ? "Moved clips" : "Moved clip",
       error: null,
     }));
   };
@@ -504,6 +529,7 @@ export function App() {
         ...s,
         project: preview.project,
         selectedClipId: clipId,
+        selectedClipIds: [clipId],
         error: preview.error,
         status: preview.status,
       };
@@ -766,6 +792,7 @@ export function App() {
           <Inspector
             project={session.project}
             selectedClipId={session.selectedClipId}
+            selectedClipIds={session.selectedClipIds}
             onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
           />
         </div>
@@ -812,8 +839,11 @@ export function App() {
       <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}
+        selectedClipIds={session.selectedClipIds}
         selectedMarkerId={session.selectedMarkerId}
-        onSelect={(id) => setSession(applySelect(session, id))}
+        onSelect={(id, opts) =>
+          setSession((s) => applyCommand(s, { type: "select", clipId: id, toggle: opts?.toggle }))
+        }
         onSelectMarker={(id) => setSession(applySelectMarker(session, id))}
         onMarkerMoveLive={onMarkerMoveLive}
         onMarkerMoveCommit={onMarkerMoveCommit}
@@ -868,6 +898,8 @@ export function App() {
         <span>{session.status}</span>
         {session.error ? <span className="err">{session.error}</span> : null}
         {(() => {
+          const ids = selectionOf(session);
+          if (ids.length >= 2) return <span>{ids.length} clips</span>;
           const selected = clipById(session.project, session.selectedClipId ?? "");
           if (!selected) return null;
           const asset = assetById(session.project, selected.assetId);

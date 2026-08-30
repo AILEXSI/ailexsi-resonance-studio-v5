@@ -172,3 +172,50 @@ describe("clip-menu shortcut labels", () => {
     }
   });
 });
+
+describe("timeline multi-select chrome", () => {
+  let host: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  it("marks every selected clip and keeps trim handles on the primary only", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 800 }),
+        clip({ id: "c2", assetId: "a", trackId: "V1", startMs: 1000, durationMs: 800 }),
+      ],
+      [asset({ id: "a", kind: "video", durationMs: 2000 })],
+    );
+    act(() => {
+      root!.render(
+        <Timeline
+          {...timelineProps()}
+          project={project}
+          selectedClipId="c1"
+          selectedClipIds={["c1", "c2"]}
+        />,
+      );
+    });
+    const a = host.querySelector('[data-testid="clip-c1"]');
+    const b = host.querySelector('[data-testid="clip-c2"]');
+    expect(a?.classList.contains("selected")).toBe(true);
+    expect(b?.classList.contains("selected")).toBe(true);
+    expect(a?.getAttribute("data-selected")).toBe("true");
+    expect(b?.getAttribute("data-selected")).toBe("true");
+    expect(host.querySelector('[data-testid="trim-in-c1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="trim-out-c1"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="trim-in-c2"]')).toBeNull();
+    expect(host.querySelector('[data-testid="trim-out-c2"]')).toBeNull();
+  });
+});

@@ -171,8 +171,10 @@ export function abuttingNeighbor(
 }
 
 /**
- * Lift-trim, then shift later clips on the same track by the duration delta.
- * Later = startMs >= original end (abut counts). Other tracks unchanged.
+ * Lift-trim, then shift the rest of the same track so there is no hole or overlap.
+ * Out: later clips (start >= old end) follow (newEnd - oldEnd).
+ * In: lift leaves a hole before the clip; the trimmed clip and later clips
+ * slide by the duration delta (start returns to the original, end follows).
  */
 export function rippleTrimClip(
   project: Project,
@@ -194,13 +196,68 @@ export function rippleTrimClip(
     project: {
       ...trimmed.project,
       clips: trimmed.project.clips.map((c) => {
-        if (c.id === clipId || c.trackId !== before.trackId) return c;
+        if (c.trackId !== before.trackId) return c;
+        if (edge === "in" && c.id === clipId) {
+          return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        }
+        if (c.id === clipId) return c;
         if (c.startMs + ABUT_TOLERANCE_MS < oldEnd) return c;
         return { ...c, startMs: clampStartMs(c.startMs + delta) };
       }),
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+/** Move many clips by the same delta. Clamps so no start goes below 0. */
+export function moveClipsByDelta(
+  project: Project,
+  clipIds: readonly string[],
+  deltaMs: number,
+): { project: Project; error?: string } {
+  const targets = clipIds
+    .map((id) => clipById(project, id))
+    .filter((c): c is Clip => Boolean(c));
+  if (targets.length === 0) return { project, error: "No clip selected" };
+  const minStart = Math.min(...targets.map((c) => c.startMs));
+  const delta = Math.max(deltaMs, -minStart);
+  if (delta === 0) return { project };
+  const starts = new Map(targets.map((c) => [c.id, c.startMs]));
+  let next = project;
+  for (const clip of targets) {
+    const result = moveClip(next, clip.id, (starts.get(clip.id) ?? clip.startMs) + delta);
+    if (result.error) return result;
+    next = result.project;
+  }
+  return { project: next };
+}
+
+export function deleteClips(project: Project, clipIds: readonly string[]): Project {
+  const drop = new Set(clipIds);
+  return {
+    ...project,
+    clips: project.clips.filter((c) => !drop.has(c.id)),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Ripple-delete many clips. Per track, later clips first so earlier
+ * ripple shifts do not invalidate later selected starts.
+ */
+export function rippleDeleteClips(project: Project, clipIds: readonly string[]): Project {
+  const selected = clipIds
+    .map((id) => clipById(project, id))
+    .filter((c): c is Clip => Boolean(c));
+  const order = [...selected].sort((a, b) => {
+    if (a.trackId !== b.trackId) return a.trackId.localeCompare(b.trackId);
+    return b.startMs - a.startMs;
+  });
+  let next = project;
+  for (const clip of order) {
+    next = rippleDeleteClip(next, clip.id);
+  }
+  return next;
 }
 
 /**
@@ -321,11 +378,21 @@ export function splitClipAt(
 export function splitAtPlayhead(
   project: Project,
   edgeGuardMs = SPLIT_EDGE_GUARD_MS,
+  onlyClipIds?: readonly string[],
 ): { project: Project; error?: string } {
+  const allow = onlyClipIds ? new Set(onlyClipIds) : null;
   const hits = project.clips.filter(
-    (c) => project.playheadMs > c.startMs && project.playheadMs < clipEndMs(c),
+    (c) =>
+      (!allow || allow.has(c.id)) &&
+      project.playheadMs > c.startMs &&
+      project.playheadMs < clipEndMs(c),
   );
-  if (hits.length === 0) return { project, error: "No clip under playhead" };
+  if (hits.length === 0) {
+    return {
+      project,
+      error: allow ? "No selected clip under playhead" : "No clip under playhead",
+    };
+  }
   let next = project;
   let lastError: string | undefined;
   let splitAny = false;
@@ -346,14 +413,20 @@ export interface SnapTarget {
   kind: "clip-start" | "clip-end" | "playhead" | "in" | "out" | "zero";
 }
 
-export function collectSnapTargets(project: Project, ignoreClipId?: string): SnapTarget[] {
+export function collectSnapTargets(
+  project: Project,
+  ignoreClipId?: string | readonly string[],
+): SnapTarget[] {
+  const ignore = new Set(
+    ignoreClipId == null ? [] : typeof ignoreClipId === "string" ? [ignoreClipId] : ignoreClipId,
+  );
   const targets: SnapTarget[] = [{ timeMs: 0, kind: "zero" }];
   if (project.snap) {
     targets.push({ timeMs: project.playheadMs, kind: "playhead" });
     if (project.inPointMs != null) targets.push({ timeMs: project.inPointMs, kind: "in" });
     if (project.outPointMs != null) targets.push({ timeMs: project.outPointMs, kind: "out" });
     for (const clip of project.clips) {
-      if (clip.id === ignoreClipId) continue;
+      if (ignore.has(clip.id)) continue;
       targets.push({ timeMs: clip.startMs, kind: "clip-start" });
       targets.push({ timeMs: clipEndMs(clip), kind: "clip-end" });
     }

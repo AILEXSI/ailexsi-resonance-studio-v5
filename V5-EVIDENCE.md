@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:27 UTC. Ripple trim + roll + lane-header solo on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:38 UTC. In-edge ripple trim + multi-select / group move / group delete on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CtDAR3fN.css 16.46 kB
-- dist/assets/index-BGSApQ1F.js 673.53 kB
+- dist/assets/index-CbPWrYpd.js 676.30 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **183 passed / 30 files**. Start 06:27:24 UTC. Duration 5.67s.
+exit 0. vitest 3.2.7. **197 passed / 31 files**. Start 06:37:59 UTC. Duration 5.90s.
 
-New this follow-up: ripple-trim (out to 800 pulls later A1; lift-trim does not); roll +200 with undo; 50ms guards; lane-header S on V1–A2; `liftTrim` / `rippleTrim` / `rollEdit` on `applyCommand`. Prior suites remain green.
+New this follow-up: in-edge ripple trim packs the track (later clips follow duration delta; lift-trim still leaves a hole); toggle select; group move + clamp-at-0; group lift-delete; group ripple-delete later-first per track; multi-split at playhead; inspector count for 2+ clips. Prior suites remain green.
 
 ## Visualizer
 
@@ -100,7 +100,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (24): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle, ripple-trim vs lift-trim, roll +200 / 50ms reject.
+Existing units still green (28 in `timeline.test.ts`): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle, ripple-trim in+out vs lift-trim, roll +200 / 50ms reject, group move/delete/ripple-delete.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -142,7 +142,7 @@ Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destr
 
 `tests/app/keys.test.ts` (10): prior 7 plus Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
 
-`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll; toolbar + transport Split show S.
+`tests/timeline/clip-menu.test.tsx` (4): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll; toolbar + transport Split show S; multi-select chrome on both clips, trim handles on primary only. Overlay also lists Ctrl+click toggle.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -206,9 +206,9 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 ## Inspector
 
-Status: IMPLEMENTED
+Status: TEST-VERIFIED (0 / 1 / 2+). Live fields: NOT VERIFIED.
 
-Fields exist in `src/ui/inspector/Inspector.tsx`. Not clicked this run.
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields. 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
 
 ## Export
 
@@ -292,13 +292,13 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo, `select`, `moveClips`. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer/timeline select+group-move go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
 Status: TEST-VERIFIED
 
-Delete/Backspace stay lift (gap remains). Shift+Delete / Shift+Backspace remove the selected clip and shift later clips on the **same** track left by that clip's duration. Other tracks unchanged. Undo restores. Clip menu: Ripple delete / Shift+Delete. Live menu click: NOT VERIFIED.
+Delete/Backspace stay lift (gap remains). Shift+Delete / Shift+Backspace remove the selected clip(s) and shift later clips on the **same** track left by each clip's duration. Group ripple-delete: per track, later clips first. Other tracks unchanged. One undo restores all. Clip menu: Ripple delete / Shift+Delete. Live menu click: NOT VERIFIED.
 
 ## Solo
 
@@ -316,13 +316,17 @@ Session `shuttleRate` (0 = paused). J reverse, K pause/rate 0, L forward. Repeat
 
 Status: TEST-VERIFIED
 
-`,` / `.` move the selected clip ±1 `FRAME_MS`. Shift+, / Shift+. = 10 frames. Start clamps at 0. Track/kind is unchanged (kind-change still rejected by `moveClip`). ArrowLeft/Right still step the playhead.
+`,` / `.` move the selected clip(s) ±1 `FRAME_MS`. Shift+, / Shift+. = 10 frames. Shared delta; start clamps so none go below 0. Track/kind is unchanged (kind-change still rejected by `moveClip`). ArrowLeft/Right still step the playhead.
 
 ## Ripple trim
 
 Status: TEST-VERIFIED. Live Shift+edge-drag: NOT VERIFIED.
 
-Normal edge-drag stays lift trim (`trimClip`). Shift+edge-drag is `rippleTrim` via `applyCommand`: after the trim, later clips on the same track (start ≥ original end) shift by the duration delta. Other tracks unchanged. 50ms edge guard still applies. Undo restores the trimmed clip and shifted neighbors.
+Normal edge-drag stays lift trim (`trimClip`). Shift+edge-drag is `rippleTrim` via `applyCommand`.
+
+Out-edge: later clips (start ≥ original end) shift by (newEnd − oldEnd) / duration delta. Trimmed clip start stays.
+
+In-edge: lift-trim moves start later and leaves a hole (end unchanged). Ripple then slides the trimmed clip and later clips by the duration delta so the track stays packed — start returns to the original, end follows, sourceIn advances. Example: A 0–1000 + B 1000–2000, ripple in to 200 → A 0–800 (sourceIn 200), B 800. Lift-trim in does **not** move B. Other tracks unchanged. 50ms edge guard still applies. Undo restores the trimmed clip and shifted neighbors.
 
 ## Roll edit
 
@@ -336,7 +340,25 @@ Status: TEST-VERIFIED (DOM). Live lane S click: NOT VERIFIED.
 
 Timeline track headers (V1–A2) have S next to M, wired to `{ type: "toggleSolo" }` — same command as mixer S. No Master solo.
 
-## Changelog this follow-up (2026-08-30 06:27 UTC)
+## Multi-select
+
+Status: TEST-VERIFIED. Live click / group-drag: NOT VERIFIED.
+
+`Session.selectedClipIds` is the source of truth; `selectedClipId` is the primary (first). `selectionOf` falls back to `selectedClipId` so older tests stay valid. Click clip → that clip only. Ctrl/Cmd+click toggles (no drag). Click empty lane clears. Click an already-selected clip keeps the group, then group-drags. All selected clips get selected chrome; trim handles stay on the primary only.
+
+Group move: same Δms for all selected; clamp so no start < 0 (shared delta); snap the dragged leader if project snap is on; vertical track-change only when exactly one clip is selected. One history entry via `applyCommand` `{ type: "moveClips" }`.
+
+Group lift-delete: Delete/Backspace removes all selected (gaps remain). Group ripple-delete: Shift+Delete, per track later-first. Split (S): 0 or 1 selected → current split-all-under-playhead. 2+ selected → only those containing the playhead. One undo each.
+
+No marquee. No Shift+click range. Copy/cut stay primary-only.
+
+## Changelog this follow-up (2026-08-30 06:38 UTC)
+
+- In-edge ripple trim packs the track (later clips follow duration delta). TEST-VERIFIED. Live Shift+in-edge: NOT VERIFIED.
+- Multi-select (Ctrl/Cmd+click), group move, group lift-delete, group ripple-delete, multi-split. TEST-VERIFIED. Live clicks/drags: NOT VERIFIED.
+- Inspector 2+ shows count only. TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:27 UTC)
 
 - Ripple trim (Shift+edge-drag). TEST-VERIFIED. Live drag: NOT VERIFIED.
 - Roll edit on abutting edges. TEST-VERIFIED. Live drag: NOT VERIFIED.
@@ -414,7 +436,7 @@ Timeline track headers (V1–A2) have S next to M, wired to `{ type: "toggleSolo
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up is recorded in git. Prior command-dispatch tip: `14a117f`.
+Tip after this follow-up is recorded in git. Prior ripple-trim/roll tip: `d33c7bc`.
 
 ## Not added
 
