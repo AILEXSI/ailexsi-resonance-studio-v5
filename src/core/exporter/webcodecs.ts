@@ -3,6 +3,7 @@ import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./fra
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
+import { clearStillCache, paintStillUrl } from "../still";
 import { audioInputForMux, mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
 import type { ExportClip, ExportHooks, ExportJob, ExportResult } from "./types";
 import { videoAlphaAtClipTime } from "../fades";
@@ -329,6 +330,27 @@ export async function exportWithWebCodecs(
       );
 
       let painted = 0;
+      if (clip.still) {
+        for (let k = 0; k < run.count; k++) {
+          if (hooks.signal?.aborted) throw new Error("Export aborted");
+          const i = run.startIndex + k;
+          hooks.onProgress?.({
+            percent: Math.round((i / frameCount) * 80) + 8,
+            stage: "Encoding H.264",
+            currentTimeMs: (i / job.fps) * 1000,
+          });
+          const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
+          if (await paintStillUrl(ctx, canvas, clip.sourceUrl, exportPaintAlpha(job, clip, timeMs))) {
+            painted += 1;
+          } else {
+            paintFallback(i);
+          }
+          await encodeCanvas(i);
+        }
+        if (painted === 0) throw new Error(`missing:${clip.label}`);
+        continue;
+      }
       const decoded = await withTimeout(getDecoder(clip.sourceUrl), 20000, null);
       if (decoded) {
         let k = 0;
@@ -430,6 +452,7 @@ export async function exportWithWebCodecs(
     }
     clearFrameSources();
     clearMediaCache();
+    clearStillCache();
     const msg = e instanceof Error ? e.message : String(e);
     if (hooks.signal?.aborted || /abort/i.test(msg)) return aborted(job);
     const prefixed = msg.startsWith("FAIL:") || msg.startsWith("missing:") ? msg : `FAIL: ${msg}`;
@@ -438,6 +461,7 @@ export async function exportWithWebCodecs(
 
   clearFrameSources();
   clearMediaCache();
+  clearStillCache();
 
   if (hooks.signal?.aborted) return aborted(job);
   if (!description) return fail(job, "FAIL: encoder did not emit AVC description");

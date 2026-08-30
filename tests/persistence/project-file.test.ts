@@ -273,6 +273,7 @@ describe("project file picker memory", () => {
   it("relink picker cancel is AbortError and names no path", async () => {
     expect(relinkAcceptAttr("video")).toBe("video/*");
     expect(relinkAcceptAttr("audio")).toBe("audio/*");
+    expect(relinkAcceptAttr("image")).toBe("image/*");
     const host: PickerHost = {
       showOpenFilePicker: async () => {
         const err = new Error("The user aborted a request.");

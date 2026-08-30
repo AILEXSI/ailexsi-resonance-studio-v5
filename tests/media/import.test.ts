@@ -13,14 +13,14 @@ function fakeFile(name: string, type: string, size = 128): File {
 }
 
 describe("media import", () => {
-  it("rejects non audio/video with a visible error", () => {
+  it("rejects non audio/video/image with a visible error", () => {
     expect(() => classifyFile(fakeFile("notes.txt", "text/plain"))).toThrowError(ImportError);
     try {
-      classifyFile(fakeFile("photo.png", "image/png"));
+      classifyFile(fakeFile("brief.pdf", "application/pdf"));
     } catch (e) {
       expect(e).toBeInstanceOf(ImportError);
       expect((e as ImportError).code).toBe("WRONG_TYPE");
-      expect((e as ImportError).message).toMatch(/only audio and video/);
+      expect((e as ImportError).message).toMatch(/only audio, video, and images/);
     }
   });
 

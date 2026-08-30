@@ -11,6 +11,7 @@ import {
 } from "../../core/clip-preview";
 import { decodeAudio, isPlayableSource, loadVideo, seekVideo } from "../../core/exporter/media";
 import type { Clip, MediaAsset } from "../../core/models";
+import { loadStill } from "../../core/still";
 
 const WAVE_H = 36;
 const mipCache = new Map<string, PeakMipmap>();
@@ -106,6 +107,26 @@ async function grabThumb(url: string, timeMs: number): Promise<string | null> {
   }
 }
 
+async function grabStillThumb(url: string): Promise<string | null> {
+  const key = `${url}@still`;
+  const hit = thumbCache.get(key);
+  if (hit) return hit;
+  try {
+    const img = await loadStill(url);
+    const canvas = document.createElement("canvas");
+    canvas.width = FILMSTRIP_THUMB_PX;
+    canvas.height = 36;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const src = canvas.toDataURL("image/jpeg", 0.65);
+    thumbCache.set(key, src);
+    return src;
+  } catch {
+    return null;
+  }
+}
+
 export function VideoClipStrip(props: {
   clip: Clip;
   asset: MediaAsset;
@@ -121,9 +142,16 @@ export function VideoClipStrip(props: {
       sourceInMs: clip.sourceInMs,
       sourceOutMs: clip.sourceOutMs,
       clipWidthPx,
+      kind: asset.kind,
     });
     let cancelled = false;
-    const loader = fetchFrame ?? (url && isPlayableSource(url) ? (t: number) => grabThumb(url, t) : null);
+    const loader =
+      fetchFrame ??
+      (url && isPlayableSource(url)
+        ? asset.kind === "image"
+          ? () => grabStillThumb(url)
+          : (t: number) => grabThumb(url, t)
+        : null);
     if (!loader) return;
     setThumbs([]);
     void (async () => {
@@ -140,7 +168,7 @@ export function VideoClipStrip(props: {
     return () => {
       cancelled = true;
     };
-  }, [asset.objectUrl, clip.sourceInMs, clip.sourceOutMs, clipWidthPx, fetchFrame]);
+  }, [asset.kind, asset.objectUrl, clip.sourceInMs, clip.sourceOutMs, clipWidthPx, fetchFrame]);
 
   if (thumbs.length === 0) return null;
   return (

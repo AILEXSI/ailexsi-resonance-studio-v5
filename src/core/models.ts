@@ -1,6 +1,6 @@
 import type { Transition } from "./transition";
 
-export type MediaKind = "video" | "audio";
+export type MediaKind = "video" | "audio" | "image";
 export type TrackId = "V1" | "V2" | "A1" | "A2";
 
 /**
@@ -62,8 +62,13 @@ export function isVisualizerSceneId(value: unknown): value is VisualizerSceneId 
 
 export const TRACK_IDS: TrackId[] = ["V1", "V2", "A1", "A2"];
 
-export function kindOfTrack(id: TrackId): MediaKind {
+export function kindOfTrack(id: TrackId): "video" | "audio" {
   return id === "V1" || id === "V2" ? "video" : "audio";
+}
+
+/** Picture assets sit on V1/V2. Images have no audio. */
+export function isPictureKind(kind: MediaKind): boolean {
+  return kind === "video" || kind === "image";
 }
 
 export function isTrackId(value: string): value is TrackId {
@@ -108,7 +113,7 @@ export interface Clip {
 
 export interface Track {
   id: TrackId;
-  kind: MediaKind;
+  kind: "video" | "audio";
   name: string;
   muted: boolean;
   /** When any track is soloed, only soloed tracks are audible. Mute still wins. */
@@ -289,12 +294,15 @@ export function clipOnTrackAt(project: Project, trackId: TrackId, timeMs: number
   );
 }
 
-/** Audible clips on V1/V2/A1/A2 under the playhead (picture + mix). */
+/** Audible clips on V1/V2/A1/A2 under the playhead (picture + mix). Stills have no audio. */
 export function mixClipsAt(project: Project, timeMs: number): Clip[] {
   return TRACK_IDS.flatMap((id) => {
     if (!isTrackAudible(project, id)) return [];
     const clip = clipOnTrackAt(project, id, timeMs);
-    return clip ? [clip] : [];
+    if (!clip) return [];
+    const asset = assetById(project, clip.assetId);
+    if (asset?.kind === "image") return [];
+    return [clip];
   });
 }
 

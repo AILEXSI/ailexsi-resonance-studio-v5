@@ -13,7 +13,14 @@ import {
   type TransitionAudioMode,
   type TransitionSource,
 } from "../core/transition";
-import { classifyFile, importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
+import {
+  classifyFile,
+  importMediaFile,
+  ImportError,
+  defaultTrackForKind,
+  preferredTrackForAsset,
+  type ProbeFn,
+} from "../core/media";
 import {
   clipById,
   clipOnTrackAt,
@@ -215,14 +222,7 @@ export async function importFiles(
         assets: [...next.project.assets, asset],
         updatedAt: new Date().toISOString(),
       };
-      const preferred =
-        asset.kind === "video"
-          ? next.targetTrackId === "V2"
-            ? "V2"
-            : "V1"
-          : next.targetTrackId === "A2"
-            ? "A2"
-            : "A1";
+      const preferred = preferredTrackForAsset(asset.kind, next.targetTrackId);
       const placed = placeAsset(
         projectWithAsset,
         asset.id,
@@ -1325,6 +1325,6 @@ export function projectJson(session: Session): string {
   return serializeProject(session.project);
 }
 
-export function defaultTrackHint(kind: "video" | "audio"): TrackId {
+export function defaultTrackHint(kind: MediaKind): TrackId {
   return defaultTrackForKind(kind);
 }

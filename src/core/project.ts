@@ -52,7 +52,7 @@ export function touch(project: Project, patch: Partial<Project> = {}): Project {
 }
 
 function isMediaKind(value: unknown): value is MediaKind {
-  return value === "video" || value === "audio";
+  return value === "video" || value === "audio" || value === "image";
 }
 
 function sanitizeAsset(raw: unknown): MediaAsset | null {

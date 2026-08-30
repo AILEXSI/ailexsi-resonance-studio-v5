@@ -17,6 +17,8 @@ export interface ExportClip {
   missing: boolean;
   label: string;
   linkId?: string;
+  /** Image asset on a video lane — picture only, no decode/mix. */
+  still?: boolean;
 }
 
 export interface ExportTrack {

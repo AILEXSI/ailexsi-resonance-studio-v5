@@ -64,6 +64,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           missing: !asset || asset.missing || !asset.objectUrl,
           label: asset?.name ?? c.id,
           linkId: c.linkId,
+          still: asset?.kind === "image",
         };
       });
     return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips };
@@ -159,6 +160,7 @@ export function audioClipsForMix(job: ExportJob): ExportClip[] {
     clips.filter((c) => c.kind === "audio" && c.linkId).map((c) => c.linkId as string),
   );
   return clips.filter((c) => {
+    if (c.still) return false;
     if (c.kind === "video" && c.linkId && livingAudioLinks.has(c.linkId)) return false;
     return true;
   });

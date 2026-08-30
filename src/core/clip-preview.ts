@@ -188,13 +188,15 @@ export function peaksToPath(peaks: MinMaxPeaks, width: number, height: number): 
 
 export const FILMSTRIP_THUMB_PX = 48;
 
-/** Source-media timestamps (ms) spaced along the clip for a filmstrip. */
+/** Source-media timestamps (ms) spaced along the clip for a filmstrip. Stills: one thumb. */
 export function filmstripTimes(opts: {
   sourceInMs: number;
   sourceOutMs: number;
   clipWidthPx: number;
   thumbWidthPx?: number;
+  kind?: "video" | "audio" | "image";
 }): number[] {
+  if (opts.kind === "image") return [opts.sourceInMs];
   const thumb = Math.max(16, opts.thumbWidthPx ?? FILMSTRIP_THUMB_PX);
   const n = Math.max(1, Math.floor(opts.clipWidthPx / thumb));
   const span = Math.max(1, opts.sourceOutMs - opts.sourceInMs);

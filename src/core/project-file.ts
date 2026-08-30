@@ -99,6 +99,13 @@ const RELINK_AUDIO_TYPES = [
   },
 ];
 
+const RELINK_IMAGE_TYPES = [
+  {
+    description: "Image",
+    accept: { "image/*": [".jpg", ".jpeg", ".png", ".webp", ".gif"] },
+  },
+];
+
 export function emptyProjectFileMemory(): ProjectFileMemory {
   return { fileHandle: null, directoryHandle: null, lastFileName: null, recents: [] };
 }
@@ -196,11 +203,12 @@ export function relinkPickerOptions(kind: MediaKind, memory: ProjectFileMemory):
   return {
     multiple: false,
     startIn: startInForPicker(memory),
-    types: kind === "video" ? RELINK_VIDEO_TYPES : RELINK_AUDIO_TYPES,
+    types: kind === "image" ? RELINK_IMAGE_TYPES : kind === "video" ? RELINK_VIDEO_TYPES : RELINK_AUDIO_TYPES,
   };
 }
 
 export function relinkAcceptAttr(kind: MediaKind): string {
+  if (kind === "image") return "image/*";
   return kind === "video" ? "video/*" : "audio/*";
 }
 

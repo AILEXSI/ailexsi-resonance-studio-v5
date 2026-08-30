@@ -4,7 +4,9 @@ import type { Clip, MediaAsset, Project } from "../src/core/models";
 export function asset(partial: Partial<MediaAsset> & Pick<MediaAsset, "id" | "kind">): MediaAsset {
   return {
     name: partial.name ?? partial.id,
-    mimeType: partial.mimeType ?? (partial.kind === "video" ? "video/mp4" : "audio/wav"),
+    mimeType:
+      partial.mimeType ??
+      (partial.kind === "video" ? "video/mp4" : partial.kind === "image" ? "image/png" : "audio/wav"),
     durationMs: partial.durationMs ?? 2000,
     blobId: partial.blobId ?? partial.id,
     objectUrl: partial.objectUrl,

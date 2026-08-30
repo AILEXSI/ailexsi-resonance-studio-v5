@@ -1,5 +1,6 @@
 import { applyNormalizedFades } from "./fades";
 import { createId } from "./ids";
+import { assetFitsTrack } from "./media";
 import {
   expandLinkedClipIds,
   firstFreeAudioTrack,
@@ -1514,7 +1515,7 @@ export function placeAsset(
 ): { project: Project; clip?: Clip; audioClip?: Clip; error?: string } {
   const asset = project.assets.find((a) => a.id === assetId);
   if (!asset) return { project, error: "Asset not found" };
-  if (kindOfTrack(trackId) !== asset.kind) {
+  if (!assetFitsTrack(asset.kind, trackId)) {
     return { project, error: `Asset kind ${asset.kind} cannot go on ${trackId}` };
   }
   let clip: Clip = {

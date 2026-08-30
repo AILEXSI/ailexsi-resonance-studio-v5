@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
+import { preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
@@ -1075,14 +1076,7 @@ export function App() {
               onPlace={(assetId) => {
                 const asset = session.project.assets.find((a) => a.id === assetId);
                 if (!asset) return;
-                const trackId: TrackId =
-                  asset.kind === "video"
-                    ? session.targetTrackId === "V2"
-                      ? "V2"
-                      : "V1"
-                    : session.targetTrackId === "A2"
-                      ? "A2"
-                      : "A1";
+                const trackId = preferredTrackForAsset(asset.kind, session.targetTrackId);
                 setSession((s) => applyPlaceAsset(s, assetId, trackId));
               }}
             />
@@ -1262,6 +1256,9 @@ export function App() {
         laneHeights={laneHeights}
         onLaneLabelPx={onLaneLabelPx}
         onLaneHeight={onLaneHeight}
+        onPlaceAsset={(assetId, trackId, startMs) => {
+          setSession((s) => applyPlaceAsset(s, assetId, trackId, startMs));
+        }}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}

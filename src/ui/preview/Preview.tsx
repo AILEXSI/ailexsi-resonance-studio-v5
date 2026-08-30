@@ -34,6 +34,7 @@ import {
   visualizerSceneAt,
 } from "../../core/visualizer";
 import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../core/visualz/playback-tap";
+import { loadStill, paintStill } from "../../core/still";
 
 interface Props {
   project: Project;
@@ -43,6 +44,7 @@ interface Props {
 
 export function Preview({ project, playing, onLevels }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stillRef = useRef<HTMLCanvasElement>(null);
   const v1Ref = useRef<HTMLAudioElement>(null);
   const v2Ref = useRef<HTMLAudioElement>(null);
   const a1Ref = useRef<HTMLAudioElement>(null);
@@ -64,10 +66,12 @@ export function Preview({ project, playing, onLevels }: Props) {
   const videoAsset = videoClip
     ? project.assets.find((a) => a.id === videoClip.assetId)
     : undefined;
+  const isStill = videoAsset?.kind === "image";
   const mixClips = mixClipsAt(project, project.playheadMs);
   const showViz = shouldShowVisualizer(project, project.playheadMs);
 
   useEffect(() => {
+    if (isStill) return;
     const video = videoRef.current;
     if (!video || !videoClip || !videoAsset?.objectUrl) return;
     const want = sourceTimeAt(videoClip, project.playheadMs) / 1000;
@@ -77,7 +81,42 @@ export function Preview({ project, playing, onLevels }: Props) {
     video.playbackRate = videoClip.rate > 0 ? videoClip.rate : 1;
     if (playing && video.paused) void video.play().catch(() => undefined);
     if (!playing && !video.paused) video.pause();
-  }, [project.playheadMs, playing, videoClip, videoAsset?.objectUrl]);
+  }, [project.playheadMs, playing, videoClip, videoAsset?.objectUrl, isStill]);
+
+  useEffect(() => {
+    if (!isStill || !videoClip || !videoAsset?.objectUrl) return;
+    const canvas = stillRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    const alpha =
+      layerA * videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs);
+    void (async () => {
+      try {
+        const img = await loadStill(videoAsset.objectUrl!);
+        if (cancelled) return;
+        const parent = canvas.parentElement;
+        const cssW = parent?.clientWidth || canvas.clientWidth || 640;
+        const cssH = parent?.clientHeight || canvas.clientHeight || 360;
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, Math.floor(cssW * dpr));
+        const h = Math.max(1, Math.floor(cssH * dpr));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        paintStill(ctx, canvas, img, alpha);
+      } catch {
+        /* missing still */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isStill, videoClip, videoAsset?.objectUrl, project.playheadMs, layerA]);
 
   useEffect(() => {
     const bind = (el: HTMLAudioElement | null, trackId: TrackId) => {
@@ -241,18 +280,32 @@ export function Preview({ project, playing, onLevels }: Props) {
       <div className="preview-stage">
         {videoAsset?.objectUrl && videoClip ? (
           <>
-            <video
-              ref={videoRef}
-              src={videoAsset.objectUrl}
-              muted
-              playsInline
-              data-testid="preview-video"
-              style={{
-                opacity:
-                  layerA *
-                  videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
-              }}
-            />
+            {isStill ? (
+              <canvas
+                ref={stillRef}
+                data-testid="preview-still"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  opacity:
+                    layerA *
+                    videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
+                }}
+              />
+            ) : (
+              <video
+                ref={videoRef}
+                src={videoAsset.objectUrl}
+                muted
+                playsInline
+                data-testid="preview-video"
+                style={{
+                  opacity:
+                    layerA *
+                    videoAlphaAtClipTime(videoClip, project.playheadMs - videoClip.startMs),
+                }}
+              />
+            )}
             {composite.plate && composite.plate.alpha > 0 ? (
               <div
                 data-testid="preview-plate"

@@ -1,5 +1,6 @@
 import { createId } from "./ids";
 import {
+  assetById,
   clipById,
   clipEndMs,
   kindOfTrack,
@@ -27,6 +28,7 @@ export function firstClipIdWithLivingMate(
 
 /** V clip mixes its own audio unless a living linked A clip carries it. */
 export function vClipMixesOwnAudio(project: Project, clip: Clip): boolean {
+  if (assetById(project, clip.assetId)?.kind === "image") return false;
   if (kindOfTrack(clip.trackId) !== "video") return true;
   const mate = livingLinkedMate(project, clip.id);
   return !mate || kindOfTrack(mate.trackId) !== "audio";

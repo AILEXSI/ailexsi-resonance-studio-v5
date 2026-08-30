@@ -35,6 +35,7 @@ import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../c
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
 import { buildRulerTicks } from "../../core/ruler";
+import { isAssetDrag, mediaDropPlace, readAssetDrag } from "../../core/media";
 
 export { RULER_PAD_PX };
 
@@ -123,6 +124,8 @@ interface Props {
   laneHeights?: LaneHeights;
   onLaneLabelPx?: (px: number) => void;
   onLaneHeight?: (group: LaneHeightGroup, px: number) => void;
+  /** Bin drag onto Arrange — same place command as MediaBrowser onPlace. */
+  onPlaceAsset?: (assetId: string, trackId: TrackId, startMs: number) => void;
 }
 
 function msToX(ms: number, zoom: number, scrollMs: number): number {
@@ -220,6 +223,7 @@ export function Timeline({
   laneHeights,
   onLaneLabelPx,
   onLaneHeight,
+  onPlaceAsset,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -866,6 +870,34 @@ export function Timeline({
       ref={timelineRef}
       className="timeline"
       data-testid="timeline"
+      onDragOver={(e) => {
+        if (!onPlaceAsset || !isAssetDrag(e.dataTransfer)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={(e) => {
+        if (!onPlaceAsset) return;
+        const assetId = readAssetDrag(e.dataTransfer);
+        if (!assetId) return;
+        const asset = project.assets.find((a) => a.id === assetId);
+        if (!asset) return;
+        const over = trackIdFromPoint(e.clientX, e.clientY);
+        const body = over
+          ? (e.currentTarget.querySelector(`[data-testid="lane-${over}-body"]`) as HTMLElement | null)
+          : null;
+        const rect = body?.getBoundingClientRect();
+        const x = rect ? e.clientX - rect.left : 0;
+        const startMs = Math.max(0, xToMs(x, project.zoomPxPerSec, project.scrollMs));
+        const placed = mediaDropPlace({
+          assetId,
+          assetKind: asset.kind,
+          overTrackId: over,
+          startMs,
+        });
+        if (!placed) return;
+        e.preventDefault();
+        onPlaceAsset(placed.assetId, placed.trackId, placed.startMs);
+      }}
       style={
         {
           "--lane-label-px": `${laneLabelPx}px`,

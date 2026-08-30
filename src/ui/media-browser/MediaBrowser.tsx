@@ -1,5 +1,6 @@
 import type { Project, TrackId } from "../../core/models";
 import { displayMediaName } from "../../core/media-display";
+import { writeAssetDrag } from "../../core/media";
 import { describeMissing } from "../../core/persistence";
 
 interface Props {
@@ -26,7 +27,7 @@ export function MediaBrowser({
       <h2>Media</h2>
       <input
         type="file"
-        accept="audio/*,video/*"
+        accept="audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*"
         multiple
         data-testid="import-input-panel"
         onChange={(e) => {
@@ -35,7 +36,7 @@ export function MediaBrowser({
         }}
       />
       <p style={{ fontSize: 12, color: "var(--muted)" }}>
-        Audio + video only. Other types fail visibly.
+        Audio, video, and images (jpeg/png/webp/gif). Other types fail visibly.
       </p>
       <label style={{ fontSize: 12, color: "var(--muted)" }}>
         Target track{" "}
@@ -58,8 +59,19 @@ export function MediaBrowser({
               key={asset.id}
               className={`media-item${selectedAssetId === asset.id ? " selected" : ""}${asset.missing ? " missing" : ""}`}
               title={asset.name}
+              draggable
+              data-testid={`media-item-${asset.id}`}
+              data-asset-id={asset.id}
+              data-asset-kind={asset.kind}
               onClick={() => onSelectAsset(asset.id)}
               onDoubleClick={() => onPlace(asset.id)}
+              onDragStart={(e) => {
+                writeAssetDrag(e.dataTransfer, asset.id);
+                document.body.classList.add("media-asset-dragging");
+              }}
+              onDragEnd={() => {
+                document.body.classList.remove("media-asset-dragging");
+              }}
             >
               <strong title={asset.name}>
                 {asset.missing ? describeMissing(asset) : displayMediaName(asset.name)}
