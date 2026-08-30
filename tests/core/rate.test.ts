@@ -158,13 +158,24 @@ describe("setClipRate command + persist + clocks", () => {
     expect(sourceTimeAt(c, 1250)).toBe(700);
     const job = jobFromProject(
       projectWith(
-        [clip({ id: "c1", assetId: "a1", trackId: "A1", startMs: 0, durationMs: 500, rate: 2 })],
+        [
+          clip({
+            id: "c1",
+            assetId: "a1",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 500,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            rate: 2,
+          }),
+        ],
         [asset({ id: "a1", kind: "audio", durationMs: 2000, objectUrl: "blob:t", missing: false })],
       ),
     );
     const exp = job.tracks.find((t) => t.id === "A1")!.clips[0]!;
     expect(exp.rate).toBe(2);
-    expect(sourceTimeSec(exp, 0, 30)).toBeCloseTo(0 + 500 / 30 / 1000, 5);
+    expect(sourceTimeSec(exp, 0, 30)).toBeCloseTo(500 / 30 / 1000, 5);
     expect(sourceTimeSec(exp, 250, 30)).toBeCloseTo((250 * 2 + 500 / 30) / 1000, 5);
   });
 });
