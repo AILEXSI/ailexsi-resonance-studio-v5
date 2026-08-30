@@ -49,12 +49,15 @@ input[type="range"] { accent-color: var(--accent-2); }
 .app {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "chrome" "stage" "status";
   height: 100%;
   width: 100%;
   min-height: 0;
   overflow: hidden;
 }
+.toolbar { grid-area: chrome; }
 .stage {
+  grid-area: stage;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -123,6 +126,7 @@ input[type="range"] { accent-color: var(--accent-2); }
   border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
+.status { grid-area: status; }
 
 .toolbar { justify-content: flex-start; align-items: flex-start; gap: 16px; }
 .toolbar-group {

@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:27 UTC. P22 Cutter keeps Preview + track stage on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:39 UTC. P24 toolbar Arrange/Cutter + tall Preview on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -20,6 +20,8 @@ curl -sS -D - -o /tmp/v5-index.html http://127.0.0.1:1421
 Observed: HTTP/1.1 200 OK, Content-Type text/html, Content-Length 585, body contains `id="root"`.
 `vite.config.ts` binds `host: "127.0.0.1"`, `port: 1421`, `strictPort: true`. Not 0.0.0.0.
 
+Live Chromium this follow-up: `[ARRANGE]`/`[CUTTER]` sit under New/Open in the File group. Preview is a tall pane (~470px in an ~800px window). Click CUTTER keeps Preview + Timeline (V1/V2/VIS). Click ARRANGE brings A1/A2 back. No empty canvas hosting the mode labels.
+
 ## Build
 
 Status: RUNTIME-VERIFIED
@@ -36,8 +38,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 159 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-DWp9fRWN.css 19.05 kB
-- dist/assets/index-DbawH-bW.js 717.55 kB
+- dist/assets/index-BEM_ySnN.css 19.27 kB
+- dist/assets/index-BonLAofA.js 718.05 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +56,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **337 passed / 48 files**. Start 08:27:30 UTC. Duration 9.76s.
+exit 0. vitest 3.2.7. **351 passed / 49 files**. Start 08:39:07 UTC. Duration 8.48s.
 
-New this follow-up: click CUTTER keeps `[data-testid=preview]` and `[data-testid=timeline]`; V1/V2/VIS visible; A1/A2 hidden on Cutter and back on Arrange; compact Cutter strip with tracks (not a full-page form); VIS inspector can set scene id + from-to; preview still `compositeVideoAt`. Prior P21 chrome units stay green (334 → 337).
+New this follow-up: ScreenNav lives inside `[data-testid=toolbar]` (not a `.app` 1fr sibling); click still `setScreen`; TAB/Shift+TAB + form-focus no-op stay. Preview min-height 360px + default split 0.62. P23 `moveClips` V1↔V2 / V2↔V1 / A1↔A2 / kind no-op / VIS no-op / undo trackId / drag onto other video lane (existing command). Prior P22 Cutter units stay green (337 → 351).
 
 ## Visualizer
 
@@ -325,11 +327,19 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+
+## Chrome / Preview height (P24)
+
+Status: RUNTIME-VERIFIED (live click) + TEST-VERIFIED (nav in toolbar).
+
+Root cause of the owner screenshot: `.app` is `grid-template-rows: auto 1fr auto`. ScreenNav was the second child, so it ate the `1fr` row (empty canvas + floating `[ARRANGE]`/`[CUTTER]`). Preview sat in leftover implicit rows as a ribbon.
+
+Fix: `ScreenNav` mounts under New/Open in the toolbar File group. `.app` areas are `chrome` / `stage` / `status`. `.workspace` min-height 360px. `PREVIEW_MIN_PX` 360. Default split 0.62. Active tab: gold + white border. Same `setScreen` / TAB. No second Preview.
 
 ## Cutter / transitions
 
-Status: TEST-VERIFIED (persist, undo, resolve, compositor identity, TAB, click tabs, overlap marks, Cutter strip + tracks, VIS inspector). Live stacked media / export pixels: NOT VERIFIED.
+Status: TEST-VERIFIED (persist, undo, resolve, compositor identity, TAB, click tabs, overlap marks, Cutter strip + tracks, VIS inspector, toolbar ScreenNav). Live stacked media / export pixels: NOT VERIFIED.
 
 `Project.transitions: Transition[]`. Fields: `id`, `type` (`cut` | `crossfade` | `fadeBlack` | `fadeWhite`), `startMs`, `durationMs`, `sourceAClipId`, `sourceBClipId`, `audioMode` (`cut` | `crossfade` | `keepA` | `keepB`), `audioDurationMs`. Default at an edit with no object = hard cut. Legacy JSON without `transitions` loads as `[]`.
 
@@ -743,7 +753,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: export destination evidence (this commit). Feature `854624b`. Assigned start: `9611e06`. Prior group-slip evidence: `9611e06`.
+Tip after this follow-up: P24 evidence (this commit). Layout feature `c82e8ab` (+ grid-area harden). P23 `moveClips` `134eb7d`. Assigned P22 start: `5a6be5c`.
 
 ## Not added
 
