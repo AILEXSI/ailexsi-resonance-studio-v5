@@ -3,6 +3,20 @@ import { assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
+import { createIndexedDbProjectFileStore } from "../core/project-file-store";
+import {
+  browserPickerHost,
+  emptyProjectFileMemory,
+  hasFileSystemAccess,
+  lastLoadedStatus,
+  loadStatusFallback,
+  readFileText,
+  rememberFileHandle,
+  runOpen,
+  runSave,
+  tryReadGrantedFile,
+  type ProjectFileMemory,
+} from "../core/project-file";
 import {
   downloadMp4,
   exportTimeline,
@@ -60,11 +74,38 @@ export function App() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
+  const projectFileRef = useRef(projectFile);
+  projectFileRef.current = projectFile;
+  const projectFileStore = useRef(createIndexedDbProjectFileStore()).current;
+  const pickerHost = browserPickerHost();
+  const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
 
   useEffect(() => {
-    void hydrateSession(sessionRef.current).then(setSession);
-    // hydrate once on boot for an empty project is a no-op
+    void (async () => {
+      const hydrated = await hydrateSession(sessionRef.current);
+      const memory = await projectFileStore.load();
+      setProjectFile(memory);
+      const last = await tryReadGrantedFile(memory);
+      if (last?.kind === "ready") {
+        try {
+          const opened = openSerialized(hydrated, last.text);
+          const next = await hydrateSession(opened);
+          setSession({ ...next, status: `Geladen: ${last.fileName}` });
+          return;
+        } catch {
+          setSession({ ...hydrated, status: lastLoadedStatus(last.fileName) });
+          return;
+        }
+      }
+      if (last?.kind === "needsOpen") {
+        setSession({ ...hydrated, status: lastLoadedStatus(last.fileName) });
+        return;
+      }
+      setSession(hydrated);
+    })();
+    // hydrate once on boot
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -130,17 +171,87 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [pause, play]);
 
+  const applyOpenedText = async (text: string, status: string) => {
+    const opened = openSerialized(sessionRef.current, text);
+    const hydrated = await hydrateSession(opened);
+    setSession({ ...hydrated, status, error: null });
+  };
+
   const saveProject = () => {
-    downloadText(projectFilename(session.project), projectJson(session));
-    setSession((s) => ({ ...s, status: "Saved .resonance.json" }));
+    void (async () => {
+      try {
+        const result = await runSave({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          filename: projectFilename(sessionRef.current.project),
+          json: projectJson(sessionRef.current),
+          fallbackDownload: downloadText,
+        });
+        if (result.cancelled) return;
+        setProjectFile(result.memory);
+        setSession((s) => ({ ...s, status: result.status, error: null }));
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Save failed",
+        }));
+      }
+    })();
+  };
+
+  const openWithPicker = () => {
+    void (async () => {
+      try {
+        const result = await runOpen({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+        });
+        if (result.kind === "cancelled") return;
+        if (result.kind === "fallback") {
+          document.querySelector<HTMLInputElement>("[data-testid=open-input]")?.click();
+          return;
+        }
+        setProjectFile(result.memory);
+        await applyOpenedText(result.text, result.status);
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Open failed",
+        }));
+      }
+    })();
+  };
+
+  const openLast = () => {
+    void (async () => {
+      const last = await tryReadGrantedFile(projectFileRef.current);
+      if (last?.kind === "ready") {
+        await applyOpenedText(last.text, `Geladen: ${last.fileName}`);
+        return;
+      }
+      const handle = projectFileRef.current.fileHandle;
+      if (handle?.requestPermission) {
+        const perm = await handle.requestPermission({ mode: "read" });
+        if (perm === "granted" && handle.getFile) {
+          const file = await handle.getFile();
+          const memory = await rememberFileHandle(projectFileStore, handle, projectFileRef.current);
+          setProjectFile(memory);
+          await applyOpenedText(await readFileText(file), `Geladen: ${file.name}`);
+          return;
+        }
+      }
+      openWithPicker();
+    })();
   };
 
   const openProject = async (file: File) => {
-    const text = await file.text();
     try {
-      const opened = openSerialized(session, text);
-      const hydrated = await hydrateSession(opened);
-      setSession(hydrated);
+      const text = await readFileText(file);
+      await applyOpenedText(text, loadStatusFallback(file.name));
     } catch (e) {
       setSession((s) => ({
         ...s,
@@ -280,6 +391,10 @@ export function App() {
         exporting={exporting}
         onNew={() => setSession(newProject(session))}
         onSave={saveProject}
+        onOpen={openWithPicker}
+        onOpenLast={openLast}
+        lastFileName={projectFile.lastFileName}
+        fileSystemAccess={fsa}
         onOpenFile={(file) => void openProject(file)}
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
         onExport={() => void runExport()}

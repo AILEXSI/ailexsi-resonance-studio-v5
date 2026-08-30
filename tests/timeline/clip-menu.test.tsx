@@ -126,6 +126,7 @@ describe("clip-menu shortcut labels", () => {
             exporting={false}
             onNew={noopBtn}
             onSave={noopBtn}
+            onOpen={noopBtn}
             onOpenFile={(_file: File) => {}}
             onImport={noopBtn}
             onExport={noopBtn}

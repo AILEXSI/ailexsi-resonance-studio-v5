@@ -5,7 +5,11 @@ interface Props {
   exporting: boolean;
   onNew: () => void;
   onSave: () => void;
+  onOpen: () => void;
   onOpenFile: (file: File) => void;
+  onOpenLast?: () => void;
+  lastFileName?: string | null;
+  fileSystemAccess?: boolean;
   onImport: () => void;
   onExport: () => void;
   onUndo: () => void;
@@ -19,7 +23,11 @@ export function Toolbar({
   exporting,
   onNew,
   onSave,
+  onOpen,
   onOpenFile,
+  onOpenLast,
+  lastFileName,
+  fileSystemAccess,
   onImport,
   onExport,
   onUndo,
@@ -34,20 +42,49 @@ export function Toolbar({
         <button type="button" onClick={onNew}>
           New
         </button>
-        <label className="file-btn">
-          Open
-          <input
-            type="file"
-            accept=".json,application/json"
-            hidden
-            data-testid="open-input"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onOpenFile(file);
-              e.target.value = "";
-            }}
-          />
-        </label>
+        {fileSystemAccess ? (
+          <>
+            <button type="button" data-testid="open-fsa" onClick={onOpen}>
+              Open
+            </button>
+            <input
+              type="file"
+              accept=".json,application/json"
+              hidden
+              data-testid="open-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onOpenFile(file);
+                e.target.value = "";
+              }}
+            />
+          </>
+        ) : (
+          <label className="file-btn">
+            Open
+            <input
+              type="file"
+              accept=".json,application/json"
+              hidden
+              data-testid="open-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onOpenFile(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+        {lastFileName ? (
+          <button
+            type="button"
+            data-testid="open-last"
+            title={lastFileName}
+            onClick={onOpenLast ?? onOpen}
+          >
+            Zuletzt geladen
+          </button>
+        ) : null}
         <button type="button" onClick={onSave}>
           Save
         </button>

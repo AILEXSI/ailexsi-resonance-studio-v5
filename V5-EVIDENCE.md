@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 04:31 UTC. Ruler + clip-preview follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 04:42 UTC. Project-folder Save/Open follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 140 modules. Outputs:
+exit 0. vite 7.3.6, 142 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CMfYrtE-.css 8.87 kB
-- dist/assets/index-BHAjma0O.js 635.66 kB
+- dist/assets/index-CYzqiFo5.js 641.80 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **103 passed / 14 files**. Start 04:31:07 UTC. Duration 2.34s.
+exit 0. vitest 3.2.7. **107 passed / 15 files**. Start 04:42:37 UTC. Duration 2.38s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
+Files: import 11, visualizer 17, user-fixtures 2, persistence 6, project-file 4, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
 
 ## Visualizer
 
@@ -147,6 +147,16 @@ Status: TEST-VERIFIED
 `tests/preview/playback.test.ts` (3): sourceTimeAt, loop IN/OUT stop, bounds from clip extent.
 No video frame seen and no audio heard this run.
 
+## Project file Save / Open
+
+Status: TEST-VERIFIED (mocked pickers). Live showSaveFilePicker / showOpenFilePicker: NOT VERIFIED.
+
+Chrome File System Access: first picker `startIn: documents`. After save/open, the directory (or file) handle is stored in IndexedDB and passed as `startIn` next time. Status after FSA save: `Gespeichert: Name.resonance.json — Projektordner gemerkt`. After load: `Geladen: Name.resonance.json`. No invented `C:\` path.
+
+Fallback (no FSA): download/upload; status says Browser-Downloads / Datei gewählt and Pfad unbekannt. Boot restore only if the stored file handle already has permission; otherwise status `Zuletzt geladen: … — Öffnen klicken`.
+
+`tests/persistence/project-file.test.ts` (4): startIn memory, next-picker startIn, status contains filename, fallback has no fake path.
+
 ## Persistence
 
 Status: TEST-VERIFIED
@@ -223,7 +233,12 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:31 UTC)
+## Changelog this follow-up (2026-08-30 04:42 UTC)
+
+- Save/Open remember last project folder via File System Access handles. TEST-VERIFIED (mocked). Live picker: NOT VERIFIED.
+- Status shows filename; fallback admits path unknown. TEST-VERIFIED.
+
+## Changelog prior (2026-08-30 04:31 UTC)
 
 - Adaptive ruler: no overlapping labels at 2.5 px/s / ~400s. TEST-VERIFIED. Live ruler: NOT VERIFIED.
 - Audio waveform + video filmstrip on arrange clips (async, non-blocking). TEST-VERIFIED (generator + stub). Live pixels: NOT VERIFIED.
