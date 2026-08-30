@@ -191,6 +191,28 @@ describe("linked A/V", () => {
     expect(gone.project.clips).toHaveLength(0);
   });
 
+  it("slip of an unlocked clip skips a locked mate (P116)", () => {
+    const start = linkedPair();
+    start.project.assets = [
+      asset({
+        id: "va",
+        kind: "video",
+        durationMs: 4000,
+        objectUrl: "blob:v",
+        hasAudio: true,
+      }),
+    ];
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const slipped = slipClip(locked, "a1", 200);
+    expect(slipped.error).toBeUndefined();
+    expect(slipped.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(200);
+    expect(slipped.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(0);
+    expect(slipped.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+  });
+
   it("slip of one linked clip applies the same source delta to the mate", () => {
     const start = linkedPair();
     start.project.assets = [

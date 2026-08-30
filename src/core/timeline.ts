@@ -1355,8 +1355,7 @@ function applySlipSourceDelta(
     if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
     targets.set(clip.id, clip);
     const mate = livingLinkedMate(project, clip.id);
-    if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
-    if (mate) targets.set(mate.id, mate);
+    if (mate && !clipIsLocked(mate)) targets.set(mate.id, mate);
   }
   const nextById = new Map<string, Clip>();
   for (const clip of targets.values()) {
@@ -1396,8 +1395,8 @@ export function slipClip(
   const span = sourceSpanMs(clip);
   const sourceDelta = timelineDeltaToSource(clip, deltaMs);
   const mate = livingLinkedMate(project, clipId);
-  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
-  if (!mate) {
+  const liveMate = mate && !clipIsLocked(mate) ? mate : undefined;
+  if (!liveMate) {
     const maxIn = maxOut - span;
     const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
     if (sourceInMs === clip.sourceInMs) return { project };
@@ -1414,22 +1413,22 @@ export function slipClip(
       },
     };
   }
-  const mateAsset = project.assets.find((a) => a.id === mate.assetId);
+  const mateAsset = project.assets.find((a) => a.id === liveMate.assetId);
   const mateMax = mateAsset?.durationMs ?? Number.POSITIVE_INFINITY;
   const one = slipSourceWindow(clip, sourceDelta, maxOut);
-  const two = slipSourceWindow(mate, sourceDelta, mateMax);
+  const two = slipSourceWindow(liveMate, sourceDelta, mateMax);
   if ("error" in one || "error" in two) {
     return { project, error: "Cannot slip further" };
   }
-  if (one.sourceInMs === clip.sourceInMs && two.sourceInMs === mate.sourceInMs) return { project };
+  if (one.sourceInMs === clip.sourceInMs && two.sourceInMs === liveMate.sourceInMs) return { project };
   const next: Clip = { ...clip, sourceInMs: one.sourceInMs, sourceOutMs: one.sourceOutMs };
-  const nextMate: Clip = { ...mate, sourceInMs: two.sourceInMs, sourceOutMs: two.sourceOutMs };
+  const nextMate: Clip = { ...liveMate, sourceInMs: two.sourceInMs, sourceOutMs: two.sourceOutMs };
   return {
     project: {
       ...project,
       clips: project.clips.map((c) => {
         if (c.id === clipId) return next;
-        if (c.id === mate.id) return nextMate;
+        if (c.id === liveMate.id) return nextMate;
         return c;
       }),
       updatedAt: new Date().toISOString(),
