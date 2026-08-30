@@ -121,6 +121,7 @@ describe("project persist + reload", () => {
         durationMs: 800,
         sourceAClipId: "v1",
         sourceBClipId: "v2",
+        audio: "keepA",
         audioMode: "keepA",
         audioDurationMs: 400,
         source: "auto",

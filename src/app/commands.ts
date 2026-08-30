@@ -38,6 +38,8 @@ import {
   applySetClipRate,
   applySetTrackPan,
   applySetTransition,
+  applySetTransitionAudio,
+  applySetTransitionAudioDuration,
   applySetTransitionSource,
   applyShuttle,
   applySlideClip,
@@ -107,6 +109,8 @@ export type EditorCommand =
       startMs?: number;
     }
   | { type: "setTransitionSource"; source: TransitionSource }
+  | { type: "setTransitionAudio"; audio: TransitionAudioMode }
+  | { type: "setTransitionAudioDuration"; audioDurationMs: number }
   | { type: "setFrontVideoTrack"; trackId: FrontVideoTrackId }
   | { type: "insertVisEvent" }
   | { type: "selectVisEvent"; eventId: string }
@@ -207,6 +211,10 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       });
     case "setTransitionSource":
       return applySetTransitionSource(session, command.source);
+    case "setTransitionAudio":
+      return applySetTransitionAudio(session, command.audio);
+    case "setTransitionAudioDuration":
+      return applySetTransitionAudioDuration(session, command.audioDurationMs);
     case "setFrontVideoTrack":
       return applySetFrontVideoTrack(session, command.trackId);
     case "insertVisEvent":

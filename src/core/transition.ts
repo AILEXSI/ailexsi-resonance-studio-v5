@@ -28,7 +28,11 @@ export interface Transition {
   durationMs: number;
   sourceAClipId: string;
   sourceBClipId: string;
+  /** Canonical audio mode. Missing = cut. */
+  audio?: TransitionAudioMode;
+  /** Legacy alias of `audio`. Sanitize writes both. */
   audioMode: TransitionAudioMode;
+  /** Independent of video `durationMs`. 0 + cut = today's mix. */
   audioDurationMs: number;
   /** Picture override for this edit window. Missing = auto. */
   source?: TransitionSource;
@@ -99,6 +103,27 @@ export function isTransitionSource(value: unknown): value is TransitionSource {
 
 export function transitionSourceOf(t: Transition | undefined): TransitionSource {
   return t?.source && isTransitionSource(t.source) ? t.source : "auto";
+}
+
+export function transitionAudioOf(t: Transition | undefined): TransitionAudioMode {
+  if (t?.audio && isTransitionAudioMode(t.audio)) return t.audio;
+  if (t?.audioMode && isTransitionAudioMode(t.audioMode)) return t.audioMode;
+  return "cut";
+}
+
+export function transitionAudioDurationMs(t: Transition | undefined): number {
+  const n = t?.audioDurationMs;
+  if (n == null || !Number.isFinite(n)) return 0;
+  return Math.max(0, n);
+}
+
+/** cut/crossfade with duration 0 (or missing) = identity mix. keepA/keepB still apply. */
+export function isIdentityAudio(t: Transition): boolean {
+  const audio = transitionAudioOf(t);
+  const dur = transitionAudioDurationMs(t);
+  if (audio === "cut" && dur <= 0) return true;
+  if (audio === "crossfade" && dur <= 0) return true;
+  return false;
 }
 
 export function formatResolvedSource(picture: ResolvedPicture): string {
@@ -478,10 +503,12 @@ export function scheduleTransitionAudioGain(
   for (const t of transitions) {
     times.add(t.startMs);
     times.add(t.startMs + Math.max(0, t.durationMs));
-    times.add(t.startMs + Math.max(1, t.audioDurationMs));
-    const audioDur = Math.max(1, t.audioDurationMs);
-    for (let step = 1; step < 4; step++) {
-      times.add(t.startMs + (audioDur * step) / 4);
+    const audioDur = transitionAudioDurationMs(t);
+    times.add(t.startMs + audioDur);
+    if (audioDur > 0) {
+      for (let step = 1; step < 4; step++) {
+        times.add(t.startMs + (audioDur * step) / 4);
+      }
     }
   }
   const sorted = [...times]
@@ -528,9 +555,9 @@ function clipIdsForSource(
 }
 
 /**
- * Extra mix multiplier. Does not write clip.gain / fadeInMs / fadeOutMs.
- * cut = existing overlap mix (1). keepA/keepB mute the other source in the
- * video window. crossfade uses audioDurationMs from transition.startMs.
+ * Extra mix multiplier for V-audio (pair A/B + linked soundtrack).
+ * A1/A2 that are not the pair's linked mates stay at 1 (today's mix).
+ * Picture `source` is ignored. cut+duration0 / missing = identity.
  */
 export function transitionAudioGain(
   transitions: readonly Transition[],
@@ -541,20 +568,37 @@ export function transitionAudioGain(
 ): number {
   let gain = 1;
   for (const t of transitions) {
+    if (isIdentityAudio(t)) continue;
     const aIds = clipIdsForSource(t.sourceAClipId, project, peers);
     const bIds = clipIdsForSource(t.sourceBClipId, project, peers);
     const inA = aIds.has(clipId);
     const inB = bIds.has(clipId);
     if (!inA && !inB) continue;
-    if (t.audioMode === "cut") continue;
-    if (t.audioMode === "keepA" || t.audioMode === "keepB") {
-      if (!transitionCovers(t, timeMs)) continue;
-      if (t.audioMode === "keepA" && inB) gain *= 0;
-      if (t.audioMode === "keepB" && inA) gain *= 0;
+    const audio = transitionAudioOf(t);
+    if (audio === "cut") {
+      if (timeMs < t.startMs) {
+        if (inB) gain *= 0;
+      } else if (inA) {
+        gain *= 0;
+      }
       continue;
     }
-    const audioDur = Math.max(1, t.audioDurationMs);
-    if (timeMs < t.startMs || timeMs >= t.startMs + audioDur) continue;
+    if (audio === "keepA" || audio === "keepB") {
+      if (!transitionCovers(t, timeMs)) continue;
+      if (audio === "keepA" && inB) gain *= 0;
+      if (audio === "keepB" && inA) gain *= 0;
+      continue;
+    }
+    const audioDur = transitionAudioDurationMs(t);
+    if (audioDur <= 0) continue;
+    if (timeMs < t.startMs) {
+      if (inB) gain *= 0;
+      continue;
+    }
+    if (timeMs >= t.startMs + audioDur) {
+      if (inA) gain *= 0;
+      continue;
+    }
     const u = (timeMs - t.startMs) / audioDur;
     const xf = equalPowerCrossfade(u);
     if (inA) gain *= xf.a;
@@ -566,7 +610,7 @@ export function transitionAudioGain(
 export function upsertTransition(
   project: Project,
   pair: EditPair,
-  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs" | "source">>,
+  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audio" | "audioDurationMs" | "startMs" | "source">>,
 ): { project: Project; transition: Transition } {
   const existing = findTransitionForPair(
     project.transitions ?? [],
@@ -577,6 +621,14 @@ export function upsertTransition(
     1,
     patch.durationMs ?? existing?.durationMs ?? Math.max(1, Math.min(1000, pair.overlapDurationMs)),
   );
+  const audio = transitionAudioOf({
+    audio: patch.audio ?? existing?.audio,
+    audioMode: patch.audioMode ?? existing?.audioMode ?? "cut",
+  } as Transition);
+  const audioDurationMs = Math.max(
+    0,
+    patch.audioDurationMs ?? existing?.audioDurationMs ?? 0,
+  );
   const next: Transition = {
     id: existing?.id ?? createId("tr"),
     type: patch.type ?? existing?.type ?? "cut",
@@ -584,8 +636,9 @@ export function upsertTransition(
     durationMs,
     sourceAClipId: pair.sourceA.id,
     sourceBClipId: pair.sourceB.id,
-    audioMode: patch.audioMode ?? existing?.audioMode ?? "cut",
-    audioDurationMs: Math.max(1, patch.audioDurationMs ?? existing?.audioDurationMs ?? durationMs),
+    audio,
+    audioMode: audio,
+    audioDurationMs,
     source: patch.source ?? existing?.source ?? "auto",
   };
   const rest = (project.transitions ?? []).filter((t) => t.id !== next.id);
@@ -626,9 +679,18 @@ export function sanitizeTransitions(raw: unknown): Transition[] {
     const r = row as Record<string, unknown>;
     if (typeof r.id !== "string" || !r.id) continue;
     if (typeof r.sourceAClipId !== "string" || typeof r.sourceBClipId !== "string") continue;
-    if (!isTransitionType(r.type) || !isTransitionAudioMode(r.audioMode)) continue;
+    if (!isTransitionType(r.type)) continue;
     const durationMs = Math.max(1, Number(r.durationMs) || 1);
-    const audioDurationMs = Math.max(1, Number(r.audioDurationMs) || durationMs);
+    const audio = isTransitionAudioMode(r.audio)
+      ? r.audio
+      : isTransitionAudioMode(r.audioMode)
+        ? r.audioMode
+        : "cut";
+    const rawAudioDur = r.audioDurationMs;
+    const audioDurationMs =
+      rawAudioDur == null || rawAudioDur === ""
+        ? 0
+        : Math.max(0, Number(rawAudioDur) || 0);
     out.push({
       id: r.id,
       type: r.type,
@@ -636,7 +698,8 @@ export function sanitizeTransitions(raw: unknown): Transition[] {
       durationMs,
       sourceAClipId: r.sourceAClipId,
       sourceBClipId: r.sourceBClipId,
-      audioMode: r.audioMode,
+      audio,
+      audioMode: audio,
       audioDurationMs,
       source: isTransitionSource(r.source) ? r.source : "auto",
     });

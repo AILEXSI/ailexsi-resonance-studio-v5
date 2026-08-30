@@ -72,5 +72,10 @@ describe("Cutter", () => {
     });
     expect(cmds[1]).toEqual({ type: "setTransitionSource", source: "V2" });
     expect(host!.querySelector("[data-testid=cutter-source-auto]")?.classList.contains("on")).toBe(true);
+    act(() => {
+      host!.querySelector<HTMLButtonElement>("[data-testid=cutter-audio-keepA]")!.click();
+    });
+    expect(cmds[2]).toEqual({ type: "setTransitionAudio", audio: "keepA" });
+    expect(host!.querySelector("[data-testid=cutter-audio-cut]")?.classList.contains("on")).toBe(true);
   });
 });

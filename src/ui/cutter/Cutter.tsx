@@ -1,15 +1,17 @@
 import type { EditorCommand } from "../../app/commands";
-import type { TransitionAudioMode, TransitionType } from "../../core/transition";
+import type { TransitionType } from "../../core/transition";
 import {
-  TRANSITION_AUDIO_MODES,
   TRANSITION_TYPES,
   editPairAt,
   findTransitionForPair,
   resolveEditPair,
   transitionAt,
+  transitionAudioDurationMs,
+  transitionAudioOf,
   transitionSourceOf,
 } from "../../core/transition";
 import type { Project } from "../../core/models";
+import { AudioButtons } from "./AudioButtons";
 import { SourceButtons } from "./SourceButtons";
 
 function assetLabel(project: Project, assetId: string): string {
@@ -35,8 +37,8 @@ export function Cutter({
     : transitionAt(project.transitions ?? [], project.playheadMs);
   const type: TransitionType = stored?.type ?? "cut";
   const durationMs = stored?.durationMs ?? (pair ? Math.max(1, pair.overlapDurationMs) : 0);
-  const audioMode: TransitionAudioMode = stored?.audioMode ?? "cut";
-  const audioDurationMs = stored?.audioDurationMs ?? durationMs;
+  const audio = transitionAudioOf(stored);
+  const audioDurationMs = transitionAudioDurationMs(stored);
   const source = transitionSourceOf(stored);
 
   return (
@@ -46,6 +48,13 @@ export function Cutter({
         value={source}
         testIdPrefix="cutter"
         onPick={(next) => apply({ type: "setTransitionSource", source: next })}
+      />
+      <AudioButtons
+        value={audio}
+        durationMs={audioDurationMs}
+        testIdPrefix="cutter"
+        onPick={(next) => apply({ type: "setTransitionAudio", audio: next })}
+        onDuration={(ms) => apply({ type: "setTransitionAudioDuration", audioDurationMs: ms })}
       />
       {!pair ? (
         <div className="cutter-empty" data-testid="cutter-empty">
@@ -81,30 +90,6 @@ export function Cutter({
               min={1}
               value={durationMs}
               onChange={(e) => apply({ type: "setTransition", durationMs: Number(e.target.value) })}
-            />
-          </label>
-          <label className="cutter-field">
-            Audio
-            <select
-              data-testid="cutter-audio-mode"
-              value={audioMode}
-              onChange={(e) => apply({ type: "setTransition", audioMode: e.target.value as TransitionAudioMode })}
-            >
-              {TRANSITION_AUDIO_MODES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="cutter-field">
-            Audio duration ms
-            <input
-              data-testid="cutter-audio-duration"
-              type="number"
-              min={0}
-              value={audioDurationMs}
-              onChange={(e) => apply({ type: "setTransition", audioDurationMs: Number(e.target.value) })}
             />
           </label>
         </div>

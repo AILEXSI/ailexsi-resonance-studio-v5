@@ -13,16 +13,17 @@ import {
 } from "../../core/models";
 import { canShowRelink } from "../../core/relink";
 import {
-  TRANSITION_AUDIO_MODES,
   TRANSITION_TYPES,
   editPairAt,
   findTransitionForPair,
   resolveEditPair,
   transitionAt,
+  transitionAudioDurationMs,
+  transitionAudioOf,
   transitionSourceOf,
-  type TransitionAudioMode,
   type TransitionType,
 } from "../../core/transition";
+import { AudioButtons } from "../cutter/AudioButtons";
 import { SourceButtons } from "../cutter/SourceButtons";
 
 interface Props {
@@ -37,7 +38,10 @@ interface Props {
   onUnlink?: (clipId: string) => void;
   onRelink?: () => void;
   onTransition?: (
-    cmd: Extract<EditorCommand, { type: "setTransition" } | { type: "setTransitionSource" }>,
+    cmd: Extract<
+      EditorCommand,
+      { type: "setTransition" } | { type: "setTransitionSource" } | { type: "setTransitionAudio" } | { type: "setTransitionAudioDuration" }
+    >,
   ) => void;
   onVisualizer?: (
     patch: Partial<{ sceneId: VisualizerSceneId; startMs: number; durationMs: number }>,
@@ -107,6 +111,8 @@ export function Inspector({
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
     : transitionAt(project.transitions ?? [], project.playheadMs);
   const source = transitionSourceOf(stored);
+  const audio = transitionAudioOf(stored);
+  const audioDurationMs = transitionAudioDurationMs(stored);
   const vis = project.visualizer;
   const visEvent = selectedVisEventId
     ? (vis.events ?? []).find((e) => e.id === selectedVisEventId)
@@ -122,6 +128,13 @@ export function Inspector({
         value={source}
         testIdPrefix="inspector"
         onPick={(next) => onTransition?.({ type: "setTransitionSource", source: next })}
+      />
+      <AudioButtons
+        value={audio}
+        durationMs={audioDurationMs}
+        testIdPrefix="inspector"
+        onPick={(next) => onTransition?.({ type: "setTransitionAudio", audio: next })}
+        onDuration={(ms) => onTransition?.({ type: "setTransitionAudioDuration", audioDurationMs: ms })}
       />
       {selectedVis ? (
         <dl data-testid="inspector-vis">
@@ -234,27 +247,6 @@ export function Inspector({
             testId="inspector-transition-duration"
             value={stored?.durationMs ?? pair.overlapDurationMs}
             onChange={(v) => onTransition?.({ type: "setTransition", durationMs: v })}
-          />
-          <Field label="Audio">
-            <select
-              data-testid="inspector-transition-audio"
-              value={stored?.audioMode ?? "cut"}
-              onChange={(e) =>
-                onTransition?.({ type: "setTransition", audioMode: e.target.value as TransitionAudioMode })
-              }
-            >
-              {TRANSITION_AUDIO_MODES.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <MsField
-            label="Audio duration (ms)"
-            testId="inspector-transition-audio-duration"
-            value={stored?.audioDurationMs ?? stored?.durationMs ?? pair.overlapDurationMs}
-            onChange={(v) => onTransition?.({ type: "setTransition", audioDurationMs: v })}
           />
         </dl>
       ) : null}

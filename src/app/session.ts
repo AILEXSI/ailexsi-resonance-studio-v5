@@ -5,9 +5,12 @@ import {
   resolveEditPair,
   setTransitionSource,
   transitionAt,
+  transitionAudioDurationMs,
+  transitionAudioOf,
   transitionSourceOf,
   upsertTransition,
   type Transition,
+  type TransitionAudioMode,
   type TransitionSource,
 } from "../core/transition";
 import { classifyFile, importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
@@ -742,12 +745,66 @@ export function applySetClipRate(session: Session, clipId: string, rate: number)
 
 export function applySetTransition(
   session: Session,
-  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audioDurationMs" | "startMs" | "source">>,
+  patch: Partial<Pick<Transition, "type" | "durationMs" | "audioMode" | "audio" | "audioDurationMs" | "startMs" | "source">>,
 ): Session {
   const pair = resolveEditPair(session.project, selectionOf(session));
   if (!pair) return session;
-  const { project } = upsertTransition(session.project, pair, patch);
+  const mapped = {
+    ...patch,
+    audio: patch.audio ?? patch.audioMode,
+    audioMode: patch.audioMode ?? patch.audio,
+  };
+  const { project } = upsertTransition(session.project, pair, mapped);
   return withHistory(session, project, "Set transition");
+}
+
+function resolveAudioPair(session: Session) {
+  const playhead = session.project.playheadMs;
+  return (
+    resolveEditPair(session.project, selectionOf(session)) ?? editPairAt(session.project, playhead)
+  );
+}
+
+function audioStatus(audio: TransitionAudioMode): string {
+  if (audio === "crossfade") return "Audio CROSSFADE";
+  if (audio === "keepA") return "Audio KEEP A";
+  if (audio === "keepB") return "Audio KEEP B";
+  return "Audio CUT";
+}
+
+export function applySetTransitionAudio(session: Session, audio: TransitionAudioMode): Session {
+  const pair = resolveAudioPair(session);
+  if (!pair) return session;
+  const existing = findTransitionForPair(session.project.transitions ?? [], pair.sourceA.id, pair.sourceB.id);
+  const currentDur = transitionAudioDurationMs(existing);
+  let audioDurationMs = currentDur;
+  if (audio === "cut" && currentDur <= 0) audioDurationMs = 1;
+  if (audio === "crossfade" && currentDur <= 0) {
+    audioDurationMs = Math.max(1, existing?.durationMs ?? pair.overlapDurationMs);
+  }
+  if (existing && transitionAudioOf(existing) === audio && transitionAudioDurationMs(existing) === audioDurationMs) {
+    return session;
+  }
+  const { project } = upsertTransition(session.project, pair, {
+    audio,
+    audioMode: audio,
+    audioDurationMs,
+    durationMs: existing?.durationMs ?? Math.max(1, pair.overlapDurationMs),
+  });
+  return withHistory(session, project, audioStatus(audio));
+}
+
+export function applySetTransitionAudioDuration(session: Session, audioDurationMs: number): Session {
+  const pair = resolveAudioPair(session);
+  if (!pair) return session;
+  const existing = findTransitionForPair(session.project.transitions ?? [], pair.sourceA.id, pair.sourceB.id);
+  const nextDur = Math.max(0, Number.isFinite(audioDurationMs) ? audioDurationMs : 0);
+  if (existing && transitionAudioDurationMs(existing) === nextDur) return session;
+  const { project } = upsertTransition(session.project, pair, {
+    audioDurationMs: nextDur,
+    durationMs: existing?.durationMs ?? Math.max(1, pair.overlapDurationMs),
+  });
+  return withHistory(session, project, "Audio duration");
 }
 
 function sourceStatus(source: TransitionSource): string {
