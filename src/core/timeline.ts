@@ -419,7 +419,7 @@ export function resolveRippleTrimToPlayheadClip(
  * Linked-pair expand, but an unselected locked mate is skipped
  * (same as split/slip/rate). A locked clip that is itself selected still deletes.
  */
-function expandDeletableClipIds(project: Project, clipIds: readonly string[]): string[] {
+export function expandDeletableClipIds(project: Project, clipIds: readonly string[]): string[] {
   const explicit = new Set(clipIds.filter(Boolean));
   return expandLinkedClipIds(project, clipIds).filter((id) => {
     const clip = clipById(project, id);

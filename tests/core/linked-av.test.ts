@@ -214,6 +214,62 @@ describe("linked A/V", () => {
     expect(gone.project.clips).toHaveLength(0);
   });
 
+  it("copy/cut of one linked clip includes the unlocked mate (P131)", () => {
+    const start = linkedPair();
+    const copied = applyCommand(start, { type: "copy" });
+    expect(copied.clipboard.map((c) => c.id).sort()).toEqual(["a1", "v1"]);
+    expect(copied.status).toBe("Copied clips");
+    expect(copied.project.clips).toHaveLength(2);
+
+    const cut = applyCommand(start, { type: "cut" });
+    expect(cut.project.clips).toHaveLength(0);
+    expect(cut.clipboard.map((c) => c.id).sort()).toEqual(["a1", "v1"]);
+    const pasted = applyCommand(
+      { ...cut, project: { ...cut.project, playheadMs: 3000 } },
+      { type: "paste" },
+    );
+    expect(pasted.project.clips).toHaveLength(2);
+    const v = pasted.project.clips.find((c) => c.trackId === "V1")!;
+    const a = pasted.project.clips.find((c) => c.trackId === "A1")!;
+    expect(v.startMs).toBe(3000);
+    expect(a.startMs).toBe(3000);
+    expect(v.linkId).toBeTruthy();
+    expect(v.linkId).toBe(a.linkId);
+    expect(v.linkId).not.toBe("lnk1");
+  });
+
+  it("copy/cut of an unlocked clip skips a locked mate (P131)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const session = { ...start, project: locked, selectedClipId: "a1", selectedClipIds: ["a1"] };
+    const copied = applyCommand(session, { type: "copy" });
+    expect(copied.clipboard.map((c) => c.id)).toEqual(["a1"]);
+
+    const cut = applyCommand(session, { type: "cut" });
+    expect(cut.clipboard.map((c) => c.id)).toEqual(["a1"]);
+    expect(cut.project.clips).toHaveLength(1);
+    expect(cut.project.clips.find((c) => c.id === "v1")!.locked).toBe(true);
+    expect(cut.project.clips.find((c) => c.id === "v1")!.linkId).toBeUndefined();
+  });
+
+  it("duplicate of one linked clip clones the unlocked mate (P131)", () => {
+    const start = linkedPair();
+    start.project = { ...start.project, playheadMs: 3000 };
+    const next = applyCommand(start, { type: "duplicate" });
+    expect(next.project.clips).toHaveLength(4);
+    const clones = next.project.clips.filter((c) => c.id !== "v1" && c.id !== "a1");
+    expect(clones).toHaveLength(2);
+    expect(clones.map((c) => c.trackId).sort()).toEqual(["A1", "V1"]);
+    expect(clones.every((c) => c.startMs === 3000)).toBe(true);
+    expect(clones[0]!.linkId).toBeTruthy();
+    expect(clones[0]!.linkId).toBe(clones[1]!.linkId);
+    expect(clones[0]!.linkId).not.toBe("lnk1");
+    expect(next.project.clips.find((c) => c.id === "v1")!.linkId).toBe("lnk1");
+  });
+
   it("lift-delete of an unlocked clip skips a locked mate and drops the pair (P129)", () => {
     const start = linkedPair();
     const locked = {

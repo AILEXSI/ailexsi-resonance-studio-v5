@@ -59,6 +59,7 @@ import {
   nextEditPointMs,
   prevEditPointMs,
   deleteClips,
+  expandDeletableClipIds,
   pasteClips,
   slipClips,
   slideClips,
@@ -724,6 +725,7 @@ function shouldPasteVisEvent(session: Session): boolean {
   return session.lastClipboardKind === "vis";
 }
 
+/** Copy the selection plus living unlocked mates (same expand as delete). */
 export function applyCopy(session: Session): Session {
   const vis = selectedVisEvent(session);
   if (vis) {
@@ -735,7 +737,7 @@ export function applyCopy(session: Session): Session {
       error: null,
     };
   }
-  const ids = selectionOf(session);
+  const ids = expandDeletableClipIds(session.project, selectionOf(session));
   const clips = ids
     .map((id) => clipById(session.project, id))
     .filter((c): c is Clip => Boolean(c));
@@ -811,7 +813,7 @@ export function applyPaste(session: Session): Session {
 /** Clone the selection at the playhead. Does not write `session.clipboard`.
  * A disabled take clones as enabled so the new instance is audible. */
 export function applyDuplicate(session: Session): Session {
-  const ids = selectionOf(session);
+  const ids = expandDeletableClipIds(session.project, selectionOf(session));
   const clips = ids
     .map((id) => clipById(session.project, id))
     .filter((c): c is Clip => c != null && !clipIsLocked(c));
