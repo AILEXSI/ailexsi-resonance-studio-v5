@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:46 UTC. Linked A/V on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:50 UTC. Linked slip + rate on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 154 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-BIOCqzoX.css 17.20 kB
-- dist/assets/index-DRohNEV9.js 698.38 kB
+- dist/assets/index-Ddu2rvVk.js 699.42 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **286 passed / 40 files**. Start 07:45:41 UTC. Duration 7.94s.
+exit 0. vitest 3.2.7. **291 passed / 40 files**. Start 07:50:07 UTC. Duration 8.00s.
 
-New this follow-up: video+audio import pair + `linkId`, video-only stays V-only, sequential AV simultaneous pair, mix skips linked V, split/move both, unlink then move one, lift-delete mate, legacy JSON without `linkId`. Prior group-slide units stay green (277 → 286; +1 file).
+New this follow-up: linked slip both, slip blocked by mate bounds (neither moves), linked `setClipRate` both, rate no-op when mate would overlap, unlink then slip one. Prior linked split/move/trim/import units stay green (286 → 291).
 
 ## Visualizer
 
@@ -537,7 +537,7 @@ Ctrl+Alt+drag on a selected clip in a valid block slides the block (`clipIds`). 
 
 ## Linked A/V
 
-Status: TEST-VERIFIED (import + mix skip + split/move/unlink). Live import: NOT VERIFIED.
+Status: TEST-VERIFIED (import + mix skip + split/move/trim/slip/rate/unlink). Live import / slip / rate: NOT VERIFIED.
 
 `Clip.linkId` optional. Legacy JSON missing `linkId` stays unlinked. `MediaAsset.hasAudio` optional; probe may set it on video (`audioTracks` / `mozHasAudio`). Unknown → no pair (V-only + P11 mix).
 
@@ -545,13 +545,17 @@ Import/place of video + `hasAudio: true`: V clip on the chosen V track and an A 
 
 Mix: living linked A clip carries audio; that V clip is omitted from `audioClipsForMix` and from the preview V hidden-audio bind. Unlinked V clips keep P11 V-audio. `<video>` stays muted.
 
-Edits that follow a living mate: split (S) at the same timeline time (lefts keep `linkId`, rights get a new shared id), move (same delta; track change stays same-kind), lift-delete and ripple-delete of one lift the other, trim / ripple-trim / roll of a linked edge apply to both. Slip / slide / rate / fades do not auto-copy.
+Edits that follow a living mate: split (S) at the same timeline time (lefts keep `linkId`, rights get a new shared id), move (same delta; track change stays same-kind), lift-delete and ripple-delete of one lift the other, trim / ripple-trim / roll of a linked edge apply to both. Slip applies the same source-in/source-out delta (start/duration stay); if either side would exceed source bounds, both no-op. `setClipRate` writes the same rate and `durationMs = sourceSpan / rate` on both; if either would overlap the next clip, both no-op. Fades stay independent (each clip’s fades re-clamp to its own new duration). Slide does not follow (neighbors live on different tracks).
 
 `{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. No new track types. No unlink button.
 
-`tests/core/linked-av.test.ts` (7). Import pair cases in `tests/media/import.test.ts`.
+`tests/core/linked-av.test.ts` (12). Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 07:46 UTC)
+## Changelog this follow-up (2026-08-30 07:50 UTC)
+
+- Linked slip + `setClipRate` follow a living mate (same source delta / same rate; both no-op on bounds). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:46 UTC)
 
 - Linked A/V pair on video+audio import (`linkId`, mix skip, split/move/trim/delete follow, `unlinkClips`). TEST-VERIFIED. Live import: NOT VERIFIED.
 
@@ -684,7 +688,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: linked-A/V evidence (this commit). Feature `052edc1`. Assigned start: `8527bd6`. Prior group-slide evidence: `8527bd6`.
+Tip after this follow-up: linked slip+rate evidence (this commit). Feature `0625280`. Assigned start: `7acf9cd`. Prior linked-A/V evidence: `7acf9cd`.
 
 ## Not added
 
