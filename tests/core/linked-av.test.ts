@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, rollEdit, setClipRate, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, rollEdit, setClipRate, slideClip, slipClip, slipClips, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -459,6 +459,192 @@ describe("linked A/V", () => {
     expect(rolled.project.clips.find((c) => c.id === "a2")!.startMs).toBe(1200);
     expect(rolled.project.clips.find((c) => c.id === "a2")!.durationMs).toBe(800);
     expect(rolled.project.clips.find((c) => c.id === "a2")!.sourceInMs).toBe(1200);
+  });
+
+  it("slide of an unlocked mid skips locked mates (P120)", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 8000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "vl",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnL",
+        }),
+        clip({
+          id: "vm",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+          linkId: "lnM",
+        }),
+        clip({
+          id: "vr",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+          linkId: "lnR",
+        }),
+        clip({
+          id: "al",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnL",
+          locked: true,
+        }),
+        clip({
+          id: "am",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+          linkId: "lnM",
+          locked: true,
+        }),
+        clip({
+          id: "ar",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+          linkId: "lnR",
+          locked: true,
+        }),
+      ],
+      [va],
+    );
+    const slid = slideClip({ ...start, snap: false }, "vm", 200);
+    expect(slid.error).toBeUndefined();
+    expect(slid.project.clips.find((c) => c.id === "vm")!.startMs).toBe(1200);
+    expect(slid.project.clips.find((c) => c.id === "vl")!.durationMs).toBe(1200);
+    expect(slid.project.clips.find((c) => c.id === "vr")!.startMs).toBe(2200);
+    expect(slid.project.clips.find((c) => c.id === "al")!.durationMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "al")!.sourceOutMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "am")!.startMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.startMs).toBe(2000);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.durationMs).toBe(1000);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.sourceInMs).toBe(400);
+
+    const viaCommand = applyCommand(
+      {
+        ...createSession(createMemoryBlobStore()),
+        project: { ...start, snap: false },
+        selectedClipId: "vm",
+        selectedClipIds: ["vm"],
+      },
+      { type: "slideClip", clipId: "vm", deltaMs: 200 },
+    );
+    expect(viaCommand.error).toBeNull();
+    expect(viaCommand.project.clips.find((c) => c.id === "vm")!.startMs).toBe(1200);
+    expect(viaCommand.project.clips.find((c) => c.id === "am")!.startMs).toBe(1000);
+  });
+
+  it("slide of a linked mid applies the same delta to unlocked mates", () => {
+    const va = asset({
+      id: "va",
+      kind: "video",
+      durationMs: 8000,
+      objectUrl: "blob:v",
+      hasAudio: true,
+    });
+    const start = projectWith(
+      [
+        clip({
+          id: "vl",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnL",
+        }),
+        clip({
+          id: "vm",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+          linkId: "lnM",
+        }),
+        clip({
+          id: "vr",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+          linkId: "lnR",
+        }),
+        clip({
+          id: "al",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          linkId: "lnL",
+        }),
+        clip({
+          id: "am",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+          linkId: "lnM",
+        }),
+        clip({
+          id: "ar",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+          linkId: "lnR",
+        }),
+      ],
+      [va],
+    );
+    const slid = slideClip({ ...start, snap: false }, "vm", 200);
+    expect(slid.error).toBeUndefined();
+    expect(slid.project.clips.find((c) => c.id === "al")!.durationMs).toBe(1200);
+    expect(slid.project.clips.find((c) => c.id === "al")!.sourceOutMs).toBe(1200);
+    expect(slid.project.clips.find((c) => c.id === "am")!.startMs).toBe(1200);
+    expect(slid.project.clips.find((c) => c.id === "am")!.sourceInMs).toBe(200);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.startMs).toBe(2200);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.durationMs).toBe(800);
+    expect(slid.project.clips.find((c) => c.id === "ar")!.sourceInMs).toBe(600);
   });
 
   it("group slip follows a living mate of a member, or no-ops all", () => {

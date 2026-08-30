@@ -112,7 +112,7 @@ export interface Clip {
   /** False = skip picture and mix. Missing = enabled. */
   enabled?: boolean;
   /**
-   * True = skip move, trim, slip, rate, roll-of-mate, relocate-duplicate, and drag.
+   * True = skip move, trim, slip, rate, roll/slide-of-mate, relocate-duplicate, and drag.
    * Missing = unlocked (same pattern as enabled).
    * Independent of linkId — locking one side of an A/V pair does not lock the mate.
    */

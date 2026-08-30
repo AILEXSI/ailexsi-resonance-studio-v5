@@ -1240,6 +1240,24 @@ function applySlideThroughNeighbors(
     ...nextMids.map((c) => [c.id, c] as const),
     [nextRight.id, nextRight],
   ]);
+  const before = [left, ...mids, right];
+  const after = [nextLeft, ...nextMids, nextRight];
+  for (let i = 0; i < before.length; i++) {
+    const mate = livingLinkedMate(project, before[i]!.id);
+    if (!mate || clipIsLocked(mate) || byId.has(mate.id)) continue;
+    const next = after[i]!;
+    const orig = before[i]!;
+    byId.set(
+      mate.id,
+      applyNormalizedFades({
+        ...mate,
+        startMs: clampStartMs(mate.startMs + (next.startMs - orig.startMs)),
+        durationMs: mate.durationMs + (next.durationMs - orig.durationMs),
+        sourceInMs: mate.sourceInMs + (next.sourceInMs - orig.sourceInMs),
+        sourceOutMs: mate.sourceOutMs + (next.sourceOutMs - orig.sourceOutMs),
+      }),
+    );
+  }
 
   return {
     project: {
@@ -1257,6 +1275,8 @@ function applySlideThroughNeighbors(
  * The three-clip span stays constant. A missing or non-abutting neighbor is a
  * hard stop on that side (no hole, no overlap). Delta is clamped so neither
  * neighbor drops below SPLIT_EDGE_GUARD_MS and source windows stay in media.
+ * A living unlocked linked mate takes the same edge/start delta. A locked
+ * mate is skipped (same as roll/split/slip/rate).
  */
 export function slideClip(
   project: Project,
