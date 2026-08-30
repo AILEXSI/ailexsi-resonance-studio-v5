@@ -47,34 +47,22 @@ import { Toolbar } from "../ui/toolbar/Toolbar";
 import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
 import { ExportDialog } from "../ui/export/ExportDialog";
 import {
-  applyClearInOut,
-  applyCopy,
-  applyCut,
-  applyDelete,
   applyFit,
-  applyIn,
   applyInAt,
-  applyMarker,
-  applyOut,
   applyOutAt,
-  applyPaste,
   applyPlaceAsset,
   applyPlayhead,
-  applyRedo,
   applyScroll,
   applySelect,
   applySelectMarker,
   applyDeleteMarker,
   applyMoveMarker,
-  applySplit,
   applyToggleLoop,
   applyMasterVolume,
   applyTrackVolume,
-  applyToggleMute,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
   applyToggleSnap,
-  applyUndo,
   applyUpdateClip,
   applyZoom,
   createSession,
@@ -85,6 +73,7 @@ import {
   projectJson,
   type Session,
 } from "./session";
+import { applyCommand, type EditorCommand } from "./commands";
 import { dispatchEditorKey } from "./keys";
 import {
   ARRANGE_MIN_PX,
@@ -169,20 +158,21 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const runCommand = useCallback((command: EditorCommand) => {
+    setSession((s) => applyCommand(s, command));
+  }, []);
   const play = useCallback(() => {
-    setSession((s) => ({ ...s, playing: true, status: "Playing" }));
-  }, []);
+    runCommand({ type: "play" });
+  }, [runCommand]);
   const pause = useCallback(() => {
-    setSession((s) => ({ ...s, playing: false, status: "Paused" }));
-  }, []);
+    runCommand({ type: "pause" });
+  }, [runCommand]);
   const stop = useCallback(() => {
-    setSession((s) =>
-      applyPlayhead({ ...s, playing: false, status: "Stopped" }, s.project.inPointMs ?? 0),
-    );
-  }, []);
+    runCommand({ type: "stop" });
+  }, [runCommand]);
 
   useEffect(() => {
-    if (!session.playing) {
+    if (!session.playing && session.shuttleRate === 0) {
       lastTs.current = null;
       return;
     }
@@ -192,10 +182,11 @@ export function App() {
       lastTs.current = now;
       const delta = now - prev;
       setSession((s) => {
-        if (!s.playing) return s;
-        const stepped = advancePlayhead(s.project, delta);
+        const rate = s.shuttleRate;
+        if (rate === 0 && !s.playing) return s;
+        const stepped = advancePlayhead(s.project, delta * (rate === 0 ? 1 : rate));
         if (stepped.stopped) {
-          return { ...applyPlayhead(s, stepped.playheadMs), playing: false, status: "Stopped" };
+          return applyCommand(applyPlayhead(s, stepped.playheadMs), { type: "pause" });
         }
         return applyPlayhead(s, stepped.playheadMs);
       });
@@ -203,7 +194,7 @@ export function App() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [session.playing]);
+  }, [session.playing, session.shuttleRate]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -222,19 +213,11 @@ export function App() {
         setShortcutsOpen((open) => !open);
         return;
       }
-      if (action.type === "play") {
-        play();
-        return;
-      }
-      if (action.type === "pause") {
-        pause();
-        return;
-      }
       setSession(action.session);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pause, play]);
+  }, []);
 
   const applyOpenedText = async (text: string, status: string) => {
     const opened = openSerialized(sessionRef.current, text);
@@ -672,9 +655,9 @@ export function App() {
         onOpenFile={(file) => void openProject(file)}
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
         onExport={runExport}
-        onUndo={() => setSession(applyUndo(session))}
-        onRedo={() => setSession(applyRedo(session))}
-        onSplit={() => setSession(applySplit(session))}
+        onUndo={() => runCommand({ type: "undo" })}
+        onRedo={() => runCommand({ type: "redo" })}
+        onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
       <input
@@ -798,13 +781,13 @@ export function App() {
         onPlay={play}
         onPause={pause}
         onStop={stop}
-        onStep={(delta) => setSession(applyPlayhead(session, session.project.playheadMs + delta))}
+        onStep={(delta) => runCommand({ type: "nudgePlayhead", deltaMs: delta })}
         onToggleLoop={() => setSession(applyToggleLoop(session))}
-        onIn={() => setSession(applyIn(session))}
-        onOut={() => setSession(applyOut(session))}
-        onClear={() => setSession(applyClearInOut(session))}
-        onMarker={() => setSession(applyMarker(session))}
-        onSplit={() => setSession(applySplit(session))}
+        onIn={() => runCommand({ type: "markIn" })}
+        onOut={() => runCommand({ type: "markOut" })}
+        onClear={() => runCommand({ type: "clearInOut" })}
+        onMarker={() => runCommand({ type: "addMarker" })}
+        onSplit={() => runCommand({ type: "split" })}
       />
 
       <div
@@ -826,16 +809,17 @@ export function App() {
         onMoveCommit={onMoveCommit}
         onTrimLive={onTrimLive}
         onTrimCommit={onTrimCommit}
-        onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+        onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
         onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
         onSplitHere={(clipId, timeMs) => {
-          setSession((s) => applySplit(applyPlayhead(applySelect(s, clipId), timeMs)));
+          setSession((s) => applyCommand(applyPlayhead(applySelect(s, clipId), timeMs), { type: "split" }));
         }}
-        onCut={() => setSession(applyCut(session))}
-        onCopy={() => setSession(applyCopy(session))}
-        onPaste={() => setSession(applyPaste(session))}
-        onDelete={() => setSession(applyDelete(session))}
+        onCut={() => runCommand({ type: "cut" })}
+        onCopy={() => runCommand({ type: "copy" })}
+        onPaste={() => runCommand({ type: "paste" })}
+        onDelete={() => runCommand({ type: "liftDelete" })}
+        onRippleDelete={() => runCommand({ type: "rippleDelete" })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
@@ -854,7 +838,8 @@ export function App() {
         onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
-        onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+        onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
+        onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
       />
       </div>
       </div>

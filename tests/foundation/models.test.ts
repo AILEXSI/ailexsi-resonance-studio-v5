@@ -4,6 +4,7 @@ import {
   clipEndMs,
   defaultTracks,
   formatTimecode,
+  isTrackAudible,
   isTrackId,
   kindOfTrack,
   projectDurationMs,
@@ -20,6 +21,7 @@ describe("foundation models", () => {
     expect(p.tracks.map((t) => t.id)).toEqual(["V1", "V2", "A1", "A2"]);
     expect(defaultTracks().every((t) => t.kind === kindOfTrack(t.id))).toBe(true);
     expect(defaultTracks().every((t) => t.volume === 1)).toBe(true);
+    expect(defaultTracks().every((t) => t.solo === false)).toBe(true);
     expect(p.masterVolume).toBe(1);
     expect(p.clips).toEqual([]);
     expect(p.inPointMs).toBeNull();
@@ -72,6 +74,15 @@ describe("mute skip", () => {
     expect(topVideoClipAt(p, 100)).toBeUndefined();
   });
 
+  it("skips non-soloed video when another video is soloed", () => {
+    const p = projectWith([
+      clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
+      clip({ id: "v2", assetId: "b", trackId: "V2", startMs: 0, durationMs: 2000 }),
+    ]);
+    p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, solo: true } : t));
+    expect(topVideoClipAt(p, 100)?.id).toBe("v1");
+  });
+
   it("skips muted A1/A2", () => {
     const p = projectWith([
       clip({ id: "a1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
@@ -80,6 +91,27 @@ describe("mute skip", () => {
     expect(audioClipsAt(p, 100)).toHaveLength(2);
     p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, muted: true } : t));
     expect(audioClipsAt(p, 100).map((c) => c.id)).toEqual(["a2"]);
+  });
+
+  it("solo A1 silences A2; mute still wins on a soloed track", () => {
+    const p = projectWith([
+      clip({ id: "a1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      clip({ id: "a2", assetId: "b", trackId: "A2", startMs: 0, durationMs: 1000 }),
+    ]);
+    expect(isTrackAudible(p, "A1")).toBe(true);
+    expect(isTrackAudible(p, "A2")).toBe(true);
+    p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, solo: true } : t));
+    expect(isTrackAudible(p, "A1")).toBe(true);
+    expect(isTrackAudible(p, "A2")).toBe(false);
+    expect(audioClipsAt(p, 100).map((c) => c.id)).toEqual(["a1"]);
+    p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, muted: true } : t));
+    expect(isTrackAudible(p, "A1")).toBe(false);
+    expect(audioClipsAt(p, 100)).toHaveLength(0);
+    p.tracks = p.tracks.map((t) =>
+      t.id === "A1" ? { ...t, muted: false, solo: false } : t,
+    );
+    expect(isTrackAudible(p, "A1")).toBe(true);
+    expect(isTrackAudible(p, "A2")).toBe(true);
   });
 
   it("formats mm:ss.cc", () => {

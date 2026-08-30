@@ -377,6 +377,16 @@ export function toggleTrackMute(project: Project, trackId: TrackId): Project {
   };
 }
 
+export function toggleTrackSolo(project: Project, trackId: TrackId): Project {
+  return {
+    ...project,
+    tracks: project.tracks.map((t) =>
+      t.id === trackId ? { ...t, solo: !t.solo } : t,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function addMarker(project: Project, timeMs: number, label?: string): Project {
   const marker: Marker = {
     id: createId("mk"),
@@ -485,6 +495,28 @@ export function deleteClip(project: Project, clipId: string): Project {
   return {
     ...project,
     clips: project.clips.filter((c) => c.id !== clipId),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Lift the clip, then shift later clips on the same track left by its duration.
+ * Other tracks are unchanged.
+ */
+export function rippleDeleteClip(project: Project, clipId: string): Project {
+  const clip = clipById(project, clipId);
+  if (!clip) return project;
+  const shift = clip.durationMs;
+  const cutoff = clip.startMs;
+  const trackId = clip.trackId;
+  return {
+    ...project,
+    clips: project.clips
+      .filter((c) => c.id !== clipId)
+      .map((c) => {
+        if (c.trackId !== trackId || c.startMs < cutoff) return c;
+        return { ...c, startMs: clampStartMs(c.startMs - shift) };
+      }),
     updatedAt: new Date().toISOString(),
   };
 }

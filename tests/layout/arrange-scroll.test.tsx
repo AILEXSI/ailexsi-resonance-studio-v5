@@ -66,6 +66,7 @@ describe("arrange overflow", () => {
               onVolume={noop}
               onMasterVolume={noop}
               onToggleMute={noop}
+              onToggleSolo={noop}
             />
           </div>
         </div>,

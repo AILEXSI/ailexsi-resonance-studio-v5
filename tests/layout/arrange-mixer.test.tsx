@@ -39,6 +39,7 @@ describe("arrange + mixer layout", () => {
               onVolume={() => {}}
               onMasterVolume={() => {}}
               onToggleMute={() => {}}
+              onToggleSolo={() => {}}
             />
           </div>
         </div>,

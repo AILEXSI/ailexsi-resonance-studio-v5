@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sourceTimeAt } from "../../src/core/models";
-import { advancePlayhead, playbackBounds } from "../../src/core/playback";
+import { advancePlayhead, nextShuttleRate, playbackBounds } from "../../src/core/playback";
 import { clip, projectWith } from "../helpers";
 
 describe("preview / playback", () => {
@@ -31,6 +31,28 @@ describe("preview / playback", () => {
     const stopped = advancePlayhead(p, 200);
     expect(stopped.stopped).toBe(true);
     expect(stopped.playheadMs).toBe(2000);
+  });
+
+  it("reverse shuttle stops at IN without loop and wraps with loop", () => {
+    const p = projectWith([
+      clip({ id: "c", assetId: "a", trackId: "V1", startMs: 0, durationMs: 5000 }),
+    ]);
+    p.inPointMs = 1000;
+    p.outPointMs = 2000;
+    p.playheadMs = 1100;
+    p.loop = false;
+    const stopped = advancePlayhead(p, -200);
+    expect(stopped.stopped).toBe(true);
+    expect(stopped.playheadMs).toBe(1000);
+    p.loop = true;
+    const wrapped = advancePlayhead(p, -200);
+    expect(wrapped.stopped).toBe(false);
+    expect(wrapped.playheadMs).toBe(2000);
+  });
+
+  it("shuttle rate table is 1 → 2 → 4", () => {
+    expect([0, 1, 2, 4].map((r) => nextShuttleRate(r, 1))).toEqual([1, 2, 4, 4]);
+    expect([0, -1, -2, -4].map((r) => nextShuttleRate(r, -1))).toEqual([-1, -2, -4, -4]);
   });
 
   it("uses clip extent when IN/OUT unset", () => {

@@ -74,6 +74,8 @@ export interface Track {
   kind: MediaKind;
   name: string;
   muted: boolean;
+  /** When any track is soloed, only soloed tracks are audible. Mute still wins. */
+  solo: boolean;
   /** Linear track fader. 1 = 0 dB unity. 0 = silence. */
   volume: number;
 }
@@ -122,6 +124,26 @@ export function isTrackMuted(project: Project, trackId: TrackId): boolean {
   return project.tracks.find((t) => t.id === trackId)?.muted === true;
 }
 
+export function isTrackSoloed(project: Project, trackId: TrackId): boolean {
+  return project.tracks.find((t) => t.id === trackId)?.solo === true;
+}
+
+export function anyTrackSoloed(project: Project): boolean {
+  return project.tracks.some((t) => t.solo);
+}
+
+/**
+ * Shared audible rule for preview and export.
+ * Mute always wins. If any track is soloed, only soloed tracks are audible.
+ */
+export function isTrackAudible(project: Project, trackId: TrackId): boolean {
+  const track = project.tracks.find((t) => t.id === trackId);
+  if (!track) return false;
+  if (track.muted) return false;
+  if (anyTrackSoloed(project) && !track.solo) return false;
+  return true;
+}
+
 export function trackVolumeOf(project: Project, trackId: TrackId): number {
   const v = project.tracks.find((t) => t.id === trackId)?.volume;
   return v == null || !Number.isFinite(v) ? 1 : Math.max(0, v);
@@ -145,10 +167,10 @@ export function projectDurationMs(project: Project): number {
 
 export function defaultTracks(): Track[] {
   return [
-    { id: "V1", kind: "video", name: "V1", muted: false, volume: 1 },
-    { id: "V2", kind: "video", name: "V2", muted: false, volume: 1 },
-    { id: "A1", kind: "audio", name: "A1", muted: false, volume: 1 },
-    { id: "A2", kind: "audio", name: "A2", muted: false, volume: 1 },
+    { id: "V1", kind: "video", name: "V1", muted: false, solo: false, volume: 1 },
+    { id: "V2", kind: "video", name: "V2", muted: false, solo: false, volume: 1 },
+    { id: "A1", kind: "audio", name: "A1", muted: false, solo: false, volume: 1 },
+    { id: "A2", kind: "audio", name: "A2", muted: false, solo: false, volume: 1 },
   ];
 }
 
@@ -168,7 +190,7 @@ export function topVideoClipAt(project: Project, timeMs: number): Clip | undefin
   const hits = project.clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "video" &&
-      !isTrackMuted(project, c.trackId) &&
+      isTrackAudible(project, c.trackId) &&
       timeMs >= c.startMs &&
       timeMs < clipEndMs(c),
   );
@@ -179,7 +201,7 @@ export function audioClipsAt(project: Project, timeMs: number): Clip[] {
   return project.clips.filter(
     (c) =>
       kindOfTrack(c.trackId) === "audio" &&
-      !isTrackMuted(project, c.trackId) &&
+      isTrackAudible(project, c.trackId) &&
       timeMs >= c.startMs &&
       timeMs < clipEndMs(c),
   );

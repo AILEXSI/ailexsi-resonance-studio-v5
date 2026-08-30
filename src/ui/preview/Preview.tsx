@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   audioClipsAt,
-  isTrackMuted,
+  isTrackAudible,
   kindOfTrack,
   projectDurationMs,
   sourceTimeAt,
@@ -65,7 +65,7 @@ export function Preview({ project, playing, onLevels }: Props) {
         clip.gain,
         trackVolumeOf(project, trackId),
         project.masterVolume ?? 1,
-        isTrackMuted(project, trackId),
+        !isTrackAudible(project, trackId),
       );
       const tap = tapRef.current;
       if (tap) {
@@ -107,7 +107,7 @@ export function Preview({ project, playing, onLevels }: Props) {
         clip.gain,
         trackVolumeOf(project, trackId),
         1,
-        isTrackMuted(project, trackId),
+        !isTrackAudible(project, trackId),
       );
     };
     tap.setGains({

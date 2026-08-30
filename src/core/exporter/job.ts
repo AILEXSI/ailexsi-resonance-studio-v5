@@ -1,6 +1,7 @@
 import { createId } from "../ids";
 import {
   clipEndMs,
+  isTrackAudible,
   kindOfTrack,
   type Project,
 } from "../models";
@@ -29,7 +30,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
   }
   const assets = new Map(project.assets.map((a) => [a.id, a]));
   const tracks: ExportTrack[] = project.tracks.map((track) => {
-    if (track.muted) {
+    if (!isTrackAudible(project, track.id)) {
       return { id: track.id, kind: track.kind, clips: [] };
     }
     const clips: ExportClip[] = project.clips

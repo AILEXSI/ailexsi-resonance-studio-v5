@@ -39,6 +39,7 @@ interface Props {
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
+  onRippleDelete?: () => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -96,6 +97,7 @@ export function Timeline({
   onCopy,
   onPaste,
   onDelete,
+  onRippleDelete,
   onZoom,
   onFit,
   onScroll,
@@ -662,6 +664,17 @@ export function Timeline({
           >
             <span>Delete</span>
             <kbd>{CLIP_MENU_SHORTCUTS.delete}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="clip-menu-ripple-delete"
+            onClick={() => {
+              (onRippleDelete ?? onDelete)();
+              setMenu(null);
+            }}
+          >
+            <span>Ripple delete</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.rippleDelete}</kbd>
           </button>
         </div>
       ) : null}

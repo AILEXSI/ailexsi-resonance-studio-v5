@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMasterVolume, applyTrackVolume, createSession } from "../../src/app/session";
+import { applyMasterVolume, applyToggleSolo, applyTrackVolume, createSession } from "../../src/app/session";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
 import {
@@ -52,6 +52,22 @@ describe("session + project volume persist", () => {
     expect(loaded.tracks.find((t) => t.id === "A1")?.volume).toBeCloseTo(dbToLinear(-6), 5);
     expect(loaded.masterVolume).toBeCloseTo(1, 8);
     expect(loaded.tracks.find((t) => t.id === "V1")?.volume).toBe(1);
+  });
+
+  it("round-trips track solo; legacy JSON missing solo defaults to false", () => {
+    let session = createSession(createMemoryBlobStore());
+    session = applyToggleSolo(session, "A1");
+    expect(session.project.tracks.find((t) => t.id === "A1")?.solo).toBe(true);
+    const loaded = deserializeProject(serializeProject(session.project));
+    expect(loaded.tracks.find((t) => t.id === "A1")?.solo).toBe(true);
+    expect(loaded.tracks.find((t) => t.id === "A2")?.solo).toBe(false);
+
+    const raw = JSON.parse(serializeProject(session.project)) as {
+      tracks: Array<{ solo?: boolean }>;
+    };
+    for (const t of raw.tracks) delete t.solo;
+    const legacy = deserializeProject(JSON.stringify(raw));
+    expect(legacy.tracks.every((t) => t.solo === false)).toBe(true);
   });
 
   it("legacy JSON without volume defaults to unity", () => {

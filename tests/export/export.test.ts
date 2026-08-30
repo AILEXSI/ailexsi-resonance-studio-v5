@@ -174,6 +174,23 @@ describe("export mute skip", () => {
     expect(f.rms).toBeCloseTo(1, 5);
   });
 
+  it("omits non-soloed tracks when any track is soloed", () => {
+    const p = projectWith(
+      [
+        clip({ id: "a1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "a2", assetId: "ab", trackId: "A2", startMs: 0, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "aa", kind: "audio", durationMs: 1000, objectUrl: "blob:a", missing: false }),
+        asset({ id: "ab", kind: "audio", durationMs: 1000, objectUrl: "blob:b", missing: false }),
+      ],
+    );
+    p.tracks = p.tracks.map((t) => (t.id === "A1" ? { ...t, solo: true } : t));
+    const job = jobFromProject(p);
+    expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
+    expect(job.tracks.find((t) => t.id === "A2")!.clips).toHaveLength(0);
+  });
+
   it("omits muted A1 from the job", () => {
     const p = projectWith(
       [

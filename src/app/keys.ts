@@ -1,19 +1,6 @@
 import { FRAME_MS } from "../core/models";
-import {
-  applyClearInOut,
-  applyCopy,
-  applyCut,
-  applyDelete,
-  applyIn,
-  applyMarker,
-  applyOut,
-  applyPaste,
-  applyPlayhead,
-  applyRedo,
-  applySplit,
-  applyUndo,
-  type Session,
-} from "./session";
+import { applyCommand, type EditorCommand } from "./commands";
+import type { Session } from "./session";
 
 export interface EditorKeyEvent {
   key: string;
@@ -26,71 +13,77 @@ export interface EditorKeyEvent {
 export type EditorKeyAction =
   | { type: "session"; session: Session; preventDefault?: boolean }
   | { type: "toggleShortcuts"; preventDefault: true }
-  | { type: "play"; preventDefault: true }
-  | { type: "pause"; preventDefault: true }
   | { type: "none" };
 
-/**
- * Editor key routing. Modifier chords run before bare letters.
- * Split is S (not V). Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
- */
-export function dispatchEditorKey(
-  session: Session,
-  playing: boolean,
-  e: EditorKeyEvent,
-): EditorKeyAction {
-  if (e.key === "?") return { type: "toggleShortcuts", preventDefault: true };
-  if (e.code === "Space" || e.key === " ") {
-    return playing
-      ? { type: "pause", preventDefault: true }
-      : { type: "play", preventDefault: true };
-  }
+function commandFromKey(e: EditorKeyEvent): EditorCommand | "toggleShortcuts" | null {
+  if (e.key === "?") return "toggleShortcuts";
 
   const mod = Boolean(e.ctrlKey || e.metaKey);
   const letter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
+  if (e.code === "Space" || e.key === " ") return { type: "playPause" };
+
   if (mod) {
-    if (letter === "z" && !e.shiftKey) {
-      return { type: "session", session: applyUndo(session), preventDefault: true };
-    }
-    if (letter === "y" || (letter === "z" && e.shiftKey)) {
-      return { type: "session", session: applyRedo(session), preventDefault: true };
-    }
-    if (letter === "c") {
-      return { type: "session", session: applyCopy(session), preventDefault: true };
-    }
-    if (letter === "x") {
-      return { type: "session", session: applyCut(session), preventDefault: true };
-    }
-    if (letter === "v") {
-      return { type: "session", session: applyPaste(session), preventDefault: true };
-    }
-    return { type: "none" };
+    if (letter === "z" && !e.shiftKey) return { type: "undo" };
+    if (letter === "y" || (letter === "z" && e.shiftKey)) return { type: "redo" };
+    if (letter === "c") return { type: "copy" };
+    if (letter === "x") return { type: "cut" };
+    if (letter === "v") return { type: "paste" };
+    return null;
   }
 
-  if (letter === "s") {
-    return { type: "session", session: applySplit(session) };
-  }
-  if (letter === "m") {
-    return { type: "session", session: applyMarker(session) };
-  }
-  if (letter === "x" || (letter === "i" && e.shiftKey)) {
-    return { type: "session", session: applyClearInOut(session), preventDefault: true };
-  }
-  if (letter === "i") {
-    return { type: "session", session: applyIn(session) };
-  }
-  if (letter === "o") {
-    return { type: "session", session: applyOut(session) };
-  }
+  if (letter === "s") return { type: "split" };
+  if (letter === "m") return { type: "addMarker" };
+  if (letter === "x" || (letter === "i" && e.shiftKey)) return { type: "clearInOut" };
+  if (letter === "i") return { type: "markIn" };
+  if (letter === "o") return { type: "markOut" };
+  if (letter === "j") return { type: "shuttle", dir: -1 };
+  if (letter === "k") return { type: "shuttle", dir: 0 };
+  if (letter === "l") return { type: "shuttle", dir: 1 };
+
   if (e.key === "Delete" || e.key === "Backspace") {
-    return { type: "session", session: applyDelete(session) };
+    return e.shiftKey ? { type: "rippleDelete" } : { type: "liftDelete" };
   }
-  if (e.key === "ArrowLeft") {
-    return { type: "session", session: applyPlayhead(session, session.project.playheadMs - FRAME_MS) };
+  if (e.key === "ArrowLeft") return { type: "nudgePlayhead", deltaMs: -FRAME_MS };
+  if (e.key === "ArrowRight") return { type: "nudgePlayhead", deltaMs: FRAME_MS };
+
+  const comma = e.key === "," || e.key === "<" || e.code === "Comma";
+  const period = e.key === "." || e.key === ">" || e.code === "Period";
+  if (comma || period) {
+    const frames = e.shiftKey || e.key === "<" || e.key === ">" ? 10 : 1;
+    return { type: "nudgeClip", deltaMs: (period ? 1 : -1) * frames * FRAME_MS };
   }
-  if (e.key === "ArrowRight") {
-    return { type: "session", session: applyPlayhead(session, session.project.playheadMs + FRAME_MS) };
-  }
-  return { type: "none" };
+  return null;
+}
+
+/**
+ * Editor key routing. Modifier chords run before bare letters.
+ * Split is S (not V). Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
+ * All mutations go through `applyCommand`.
+ */
+export function dispatchEditorKey(
+  session: Session,
+  _playing: boolean,
+  e: EditorKeyEvent,
+): EditorKeyAction {
+  const command = commandFromKey(e);
+  if (!command) return { type: "none" };
+  if (command === "toggleShortcuts") return { type: "toggleShortcuts", preventDefault: true };
+  const preventDefault =
+    command.type === "playPause" ||
+    command.type === "undo" ||
+    command.type === "redo" ||
+    command.type === "copy" ||
+    command.type === "cut" ||
+    command.type === "paste" ||
+    command.type === "clearInOut" ||
+    command.type === "liftDelete" ||
+    command.type === "rippleDelete" ||
+    command.type === "nudgeClip" ||
+    command.type === "shuttle";
+  return {
+    type: "session",
+    session: applyCommand(session, command),
+    preventDefault,
+  };
 }

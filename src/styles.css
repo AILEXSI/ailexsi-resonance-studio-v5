@@ -474,7 +474,9 @@ input[type="range"] { accent-color: var(--accent-2); }
   color: var(--muted);
   font-weight: 600;
 }
-.mute-btn { padding: 0 6px; font-size: 10px; line-height: 16px; }
+.mute-btn, .solo-btn { padding: 0 6px; font-size: 10px; line-height: 16px; }
+.solo-btn.active { background: #3a2f18; border-color: var(--accent); color: var(--accent); }
+.mix-ms { display: flex; gap: 2px; }
 .vis-lane-btns { display: flex; gap: 3px; }
 .scene-btn {
   padding: 0 4px;
@@ -750,6 +752,7 @@ input[type="range"] { accent-color: var(--accent-2); }
 }
 .mix-strip.selected { border-color: var(--accent-2); background: #161c28; }
 .mix-strip.muted { opacity: 0.55; }
+.mix-strip.soloed { border-color: var(--accent); }
 .mix-strip.master { border-left: 1px solid var(--line); margin-left: 2px; }
 .mixer.collapsed .mix-strip.master { border-left: none; margin-left: 0; }
 .mix-name {

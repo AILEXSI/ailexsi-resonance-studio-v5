@@ -33,12 +33,15 @@ import {
   toggleSnap,
   setMasterVolume,
   setTrackVolume,
+  rippleDeleteClip,
   toggleTrackMute,
+  toggleTrackSolo,
   trimClip,
   undo as undoHistory,
   updateClip,
   type HistoryStack,
 } from "../core/timeline";
+import { nextShuttleRate } from "../core/playback";
 import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
 import { formatDb, linearToDb } from "../core/volume";
 import {
@@ -58,6 +61,8 @@ export interface Session {
   status: string;
   error: string | null;
   playing: boolean;
+  /** 0 = paused. Space uses ±1. J/L step 1→2→4 (signed). */
+  shuttleRate: number;
   store: BlobStore;
 }
 
@@ -72,6 +77,7 @@ export function createSession(store?: BlobStore): Session {
     status: "New project",
     error: null,
     playing: false,
+    shuttleRate: 0,
     store: store ?? createIndexedDbBlobStore(),
   };
 }
@@ -387,6 +393,23 @@ export function applyDelete(session: Session): Session {
   return { ...session, error: "No clip selected" };
 }
 
+export function applyRippleDelete(session: Session): Session {
+  if (!session.selectedClipId) {
+    return { ...session, error: "No clip selected" };
+  }
+  const next = rippleDeleteClip(session.project, session.selectedClipId);
+  return { ...withHistory(session, next, "Ripple deleted"), selectedClipId: null };
+}
+
+export function applyNudge(session: Session, deltaMs: number): Session {
+  const clip = session.project.clips.find((c) => c.id === session.selectedClipId);
+  if (!clip) return { ...session, error: "No clip selected" };
+  const result = moveClip(session.project, clip.id, clip.startMs + deltaMs);
+  if (result.error) return { ...session, error: result.error };
+  const verb = deltaMs < 0 ? "Nudged left" : "Nudged right";
+  return withHistory(session, result.project, verb);
+}
+
 export function applyDeleteMarker(session: Session, markerId: string): Session {
   const result = deleteMarker(session.project, markerId);
   if (result.error) return { ...session, error: result.error };
@@ -437,6 +460,41 @@ export function applyToggleMute(session: Session, trackId: TrackId): Session {
   const track = next.tracks.find((t) => t.id === trackId);
   const verb = track?.muted ? "Muted" : "Unmuted";
   return { ...session, project: next, status: `${verb} ${trackId}`, error: null };
+}
+
+export function applyToggleSolo(session: Session, trackId: TrackId): Session {
+  const next = toggleTrackSolo(session.project, trackId);
+  const track = next.tracks.find((t) => t.id === trackId);
+  const verb = track?.solo ? "Solo" : "Unsolo";
+  return { ...session, project: next, status: `${verb} ${trackId}`, error: null };
+}
+
+export function applyPlay(session: Session): Session {
+  return { ...session, playing: true, shuttleRate: 1, status: "Playing", error: null };
+}
+
+export function applyPause(session: Session): Session {
+  return { ...session, playing: false, shuttleRate: 0, status: "Paused", error: null };
+}
+
+export function applyStop(session: Session): Session {
+  return applyPlayhead(
+    { ...session, playing: false, shuttleRate: 0, status: "Stopped", error: null },
+    session.project.inPointMs ?? 0,
+  );
+}
+
+export function applyPlayPause(session: Session): Session {
+  return session.playing || session.shuttleRate !== 0 ? applyPause(session) : applyPlay(session);
+}
+
+export function applyShuttle(session: Session, dir: -1 | 0 | 1): Session {
+  const rate = nextShuttleRate(session.shuttleRate, dir);
+  if (rate === 0) {
+    return { ...session, playing: false, shuttleRate: 0, status: "Paused", error: null };
+  }
+  const label = rate < 0 ? `Shuttle ${rate}x` : `Shuttle +${rate}x`;
+  return { ...session, playing: true, shuttleRate: rate, status: label, error: null };
 }
 
 export function applyToggleVisualizerMute(session: Session): Session {
@@ -517,6 +575,7 @@ export function openSerialized(session: Session, text: string): Session {
     status: `Opened ${project.name}`,
     error: null,
     playing: false,
+    shuttleRate: 0,
   };
 }
 

@@ -27,6 +27,7 @@ interface Props {
   onVolume: (id: TrackId, linear: number) => void;
   onMasterVolume: (linear: number) => void;
   onToggleMute: (id: TrackId) => void;
+  onToggleSolo: (id: TrackId) => void;
 }
 
 function Strip(props: {
@@ -34,19 +35,21 @@ function Strip(props: {
   label: string;
   volume: number;
   muted?: boolean;
+  solo?: boolean;
   selected?: boolean;
   peak: number;
   kind: "video" | "audio" | "master";
   onSelect?: () => void;
   onVolume: (linear: number) => void;
   onMute?: () => void;
+  onSolo?: () => void;
 }) {
   const pos = dbToFader(linearToDb(props.volume));
   const dbLabel = formatDb(linearToDb(props.volume));
   const meterDb = formatDb(peakToDb(props.peak));
   return (
     <div
-      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}`}
+      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}`}
       data-testid={`mix-${props.id}`}
       onClick={props.onSelect}
     >
@@ -72,17 +75,34 @@ function Strip(props: {
       </div>
       <div className="mix-peak">{meterDb}</div>
       {props.onMute ? (
-        <button
-          type="button"
-          className={props.muted ? "active mute-btn" : "mute-btn"}
-          title={props.muted ? `Unmute ${props.label}` : `Mute ${props.label}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onMute?.();
-          }}
-        >
-          M
-        </button>
+        <div className="mix-ms">
+          <button
+            type="button"
+            className={props.muted ? "active mute-btn" : "mute-btn"}
+            title={props.muted ? `Unmute ${props.label}` : `Mute ${props.label}`}
+            data-testid={`mix-mute-${props.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onMute?.();
+            }}
+          >
+            M
+          </button>
+          {props.onSolo ? (
+            <button
+              type="button"
+              className={props.solo ? "active solo-btn" : "solo-btn"}
+              title={props.solo ? `Unsolo ${props.label}` : `Solo ${props.label}`}
+              data-testid={`mix-solo-${props.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onSolo?.();
+              }}
+            >
+              S
+            </button>
+          ) : null}
+        </div>
       ) : (
         <span className="mix-master-tag">MST</span>
       )}
@@ -112,6 +132,7 @@ export function Mixer({
   onVolume,
   onMasterVolume,
   onToggleMute,
+  onToggleSolo,
 }: Props) {
   return (
     <aside
@@ -149,11 +170,13 @@ export function Mixer({
                   kind={id === "A1" || id === "A2" ? "audio" : "video"}
                   volume={track?.volume ?? 1}
                   muted={track?.muted === true}
+                  solo={track?.solo === true}
                   selected={selectedTrackId === id}
                   peak={peaks[id]}
                   onSelect={() => onSelectTrack(id)}
                   onVolume={(v) => onVolume(id, v)}
                   onMute={() => onToggleMute(id)}
+                  onSolo={() => onToggleSolo(id)}
                 />
               );
             })}

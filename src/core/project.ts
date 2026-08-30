@@ -109,6 +109,7 @@ function sanitizeTracks(raw: unknown): Track[] {
     return {
       ...track,
       muted: Boolean(found.muted),
+      solo: found.solo === true,
       volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
     };
   });

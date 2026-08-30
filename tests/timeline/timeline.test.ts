@@ -17,7 +17,9 @@ import {
   setOutPoint,
   snapTime,
   splitClipAt,
+  rippleDeleteClip,
   toggleTrackMute,
+  toggleTrackSolo,
   trimClip,
   undo,
 } from "../../src/core/timeline";
@@ -160,6 +162,36 @@ describe("timeline mute", () => {
     expect(muted.tracks.find((t) => t.id === "V1")!.muted).toBe(true);
     const unmuted = toggleTrackMute(muted, "V1");
     expect(unmuted.tracks.find((t) => t.id === "V1")!.muted).toBe(false);
+  });
+});
+
+describe("ripple delete", () => {
+  it("removes the clip and shifts later clips on the same track only", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 2000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 1000, durationMs: 500 }),
+        clip({ id: "c3", assetId: "a", trackId: "A2", startMs: 1000, durationMs: 400 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClip(p, "c1");
+    expect(next.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.clips.find((c) => c.id === "c2")!.startMs).toBe(0);
+    expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+});
+
+describe("track solo", () => {
+  it("toggles solo independently of mute", () => {
+    const p = base();
+    expect(p.tracks.find((t) => t.id === "A1")!.solo).toBe(false);
+    const soloed = toggleTrackSolo(p, "A1");
+    expect(soloed.tracks.find((t) => t.id === "A1")!.solo).toBe(true);
+    expect(soloed.tracks.find((t) => t.id === "A1")!.muted).toBe(false);
+    const unsoloed = toggleTrackSolo(soloed, "A1");
+    expect(unsoloed.tracks.find((t) => t.id === "A1")!.solo).toBe(false);
   });
 });
 

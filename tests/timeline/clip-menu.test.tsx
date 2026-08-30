@@ -85,7 +85,10 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Paste");
     expect(text).toContain("Ctrl+V");
     expect(text).toContain("Delete");
+    expect(text).toContain("Ripple delete");
+    expect(text).toContain("Shift+Delete");
     expect(CLIP_MENU_SHORTCUTS.split).toBe("S");
+    expect(CLIP_MENU_SHORTCUTS.rippleDelete).toBe("Shift+Delete");
     const splitRow = [...menu!.querySelectorAll("button")].find((b) =>
       (b.textContent ?? "").includes("Split here"),
     );
@@ -109,6 +112,10 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+C");
     expect(text).toContain("Ctrl+V");
     expect(text).toContain("Delete");
+    expect(text).toContain("Shift+Delete");
+    expect(text).toContain("J / K / L");
+    expect(text).toContain(", / .");
+    expect(text).toContain("Mixer S");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });
