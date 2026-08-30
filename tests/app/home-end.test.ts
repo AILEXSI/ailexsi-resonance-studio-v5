@@ -112,4 +112,29 @@ describe("Home / End seek (P49)", () => {
     expect(dispatchEditorKey(marked, false, { key: "Home", ctrlKey: true }).type).toBe("none");
     expect(dispatchEditorKey(marked, false, { key: "End", metaKey: true }).type).toBe("none");
   });
+
+  it("I/O snap the mark to nearby edges; playhead and Shift+I stay (P91)", () => {
+    const start = clipSession();
+    start.project = {
+      ...start.project,
+      playheadMs: 2070,
+      markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+      snap: true,
+    };
+    const inn = sessionOf(dispatchEditorKey(start, false, { key: "i" }));
+    expect(inn.project.inPointMs).toBe(2000);
+    expect(inn.project.playheadMs).toBe(2070);
+    const out = sessionOf(dispatchEditorKey(start, false, { key: "o" }));
+    expect(out.project.outPointMs).toBe(2000);
+    expect(out.project.playheadMs).toBe(2070);
+
+    const off = sessionOf(
+      dispatchEditorKey({ ...start, project: { ...start.project, snap: false } }, false, { key: "i" }),
+    );
+    expect(off.project.inPointMs).toBe(2070);
+
+    const cleared = sessionOf(dispatchEditorKey(inn, false, { key: "i", shiftKey: true }));
+    expect(cleared.project.inPointMs).toBeNull();
+    expect(cleared.project.outPointMs).toBeNull();
+  });
 });

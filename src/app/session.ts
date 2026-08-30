@@ -619,13 +619,15 @@ export function applyRedo(session: Session): Session {
 }
 
 export function applyIn(session: Session): Session {
-  const result = setInPoint(session.project, session.project.playheadMs);
+  const ms = snapPlayheadSeek(session.project, session.project.playheadMs);
+  const result = setInPoint(session.project, ms);
   if (result.error) return { ...session, error: result.error };
   return { ...session, project: result.project, status: "IN set", error: null };
 }
 
 export function applyOut(session: Session): Session {
-  const result = setOutPoint(session.project, session.project.playheadMs);
+  const ms = snapPlayheadSeek(session.project, session.project.playheadMs);
+  const result = setOutPoint(session.project, ms);
   if (result.error) return { ...session, error: result.error };
   return { ...session, project: result.project, status: "OUT set", error: null };
 }
