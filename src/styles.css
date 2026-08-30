@@ -376,6 +376,15 @@ body.media-asset-dragging .project-overlay-drawer {
 .media-item.missing { border-color: var(--danger); color: var(--danger); background: #2a1518; }
 .media-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .media-item.missing .media-meta { color: var(--danger); }
+.media-kind-filter button {
+  font-size: 11px;
+  text-transform: capitalize;
+  padding: 2px 7px;
+}
+.media-kind-filter button.active {
+  border-color: var(--accent-2);
+  color: var(--text);
+}
 
 .preview-wrap { display: flex; flex-direction: column; min-height: 0; background: #050608; }
 .preview-chrome {

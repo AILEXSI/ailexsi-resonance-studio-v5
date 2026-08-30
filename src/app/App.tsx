@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
-import { preferredTrackForAsset } from "../core/media";
+import { MEDIA_FILE_ACCEPT, preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
@@ -1026,7 +1026,7 @@ export function App() {
       />
       <input
         type="file"
-        accept="audio/*,video/*"
+        accept={MEDIA_FILE_ACCEPT}
         multiple
         hidden
         data-testid="import-input"

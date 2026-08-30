@@ -2,9 +2,40 @@
  * Shorten MEDIA labels for the bin. Disk / asset.name stay unchanged.
  * UUID-looking stems become a 6-char prefix + ellipsis + extension.
  */
+import type { MediaAsset, MediaKind } from "./models";
+
 const UUID =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const LONG_HEX = /^[0-9a-f]{16,}$/i;
+
+export type MediaKindFilter = MediaKind | "all";
+
+export function normalizeMediaQuery(query: string): string {
+  return query.trim().toLowerCase();
+}
+
+export function assetMatchesMediaQuery(
+  asset: Pick<MediaAsset, "name" | "kind" | "mimeType">,
+  query: string,
+): boolean {
+  const q = normalizeMediaQuery(query);
+  if (!q) return true;
+  const name = asset.name.toLowerCase();
+  const kind = asset.kind.toLowerCase();
+  const mime = (asset.mimeType ?? "").toLowerCase();
+  return name.includes(q) || kind.includes(q) || mime.includes(q);
+}
+
+export function filterMediaAssets<T extends Pick<MediaAsset, "name" | "kind" | "mimeType">>(
+  assets: readonly T[],
+  opts: { query?: string; kind?: MediaKindFilter } = {},
+): T[] {
+  const kind = opts.kind ?? "all";
+  return assets.filter((asset) => {
+    if (kind !== "all" && asset.kind !== kind) return false;
+    return assetMatchesMediaQuery(asset, opts.query ?? "");
+  });
+}
 
 export function displayMediaName(name: string, max = 22): string {
   if (!name) return name;

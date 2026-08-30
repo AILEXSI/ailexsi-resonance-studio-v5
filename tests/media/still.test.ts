@@ -159,12 +159,13 @@ describe("still images (P41)", () => {
     ).toBeUndefined();
 
     const bag = new Map<string, string>();
+    const types: string[] = [];
     const dt = {
-      types: [] as string[],
+      types,
       effectAllowed: "none",
       setData(type: string, value: string) {
         bag.set(type, value);
-        if (!this.types.includes(type)) this.types.push(type);
+        if (!types.includes(type)) types.push(type);
       },
       getData(type: string) {
         return bag.get(type) ?? "";

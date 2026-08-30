@@ -30,6 +30,9 @@ const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
 /** HTML5 drag payload for a bin asset id. */
 export const MEDIA_ASSET_DRAG_TYPE = "application/x-resonance-asset-id";
 
+export const MEDIA_FILE_ACCEPT =
+  "audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*";
+
 export function classifyFile(file: File): MediaKind {
   if (VIDEO_MIME.test(file.type)) return "video";
   if (AUDIO_MIME.test(file.type)) return "audio";

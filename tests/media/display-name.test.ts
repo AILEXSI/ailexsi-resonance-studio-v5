@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { displayMediaName } from "../../src/core/media-display";
+import { displayMediaName, filterMediaAssets } from "../../src/core/media-display";
+import { asset } from "../helpers";
 
 describe("MEDIA display names", () => {
   it("shortens UUID-looking filenames and keeps the extension", () => {
@@ -18,5 +19,28 @@ describe("MEDIA display names", () => {
     expect(shown.length).toBeLessThan(disk.length);
     expect(disk.endsWith(".mp4")).toBe(true);
     expect(shown.endsWith(".mp4")).toBe(true);
+  });
+});
+
+describe("media bin filter", () => {
+  const assets = [
+    asset({ id: "v", kind: "video", name: "take-A.mp4" }),
+    asset({ id: "a", kind: "audio", name: "kick.wav" }),
+    asset({ id: "i", kind: "image", name: "poster.png", durationMs: 5000 }),
+  ];
+
+  it("empty query + all shows every asset", () => {
+    expect(filterMediaAssets(assets, { query: "  ", kind: "all" }).map((a) => a.id)).toEqual([
+      "v",
+      "a",
+      "i",
+    ]);
+  });
+
+  it("filters by name substring and kind", () => {
+    expect(filterMediaAssets(assets, { query: "kick" }).map((a) => a.id)).toEqual(["a"]);
+    expect(filterMediaAssets(assets, { query: "png", kind: "image" }).map((a) => a.id)).toEqual(["i"]);
+    expect(filterMediaAssets(assets, { kind: "video" }).map((a) => a.id)).toEqual(["v"]);
+    expect(filterMediaAssets(assets, { query: "nope" })).toEqual([]);
   });
 });
