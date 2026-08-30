@@ -699,7 +699,8 @@ export function applyClearInOut(session: Session): Session {
 }
 
 export function applyMarker(session: Session): Session {
-  const next = addMarker(session.project, session.project.playheadMs);
+  const at = snapPlayheadSeek(session.project, session.project.playheadMs);
+  const next = addMarker(session.project, at);
   const added = next.markers[next.markers.length - 1];
   return {
     ...withClipSelection(withHistory(session, next, "Marker added"), []),

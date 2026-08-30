@@ -182,6 +182,23 @@ describe("markers", () => {
     expect(action.session.status).toBe("Marker added");
   });
 
+  it("M snaps the new mark to nearby edges; playhead stays (P92)", () => {
+    const start = sessionWithMarkers().session;
+    const parked = {
+      ...start,
+      project: { ...start.project, playheadMs: 2070, snap: true },
+      selectedMarkerId: null,
+    };
+    expect(parked.project.markers.some((m) => m.timeMs === 2000)).toBe(false);
+    const added = applyMarker(parked);
+    expect(added.project.markers.filter((m) => m.timeMs === 2000)).toHaveLength(1);
+    expect(added.project.playheadMs).toBe(2070);
+
+    const off = applyMarker({ ...parked, project: { ...parked.project, snap: false } });
+    expect(off.project.markers.some((m) => m.timeMs === 2070)).toBe(true);
+    expect(off.project.playheadMs).toBe(2070);
+  });
+
   it("add marker at playhead then deleteMarker removes only the new one", () => {
     const start = sessionWithMarkers().session;
     const added = applyMarker({ ...start, project: { ...start.project, playheadMs: 900 } });
