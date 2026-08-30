@@ -453,9 +453,11 @@ export function applyPlaceAsset(
   const prevScrollMs = session.project.scrollMs;
   const prevClipCount = session.project.clips.length;
   const rawStart = startMs ?? session.project.playheadMs;
-  const placedStart = session.project.snap
-    ? snapTime(rawStart, collectSnapTargets(session.project)).timeMs
-    : rawStart;
+  const placedStart = !session.project.snap
+    ? rawStart
+    : startMs == null
+      ? snapPlayheadSeek(session.project, rawStart)
+      : snapTime(rawStart, collectSnapTargets(session.project)).timeMs;
   const result = placeAsset(
     session.project,
     assetId,

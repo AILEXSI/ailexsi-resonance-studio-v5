@@ -244,6 +244,37 @@ describe("still images (P41)", () => {
     expect(off.project.playheadMs).toBe(2070);
   });
 
+  it("bin place-at-playhead snaps like paste; drop-at-click stays P84 (P97)", () => {
+    const session = createSession(createMemoryBlobStore());
+    session.project = {
+      ...projectWith(
+        [clip({ id: "old", assetId: "still", trackId: "V1", startMs: 0, durationMs: 2000 })],
+        [asset({ id: "still", kind: "image", durationMs: 5000 })],
+      ),
+      playheadMs: 2070,
+      snap: true,
+    };
+    const atHead = applyPlaceAsset(session, "still", "V2");
+    expect(atHead.project.clips.find((c) => c.id !== "old")!.startMs).toBe(2000);
+    expect(atHead.project.playheadMs).toBe(2000);
+
+    const drop = applyPlaceAsset(
+      { ...session, project: { ...session.project, playheadMs: 9000 } },
+      "still",
+      "V2",
+      2070,
+    );
+    expect(drop.project.clips.find((c) => c.id !== "old")!.startMs).toBe(2000);
+
+    const off = applyPlaceAsset(
+      { ...session, project: { ...session.project, snap: false } },
+      "still",
+      "V2",
+    );
+    expect(off.project.clips.find((c) => c.id !== "old")!.startMs).toBe(2070);
+    expect(off.project.playheadMs).toBe(2070);
+  });
+
   it("filmstrip for a still is one thumb, not a video strip", () => {
     const times = filmstripTimes({
       sourceInMs: 0,
