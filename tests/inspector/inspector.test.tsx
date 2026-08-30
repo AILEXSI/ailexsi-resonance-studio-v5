@@ -1,6 +1,11 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
+import { applyCommand } from "../../src/app/commands";
+import { createSession, type Session } from "../../src/app/session";
+import { unlinkClips } from "../../src/core/link";
+import { createMemoryBlobStore } from "../../src/core/persistence";
+import type { Project } from "../../src/core/models";
 import { Inspector } from "../../src/ui/inspector/Inspector";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -69,5 +74,124 @@ describe("inspector selection", () => {
   it("shows the empty copy when nothing is selected", () => {
     mount(null, []);
     expect(host!.textContent ?? "").toContain("No clip selected.");
+  });
+});
+
+describe("inspector unlink", () => {
+  let host: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  function linkedProject(): Project {
+    return projectWith(
+      [
+        clip({
+          id: "v1",
+          assetId: "va",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({
+          id: "a1",
+          assetId: "va",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          linkId: "lnk1",
+        }),
+        clip({ id: "c3", assetId: "va", trackId: "V2", startMs: 0, durationMs: 400 }),
+      ],
+      [asset({ id: "va", kind: "video", durationMs: 2000, hasAudio: true })],
+    );
+  }
+
+  function mount(
+    project: Project,
+    selectedClipId: string | null,
+    selectedClipIds: string[],
+    onUnlink: (clipId: string) => void = () => {},
+  ) {
+    if (!host) {
+      host = document.createElement("div");
+      document.body.appendChild(host);
+      root = createRoot(host);
+    }
+    act(() => {
+      root!.render(
+        <Inspector
+          project={project}
+          selectedClipId={selectedClipId}
+          selectedClipIds={selectedClipIds}
+          onChange={() => {}}
+          onUnlink={onUnlink}
+        />,
+      );
+    });
+  }
+
+  it("shows Unlink iff a selected clip has a living mate", () => {
+    const project = linkedProject();
+    mount(project, "v1", ["v1"]);
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')?.textContent).toBe("Unlink");
+
+    mount(project, "c3", ["c3"]);
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')).toBeNull();
+
+    mount(project, "v1", ["c3", "v1"]);
+    expect(host!.querySelector('[data-testid="inspector-selection-count"]')?.textContent).toBe("2 clips");
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')).toBeTruthy();
+    expect(host!.textContent ?? "").not.toContain("Start (ms)");
+
+    const orphan = {
+      ...project,
+      clips: project.clips.map((c) => (c.id === "a1" ? { ...c, linkId: undefined } : c)),
+    };
+    mount(orphan, "v1", ["v1"]);
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')).toBeNull();
+
+    mount(project, null, []);
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')).toBeNull();
+  });
+
+  it("click dispatches unlinkClips and hides Unlink after the pair is cleared", () => {
+    let session: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: linkedProject(),
+      selectedClipId: "v1",
+      selectedClipIds: ["v1"],
+    };
+    const render = () =>
+      mount(session.project, session.selectedClipId, session.selectedClipIds, (clipId) => {
+        session = applyCommand(session, { type: "unlinkClips", clipId });
+      });
+    render();
+    const btn = host!.querySelector('[data-testid="inspector-unlink"]');
+    expect(btn).toBeTruthy();
+    act(() => {
+      (btn as HTMLButtonElement).click();
+    });
+    expect(session.project.clips.every((c) => !c.linkId)).toBe(true);
+    expect(session.status).toBe("Unlinked clips");
+    render();
+    expect(host!.querySelector('[data-testid="inspector-unlink"]')).toBeNull();
+  });
+
+  it("unlinkClips command clears linkId without inspector chrome", () => {
+    const cleared = unlinkClips(linkedProject(), "a1");
+    expect(cleared.project.clips.every((c) => !c.linkId)).toBe(true);
   });
 });

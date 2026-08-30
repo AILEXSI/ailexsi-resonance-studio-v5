@@ -886,6 +886,7 @@ export function App() {
             onRate={(clipId, rate) =>
               setSession(applyCommand(session, { type: "setClipRate", clipId, rate }))
             }
+            onUnlink={(clipId) => setSession(applyCommand(session, { type: "unlinkClips", clipId }))}
           />
         </div>
       </div>

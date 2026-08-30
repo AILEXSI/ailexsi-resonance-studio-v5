@@ -389,6 +389,7 @@ input[type="range"] { accent-color: var(--accent-2); }
 .inspector dt { color: var(--muted); }
 .inspector dd { margin: 0; display: flex; align-items: center; gap: 8px; }
 .inspector .tc { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.inspector-unlink { margin-top: 12px; }
 
 .transport { border-top: 1px solid var(--line); }
 .transport [data-testid="timecode"] {

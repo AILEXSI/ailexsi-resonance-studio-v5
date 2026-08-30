@@ -328,6 +328,65 @@ describe("editor keys", () => {
     expect(shiftDel.status).toBe("Extracted range");
   });
 
+  it("Ctrl+Shift+L unlinks a living pair; Ctrl+L and bare L stay unused / shuttle", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 2000, hasAudio: true });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: projectWith(
+        [
+          clip({
+            id: "v1",
+            assetId: "va",
+            trackId: "V1",
+            startMs: 0,
+            durationMs: 2000,
+            sourceInMs: 0,
+            sourceOutMs: 2000,
+            linkId: "lnk1",
+          }),
+          clip({
+            id: "a1",
+            assetId: "va",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 2000,
+            sourceInMs: 0,
+            sourceOutMs: 2000,
+            linkId: "lnk1",
+          }),
+        ],
+        [va],
+      ),
+      selectedClipId: "v1",
+      selectedClipIds: ["v1"],
+    };
+    const unlinked = sessionOf(
+      dispatchEditorKey(start, false, { key: "L", ctrlKey: true, shiftKey: true }),
+    );
+    expect(unlinked.status).toBe("Unlinked clips");
+    expect(unlinked.project.clips.every((c) => !c.linkId)).toBe(true);
+
+    const viaMeta = sessionOf(
+      dispatchEditorKey(start, false, { key: "l", metaKey: true, shiftKey: true }),
+    );
+    expect(viaMeta.status).toBe("Unlinked clips");
+    expect(viaMeta.project.clips.every((c) => !c.linkId)).toBe(true);
+
+    const ctrlL = dispatchEditorKey(start, false, { key: "l", ctrlKey: true });
+    expect(ctrlL.type).toBe("none");
+
+    const shuttle = sessionOf(dispatchEditorKey(start, false, { key: "l" }));
+    expect(shuttle.shuttleRate).toBe(1);
+    expect(shuttle.project.clips.every((c) => c.linkId === "lnk1")).toBe(true);
+
+    const noMate = dispatchEditorKey(unlinked, false, {
+      key: "l",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    expect(noMate.type).toBe("none");
+  });
+
   it("Ctrl/Meta ignore bare letter shortcuts S M X I O", () => {
     const start = clipSession();
     for (const key of ["s", "m", "x", "i", "o"] as const) {

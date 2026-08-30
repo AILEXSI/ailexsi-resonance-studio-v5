@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { firstClipIdWithLivingMate } from "../../core/link";
 import { clipById, formatTimecode, kindOfTrack, type Clip, type Project, type TrackId } from "../../core/models";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
+  onUnlink?: (clipId: string) => void;
 }
 
 function Field({
@@ -49,10 +51,11 @@ function MsField({
   );
 }
 
-export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades, onRate }: Props) {
+export function Inspector({ project, selectedClipId, selectedClipIds, onChange, onFades, onRate, onUnlink }: Props) {
   const ids = selectedClipIds?.length ? selectedClipIds : selectedClipId ? [selectedClipId] : [];
   const clip = ids.length === 1 ? clipById(project, ids[0]!) : undefined;
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
+  const unlinkId = firstClipIdWithLivingMate(project, ids);
 
   return (
     <aside className="panel inspector" data-testid="inspector">
@@ -117,6 +120,16 @@ export function Inspector({ project, selectedClipId, selectedClipIds, onChange, 
           <Field label="Asset">{asset?.missing ? <span className="err">{asset.name}</span> : (asset?.name ?? "—")}</Field>
         </dl>
       )}
+      {unlinkId ? (
+        <button
+          type="button"
+          className="inspector-unlink"
+          data-testid="inspector-unlink"
+          onClick={() => onUnlink?.(unlinkId)}
+        >
+          Unlink
+        </button>
+      ) : null}
     </aside>
   );
 }

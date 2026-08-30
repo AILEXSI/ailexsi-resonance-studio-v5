@@ -14,6 +14,17 @@ export function livingLinkedMate(project: Project, clipId: string): Clip | undef
   return project.clips.find((c) => c.id !== clip.id && c.linkId === clip.linkId);
 }
 
+/** First selected clip that still has a living same-`linkId` mate. */
+export function firstClipIdWithLivingMate(
+  project: Project,
+  clipIds: readonly string[],
+): string | undefined {
+  for (const id of clipIds) {
+    if (livingLinkedMate(project, id)) return id;
+  }
+  return undefined;
+}
+
 /** V clip mixes its own audio unless a living linked A clip carries it. */
 export function vClipMixesOwnAudio(project: Project, clip: Clip): boolean {
   if (kindOfTrack(clip.trackId) !== "video") return true;

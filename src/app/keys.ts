@@ -1,3 +1,4 @@
+import { firstClipIdWithLivingMate } from "../core/link";
 import { FRAME_MS } from "../core/models";
 import { isSlideBlock } from "../core/timeline";
 import { applyCommand, type EditorCommand } from "./commands";
@@ -34,6 +35,10 @@ function commandFromKey(
     if (letter === "c") return { type: "copy" };
     if (letter === "x") return { type: "cut" };
     if (letter === "v") return { type: "paste" };
+    if (letter === "l" && e.shiftKey) {
+      const clipId = firstClipIdWithLivingMate(session.project, selectionOf(session));
+      return clipId ? { type: "unlinkClips", clipId } : null;
+    }
     return null;
   }
 
@@ -105,7 +110,8 @@ export function dispatchEditorKey(
     command.type === "slip" ||
     command.type === "slideClip" ||
     command.type === "liftRange" ||
-    command.type === "extractRange";
+    command.type === "extractRange" ||
+    command.type === "unlinkClips";
   return {
     type: "session",
     session: applyCommand(session, command),

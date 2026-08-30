@@ -128,6 +128,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+Alt+drag clip");
     expect(text).toContain("Shift+Alt+, / Shift+Alt+.");
     expect(text).toContain("Copy selected clip(s)");
+    expect(text).toContain("Ctrl+Shift+L");
+    expect(text).toContain("Unlink A/V pair");
     expect(text).toContain("Lift range (IN/OUT)");
     expect(text).toContain("Extract range (IN/OUT)");
     expect(text).not.toContain("Cut is V");
