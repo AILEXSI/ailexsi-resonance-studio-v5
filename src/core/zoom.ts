@@ -6,7 +6,8 @@ export const LANE_LABEL_PX = 56;
 /** Inset of t=0 from the lane-body / ruler-body left edge. */
 export const RULER_PAD_PX = 56;
 
-export const ZOOM_MAX_PX_PER_SEC = 400;
+/** ~1 CSS pixel per sample at 48 kHz. The old 400 px/s cap was an MVP wall. */
+export const ZOOM_MAX_PX_PER_SEC = 48_000;
 
 /** Floor when the project already fits at 1 px/s. Longer projects may go lower. */
 export const ZOOM_ABS_MIN_PX_PER_SEC = 1;

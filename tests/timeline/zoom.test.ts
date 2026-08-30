@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { applyFit, applyZoom, createSession, type Session } from "../../src/app/session";
 import { createMemoryBlobStore } from "../../src/core/persistence";
-import { playheadInView, usableLanePx } from "../../src/core/zoom";
+import { deserializeProject, serializeProject } from "../../src/core/project";
+import {
+  ZOOM_MAX_PX_PER_SEC,
+  clampZoomPxPerSec,
+  playheadInView,
+  usableLanePx,
+} from "../../src/core/zoom";
 import { asset, clip, projectWith } from "../helpers";
 
 function longWavSession(zoomPxPerSec = 10, playheadMs = 0): Session {
@@ -86,5 +92,41 @@ describe("timeline zoom fit", () => {
     s = applyZoom(s, s.project.zoomPxPerSec / 1.2, LANE);
     expect(playheadInView(HEAD, s.project.scrollMs, s.project.zoomPxPerSec, LANE)).toBe(true);
     expect(s.project.scrollMs).not.toBe(0);
+  });
+
+  it("clamp allows 48000; 401 is not snapped back to 400", () => {
+    expect(ZOOM_MAX_PX_PER_SEC).toBe(48_000);
+    expect(clampZoomPxPerSec(48_000, 1)).toBe(48_000);
+    expect(clampZoomPxPerSec(401, 1)).toBe(401);
+    expect(clampZoomPxPerSec(50_000, 1)).toBe(48_000);
+    const fromCap = applyZoom(longWavSession(400, HEAD), 400 * 1.2, LANE);
+    expect(fromCap.project.zoomPxPerSec).toBeCloseTo(480, 5);
+    expect(fromCap.project.zoomPxPerSec).toBeGreaterThan(400);
+  });
+
+  it("Fit still uses the low end", () => {
+    const fitted = applyFit(longWavSession(12_000, HEAD), LANE);
+    expect(fitted.project.zoomPxPerSec).toBeLessThan(10);
+    expect(fitted.project.scrollMs).toBe(0);
+  });
+
+  it("playhead-lock still holds at 2000 and 12000 px/s", () => {
+    let s = applyFit(longWavSession(80, HEAD), LANE);
+    s = applyZoom(s, 2000, LANE);
+    expect(s.project.zoomPxPerSec).toBe(2000);
+    expect(playheadInView(HEAD, s.project.scrollMs, s.project.zoomPxPerSec, LANE)).toBe(true);
+    s = applyZoom(s, 12_000, LANE);
+    expect(s.project.zoomPxPerSec).toBe(12_000);
+    expect(playheadInView(HEAD, s.project.scrollMs, s.project.zoomPxPerSec, LANE)).toBe(true);
+  });
+
+  it("persist/load keeps zoom above the old 400 wall", () => {
+    const s = applyZoom(longWavSession(80, HEAD), 12_000, LANE);
+    const loaded = deserializeProject(serializeProject(s.project));
+    expect(loaded.zoomPxPerSec).toBe(12_000);
+    const over = deserializeProject(
+      serializeProject({ ...s.project, zoomPxPerSec: 50_000 }),
+    );
+    expect(over.zoomPxPerSec).toBe(48_000);
   });
 });

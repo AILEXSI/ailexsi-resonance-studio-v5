@@ -123,6 +123,18 @@ describe("waveform envelope", () => {
     expect(uniq.size).toBeGreaterThan(4);
   });
 
+  it("high zoom width is not stuck at a 400-era bucket count", () => {
+    const samples = sine(48_000, 40);
+    const env = envelopeForWidth(samples, {
+      widthPx: 2000,
+      sourceInMs: 0,
+      sourceOutMs: 1000,
+      durationMs: 1000,
+    });
+    expect(env.max.length).toBe(2000);
+    expect(env.max.length).toBeGreaterThan(400);
+  });
+
   it("mipmap paint matches raw extract length without keeping PCM at the call site", () => {
     const samples = sine(4096, 16);
     const mip = buildPeakMipmap(samples);

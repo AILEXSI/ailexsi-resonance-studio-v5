@@ -4,6 +4,13 @@ import { FRAME_MS } from "./models";
 export const RULER_LABEL_GAP_PX = 8;
 
 const NICE_STEPS_MS = [
+  1,
+  2,
+  5,
+  10,
+  20,
+  25,
+  50,
   FRAME_MS,
   2 * FRAME_MS,
   5 * FRAME_MS,
@@ -44,7 +51,7 @@ export function formatRulerLabel(timeMs: number, stepMs: number): string {
     const frames = Math.round(t / FRAME_MS);
     return `${frames}f`;
   }
-  return `${(t / 1000).toFixed(2)}s`;
+  return `${Math.round(t)}ms`;
 }
 
 export function pickRulerStepMs(zoomPxPerSec: number, minBoxPx: number): number {
@@ -59,7 +66,7 @@ export function pickRulerStepMs(zoomPxPerSec: number, minBoxPx: number): number 
 export function pickMinorStepMs(majorMs: number, zoomPxPerSec: number): number | null {
   const candidates = [majorMs / 10, majorMs / 5, majorMs / 4, majorMs / 2];
   for (const step of candidates) {
-    if (step < FRAME_MS * 0.5) continue;
+    if (step < 1) continue;
     if ((step / 1000) * zoomPxPerSec >= 8) return step;
   }
   return null;

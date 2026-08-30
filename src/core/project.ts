@@ -1,4 +1,5 @@
 import { createId } from "./ids";
+import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import {
   defaultTracks,
   defaultVisualizer,
@@ -198,7 +199,7 @@ export function deserializeProject(text: string): Project {
     outPointMs: raw.outPointMs == null ? null : Math.max(0, Number(raw.outPointMs)),
     loop: Boolean(raw.loop),
     snap: raw.snap !== false,
-    zoomPxPerSec: Math.max(0.05, Math.min(400, Number(raw.zoomPxPerSec) || 80)),
+    zoomPxPerSec: Math.max(0.05, Math.min(ZOOM_MAX_PX_PER_SEC, Number(raw.zoomPxPerSec) || 80)),
     scrollMs: Math.max(0, Number(raw.scrollMs) || 0),
     visualizer: sanitizeVisualizer(raw.visualizer),
     masterVolume: (() => {

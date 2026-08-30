@@ -79,6 +79,22 @@ describe("adaptive ruler", () => {
       80,
     );
   });
+
+  it("labels stay non-overlapping at 400, 2000, and 12000 px/s", () => {
+    for (const zoom of [400, 2000, 12_000]) {
+      const ticks = buildRulerTicks({
+        zoomPxPerSec: zoom,
+        durationMs: 400_000,
+        scrollMs: 13_000,
+        viewWidthPx: 1000,
+      });
+      assertNoOverlap(ticks, zoom, 13_000);
+      const majors = labeled(ticks);
+      const step = majors[1]!.timeMs - majors[0]!.timeMs;
+      if (zoom >= 12_000) expect(step).toBeLessThanOrEqual(50);
+      if (zoom >= 2000) expect(step).toBeLessThanOrEqual(200);
+    }
+  });
 });
 
 describe("fit and playhead zoom still hold", () => {

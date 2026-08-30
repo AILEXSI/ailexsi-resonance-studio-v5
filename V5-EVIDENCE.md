@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:52 UTC. Visible gold split grips on PR #1 (past 6fb9664). Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:55 UTC. Zoom ceiling 48000 px/s on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 149 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-BFBgj5JU.css 16.16 kB
-- dist/assets/index-Codb-lDJ.js 666.00 kB
+- dist/assets/index-CJhQxeTP.js 666.01 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -102,7 +102,7 @@ Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED
 
 Existing units still green (18): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut.
 
-Zoom (`tests/timeline/zoom.test.ts`, 8):
+Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
 - zoom-out from 10 still decreases
 - Fit does not clamp at 10; scrollMs=0
@@ -111,14 +111,18 @@ Zoom (`tests/timeline/zoom.test.ts`, 8):
 - Fit after that still shows the full duration at scroll 0
 - off-screen playhead is scrolled into view on zoom-in
 - zoom-out that is not Fit keeps the playhead on screen
+- clamp max is 48000; 401 is not snapped to 400; `+` from 400 goes to 480
+- Fit from 12000 px/s still lands on the low end, scrollMs=0
+- playhead-lock holds at 2000 and 12000 px/s
+- serialize/deserialize keeps 12000; 50000 loads as 48000
 
-Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-anchored (scrollMs=0). Fit button / + / wheel were not clicked in a browser this run.
+Non-Fit zoom is DAW-style around the playhead (same screen-x). Fit stays left-anchored (scrollMs=0). Live `+` past 400: NOT VERIFIED this run.
 
 ## Ruler
 
 Status: TEST-VERIFIED (label gaps). Live Fit ruler pixels: NOT VERIFIED.
 
-`buildRulerTicks` at 2.5 px/s over 400s: consecutive major labels have a minimum pixel gap (no overlap). Zoom-in to 80 px/s uses a smaller step (higher density) without overlap. Fit + playhead-lock units still green.
+`buildRulerTicks` at 2.5 px/s over 400s: consecutive major labels have a minimum pixel gap (no overlap). Zoom-in to 80 px/s uses a smaller step (higher density) without overlap. 400 / 2000 / 12000 px/s stay non-overlapping; high zoom steps down through frames to milliseconds. Fit + playhead-lock units still green.
 
 ## Arrange clip previews
 
@@ -279,7 +283,11 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:52 UTC)
+## Changelog this follow-up (2026-08-30 05:55 UTC)
+
+- Zoom max is 48000 px/s (was 400). Persist accepts the new range. Ruler steps down to milliseconds. Playhead-lock tested at 2000 and 12000. TEST-VERIFIED. Live `+` past 400: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 05:52 UTC)
 
 - Preview/Arrange splitter is an 18px ns-resize bar with a gold grip; Preview/Inspector is a 14px ew-resize bar with a gold grip. TEST-VERIFIED (DOM + cursor). Live drag: NOT VERIFIED.
 - Markers, overlay, arrange overflow-y, export dialog already on this branch after `6fb9664`. Pull past that commit.
