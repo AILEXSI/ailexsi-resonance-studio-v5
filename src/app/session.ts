@@ -36,6 +36,7 @@ import {
   type HistoryStack,
 } from "../core/timeline";
 import { cycleVisualizerScene, toggleVisualizerMute } from "../core/visualizer";
+import { clampZoomPxPerSec, fitZoomPxPerSec, minZoomPxPerSec } from "../core/zoom";
 
 export interface Session {
   project: Project;
@@ -304,6 +305,19 @@ export function applyCopy(session: Session): Session {
   return { ...session, clipboard: clip, status: "Copied clip", error: null };
 }
 
+/** Copy then delete. Clipboard keeps the clip; the timeline clip is removed. */
+export function applyCut(session: Session): Session {
+  const clip = session.project.clips.find((c) => c.id === session.selectedClipId);
+  if (!clip) return { ...session, error: "No clip selected to cut" };
+  const next = deleteClip(session.project, clip.id);
+  return {
+    ...withHistory(session, next, "Cut clip"),
+    clipboard: clip,
+    selectedClipId: null,
+    error: null,
+  };
+}
+
 export function applyPaste(session: Session): Session {
   if (!session.clipboard) return { ...session, error: "Clipboard empty" };
   const result = duplicateClip(session.project, session.clipboard.id, session.project.playheadMs);
@@ -387,8 +401,31 @@ export function applySelect(session: Session, clipId: string | null): Session {
   return { ...session, selectedClipId: clipId };
 }
 
-export function applyZoom(session: Session, zoomPxPerSec: number): Session {
-  return { ...session, project: { ...session.project, zoomPxPerSec: Math.max(10, Math.min(400, zoomPxPerSec)) } };
+export function applyZoom(session: Session, zoomPxPerSec: number, timelineWidthPx = 1000): Session {
+  const minZ = minZoomPxPerSec(session.project, timelineWidthPx);
+  return {
+    ...session,
+    project: {
+      ...session.project,
+      zoomPxPerSec: clampZoomPxPerSec(zoomPxPerSec, minZ),
+    },
+  };
+}
+
+/** Fit the whole project in the lane and reset scroll to t=0. */
+export function applyFit(session: Session, timelineWidthPx: number): Session {
+  const z = fitZoomPxPerSec(session.project, timelineWidthPx);
+  const minZ = minZoomPxPerSec(session.project, timelineWidthPx);
+  return {
+    ...session,
+    project: {
+      ...session.project,
+      zoomPxPerSec: clampZoomPxPerSec(z, minZ),
+      scrollMs: 0,
+    },
+    status: "Fit timeline",
+    error: null,
+  };
 }
 
 export function applyScroll(session: Session, scrollMs: number): Session {

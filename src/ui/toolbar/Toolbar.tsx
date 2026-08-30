@@ -1,3 +1,5 @@
+import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
+
 interface Props {
   snap: boolean;
   exporting: boolean;
@@ -64,8 +66,9 @@ export function Toolbar({
         <button type="button" onClick={onRedo}>
           Redo
         </button>
-        <button type="button" onClick={onSplit}>
+        <button type="button" title={`Split (${CLIP_MENU_SHORTCUTS.split})`} onClick={onSplit}>
           Split
+          <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
         </button>
         <button type="button" className={snap ? "active" : ""} onClick={onToggleSnap}>
           Snap

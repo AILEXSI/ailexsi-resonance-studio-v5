@@ -1,4 +1,5 @@
 import { FRAME_MS, formatTimecode, type Project } from "../../core/models";
+import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 
 interface Props {
   project: Project;
@@ -48,8 +49,9 @@ export function Transport(props: Props) {
       <button type="button" onClick={props.onMarker}>
         Marker
       </button>
-      <button type="button" onClick={props.onSplit}>
+      <button type="button" title={`Split (${CLIP_MENU_SHORTCUTS.split})`} onClick={props.onSplit}>
         Split
+        <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
       </button>
       <span data-testid="timecode">{formatTimecode(props.project.playheadMs)}</span>
       <span style={{ color: "var(--muted)", fontSize: 12 }}>

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   TRACK_IDS,
   clipEndMs,
@@ -9,10 +9,11 @@ import {
   type TrackId,
 } from "../../core/models";
 import { collectSnapTargets, snapTime } from "../../core/timeline";
+import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
+import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 
-/** Inset of t=0 from the lane-body / ruler-body left edge. */
-export const RULER_PAD_PX = 56;
+export { RULER_PAD_PX };
 
 interface Props {
   project: Project;
@@ -27,10 +28,12 @@ interface Props {
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
   onSplitHere: (clipId: string, timeMs: number) => void;
+  onCut: () => void;
   onCopy: () => void;
   onPaste: () => void;
   onDelete: () => void;
-  onZoom: (zoom: number) => void;
+  onZoom: (zoom: number, timelineWidthPx: number) => void;
+  onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
   onLoopClick: (ms: number) => void;
   onLoopInLive: (ms: number) => void;
@@ -71,10 +74,12 @@ export function Timeline({
   onToggleVisualizerMute,
   onCycleVisualizerScene,
   onSplitHere,
+  onCut,
   onCopy,
   onPaste,
   onDelete,
   onZoom,
+  onFit,
   onScroll,
   onLoopClick,
   onLoopInLive,
@@ -82,10 +87,12 @@ export function Timeline({
   onLoopMoveLive,
   onLoopCommit,
 }: Props) {
+  const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
+  const measureWidth = (): number => timelineRef.current?.clientWidth ?? 1000;
 
   const ticks = useMemo(() => {
     const step = project.zoomPxPerSec >= 120 ? 500 : project.zoomPxPerSec >= 40 ? 1000 : 2000;
@@ -93,6 +100,19 @@ export function Timeline({
     for (let t = 0; t <= duration; t += step) out.push(t);
     return out;
   }, [duration, project.zoomPxPerSec]);
+
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const width = el.clientWidth || 1000;
+      const next = e.deltaY > 0 ? project.zoomPxPerSec / 1.2 : project.zoomPxPerSec * 1.2;
+      onZoom(next, width);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [onZoom, project.zoomPxPerSec]);
 
   const timeFromEvent = (clientX: number, contentEl?: HTMLElement | null): number => {
     const el = contentEl ?? bodyRef.current;
@@ -294,15 +314,31 @@ export function Timeline({
     ) : null;
 
   return (
-    <section className="timeline" data-testid="timeline">
+    <section ref={timelineRef} className="timeline" data-testid="timeline">
       <div className="timeline-tools">
-        <button type="button" onClick={() => onZoom(project.zoomPxPerSec / 1.2)}>
+        <button
+          type="button"
+          data-testid="timeline-zoom-out"
+          onClick={() => onZoom(project.zoomPxPerSec / 1.2, measureWidth())}
+        >
           −
         </button>
-        <button type="button" onClick={() => onZoom(project.zoomPxPerSec * 1.2)}>
+        <button
+          type="button"
+          data-testid="timeline-zoom-in"
+          onClick={() => onZoom(project.zoomPxPerSec * 1.2, measureWidth())}
+        >
           +
         </button>
-        <span className="timeline-zoom">{Math.round(project.zoomPxPerSec)} px/s</span>
+        <button type="button" data-testid="timeline-fit" onClick={() => onFit(measureWidth())}>
+          Fit
+        </button>
+        <span className="timeline-zoom">
+          {project.zoomPxPerSec < 10
+            ? project.zoomPxPerSec.toFixed(1)
+            : Math.round(project.zoomPxPerSec)}{" "}
+          px/s
+        </span>
         <label>
           Pan
           <input
@@ -478,7 +514,18 @@ export function Timeline({
               setMenu(null);
             }}
           >
-            Split here
+            <span>Split here</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.split}</kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onCut();
+              setMenu(null);
+            }}
+          >
+            <span>Cut</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.cut}</kbd>
           </button>
           <button
             type="button"
@@ -487,7 +534,8 @@ export function Timeline({
               setMenu(null);
             }}
           >
-            Copy
+            <span>Copy</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.copy}</kbd>
           </button>
           <button
             type="button"
@@ -496,7 +544,8 @@ export function Timeline({
               setMenu(null);
             }}
           >
-            Paste
+            <span>Paste</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.paste}</kbd>
           </button>
           <button
             type="button"
@@ -505,7 +554,8 @@ export function Timeline({
               setMenu(null);
             }}
           >
-            Delete
+            <span>Delete</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.delete}</kbd>
           </button>
         </div>
       ) : null}

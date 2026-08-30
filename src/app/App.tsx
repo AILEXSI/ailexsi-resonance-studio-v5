@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FRAME_MS, assetById, clipById, type TrackId } from "../core/models";
+import { assetById, clipById, type TrackId } from "../core/models";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
 import { downloadText, projectFilename } from "../core/project";
@@ -19,7 +19,9 @@ import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
 import {
   applyClearInOut,
   applyCopy,
+  applyCut,
   applyDelete,
+  applyFit,
   applyIn,
   applyInAt,
   applyMarker,
@@ -48,6 +50,7 @@ import {
   projectJson,
   type Session,
 } from "./session";
+import { dispatchEditorKey } from "./keys";
 
 export function App() {
   const [session, setSession] = useState<Session>(() => createSession());
@@ -106,69 +109,22 @@ export function App() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       const s = sessionRef.current;
-      if (e.key === "?") {
-        e.preventDefault();
+      const action = dispatchEditorKey(s, s.playing, e);
+      if (action.type === "none") return;
+      if ("preventDefault" in action && action.preventDefault) e.preventDefault();
+      if (action.type === "toggleShortcuts") {
         setShortcutsOpen((open) => !open);
         return;
       }
-      if (e.code === "Space") {
-        e.preventDefault();
-        if (s.playing) pause();
-        else play();
+      if (action.type === "play") {
+        play();
         return;
       }
-      if (e.key === "v" || e.key === "V") {
-        setSession(applySplit(s));
+      if (action.type === "pause") {
+        pause();
         return;
       }
-      if (e.key === "m" || e.key === "M") {
-        setSession(applyMarker(s));
-        return;
-      }
-      if (e.key === "x" || e.key === "X" || ((e.key === "i" || e.key === "I") && e.shiftKey)) {
-        e.preventDefault();
-        setSession(applyClearInOut(s));
-        return;
-      }
-      if (e.key === "i" || e.key === "I") {
-        setSession(applyIn(s));
-        return;
-      }
-      if (e.key === "o" || e.key === "O") {
-        setSession(applyOut(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        setSession(applyUndo(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        setSession(applyRedo(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        e.preventDefault();
-        setSession(applyCopy(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        e.preventDefault();
-        setSession(applyPaste(s));
-        return;
-      }
-      if (e.key === "Delete" || e.key === "Backspace") {
-        setSession(applyDelete(s));
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        setSession(applyPlayhead(s, s.project.playheadMs - FRAME_MS));
-        return;
-      }
-      if (e.key === "ArrowRight") {
-        setSession(applyPlayhead(s, s.project.playheadMs + FRAME_MS));
-      }
+      setSession(action.session);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -395,10 +351,12 @@ export function App() {
         onSplitHere={(clipId, timeMs) => {
           setSession((s) => applySplit(applyPlayhead(applySelect(s, clipId), timeMs)));
         }}
+        onCut={() => setSession(applyCut(session))}
         onCopy={() => setSession(applyCopy(session))}
         onPaste={() => setSession(applyPaste(session))}
         onDelete={() => setSession(applyDelete(session))}
-        onZoom={(z) => setSession(applyZoom(session, z))}
+        onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
+        onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}

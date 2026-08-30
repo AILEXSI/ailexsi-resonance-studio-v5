@@ -34,6 +34,13 @@ button { cursor: pointer; }
 button:hover { border-color: #4a5568; background: #1d2430; }
 button:disabled { opacity: 0.45; cursor: default; }
 button.active { background: #2a3344; border-color: var(--accent-2); color: #d7e4ff; }
+.btn-kbd {
+  margin-left: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+}
 button.primary { background: #2a2414; border-color: #6d5a28; color: var(--accent); }
 button.primary:hover:not(:disabled) { border-color: var(--accent); }
 input[type="number"] { width: 84px; }
@@ -324,10 +331,23 @@ input[type="range"] { accent-color: var(--accent-2); }
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 4px;
-  min-width: 128px;
+  min-width: 176px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
-.clip-menu button { text-align: left; }
+.clip-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  text-align: left;
+  white-space: nowrap;
+}
+.clip-menu kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
 
 .status {
   border-top: 1px solid var(--line);
