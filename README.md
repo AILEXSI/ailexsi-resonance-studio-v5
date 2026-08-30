@@ -2,6 +2,7 @@
 
 Clean-room browser NLE. V4 is reference-only and was not copied into this tree.
 Product is the Vite app on http://127.0.0.1:1421 (strictPort, host 127.0.0.1).
+Windows: double-click `Start-V5.cmd` to start V5 as a Chrome/Edge app window on that URL.
 src-tauri leftover unused.
 Scripts listed in package.json: dev, build, test, fixtures.
 Implemented: audio/video import with visible fail; V1 V2 A1 A2; timeline move/trim/split/snap/undo/IN-OUT/clear/loop/markers/copy-paste/mute; preview; inspector fields; resonance.json; IndexedDB; WebCodecs H.264 MP4 or FAIL.
