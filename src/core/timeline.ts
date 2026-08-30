@@ -13,6 +13,7 @@ import {
   clampClipRate,
   clipById,
   clipEndMs,
+  clipIsEnabled,
   clipIsLocked,
   clipOnTrackAt,
   isTrackId,
@@ -1647,9 +1648,26 @@ export function placeAsset(
   };
 }
 
+/** Last enabled clip or finite VIS window/event. Disabled clips and muted VIS do not pad export. */
+export function exportContentEndMs(project: Project): number {
+  let end = 0;
+  for (const clip of project.clips) {
+    if (!clipIsEnabled(clip)) continue;
+    end = Math.max(end, clipEndMs(clip));
+  }
+  const vis = project.visualizer;
+  if (vis && vis.enabled && !vis.muted) {
+    const windowDur = vis.durationMs ?? 0;
+    if (windowDur > 0) end = Math.max(end, (vis.startMs ?? 0) + windowDur);
+    for (const event of vis.events ?? []) {
+      end = Math.max(end, event.startMs + Math.max(0, event.durationMs));
+    }
+  }
+  return end;
+}
+
 export function exportRangeMs(project: Project): { startMs: number; endMs: number } {
   const startMs = project.inPointMs ?? 0;
-  const computedEnd = project.clips.reduce((max, c) => Math.max(max, clipEndMs(c)), 0);
-  const endMs = project.outPointMs ?? computedEnd;
+  const endMs = project.outPointMs ?? exportContentEndMs(project);
   return { startMs, endMs };
 }
