@@ -21,9 +21,13 @@ export function livingLinkedMate(project: Project, clipId: string): Clip | undef
 /**
  * Living mate that may take the same relocate/trim/split. Locked and
  * disabled mates stay parked (same as lift skip disabled mate / skip
- * locked mate). Mix still uses livingLinkedMate (disabled A silences V).
+ * locked mate). A disabled primary does not drag a living mate
+ * (inverse of P141). Mix still uses livingLinkedMate (disabled A
+ * silences V).
  */
 export function editableLinkedMate(project: Project, clipId: string): Clip | undefined {
+  const clip = clipById(project, clipId);
+  if (!clip || !clipIsEnabled(clip)) return undefined;
   const mate = livingLinkedMate(project, clipId);
   if (!mate || clipIsLocked(mate) || !clipIsEnabled(mate)) return undefined;
   return mate;

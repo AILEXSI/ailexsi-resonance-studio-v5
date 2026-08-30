@@ -304,7 +304,7 @@ export function moveClipsByDelta(
   opts?: { skipLink?: boolean },
 ): { project: Project; error?: string } {
   const explicit = new Set(clipIds.filter(Boolean));
-  const ids = opts?.skipLink ? [...explicit] : expandLinkedClipIds(project, clipIds);
+  const ids = opts?.skipLink ? [...explicit] : expandMovableClipIds(project, explicit);
   const found = ids
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
@@ -446,15 +446,32 @@ export function resolveRippleTrimToPlayheadClip(
  * Linked-pair expand, but an unselected locked or disabled mate is skipped
  * (same as split/slip/rate / delete). A locked or disabled clip that is
  * itself selected still copies, cuts, or deletes.
+ * A selected disabled clip does not take a living mate (inverse of P141).
+ * A selected locked clip still takes an unlocked enabled mate (P129).
  */
 export function expandDeletableClipIds(project: Project, clipIds: readonly string[]): string[] {
   const explicit = new Set(clipIds.filter(Boolean));
-  return expandLinkedClipIds(project, clipIds).filter((id) => {
+  const ids = new Set<string>();
+  for (const id of explicit) {
     const clip = clipById(project, id);
-    if (!clip) return false;
-    if (!explicit.has(id) && (clipIsLocked(clip) || !clipIsEnabled(clip))) return false;
-    return true;
-  });
+    if (!clip) continue;
+    ids.add(id);
+    if (!clipIsEnabled(clip)) continue;
+    const mate = livingLinkedMate(project, id);
+    if (!mate || clipIsLocked(mate) || !clipIsEnabled(mate)) continue;
+    ids.add(mate.id);
+  }
+  return [...ids];
+}
+
+/** Expand to editable mates only. A disabled primary does not drag a living mate. */
+function expandMovableClipIds(project: Project, explicit: ReadonlySet<string>): string[] {
+  const ids = new Set(explicit);
+  for (const id of explicit) {
+    const mate = editableLinkedMate(project, id);
+    if (mate) ids.add(mate.id);
+  }
+  return [...ids];
 }
 
 function dropClipsAndOrphanLinks(project: Project, dropIds: ReadonlySet<string>): Project {

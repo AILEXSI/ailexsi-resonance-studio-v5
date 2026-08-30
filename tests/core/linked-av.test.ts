@@ -374,6 +374,45 @@ describe("linked A/V", () => {
     expect(gone.project.clips).toHaveLength(0);
   });
 
+  it("move of a disabled clip does not drag a living mate (P151)", () => {
+    const start = linkedPair();
+    const dimmed = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    const moved = moveClip(dimmed, "v1", 400);
+    expect(moved.error).toBeUndefined();
+    expect(moved.project.clips.find((c) => c.id === "v1")!.startMs).toBe(400);
+    expect(moved.project.clips.find((c) => c.id === "v1")!.enabled).toBe(false);
+    expect(moved.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+    expect(moved.project.clips.find((c) => c.id === "a1")!.linkId).toBe("lnk1");
+
+    const viaMove = applyCommand(
+      { ...start, project: dimmed, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "moveClips", clipIds: ["v1"], deltaMs: 400 },
+    );
+    expect(viaMove.project.clips.find((c) => c.id === "v1")!.startMs).toBe(400);
+    expect(viaMove.project.clips.find((c) => c.id === "a1")!.startMs).toBe(0);
+  });
+
+  it("lift-delete of a disabled clip does not delete a living mate (P151)", () => {
+    const start = linkedPair();
+    const dimmed = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    const gone = applyCommand(
+      { ...start, project: dimmed, selectedClipId: "v1", selectedClipIds: ["v1"] },
+      { type: "liftDelete" },
+    );
+    expect(gone.project.clips.find((c) => c.id === "v1")).toBeUndefined();
+    const living = gone.project.clips.find((c) => c.id === "a1")!;
+    expect(living.startMs).toBe(0);
+    expect(living.durationMs).toBe(2000);
+    expect(living.enabled).not.toBe(false);
+    expect(living.linkId).toBeUndefined();
+  });
+
   it("lift-delete of an unlocked clip skips a disabled mate (P142)", () => {
     const start = linkedPair();
     const dimmed = {
