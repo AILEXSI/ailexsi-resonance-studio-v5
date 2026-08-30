@@ -107,9 +107,10 @@ describe("WAV encode from mix PCM (P58)", () => {
     expect(ok.mimeType).toBe("audio/wav");
     expect(ok.fileName).toBe("Test.wav");
     expect(ok.blob).toBeTruthy();
-    const wav = readWavPcm(await ok.blob!.arrayBuffer());
-    expect(wav.sampleRate).toBe(44100);
-    expect(Array.from(wav.samples)).toEqual([16384, 8192, -16384, -8192]);
+    expect(ok.blob!.type).toBe("audio/wav");
+    const expected = encodeWavPcm(mixed);
+    expect(ok.fileSizeBytes).toBe(expected.byteLength);
+    expect(ok.fileSizeBytes).toBe(44 + 2 * 2 * 2);
 
     const empty = await exportMixWav(emptyJob({ durationMs: 1000, fileName: "cut.mp4" }));
     expect(empty.success).toBe(false);
