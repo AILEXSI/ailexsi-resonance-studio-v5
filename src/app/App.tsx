@@ -75,11 +75,16 @@ import {
 import { dispatchEditorKey } from "./keys";
 import {
   ARRANGE_MIN_PX,
+  INSPECTOR_MIN_PX,
+  PREVIEW_H_MIN_PX,
   PREVIEW_MIN_PX,
+  applyHSplitPointer,
   applySplitPointer,
   browserLayoutStorage,
+  loadHSplitRatio,
   loadMixerCollapsed,
   loadSplitRatio,
+  saveHSplitRatio,
   saveMixerCollapsed,
   saveSplitRatio,
 } from "../core/layout-prefs";
@@ -104,8 +109,16 @@ export function App() {
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(layoutStore));
   const splitRatioRef = useRef(splitRatio);
   splitRatioRef.current = splitRatio;
+  const [hSplitRatio, setHSplitRatio] = useState(() => loadHSplitRatio(layoutStore));
+  const hSplitRatioRef = useRef(hSplitRatio);
+  hSplitRatioRef.current = hSplitRatio;
+  const [projectPanelOpen, setProjectPanelOpen] = useState(false);
+  const projectPanelOpenRef = useRef(false);
+  projectPanelOpenRef.current = projectPanelOpen;
   const stageRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const splitDragRef = useRef(false);
+  const hSplitDragRef = useRef(false);
   const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
   const projectFileRef = useRef(projectFile);
   projectFileRef.current = projectFile;
@@ -179,6 +192,11 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && projectPanelOpenRef.current) {
+        e.preventDefault();
+        setProjectPanelOpen(false);
+        return;
+      }
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       const s = sessionRef.current;
@@ -224,6 +242,7 @@ export function App() {
         });
         if (result.cancelled) return;
         setProjectFile(result.memory);
+        if (!result.usedFallback) setProjectPanelOpen(false);
         setSession((s) => ({ ...s, status: result.status, error: null }));
       } catch (e) {
         setSession((s) => ({
@@ -274,6 +293,7 @@ export function App() {
         }
         setProjectFile(result.memory);
         await applyOpenedText(result.text, result.status);
+        setProjectPanelOpen(false);
       } catch (e) {
         setSession((s) => ({
           ...s,
@@ -289,6 +309,7 @@ export function App() {
       const last = await tryReadGrantedFile(projectFileRef.current);
       if (last?.kind === "ready") {
         await applyOpenedText(last.text, `Geladen: ${last.fileName}`);
+        setProjectPanelOpen(false);
         return;
       }
       const handle = projectFileRef.current.fileHandle;
@@ -299,6 +320,7 @@ export function App() {
           const memory = await rememberFileHandle(projectFileStore, handle, projectFileRef.current);
           setProjectFile(memory);
           await applyOpenedText(await readFileText(file), `Geladen: ${file.name}`);
+          setProjectPanelOpen(false);
           return;
         }
       }
@@ -317,6 +339,7 @@ export function App() {
         if (result.kind === "opened") {
           setProjectFile(result.memory);
           await applyOpenedText(result.text, result.status);
+          setProjectPanelOpen(false);
           return;
         }
         openWithPicker();
@@ -334,6 +357,7 @@ export function App() {
     try {
       const text = await readFileText(file);
       await applyOpenedText(text, loadStatusFallback(file.name));
+      setProjectPanelOpen(false);
     } catch (e) {
       setSession((s) => ({
         ...s,
@@ -494,6 +518,52 @@ export function App() {
     window.addEventListener("pointerup", up);
   };
 
+  const applyHSplitFromEvent = (clientX: number) => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const rect = workspace.getBoundingClientRect();
+    const next = applyHSplitPointer({
+      clientX,
+      workspaceLeft: rect.left,
+      workspaceWidth: rect.width,
+    });
+    setHSplitRatio(next.ratio);
+  };
+
+  const onHSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    hSplitDragRef.current = true;
+    applyHSplitFromEvent(e.clientX);
+    const move = (ev: PointerEvent) => {
+      if (!hSplitDragRef.current) return;
+      applyHSplitFromEvent(ev.clientX);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (!hSplitDragRef.current) return;
+      hSplitDragRef.current = false;
+      saveHSplitRatio(layoutStore, hSplitRatioRef.current);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const openProjectPanel = () => setProjectPanelOpen(true);
+  const closeProjectPanel = () => setProjectPanelOpen(false);
+
+  const onToolbarSave = () => {
+    openProjectPanel();
+  };
+  const onToolbarOpen = () => {
+    openProjectPanel();
+  };
+  const onToolbarOpenLast = () => {
+    openProjectPanel();
+    openLast();
+  };
+
   const onLoopCommit = () => {
     const base = dragBaseRef.current;
     dragBaseRef.current = null;
@@ -512,9 +582,9 @@ export function App() {
         snap={session.project.snap}
         exporting={exporting}
         onNew={() => setSession(newProject(session))}
-        onSave={saveProject}
-        onOpen={openWithPicker}
-        onOpenLast={openLast}
+        onSave={onToolbarSave}
+        onOpen={onToolbarOpen}
+        onOpenLast={onToolbarOpenLast}
         lastFileName={projectFile.lastFileName}
         fileSystemAccess={fsa}
         onOpenFile={(file) => void openProject(file)}
@@ -525,54 +595,97 @@ export function App() {
         onSplit={() => setSession(applySplit(session))}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
+      <input
+        type="file"
+        accept="audio/*,video/*"
+        multiple
+        hidden
+        data-testid="import-input"
+        onChange={(e) => {
+          if (e.target.files) void importFiles(session, e.target.files).then(setSession);
+          e.target.value = "";
+        }}
+      />
+
+      {projectPanelOpen ? (
+        <div className="project-overlay" data-testid="project-overlay">
+          <div
+            className="project-overlay-backdrop"
+            data-testid="project-overlay-backdrop"
+            onClick={closeProjectPanel}
+          />
+          <div className="project-overlay-drawer" role="dialog" aria-label="Projekt">
+            <ProjectFilePanel
+              memory={projectFile}
+              fileSystemAccess={fsa}
+              onSave={saveProject}
+              onSaveAs={saveProjectAs}
+              onOpen={openWithPicker}
+              onChooseFolder={chooseFolder}
+              onOpenRecent={openRecent}
+            />
+            <MediaBrowser
+              project={session.project}
+              targetTrackId={session.targetTrackId}
+              selectedAssetId={selectedAssetId}
+              onSelectAsset={setSelectedAssetId}
+              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+              onImport={(files) => {
+                void importFiles(session, files).then(setSession);
+              }}
+              onPlace={(assetId) => {
+                const asset = session.project.assets.find((a) => a.id === assetId);
+                if (!asset) return;
+                const trackId: TrackId =
+                  asset.kind === "video"
+                    ? session.targetTrackId === "V2"
+                      ? "V2"
+                      : "V1"
+                    : session.targetTrackId === "A2"
+                      ? "A2"
+                      : "A1";
+                setSession((s) => applyPlaceAsset(s, assetId, trackId));
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <div className="stage" data-testid="stage" ref={stageRef}>
       <div
         className="workspace"
         data-testid="preview-pane"
         data-preview-ratio={splitRatio}
+        data-h-split-ratio={hSplitRatio}
+        ref={workspaceRef}
         style={{ flex: `${splitRatio} 1 ${PREVIEW_MIN_PX}px` }}
       >
-        <div className="workspace-left">
-          <ProjectFilePanel
-            memory={projectFile}
-            fileSystemAccess={fsa}
-            onSave={saveProject}
-            onSaveAs={saveProjectAs}
-            onOpen={openWithPicker}
-            onChooseFolder={chooseFolder}
-            onOpenRecent={openRecent}
-          />
-          <MediaBrowser
+        <div
+          className="workspace-preview"
+          data-testid="workspace-preview"
+          style={{ flex: `${hSplitRatio} 1 ${PREVIEW_H_MIN_PX}px` }}
+        >
+          <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
+        </div>
+        <div
+          className="layout-split-v"
+          data-testid="layout-split-h"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Preview und Inspector teilen"
+          onPointerDown={onHSplitPointerDown}
+        />
+        <div
+          className="workspace-inspector"
+          data-testid="workspace-inspector"
+          style={{ flex: `${1 - hSplitRatio} 1 ${INSPECTOR_MIN_PX}px` }}
+        >
+          <Inspector
             project={session.project}
-            targetTrackId={session.targetTrackId}
-            selectedAssetId={selectedAssetId}
-            onSelectAsset={setSelectedAssetId}
-            onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
-            onImport={(files) => {
-              void importFiles(session, files).then(setSession);
-            }}
-            onPlace={(assetId) => {
-              const asset = session.project.assets.find((a) => a.id === assetId);
-              if (!asset) return;
-              const trackId: TrackId =
-                asset.kind === "video"
-                  ? session.targetTrackId === "V2"
-                    ? "V2"
-                    : "V1"
-                  : session.targetTrackId === "A2"
-                    ? "A2"
-                    : "A1";
-              setSession((s) => applyPlaceAsset(s, assetId, trackId));
-            }}
+            selectedClipId={session.selectedClipId}
+            onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
           />
         </div>
-        <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
-        <Inspector
-          project={session.project}
-          selectedClipId={session.selectedClipId}
-          onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
-        />
       </div>
 
       <div
@@ -607,6 +720,7 @@ export function App() {
       <div
         className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
         data-testid="arrange-row"
+        style={{ overflowY: "auto" }}
       >
       <Timeline
         project={session.project}

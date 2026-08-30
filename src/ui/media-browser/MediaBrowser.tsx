@@ -28,7 +28,7 @@ export function MediaBrowser({
         type="file"
         accept="audio/*,video/*"
         multiple
-        data-testid="import-input"
+        data-testid="import-input-panel"
         onChange={(e) => {
           if (e.target.files) onImport(e.target.files);
           e.target.value = "";

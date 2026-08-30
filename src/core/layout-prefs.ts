@@ -2,11 +2,16 @@
 
 export const MIXER_COLLAPSED_KEY = "resonance-studio-v5-mixer-collapsed";
 export const SPLIT_RATIO_KEY = "resonance-studio-v5-preview-split";
+export const H_SPLIT_RATIO_KEY = "resonance-studio-v5-preview-h-split";
 
 export const PREVIEW_MIN_PX = 120;
 export const ARRANGE_MIN_PX = 160;
 export const SPLITTER_PX = 10;
 export const DEFAULT_SPLIT_RATIO = 0.52;
+export const PREVIEW_H_MIN_PX = 200;
+export const INSPECTOR_MIN_PX = 180;
+export const H_SPLITTER_PX = 8;
+export const DEFAULT_H_SPLIT_RATIO = 0.74;
 export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;
 
@@ -73,6 +78,53 @@ export function saveSplitRatio(storage: StorageLike | null | undefined, ratio: n
   try {
     if (!Number.isFinite(ratio)) return;
     storage?.setItem(SPLIT_RATIO_KEY, String(ratio));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function clampHSplitRatio(ratio: number, availablePx: number): number {
+  if (!Number.isFinite(ratio)) return DEFAULT_H_SPLIT_RATIO;
+  if (!Number.isFinite(availablePx) || availablePx <= 0) {
+    return Math.min(0.9, Math.max(0.35, ratio));
+  }
+  const minR = PREVIEW_H_MIN_PX / availablePx;
+  const maxR = 1 - INSPECTOR_MIN_PX / availablePx;
+  if (minR >= maxR) {
+    return PREVIEW_H_MIN_PX / (PREVIEW_H_MIN_PX + INSPECTOR_MIN_PX);
+  }
+  return Math.min(maxR, Math.max(minR, ratio));
+}
+
+export function applyHSplitPointer(opts: {
+  clientX: number;
+  workspaceLeft: number;
+  workspaceWidth: number;
+  splitterPx?: number;
+}): { ratio: number; previewPx: number; inspectorPx: number } {
+  const splitter = opts.splitterPx ?? H_SPLITTER_PX;
+  const available = Math.max(1, opts.workspaceWidth - splitter);
+  const ratio = clampHSplitRatio((opts.clientX - opts.workspaceLeft) / available, available);
+  const previewPx = Math.round(ratio * available);
+  return { ratio, previewPx, inspectorPx: available - previewPx };
+}
+
+export function loadHSplitRatio(storage?: StorageLike | null): number {
+  try {
+    const raw = storage?.getItem(H_SPLIT_RATIO_KEY);
+    if (raw == null) return DEFAULT_H_SPLIT_RATIO;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return DEFAULT_H_SPLIT_RATIO;
+    return clampHSplitRatio(n, PREVIEW_H_MIN_PX + INSPECTOR_MIN_PX + 600);
+  } catch {
+    return DEFAULT_H_SPLIT_RATIO;
+  }
+}
+
+export function saveHSplitRatio(storage: StorageLike | null | undefined, ratio: number): void {
+  try {
+    if (!Number.isFinite(ratio)) return;
+    storage?.setItem(H_SPLIT_RATIO_KEY, String(ratio));
   } catch {
     /* quota / private mode */
   }

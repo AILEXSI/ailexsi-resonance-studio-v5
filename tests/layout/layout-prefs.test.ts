@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   ARRANGE_MIN_PX,
+  DEFAULT_H_SPLIT_RATIO,
   DEFAULT_SPLIT_RATIO,
+  H_SPLIT_RATIO_KEY,
+  INSPECTOR_MIN_PX,
   MIXER_COLLAPSED_KEY,
+  PREVIEW_H_MIN_PX,
   PREVIEW_MIN_PX,
   SPLITTER_PX,
   SPLIT_RATIO_KEY,
+  applyHSplitPointer,
   applySplitPointer,
+  clampHSplitRatio,
   clampSplitRatio,
+  loadHSplitRatio,
   loadMixerCollapsed,
   loadSplitRatio,
+  saveHSplitRatio,
   saveMixerCollapsed,
   saveSplitRatio,
 } from "../../src/core/layout-prefs";
@@ -64,5 +72,22 @@ describe("layout prefs", () => {
     expect(loadSplitRatio(store)).toBeCloseTo(0.7, 5);
     expect(loadSplitRatio(memoryStorage())).toBe(DEFAULT_SPLIT_RATIO);
     expect(loadSplitRatio(memoryStorage({ [SPLIT_RATIO_KEY]: "nope" }))).toBe(DEFAULT_SPLIT_RATIO);
+  });
+
+  it("horizontal preview/inspector split persists and clamps", () => {
+    const available = 800;
+    expect(clampHSplitRatio(0, available) * available).toBeCloseTo(PREVIEW_H_MIN_PX, 5);
+    expect((1 - clampHSplitRatio(1, available)) * available).toBeCloseTo(INSPECTOR_MIN_PX, 5);
+
+    const wide = applyHSplitPointer({ clientX: 20, workspaceLeft: 0, workspaceWidth: 808 });
+    expect(wide.previewPx).toBe(PREVIEW_H_MIN_PX);
+    const right = applyHSplitPointer({ clientX: 800, workspaceLeft: 0, workspaceWidth: 808 });
+    expect(right.inspectorPx).toBe(INSPECTOR_MIN_PX);
+
+    const store = memoryStorage();
+    saveHSplitRatio(store, 0.62);
+    expect(store.map.get(H_SPLIT_RATIO_KEY)).toBe("0.62");
+    expect(loadHSplitRatio(store)).toBeCloseTo(0.62, 5);
+    expect(loadHSplitRatio(memoryStorage())).toBe(DEFAULT_H_SPLIT_RATIO);
   });
 });

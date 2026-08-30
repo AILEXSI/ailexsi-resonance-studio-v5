@@ -99,7 +99,9 @@ input[type="range"] { accent-color: var(--accent-2); }
   min-height: 160px;
   min-width: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-content: start;
   border-top: 1px solid var(--line);
 }
 .arrange-row.mixer-collapsed {
@@ -147,25 +149,77 @@ input[type="range"] { accent-color: var(--accent-2); }
 .file-btn:hover { border-color: #4a5568; }
 
 .workspace {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 268px;
+  display: flex;
+  flex-direction: row;
   min-height: 120px;
   min-width: 0;
   overflow: hidden;
 }
-.workspace-left {
+.workspace-preview,
+.workspace-inspector {
   display: flex;
   flex-direction: column;
-  min-height: 0;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
-  border-right: 1px solid var(--line);
-  background: var(--panel);
 }
-.workspace-left .panel {
+.workspace-preview .preview-wrap,
+.workspace-inspector .inspector {
   flex: 1 1 auto;
   min-height: 0;
+}
+.layout-split-v {
+  flex: 0 0 8px;
+  cursor: ew-resize;
+  touch-action: none;
+  background: var(--panel-2);
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  position: relative;
+  z-index: 6;
+}
+.layout-split-v::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 3px;
+  height: 36px;
+  margin-top: -18px;
+  border-radius: 2px;
+  background: #3a4454;
+}
+.layout-split-v:hover,
+.layout-split-v:active {
+  background: #1d2430;
+}
+.project-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+}
+.project-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 12, 0.45);
+}
+.project-overlay-drawer {
+  position: absolute;
+  top: 44px;
+  left: 8px;
+  width: 268px;
+  max-height: calc(100% - 56px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.project-overlay-drawer .panel {
   border-right: none;
+  flex: 1 1 auto;
 }
 .project-file-panel {
   flex: 0 0 auto;
@@ -338,9 +392,9 @@ input[type="range"] { accent-color: var(--accent-2); }
   user-select: none;
   position: relative;
   min-width: 0;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: min-content;
+  height: auto;
+  overflow: visible;
 }
 .timeline-tools {
   display: flex;
@@ -350,6 +404,9 @@ input[type="range"] { accent-color: var(--accent-2); }
   align-items: center;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 .timeline-zoom { color: var(--muted); }
 .ruler {
@@ -589,7 +646,11 @@ input[type="range"] { accent-color: var(--accent-2); }
   width: 228px;
   max-width: 228px;
   flex-shrink: 0;
-  height: 100%;
+  height: auto;
+  align-self: start;
+  position: sticky;
+  top: 0;
+  max-height: 100%;
 }
 .mixer.collapsed {
   min-width: 56px;

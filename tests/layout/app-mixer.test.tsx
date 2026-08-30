@@ -33,10 +33,12 @@ describe("App arrange layout", () => {
     expect(timeline!.nextElementSibling).toBe(mixer);
     expect(getComputedStyle(mixer!).display).not.toBe("none");
     expect(getComputedStyle(mixer!).minWidth).not.toBe("0px");
-    expect(host.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="project-file-name"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
+    expect(host.querySelector('[data-testid="project-file-panel"]')).toBeNull();
     expect(host.querySelector('[data-testid="layout-split"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="layout-split-h"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mixer-collapse"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="preview-pane"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="workspace-preview"]')).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:00 UTC. Projekt panel + mixer-in-layout follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:34 UTC. Projekt overlay + preview h-split + arrange scroll follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 146 modules. Outputs:
+exit 0. vite 7.3.6, 147 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-B6Z0Nrlv.css 12.15 kB
-- dist/assets/index-BWYoeifZ.js 651.79 kB
+- dist/assets/index-gbxsonfE.css 14.31 kB
+- dist/assets/index-jSndHOKz.js 657.38 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **123 passed / 20 files**. Start 05:00:43 UTC. Duration 3.29s.
+exit 0. vitest 3.2.7. **131 passed / 25 files**. Start 05:34:13 UTC. Duration 4.79s.
 
-New this follow-up: project-file 9 (was 4), project-file-panel 1, arrange-mixer 1, app-mixer 1, display-name 3. No test asserts a fake `C:\Users` path.
+New this follow-up: project-overlay 1, arrange-scroll 1, layout-prefs now includes horizontal split persist. Overlay closed by default; Open/Save open it; Esc/outside close.
 
 ## Visualizer
 
@@ -151,7 +151,11 @@ No video frame seen and no audio heard this run.
 
 Status: TEST-VERIFIED (store + panel). Live pickers clicked this run: RUNTIME-VERIFIED (dialogs opened, then cancelled — no file written).
 
-Compact **Projekt** panel (left, above MEDIA): last file name, folder remembered (`directoryHandle.name` or `filename — Ordner gemerkt`), recents list, Speichern / Speichern unter / Öffnen / Ordner wählen. The panel never invents a `C:\` path; the OS dialog still shows the real filesystem path.
+Compact **Projekt** overlay (not a permanent left rail): closed by default. Toolbar Save / Open / Zuletzt geladen open it. Esc, outside click, or a successful FSA save/open close it. MEDIA lives inside the overlay. Import stays on the toolbar. Preview reclaims the left width when the panel is closed.
+
+Panel still shows last file name, folder remembered (`directoryHandle.name` or `filename — Ordner gemerkt`), recents, Speichern / Speichern unter / Öffnen / Ordner wählen. The panel never invents a `C:\` path; the OS dialog still shows the real filesystem path.
+
+Status this slice: TEST-VERIFIED (overlay open/close). Live overlay click this run: NOT VERIFIED.
 
 Chrome File System Access: first picker `startIn: documents`. After save/open, the directory (or file) handle plus last-N recents are stored in IndexedDB and passed as `startIn` next time. `showDirectoryPicker` sets an explicit default folder.
 
@@ -227,11 +231,21 @@ Status: TEST-VERIFIED (static + config)
 - product code has no child_process / eval
 - Start-V5.cmd may call local npm/node (allowed)
 
+## Layout (preview / arrange)
+
+Status: TEST-VERIFIED (units + DOM). Live h-split / arrange scroll this run: NOT VERIFIED.
+
+Vertical ns-resize splitter between PREVIEW and ARRANGE remains. Horizontal ew-resize splitter between PREVIEW and INSPECTOR; ratio persisted in localStorage (`resonance-studio-v5-preview-h-split`). Mins: preview 200px, inspector 180px.
+
+`.arrange-row` has `overflow-y: auto`. Track row heights are not shrunk to fit. When preview is tall, A2 remains in the DOM and the arrange pane can scroll. Transport/zoom stay above the scrollport.
+
 ## UI chrome
 
 Status: IMPLEMENTED. Full Import→Edit→Preview→Persist→Export click-path: NOT VERIFIED.
 
-Projekt panel + mixer this run: RUNTIME-VERIFIED (pointer). Speichern unter / Öffnen / Ordner wählen opened native File System Access dialogs (cancelled). A1 fader dragged ~0 dB → about -7.31 dB. Mixer stayed to the right of the timeline.
+Default chrome: no left PROJEKT rail. Mixer still right of arrange. Overlay / h-split / arrange-scroll live clicks this run: NOT VERIFIED.
+
+Earlier (05:00): Speichern unter / Öffnen / Ordner wählen opened native File System Access dialogs (cancelled). A1 fader dragged ~0 dB → about -7.31 dB.
 
 VIS scene button earlier: RUNTIME-VERIFIED (pointer). Opened http://127.0.0.1:1421, clicked the VIS lane scene control through Wave / Tunnel / Bloom / Orb / Bars / Field and wrap. Preview canvas stayed up; status showed `Visualizer <id>`. No import and no export in that pass.
 
@@ -250,12 +264,18 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Audio export NOT IMPLEMENTED (no AAC track proven).
 - IndexedDB across a real page reload NOT VERIFIED.
 - Start-V5.cmd Windows double-click NOT VERIFIED.
-- Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle and Projekt/mixer clicks were pointer-tested this run. Recents after a completed save: NOT VERIFIED (dialogs cancelled).
+- Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle and earlier Projekt/mixer clicks were pointer-tested. Overlay / h-split / arrange-scroll live this run: NOT VERIFIED. Recents after a completed save: NOT VERIFIED.
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:00 UTC)
+## Changelog this follow-up (2026-08-30 05:34 UTC)
+
+- Projekt + MEDIA left rail hidden by default; overlay opens from toolbar Save/Open. TEST-VERIFIED. Live overlay: NOT VERIFIED.
+- Preview vs Inspector horizontal split, persisted. TEST-VERIFIED. Live drag: NOT VERIFIED.
+- Arrange overflow-y auto so A2 stays reachable when preview is tall. TEST-VERIFIED. Live scroll: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 05:00 UTC)
 
 - Compact Projekt panel: last file name, remembered folder (handle `.name` or “Ordner gemerkt”), recents, Speichern / Speichern unter / Öffnen / Ordner wählen. TEST-VERIFIED. Live pickers opened then cancelled: RUNTIME-VERIFIED. No fake `C:\` path.
 - Mixer column pinned beside the timeline (228px, not width 0). Live A1 fader drag: RUNTIME-VERIFIED.

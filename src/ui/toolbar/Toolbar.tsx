@@ -44,7 +44,7 @@ export function Toolbar({
         </button>
         {fileSystemAccess ? (
           <>
-            <button type="button" data-testid="open-fsa" onClick={onOpen}>
+            <button type="button" data-testid="open-fsa" data-open-project onClick={onOpen}>
               Open
             </button>
             <input
@@ -60,7 +60,7 @@ export function Toolbar({
             />
           </>
         ) : (
-          <label className="file-btn">
+          <label className="file-btn" data-testid="open-fallback" data-open-project onClick={onOpen}>
             Open
             <input
               type="file"
@@ -85,7 +85,7 @@ export function Toolbar({
             Zuletzt geladen
           </button>
         ) : null}
-        <button type="button" onClick={onSave}>
+        <button type="button" data-testid="save-project" onClick={onSave}>
           Save
         </button>
         <button type="button" onClick={onImport}>
