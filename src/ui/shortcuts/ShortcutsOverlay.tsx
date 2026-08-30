@@ -2,16 +2,34 @@ import { SHORTCUT_ROWS } from "./labels";
 
 interface Props {
   open: boolean;
+  onClose?: () => void;
 }
 
-export function ShortcutsOverlay({ open }: Props) {
+export function ShortcutsOverlay({ open, onClose }: Props) {
   if (!open) return null;
   return (
-    <div className="shortcuts-overlay" data-testid="shortcuts">
-      <div className="shortcuts-card">
-        <header>
-          <h2>Shortcuts</h2>
-          <p>Split is S. Save is Ctrl+S. Cut is Ctrl+X. Copy is Ctrl+C. Paste is Ctrl+V.</p>
+    <div
+      className="shortcuts-overlay"
+      data-testid="shortcuts"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      <div className="shortcuts-card" role="dialog" aria-label="Shortcuts" aria-modal="false">
+        <header className="shortcuts-card-head">
+          <div>
+            <h2>Shortcuts</h2>
+            <p>Split is S. Save is Ctrl+S. Cut is Ctrl+X. Copy is Ctrl+C. Paste is Ctrl+V.</p>
+          </div>
+          <button
+            type="button"
+            className="shortcuts-close"
+            data-testid="shortcuts-close"
+            aria-label="Close"
+            onClick={() => onClose?.()}
+          >
+            ×
+          </button>
         </header>
         <dl>
           {SHORTCUT_ROWS.map((row) => (

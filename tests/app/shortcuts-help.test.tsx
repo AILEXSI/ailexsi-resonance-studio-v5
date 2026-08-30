@@ -46,7 +46,7 @@ describe("shortcuts help (P75)", () => {
                 render();
               }}
             />
-            <ShortcutsOverlay open={open} />
+            <ShortcutsOverlay open={open} onClose={() => { open = false; render(); }} />
           </>,
         );
       });
@@ -65,5 +65,37 @@ describe("shortcuts help (P75)", () => {
       expect(text).toContain(row.key);
       expect(text).toContain(row.action);
     }
+  });
+
+  it("× and backdrop close the same sheet (P76)", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    let open = true;
+    const render = () => {
+      act(() => {
+        root!.render(
+          <ShortcutsOverlay
+            open={open}
+            onClose={() => {
+              open = false;
+              render();
+            }}
+          />,
+        );
+      });
+    };
+    render();
+    expect(host.querySelector('[data-testid="shortcuts"]')).toBeTruthy();
+    act(() => {
+      (host!.querySelector('[data-testid="shortcuts-close"]') as HTMLButtonElement).click();
+    });
+    expect(host.querySelector('[data-testid="shortcuts"]')).toBeNull();
+    open = true;
+    render();
+    act(() => {
+      (host!.querySelector('[data-testid="shortcuts"]') as HTMLDivElement).click();
+    });
+    expect(host.querySelector('[data-testid="shortcuts"]')).toBeNull();
   });
 });

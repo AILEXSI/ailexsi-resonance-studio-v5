@@ -142,6 +142,8 @@ export function App() {
     master: 0,
   });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const shortcutsOpenRef = useRef(false);
+  shortcutsOpenRef.current = shortcutsOpen;
   const layoutStore = browserLayoutStorage();
   const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(layoutStore));
@@ -306,6 +308,11 @@ export function App() {
       if (e.key === "Escape" && projectPanelOpenRef.current) {
         e.preventDefault();
         setProjectPanelOpen(false);
+        return;
+      }
+      if (e.key === "Escape" && shortcutsOpenRef.current) {
+        e.preventDefault();
+        setShortcutsOpen(false);
         return;
       }
       const formFocus = editorFormFocus(e.target);
@@ -1410,7 +1417,7 @@ export function App() {
         onStart={() => startExport("mp4")}
       />
 
-      <ShortcutsOverlay open={shortcutsOpen} />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <footer className="status" data-testid="status">
         <span>{session.status}</span>
