@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 147 modules. Outputs:
+exit 0. vite 7.3.6, 149 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-Da3DB-3p.css 14.89 kB
-- dist/assets/index-UL-UMS9s.js 661.91 kB
+- dist/assets/index-CqLL-lJw.css 15.95 kB
+- dist/assets/index-DTa6dgo4.js 665.69 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **145 passed / 27 files**. Start 05:43:04 UTC. Duration 5.28s.
+exit 0. vitest 3.2.7. **154 passed / 29 files**. Start 05:46:03 UTC. Duration 6.39s.
 
-New this follow-up: markers (move time, per-id delete, clip-delete wins when a clip is selected, JSON timeMs) + marker-dom (drag / × / context menu). Mixer collapse and ns-resize split tests remain green. Waveform envelope tests unchanged.
+New this follow-up: export dialog open/progress/abort (mocked encoder) + exportTimeline aborted signal + dialog DOM Abbrechen. Prior marker / mixer / split / waveform tests remain green.
 
 ## Visualizer
 
