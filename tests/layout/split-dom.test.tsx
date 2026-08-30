@@ -35,6 +35,7 @@ function SplitHarness({ storage }: { storage: StorageLike }) {
       <div
         className="layout-split"
         data-testid="layout-split"
+        style={{ cursor: "ns-resize" }}
         onMouseDown={(e) => drag(e.clientY)}
         onMouseMove={(e) => {
           if (e.buttons === 1) drag(e.clientY);
@@ -78,6 +79,7 @@ describe("preview / arrange splitter", () => {
     });
 
     const split = host.querySelector('[data-testid="layout-split"]') as HTMLElement;
+    expect(getComputedStyle(split).cursor).toBe("ns-resize");
     const preview = () => host!.querySelector('[data-testid="preview-pane"]') as HTMLElement;
     const arrange = () => host!.querySelector('[data-testid="arrange-pane"]') as HTMLElement;
 

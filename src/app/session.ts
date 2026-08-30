@@ -11,12 +11,14 @@ import { createEmptyProject, deserializeProject, serializeProject } from "../cor
 import {
   addMarker,
   clearInOut,
+  deleteMarker,
   collectSnapTargets,
   createHistory,
   deleteClip,
   duplicateClip,
   maybeScrollToOrigin,
   moveClip,
+  moveMarker,
   moveInOut,
   lastClipEndMsOnTrack,
   placeAsset,
@@ -50,6 +52,7 @@ export interface Session {
   project: Project;
   history: HistoryStack;
   selectedClipId: string | null;
+  selectedMarkerId: string | null;
   clipboard: Clip | null;
   targetTrackId: TrackId;
   status: string;
@@ -63,6 +66,7 @@ export function createSession(store?: BlobStore): Session {
     project: createEmptyProject(),
     history: createHistory(),
     selectedClipId: null,
+    selectedMarkerId: null,
     clipboard: null,
     targetTrackId: "V1",
     status: "New project",
@@ -304,7 +308,13 @@ export function applyClearInOut(session: Session): Session {
 }
 
 export function applyMarker(session: Session): Session {
-  return withHistory(session, addMarker(session.project, session.project.playheadMs), "Marker added");
+  const next = addMarker(session.project, session.project.playheadMs);
+  const added = next.markers[next.markers.length - 1];
+  return {
+    ...withHistory(session, next, "Marker added"),
+    selectedMarkerId: added?.id ?? null,
+    selectedClipId: null,
+  };
 }
 
 export function applyCopy(session: Session): Session {
@@ -365,9 +375,31 @@ export function applyUpdateClip(
 }
 
 export function applyDelete(session: Session): Session {
-  if (!session.selectedClipId) return { ...session, error: "No clip selected" };
-  const next = deleteClip(session.project, session.selectedClipId);
-  return { ...withHistory(session, next, "Clip deleted"), selectedClipId: null };
+  if (session.selectedClipId) {
+    const next = deleteClip(session.project, session.selectedClipId);
+    return { ...withHistory(session, next, "Clip deleted"), selectedClipId: null };
+  }
+  if (session.selectedMarkerId) {
+    const result = deleteMarker(session.project, session.selectedMarkerId);
+    if (result.error) return { ...session, error: result.error };
+    return { ...withHistory(session, result.project, "Marker deleted"), selectedMarkerId: null };
+  }
+  return { ...session, error: "No clip selected" };
+}
+
+export function applyDeleteMarker(session: Session, markerId: string): Session {
+  const result = deleteMarker(session.project, markerId);
+  if (result.error) return { ...session, error: result.error };
+  return {
+    ...withHistory(session, result.project, "Marker deleted"),
+    selectedMarkerId: session.selectedMarkerId === markerId ? null : session.selectedMarkerId,
+  };
+}
+
+export function applyMoveMarker(session: Session, markerId: string, timeMs: number): Session {
+  const result = moveMarker(session.project, markerId, timeMs);
+  if (result.error) return { ...session, error: result.error };
+  return { ...session, project: result.project, selectedMarkerId: markerId, selectedClipId: null, error: null };
 }
 
 export function applyPlayhead(session: Session, timeMs: number): Session {
@@ -424,7 +456,14 @@ export function applyCycleVisualizerScene(session: Session): Session {
 }
 
 export function applySelect(session: Session, clipId: string | null): Session {
-  return { ...session, selectedClipId: clipId };
+  return { ...session, selectedClipId: clipId, selectedMarkerId: null };
+}
+
+export function applySelectMarker(session: Session, markerId: string | null): Session {
+  if (markerId) {
+    return { ...session, selectedMarkerId: markerId, selectedClipId: null };
+  }
+  return { ...session, selectedMarkerId: null };
 }
 
 export function applyZoom(session: Session, zoomPxPerSec: number, timelineWidthPx = 1000): Session {
@@ -474,6 +513,7 @@ export function openSerialized(session: Session, text: string): Session {
     project,
     history: createHistory(),
     selectedClipId: null,
+    selectedMarkerId: null,
     status: `Opened ${project.name}`,
     error: null,
     playing: false,

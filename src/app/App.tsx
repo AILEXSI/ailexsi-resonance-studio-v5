@@ -53,6 +53,9 @@ import {
   applyRedo,
   applyScroll,
   applySelect,
+  applySelectMarker,
+  applyDeleteMarker,
+  applyMoveMarker,
   applySplit,
   applyToggleLoop,
   applyMasterVolume,
@@ -421,6 +424,25 @@ export function App() {
     }));
   };
 
+  const onMarkerMoveLive = (markerId: string, timeMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      return applyMoveMarker(s, markerId, timeMs);
+    });
+  };
+
+  const onMarkerMoveCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Moved marker",
+      error: null,
+    }));
+  };
+
   const onTrimLive = (clipId: string, edge: "in" | "out", nextEdgeMs: number) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
@@ -694,6 +716,7 @@ export function App() {
         role="separator"
         aria-orientation="horizontal"
         aria-label="Preview und Arrange teilen"
+        style={{ cursor: "ns-resize" }}
         onPointerDown={onSplitPointerDown}
       />
 
@@ -725,7 +748,12 @@ export function App() {
       <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}
+        selectedMarkerId={session.selectedMarkerId}
         onSelect={(id) => setSession(applySelect(session, id))}
+        onSelectMarker={(id) => setSession(applySelectMarker(session, id))}
+        onMarkerMoveLive={onMarkerMoveLive}
+        onMarkerMoveCommit={onMarkerMoveCommit}
+        onDeleteMarker={(id) => setSession(applyDeleteMarker(session, id))}
         onPlayhead={(ms) => setSession(applyPlayhead(session, ms))}
         onMoveLive={onMoveLive}
         onMoveCommit={onMoveCommit}

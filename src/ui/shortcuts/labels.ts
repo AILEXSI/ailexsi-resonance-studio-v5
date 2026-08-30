@@ -18,7 +18,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "Right-click ruler", action: "IN then OUT" },
   { key: "X", action: "Clear IN/OUT" },
   { key: "M", action: "Add marker" },
-  { key: CLIP_MENU_SHORTCUTS.delete, action: "Delete clip" },
+  { key: CLIP_MENU_SHORTCUTS.delete, action: "Delete clip or marker" },
   { key: "← / →", action: "Step ±1 frame" },
   { key: "Ctrl+Z", action: "Undo" },
   { key: "Ctrl+Y", action: "Redo" },

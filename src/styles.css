@@ -62,8 +62,8 @@ input[type="range"] { accent-color: var(--accent-2); }
   overflow: hidden;
 }
 .layout-split {
-  flex: 0 0 10px;
-  cursor: row-resize;
+  flex: 0 0 12px;
+  cursor: ns-resize;
   touch-action: none;
   background: var(--panel-2);
   border-top: 1px solid var(--line);
@@ -75,16 +75,21 @@ input[type="range"] { accent-color: var(--accent-2); }
   content: "";
   position: absolute;
   left: 50%;
-  top: 2px;
-  width: 36px;
-  height: 3px;
-  margin-left: -18px;
+  top: 4px;
+  width: 48px;
+  height: 4px;
+  margin-left: -24px;
   border-radius: 2px;
-  background: #3a4454;
+  background: #6b778c;
 }
 .layout-split:hover,
 .layout-split:active {
-  background: #1d2430;
+  cursor: ns-resize;
+  background: #2a3344;
+}
+.layout-split:hover::after,
+.layout-split:active::after {
+  background: #c5d0e0;
 }
 .lower-stage {
   display: flex;
@@ -560,14 +565,50 @@ input[type="range"] { accent-color: var(--accent-2); }
   pointer-events: none;
   z-index: 5;
 }
+.marker {
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 18px;
+  margin-left: -8px;
+  cursor: grab;
+  z-index: 6;
+  touch-action: none;
+}
+.marker.selected { z-index: 7; }
+.marker.selected .marker-flag {
+  border-top-color: #ede9fe;
+}
 .marker-flag {
   position: absolute;
   top: 2px;
+  left: 3px;
   width: 0;
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-top: 8px solid #c4b5fd;
+  pointer-events: none;
+}
+.marker-x {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  line-height: 10px;
+  font-size: 11px;
+  border: none;
+  border-radius: 50%;
+  background: #3b3348;
+  color: #ede9fe;
+  display: none;
+  cursor: pointer;
+}
+.marker.selected .marker-x,
+.marker:hover .marker-x {
+  display: block;
 }
 .in-out {
   position: absolute;

@@ -20,7 +20,12 @@ export { RULER_PAD_PX };
 interface Props {
   project: Project;
   selectedClipId: string | null;
+  selectedMarkerId?: string | null;
   onSelect: (clipId: string | null) => void;
+  onSelectMarker?: (markerId: string | null) => void;
+  onMarkerMoveLive?: (markerId: string, timeMs: number) => void;
+  onMarkerMoveCommit?: () => void;
+  onDeleteMarker?: (markerId: string) => void;
   onPlayhead: (ms: number) => void;
   onMoveLive: (clipId: string, startMs: number, trackId?: TrackId) => void;
   onMoveCommit: () => void;
@@ -63,10 +68,21 @@ interface ClipMenu {
   timeMs: number;
 }
 
+interface MarkerMenu {
+  x: number;
+  y: number;
+  markerId: string;
+}
+
 export function Timeline({
   project,
   selectedClipId,
+  selectedMarkerId = null,
   onSelect,
+  onSelectMarker,
+  onMarkerMoveLive,
+  onMarkerMoveCommit,
+  onDeleteMarker,
   onPlayhead,
   onMoveLive,
   onMoveCommit,
@@ -91,8 +107,9 @@ export function Timeline({
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | null>(null);
+  const dragKindRef = useRef<"move" | "trim" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
+  const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
   const [viewWidth, setViewWidth] = useState(1000);
   const duration = Math.max(10_000, projectDurationMs(project) + 2000);
   const measureWidth = (): number => timelineRef.current?.clientWidth ?? 1000;
@@ -146,26 +163,67 @@ export function Timeline({
   const onRulerPointer = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     setMenu(null);
+    setMarkerMenu(null);
     onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
   };
 
   const onEmptyContext = (e: ReactMouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     setMenu(null);
+    setMarkerMenu(null);
     onLoopClick(snapIf(timeFromEvent(e.clientX, e.currentTarget)));
   };
 
   const onLaneBodyPointer = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     setMenu(null);
+    setMarkerMenu(null);
     onSelect(null);
     onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
+  };
+
+  const onMarkerPointerDown = (e: ReactPointerEvent, markerId: string, timeMs: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    setMarkerMenu(null);
+    if (dragKindRef.current) return;
+    dragKindRef.current = "marker";
+    onSelectMarker?.(markerId);
+    const originX = e.clientX;
+    const originTime = timeMs;
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "marker") return;
+      const dx = ev.clientX - originX;
+      if (Math.abs(dx) > 1) moved = true;
+      const next = Math.max(0, originTime + (dx / project.zoomPxPerSec) * 1000);
+      onMarkerMoveLive?.(markerId, next);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      if (moved) onMarkerMoveCommit?.();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onMarkerContext = (e: ReactMouseEvent, markerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSelectMarker?.(markerId);
+    setMenu(null);
+    setMarkerMenu({ x: e.clientX, y: e.clientY, markerId });
   };
 
   const onClipPointerDown = (e: ReactPointerEvent, clip: Clip) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     setMenu(null);
+    setMarkerMenu(null);
     if (dragKindRef.current) return;
     dragKindRef.current = "move";
     onSelect(clip.id);
@@ -286,6 +344,7 @@ export function Timeline({
     e.preventDefault();
     e.stopPropagation();
     onSelect(clip.id);
+    setMarkerMenu(null);
     setMenu({
       x: e.clientX,
       y: e.clientY,
@@ -384,14 +443,37 @@ export function Timeline({
               {t.label}
             </div>
           ))}
-          {project.markers.map((m) => (
-            <div
-              key={m.id}
-              className="marker-flag"
-              title={m.label}
-              style={{ left: msToX(m.timeMs, project.zoomPxPerSec, project.scrollMs) }}
-            />
-          ))}
+          {project.markers.map((m) => {
+            const selected = selectedMarkerId === m.id;
+            return (
+              <div
+                key={m.id}
+                className={`marker${selected ? " selected" : ""}`}
+                data-testid={`marker-${m.id}`}
+                data-selected={selected ? "true" : "false"}
+                title={m.label}
+                style={{ left: msToX(m.timeMs, project.zoomPxPerSec, project.scrollMs) }}
+                onPointerDown={(e) => onMarkerPointerDown(e, m.id, m.timeMs)}
+                onContextMenu={(e) => onMarkerContext(e, m.id)}
+              >
+                <span className="marker-flag" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="marker-x"
+                  data-testid={`marker-delete-${m.id}`}
+                  aria-label={`Delete ${m.label}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMarker?.(m.id);
+                    setMarkerMenu(null);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
           {loopOverlay(true)}
           <div
             className="playhead"
@@ -579,6 +661,26 @@ export function Timeline({
             }}
           >
             <span>Delete</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.delete}</kbd>
+          </button>
+        </div>
+      ) : null}
+      {markerMenu ? (
+        <div
+          className="clip-menu"
+          data-testid="marker-menu"
+          style={{ left: markerMenu.x, top: markerMenu.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            data-testid="marker-menu-delete"
+            onClick={() => {
+              onDeleteMarker?.(markerMenu.markerId);
+              setMarkerMenu(null);
+            }}
+          >
+            <span>Delete marker</span>
             <kbd>{CLIP_MENU_SHORTCUTS.delete}</kbd>
           </button>
         </div>

@@ -390,6 +390,40 @@ export function addMarker(project: Project, timeMs: number, label?: string): Pro
   };
 }
 
+export function moveMarker(
+  project: Project,
+  markerId: string,
+  timeMs: number,
+): { project: Project; error?: string } {
+  if (!project.markers.some((m) => m.id === markerId)) {
+    return { project, error: "Marker not found" };
+  }
+  const nextTime = Math.max(0, timeMs);
+  return {
+    project: {
+      ...project,
+      markers: project.markers.map((m) => (m.id === markerId ? { ...m, timeMs: nextTime } : m)),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
+export function deleteMarker(
+  project: Project,
+  markerId: string,
+): { project: Project; error?: string } {
+  if (!project.markers.some((m) => m.id === markerId)) {
+    return { project, error: "Marker not found" };
+  }
+  return {
+    project: {
+      ...project,
+      markers: project.markers.filter((m) => m.id !== markerId),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 export function duplicateClip(
   project: Project,
   clipId: string,

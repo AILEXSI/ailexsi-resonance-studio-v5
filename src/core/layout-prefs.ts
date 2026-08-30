@@ -6,7 +6,7 @@ export const H_SPLIT_RATIO_KEY = "resonance-studio-v5-preview-h-split";
 
 export const PREVIEW_MIN_PX = 120;
 export const ARRANGE_MIN_PX = 160;
-export const SPLITTER_PX = 10;
+export const SPLITTER_PX = 12;
 export const DEFAULT_SPLIT_RATIO = 0.52;
 export const PREVIEW_H_MIN_PX = 200;
 export const INSPECTOR_MIN_PX = 180;

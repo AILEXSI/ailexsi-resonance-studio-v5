@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 05:40 UTC. A-track waveform envelope (dense min/max silhouette) follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:45 UTC. Marker move/delete + mixer Master-only + ns-resize preview/arrange split on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -167,11 +167,17 @@ Folder was not persisted this run because the dialogs were cancelled. Recents st
 
 `tests/persistence/project-file.test.ts` (9): startIn, recents file+dir handle round-trip, panel view names, Speichern unter/Öffnen startIn last dir, Ordner wählen, recent reopen. No fake Windows path asserts. Panel DOM: `tests/persistence/project-file-panel.test.tsx`.
 
+## Markers
+
+Status: TEST-VERIFIED (move/delete + JSON). Live ruler drag: NOT VERIFIED.
+
+Place (M / Marker button) already existed. This pass: drag a flag along the ruler updates `markers[].timeMs` in the session/project JSON. Select a marker and Delete/Backspace removes **that** marker only. A selected clip still wins Delete (clip is removed, markers stay). Per-marker × and a small context menu also delete one id. Clearing all is not the only path.
+
 ## Mixer
 
-Status: RUNTIME-VERIFIED (visible next to timeline + A1 fader drag). Curve/persist: TEST-VERIFIED.
+Status: RUNTIME-VERIFIED (visible next to timeline + A1 fader drag). Collapse: TEST-VERIFIED. Live collapse click this run: NOT VERIFIED.
 
-Right of the arrange/timeline (`.arrange-row`: timeline | 228px mixer). V1 V2 A1 A2 + Master. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
+Right of the arrange/timeline (`.arrange-row`: timeline | 228px mixer). Collapse control is top-left of the mixer pane. Collapsed = **MST only** (V1–A2 unmounted, not deleted). Expanded = V1 V2 A1 A2 + MST. Persist `resonance-studio-v5-mixer-collapsed`. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
 
 Layout CSS: mixer `min-width`/`width` 228px, not `display:none`. Arrange row has a reserved height so the strip cannot collapse to width 0. Live: mixer sat beside the timeline; A1 fader dragged from 0.00 dB to about -7.31 dB; status showed the A1 dB.
 
@@ -233,9 +239,11 @@ Status: TEST-VERIFIED (static + config)
 
 ## Layout (preview / arrange)
 
-Status: TEST-VERIFIED (units + DOM). Live h-split / arrange scroll this run: NOT VERIFIED.
+Status: TEST-VERIFIED (units + DOM + cursor). Live ns-resize drag this run: NOT VERIFIED.
 
-Vertical ns-resize splitter between PREVIEW and ARRANGE remains. Horizontal ew-resize splitter between PREVIEW and INSPECTOR; ratio persisted in localStorage (`resonance-studio-v5-preview-h-split`). Mins: preview 200px, inspector 180px.
+The seam is `.layout-split` between VIDEO/PREVIEW (above, includes `Active: V1…`) and lower-stage transport/arrange (below). Hover/drag cursor is **ns-resize**. Mouse down + drag changes preview vs arrange heights (one split, two panes). Mins: preview 120px, arrange 160px. Ratio persisted (`resonance-studio-v5-preview-split`). This is not a mixer-width drag; mixer stays right of arrange.
+
+Horizontal ew-resize splitter between PREVIEW and INSPECTOR; ratio persisted (`resonance-studio-v5-preview-h-split`). Mins: preview 200px, inspector 180px.
 
 `.arrange-row` has `overflow-y: auto`. Track row heights are not shrunk to fit. When preview is tall, A2 remains in the DOM and the arrange pane can scroll. Transport/zoom stay above the scrollport.
 
@@ -269,7 +277,13 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 05:40 UTC)
+## Changelog this follow-up (2026-08-30 05:45 UTC)
+
+- Markers: drag time, per-marker Delete/Backspace/×/context menu. TEST-VERIFIED. Live drag: NOT VERIFIED.
+- Mixer collapse at pane top-left: collapsed = MST only. TEST-VERIFIED. Live click this run: NOT VERIFIED.
+- Preview/Arrange splitter cursor is ns-resize; drag clamps and persists. TEST-VERIFIED. Live drag: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 05:40 UTC)
 
 - A-track clip preview is a filled min/max peak envelope (~1 pair per CSS pixel), not gapped bars. Zoom re-samples. Mipmap cached after decode. TEST-VERIFIED. Live clip pixels: NOT VERIFIED.
 
