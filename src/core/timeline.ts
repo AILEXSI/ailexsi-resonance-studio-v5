@@ -1725,10 +1725,11 @@ export function deleteClip(project: Project, clipId: string): Project {
 }
 
 /**
- * Lift the clip, then shift later clips on the same track left by its duration.
- * Other tracks are unchanged. A locked later clip is a wall — refuse
- * (same as ripple-trim / closeGap / extract). Deleting the clip itself
- * is still allowed even when it is locked.
+ * Lift the clip, then shift later enabled clips on the same track left
+ * by its duration. Disabled later clips stay parked (same as G / Q/W).
+ * Other tracks are unchanged. A locked later enabled clip is a wall —
+ * refuse (same as ripple-trim / closeGap / extract). Deleting the clip
+ * itself is still allowed even when it is locked.
  */
 function rippleDeleteOne(
   project: Project,
@@ -1744,6 +1745,7 @@ function rippleDeleteOne(
       c.id !== clipId &&
       c.trackId === trackId &&
       c.startMs + ABUT_TOLERANCE_MS >= cutoff &&
+      clipIsEnabled(c) &&
       clipIsLocked(c),
   );
   if (laterLocked) return { project, error: "Clip is locked" };
@@ -1754,6 +1756,7 @@ function rippleDeleteOne(
         .filter((c) => c.id !== clipId)
         .map((c) => {
           if (c.trackId !== trackId || c.startMs < cutoff) return c;
+          if (!clipIsEnabled(c)) return c;
           return { ...c, startMs: clampStartMs(c.startMs - shift) };
         }),
       updatedAt: new Date().toISOString(),

@@ -363,6 +363,57 @@ describe("ripple delete", () => {
     expect(next.project.clips.find((c) => c.id === "parked")!.startMs).toBe(0);
     expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
   });
+
+  it("does not slide a later disabled clip (P135)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 500,
+          enabled: false,
+        }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 2000, durationMs: 500 }),
+        clip({ id: "c3", assetId: "a", trackId: "A2", startMs: 2000, durationMs: 400 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClip(p, "c1");
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "c3")!.startMs).toBe(2000);
+  });
+
+  it("later disabled locked is not a ripple-delete wall (P135)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 500,
+          enabled: false,
+          locked: true,
+        }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 2000, durationMs: 500 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClip(p, "c1");
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
 });
 
 function abuttingA1(): ReturnType<typeof projectWith> {
