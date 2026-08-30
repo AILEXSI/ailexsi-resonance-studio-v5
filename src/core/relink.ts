@@ -69,6 +69,7 @@ export function relinkClipsOnProject(
   }
   let changed = false;
   let lockedShrink = false;
+  let emptied = false;
   const clips = project.clips.map((clip) => {
     if (!sel.clipIds.includes(clip.id)) return clip;
     const wouldShrink = asset.durationMs < clip.sourceOutMs;
@@ -82,7 +83,13 @@ export function relinkClipsOnProject(
     let next = { ...clip, assetId: newAssetId };
     if (wouldShrink) {
       const sourceOutMs = asset.durationMs;
-      const durationMs = Math.max(0, sourceDeltaToTimeline(clip, sourceOutMs - clip.sourceInMs));
+      const sourceSpan = sourceOutMs - clip.sourceInMs;
+      // Trimmed IN past the new file would write duration 0 (ghost clip).
+      if (sourceSpan < 1) {
+        emptied = true;
+        return clip;
+      }
+      const durationMs = Math.max(1, sourceDeltaToTimeline(clip, sourceSpan));
       next = { ...next, sourceOutMs, durationMs };
     }
     if (
@@ -96,6 +103,7 @@ export function relinkClipsOnProject(
   });
   if (!changed) {
     if (lockedShrink) return { error: "Clip is locked" };
+    if (emptied) return { error: "Relink would empty the clip" };
     return { unchanged: true };
   }
   return {

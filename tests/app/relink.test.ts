@@ -173,6 +173,47 @@ describe("relinkClips", () => {
     expect(clip1.durationMs).toBe(800);
   });
 
+  it("refuses a trimmed clip whose sourceIn is past the new file (P130)", () => {
+    const start = relinkSession();
+    const short = asset({ id: "short", kind: "video", durationMs: 800 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, short],
+      clips: start.project.clips.map((c) =>
+        c.id === "c1" ? { ...c, sourceInMs: 1500, sourceOutMs: 2000, durationMs: 500 } : c,
+      ),
+    };
+    const result = relinkClipsOnProject(project, ["c1"], "short");
+    expect(result).toEqual({ error: "Relink would empty the clip" });
+    expect(project.clips.find((c) => c.id === "c1")!.assetId).toBe("va");
+    expect(project.clips.find((c) => c.id === "c1")!.durationMs).toBe(500);
+    expect(project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(1500);
+  });
+
+  it("still relinks an unlocked mate when only the trimmed clip would empty (P130)", () => {
+    const start = linkedAvRelinkSession();
+    const short = asset({ id: "short", kind: "video", durationMs: 800 });
+    const project = {
+      ...start.project,
+      assets: [...start.project.assets, short],
+      clips: start.project.clips.map((c) =>
+        c.id === "v1" ? { ...c, sourceInMs: 1500, sourceOutMs: 2000, durationMs: 500 } : c,
+      ),
+    };
+    const result = relinkClipsOnProject(project, ["v1"], "short");
+    expect("project" in result).toBe(true);
+    if (!("project" in result)) return;
+    const v1 = result.project.clips.find((c) => c.id === "v1")!;
+    const a1 = result.project.clips.find((c) => c.id === "a1")!;
+    expect(v1.assetId).toBe("va");
+    expect(v1.durationMs).toBe(500);
+    expect(v1.sourceInMs).toBe(1500);
+    expect(a1.assetId).toBe("short");
+    expect(a1.sourceOutMs).toBe(800);
+    expect(a1.durationMs).toBe(800);
+    expect(a1.startMs).toBe(0);
+  });
+
   it("rejects the wrong kind in the ingest helper and does not call the command", async () => {
     const start = relinkSession();
     const rejected = await ingestRelinkFile(start, fakeFile("nope.wav", "audio/wav"), "video", probeMs);
