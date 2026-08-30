@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, selectionOf, type Session } from "../../src/app/session";
-import { FRAME_MS } from "../../src/core/models";
+import { FRAME_MS, isTrackId } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { nextShuttleRate } from "../../src/core/playback";
 import { asset, clip, projectWith } from "../helpers";
@@ -699,5 +699,105 @@ describe("shuttle rate table", () => {
     const noop = applyCommand(lonely, { type: "setTransition", transitionType: "fadeBlack" });
     expect(noop.project.transitions).toEqual([]);
     expect(noop).toBe(lonely);
+  });
+});
+
+function mixedTrackSession(): Session {
+  const v = asset({ id: "va", kind: "video", durationMs: 4000 });
+  const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+  return {
+    ...createSession(createMemoryBlobStore()),
+    project: projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "v2", assetId: "va", trackId: "V2", startMs: 2000, durationMs: 1000 }),
+        clip({ id: "a1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 1000 }),
+      ],
+      [v, a],
+    ),
+    selectedClipId: "v1",
+    selectedClipIds: ["v1"],
+  };
+}
+
+describe("applyCommand moveClips across same-kind tracks", () => {
+  it("moves a video clip V1→V2", () => {
+    const start = mixedTrackSession();
+    const moved = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["v1"],
+      deltaMs: 0,
+      trackId: "V2",
+    });
+    expect(moved.project.clips.find((c) => c.id === "v1")!.trackId).toBe("V2");
+    expect(moved.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(moved.error).toBeNull();
+    expect(moved.history.past).toHaveLength(start.history.past.length + 1);
+  });
+
+  it("moves a video clip V2→V1", () => {
+    const start = mixedTrackSession();
+    const moved = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["v2"],
+      deltaMs: 0,
+      trackId: "V1",
+    });
+    expect(moved.project.clips.find((c) => c.id === "v2")!.trackId).toBe("V1");
+    expect(moved.error).toBeNull();
+  });
+
+  it("moves an audio clip A1→A2", () => {
+    const start = mixedTrackSession();
+    const moved = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["a1"],
+      deltaMs: 0,
+      trackId: "A2",
+    });
+    expect(moved.project.clips.find((c) => c.id === "a1")!.trackId).toBe("A2");
+    expect(moved.error).toBeNull();
+  });
+
+  it("video onto an A-track no-ops", () => {
+    const start = mixedTrackSession();
+    const next = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["v1"],
+      deltaMs: 0,
+      trackId: "A1",
+    });
+    expect(next.error).toMatch(/different kind/);
+    expect(next.project.clips.find((c) => c.id === "v1")!.trackId).toBe("V1");
+    expect(next.history.past).toHaveLength(start.history.past.length);
+  });
+
+  it("VIS overlay cannot land on V1", () => {
+    expect(isTrackId("VIS")).toBe(false);
+    const start = mixedTrackSession();
+    const next = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["vis"],
+      deltaMs: 0,
+      trackId: "V1",
+    });
+    expect(next.error).toMatch(/not found/i);
+    expect(next.project.clips).toEqual(start.project.clips);
+    expect(next.project.visualizer).toEqual(start.project.visualizer);
+    expect(next.history.past).toHaveLength(start.history.past.length);
+  });
+
+  it("undo restores trackId after V1→V2", () => {
+    const start = mixedTrackSession();
+    const moved = applyCommand(start, {
+      type: "moveClips",
+      clipIds: ["v1"],
+      deltaMs: 0,
+      trackId: "V2",
+    });
+    expect(moved.project.clips.find((c) => c.id === "v1")!.trackId).toBe("V2");
+    const undone = applyCommand(moved, { type: "undo" });
+    expect(undone.project.clips.find((c) => c.id === "v1")!.trackId).toBe("V1");
+    expect(undone.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
   });
 });

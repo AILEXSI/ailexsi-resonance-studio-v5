@@ -137,6 +137,7 @@ export function Inspector({
         <dl>
           <Field label="Track">
             <select
+              data-testid="inspector-track"
               value={clip.trackId}
               onChange={(e) => onChange(clip.id, { trackId: e.target.value as TrackId })}
             >

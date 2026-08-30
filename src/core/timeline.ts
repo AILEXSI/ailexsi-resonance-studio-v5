@@ -12,6 +12,7 @@ import {
   clampClipRate,
   clipById,
   clipEndMs,
+  isTrackId,
   kindOfTrack,
   sourceDeltaToTimeline,
   sourceSpanMs,
@@ -81,7 +82,7 @@ export function moveClip(
   if (!clip) return { project, error: "Clip not found" };
 
   const trackId = nextTrackId ?? clip.trackId;
-  if (kindOfTrack(trackId) !== kindOfTrack(clip.trackId)) {
+  if (!isTrackId(trackId) || kindOfTrack(trackId) !== kindOfTrack(clip.trackId)) {
     return { project, error: "Cannot move clip to a different kind of track" };
   }
 
@@ -1194,7 +1195,10 @@ export function updateClip(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
-  if (patch.trackId && kindOfTrack(patch.trackId) !== kindOfTrack(clip.trackId)) {
+  if (
+    patch.trackId &&
+    (!isTrackId(patch.trackId) || kindOfTrack(patch.trackId) !== kindOfTrack(clip.trackId))
+  ) {
     return { project, error: "Cannot change clip to a different kind of track" };
   }
 

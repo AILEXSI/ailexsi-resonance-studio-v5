@@ -239,3 +239,68 @@ describe("inspector VIS routing", () => {
     expect(host.querySelector("[data-testid=inspector-vis-duration]")).toBeTruthy();
   });
 });
+
+describe("inspector track control", () => {
+  let host: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  it("offers V1/V2 for a video clip and writes trackId", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = projectWith(
+      [clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 })],
+      [asset({ id: "va", kind: "video", durationMs: 2000 })],
+    );
+    const patches: Array<{ trackId?: string }> = [];
+    act(() => {
+      root!.render(
+        <Inspector
+          project={project}
+          selectedClipId="v1"
+          selectedClipIds={["v1"]}
+          onChange={(_id, patch) => patches.push(patch)}
+        />,
+      );
+    });
+    const select = host.querySelector<HTMLSelectElement>("[data-testid=inspector-track]");
+    expect(select).toBeTruthy();
+    expect([...select!.options].map((o) => o.value)).toEqual(["V1", "V2"]);
+    act(() => {
+      select!.value = "V2";
+      select!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(patches[0]?.trackId).toBe("V2");
+  });
+
+  it("offers A1/A2 for an audio clip", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = projectWith(
+      [clip({ id: "a1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 1000 })],
+      [asset({ id: "aa", kind: "audio", durationMs: 2000 })],
+    );
+    act(() => {
+      root!.render(
+        <Inspector
+          project={project}
+          selectedClipId="a1"
+          selectedClipIds={["a1"]}
+          onChange={() => {}}
+        />,
+      );
+    });
+    const select = host.querySelector<HTMLSelectElement>("[data-testid=inspector-track]");
+    expect([...select!.options].map((o) => o.value)).toEqual(["A1", "A2"]);
+  });
+});

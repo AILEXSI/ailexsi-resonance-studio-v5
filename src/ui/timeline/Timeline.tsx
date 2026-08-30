@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import {
   TRACK_IDS,
   clipEndMs,
+  isTrackId,
   kindOfTrack,
   projectDurationMs,
   type Clip,
@@ -25,6 +26,19 @@ import { listStackedEditPairs } from "../../core/transition";
 import { buildRulerTicks } from "../../core/ruler";
 
 export { RULER_PAD_PX };
+
+/** Compatible V/A lane under the pointer (header or body). VIS is not a TrackId. */
+function trackIdFromPoint(clientX: number, clientY: number): TrackId | undefined {
+  const hit = document.elementFromPoint(clientX, clientY);
+  let node: Element | null = hit;
+  while (node) {
+    const raw = node.getAttribute("data-testid");
+    const m = raw?.match(/^lane-(V1|V2|A1|A2)(?:-body)?$/);
+    if (m && isTrackId(m[1]!)) return m[1];
+    node = node.parentElement;
+  }
+  return undefined;
+}
 
 interface Props {
   project: Project;
@@ -420,10 +434,14 @@ export function Timeline({
       const nextStart = originStart + (dx / project.zoomPxPerSec) * 1000;
       const dy = ev.clientY - originY;
       let trackId: TrackId | undefined;
-      if (movingIds.length === 1 && Math.abs(dy) > 24) {
-        const idx = TRACK_IDS.indexOf(originTrack);
-        const next = TRACK_IDS[idx + (dy > 0 ? 1 : -1)];
-        if (next && kindOfTrack(next) === kindOfTrack(originTrack)) trackId = next;
+      if (movingIds.length === 1) {
+        const over = trackIdFromPoint(ev.clientX, ev.clientY);
+        if (over && kindOfTrack(over) === kindOfTrack(originTrack)) trackId = over;
+        else if (Math.abs(dy) > 24) {
+          const idx = TRACK_IDS.indexOf(originTrack);
+          const next = TRACK_IDS[idx + (dy > 0 ? 1 : -1)];
+          if (next && kindOfTrack(next) === kindOfTrack(originTrack)) trackId = next;
+        }
       }
       onMoveLive(clip.id, nextStart, trackId, movingIds);
     };

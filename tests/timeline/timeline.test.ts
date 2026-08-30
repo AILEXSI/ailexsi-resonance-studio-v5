@@ -65,6 +65,12 @@ describe("timeline move/split/snap/undo", () => {
     expect(result.project.clips[0]!.trackId).toBe("V2");
   });
 
+  it("rejects VIS as a destination track", () => {
+    const result = moveClip(base(), "c1", 1000, "VIS" as never);
+    expect(result.error).toMatch(/different kind/);
+    expect(result.project.clips[0]!.trackId).toBe("V1");
+  });
+
   it("splits a clip and keeps source ranges", () => {
     const result = splitClipAt(base(), "c1", 1800);
     expect(result.error).toBeUndefined();
