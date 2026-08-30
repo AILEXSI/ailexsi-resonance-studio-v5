@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { jobFromProject } from "../../src/core/exporter/job";
+import { videoAlphaAtClipTime } from "../../src/core/fades";
 import { mixLinearGain } from "../../src/core/volume";
 import {
   contextFromProject,
@@ -34,6 +36,26 @@ describe("V mute is audio-only", () => {
     expect(resolvePictureSource(ctx, 500)).toMatchObject({ kind: "V1", clipId: "v1" });
     expect(compositeVideoAt(ctx, 500).layers).toEqual([{ clipId: "v1", alpha: 1 }]);
     expect(topVideoClipAt(p, 500)?.id).toBe("v1");
+  });
+
+  it("export picture alpha keeps muted V clip visible (P114)", () => {
+    const p = stacked();
+    p.tracks = p.tracks.map((t) => (t.id === "V1" ? { ...t, muted: true } : t));
+    const job = jobFromProject(p);
+    const v = job.tracks.find((t) => t.id === "V1")!.clips[0]!;
+    expect(v.gain).toBe(0);
+    expect(v.videoGain).toBe(1);
+    expect(
+      videoAlphaAtClipTime(
+        {
+          durationMs: v.endMs - v.startMs,
+          gain: v.videoGain ?? v.gain,
+          fadeInMs: v.fadeInMs,
+          fadeOutMs: v.fadeOutMs,
+        },
+        500,
+      ),
+    ).toBe(1);
   });
 
   it("muted V1 audio is silent in the mix helper", () => {

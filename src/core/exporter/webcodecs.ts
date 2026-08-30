@@ -154,7 +154,7 @@ function exportClipVideoAlpha(clip: ExportClip, timeMs: number): number {
   return videoAlphaAtClipTime(
     {
       durationMs: Math.max(0, clip.endMs - clip.startMs),
-      gain: clip.gain,
+      gain: clip.videoGain ?? clip.gain,
       fadeInMs: clip.fadeInMs,
       fadeOutMs: clip.fadeOutMs,
       fadeInFrom: clip.fadeInFrom,

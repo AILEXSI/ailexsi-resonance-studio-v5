@@ -315,6 +315,7 @@ describe("export mute skip", () => {
     const job = jobFromProject(p);
     expect(job.tracks.find((t) => t.id === "V1")!.clips).toHaveLength(1);
     expect(job.tracks.find((t) => t.id === "V1")!.clips[0]!.gain).toBe(0);
+    expect(job.tracks.find((t) => t.id === "V1")!.clips[0]!.videoGain).toBe(1);
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
   });
 

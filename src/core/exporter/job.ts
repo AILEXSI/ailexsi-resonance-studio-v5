@@ -71,6 +71,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           sourceInMs: sourceTimeAt(c, visibleStart),
           sourceOutMs: sourceTimeAt(c, visibleEnd),
           gain: mixLinearGain(c.gain, track.volume ?? 1, project.masterVolume ?? 1, !audible),
+          videoGain: Math.max(0, Number.isFinite(c.gain) ? c.gain : 1),
           fadeInMs: fades.fadeInMs,
           fadeOutMs: fades.fadeOutMs,
           fadeInFrom: fades.fadeInFrom,

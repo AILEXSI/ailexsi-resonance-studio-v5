@@ -11,6 +11,8 @@ export interface ExportClip {
   sourceInMs: number;
   sourceOutMs: number;
   gain: number;
+  /** Clip gain for picture alpha. Mute/fader/master stay on `gain` (audio). */
+  videoGain?: number;
   fadeInMs: number;
   fadeOutMs: number;
   /** Factor at job-local 0 when IN starts mid fade-in (omit = classic 0). */
