@@ -20,6 +20,7 @@ export { runExportWithDestination, type ExportDestinationOutcome } from "./desti
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
 export { audioInputForMux, mp4HasAudioTrack } from "./mp4";
+export { downloadWav, encodeWavPcm, exportMixWav, readWavPcm, wavFileName } from "./wav";
 
 function fail(job: ExportJob | undefined, error: string, aborted = false): ExportResult {
   return {

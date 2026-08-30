@@ -1,4 +1,5 @@
 import {
+  exportPickerOptions,
   exportStatusFallback,
   exportStatusFsa,
   pickExportDestination,
@@ -7,6 +8,7 @@ import {
   type PickerHost,
   type ProjectFileMemory,
   type ProjectFileStore,
+  type SavePickerOptions,
 } from "../project-file";
 import { isExportSuccess } from "./dialog";
 import type { ExportHooks, ExportJob, ExportProgress, ExportResult } from "./types";
@@ -35,6 +37,7 @@ export async function runExportWithDestination(opts: {
   memory: ProjectFileMemory;
   encode: (job: ExportJob, hooks?: ExportHooks) => Promise<ExportResult>;
   downloadMp4: (result: ExportResult) => void;
+  pickerOptions?: (suggestedName: string, memory: ProjectFileMemory) => SavePickerOptions;
   onBeforeEncode?: (job: ExportJob) => void;
   signal?: AbortSignal;
   onProgress?: (progress: ExportProgress) => void;
@@ -44,6 +47,7 @@ export async function runExportWithDestination(opts: {
     store: opts.store,
     memory: opts.memory,
     suggestedName: opts.job.fileName,
+    pickerOptions: opts.pickerOptions ?? exportPickerOptions,
   });
   if (dest.kind === "cancelled") return { kind: "cancelled" };
 

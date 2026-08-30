@@ -85,6 +85,13 @@ const MP4_TYPES = [
   },
 ];
 
+const WAV_TYPES = [
+  {
+    description: "WAV audio",
+    accept: { "audio/wav": [".wav"] },
+  },
+];
+
 const RELINK_VIDEO_TYPES = [
   {
     description: "Video",
@@ -239,6 +246,15 @@ export function exportPickerOptions(suggestedName: string, memory: ProjectFileMe
   };
 }
 
+/** WAV save picker. Same startIn as MP4; do not reuse PROJECT_TYPES or MP4_TYPES. */
+export function wavExportPickerOptions(suggestedName: string, memory: ProjectFileMemory): SavePickerOptions {
+  return {
+    suggestedName,
+    startIn: startInForPicker(memory),
+    types: WAV_TYPES,
+  };
+}
+
 export type ExportDestination =
   | { kind: "cancelled" }
   | { kind: "fallback" }
@@ -254,13 +270,15 @@ export async function pickExportDestination(opts: {
   store: ProjectFileStore;
   memory: ProjectFileMemory;
   suggestedName: string;
+  pickerOptions?: (suggestedName: string, memory: ProjectFileMemory) => SavePickerOptions;
 }): Promise<ExportDestination> {
   if (typeof opts.host.showSaveFilePicker !== "function") {
     return { kind: "fallback" };
   }
   let handle: FileHandleLike;
   try {
-    handle = await opts.host.showSaveFilePicker(exportPickerOptions(opts.suggestedName, opts.memory));
+    const options = (opts.pickerOptions ?? exportPickerOptions)(opts.suggestedName, opts.memory);
+    handle = await opts.host.showSaveFilePicker(options);
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
     if (name === "AbortError") return { kind: "cancelled" };

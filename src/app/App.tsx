@@ -30,6 +30,8 @@ import {
   closeExportDialog,
   closedExportDialog,
   downloadMp4,
+  downloadWav,
+  exportMixWav,
   exportTimeline,
   failExportDialog,
   isExportSuccess,
@@ -37,8 +39,10 @@ import {
   openExportDialog,
   runExportWithDestination,
   succeedExportDialog,
+  wavFileName,
   ExportPlanError,
 } from "../core/exporter";
+import { wavExportPickerOptions } from "../core/project-file";
 import { MediaBrowser } from "../ui/media-browser/MediaBrowser";
 import { Preview } from "../ui/preview/Preview";
 import { Inspector } from "../ui/inspector/Inspector";
@@ -467,14 +471,24 @@ export function App() {
   };
 
   const runExport = () => {
+    startExport("mp4");
+  };
+
+  const runExportWav = () => {
+    startExport("wav");
+  };
+
+  const startExport = (kind: "mp4" | "wav") => {
     if (exporting || exportBusyRef.current) return;
     let planned;
     try {
       planned = jobFromProject(session.project);
+      if (kind === "wav") planned = { ...planned, fileName: wavFileName(planned.fileName) };
     } catch (e) {
       const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
+      const fallbackName = kind === "wav" ? "export.wav" : "export.mp4";
       setExportDialog(
-        failExportDialog(openExportDialog({ fileName: "export.mp4", width: 1280, height: 720, fps: 30 }), `FAIL: ${msg}`),
+        failExportDialog(openExportDialog({ fileName: fallbackName, width: 1280, height: 720, fps: 30 }), `FAIL: ${msg}`),
       );
       setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
       return;
@@ -488,8 +502,9 @@ export function App() {
           host: pickerHost,
           store: projectFileStore,
           memory: projectFileRef.current,
-          encode: exportTimeline,
-          downloadMp4,
+          encode: kind === "wav" ? exportMixWav : exportTimeline,
+          downloadMp4: kind === "wav" ? downloadWav : downloadMp4,
+          pickerOptions: kind === "wav" ? wavExportPickerOptions : undefined,
           signal: ac.signal,
           onBeforeEncode: (job) => {
             exportAbortRef.current = ac;
@@ -1029,6 +1044,7 @@ export function App() {
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
         onMedia={openProjectPanel}
         onExport={runExport}
+        onExportWav={runExportWav}
         onUndo={() => runCommand({ type: "undo" })}
         onRedo={() => runCommand({ type: "redo" })}
         onSplit={() => runCommand({ type: "split" })}

@@ -9,6 +9,7 @@ import {
   exportStatusFallback,
   pickExportDestination,
   savePickerOptions,
+  wavExportPickerOptions,
   startInForPicker,
   statusHasFakePath,
   type DirectoryHandleLike,
@@ -78,6 +79,9 @@ describe("export destination before encode", () => {
     expect(opts.types).toEqual([{ description: "MP4 video", accept: { "video/mp4": [".mp4"] } }]);
     expect(JSON.stringify(opts.types)).not.toMatch(/json/i);
     expect(savePickerOptions("Song.resonance.json", empty).types[0]?.accept["application/json"]).toBeTruthy();
+    const wavOpts = wavExportPickerOptions("Untitled_Resonance.wav", empty);
+    expect(wavOpts.types).toEqual([{ description: "WAV audio", accept: { "audio/wav": [".wav"] } }]);
+    expect(JSON.stringify(exportPickerOptions(job.fileName, empty).types)).not.toMatch(/wav/i);
 
     const dir: DirectoryHandleLike = { kind: "directory", name: "Projects" };
     const withDir = { ...empty, directoryHandle: dir };

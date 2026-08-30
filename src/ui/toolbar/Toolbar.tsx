@@ -17,6 +17,7 @@ interface Props {
   onImport: () => void;
   onMedia?: () => void;
   onExport: () => void;
+  onExportWav?: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onSplit: () => void;
@@ -38,6 +39,7 @@ export function Toolbar({
   onImport,
   onMedia,
   onExport,
+  onExportWav,
   onUndo,
   onRedo,
   onSplit,
@@ -111,6 +113,14 @@ export function Toolbar({
           disabled={exporting}
         >
           Export
+        </button>
+        <button
+          type="button"
+          data-testid="export-wav-btn"
+          onClick={onExportWav}
+          disabled={exporting}
+        >
+          Export WAV
         </button>
         <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
         </div>

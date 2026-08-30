@@ -94,5 +94,8 @@ describe("export dialog DOM", () => {
     const btn = host.querySelector('[data-testid="export-btn"]') as HTMLButtonElement;
     expect(btn.textContent?.trim()).toBe("Export");
     expect(btn.disabled).toBe(true);
+    const wav = host.querySelector('[data-testid="export-wav-btn"]') as HTMLButtonElement;
+    expect(wav.textContent?.trim()).toBe("Export WAV");
+    expect(wav.disabled).toBe(true);
   });
 });

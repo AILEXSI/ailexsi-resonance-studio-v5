@@ -62,7 +62,7 @@ export interface ExportProgress {
   currentTimeMs?: number;
 }
 
-export type ExportAudioKind = "aac" | "none";
+export type ExportAudioKind = "aac" | "wav" | "none";
 
 export interface ExportResult {
   success: boolean;
