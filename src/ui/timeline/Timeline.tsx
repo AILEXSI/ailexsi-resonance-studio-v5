@@ -85,6 +85,7 @@ interface Props {
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate?: () => void;
+  onOverwrite3Point?: () => void;
   onDelete: () => void;
   onRippleDelete?: () => void;
   onLiftRange?: () => void;
@@ -164,6 +165,7 @@ export function Timeline({
   onCopy,
   onPaste,
   onDuplicate,
+  onOverwrite3Point,
   onDelete,
   onRippleDelete,
   onLiftRange,
@@ -1123,6 +1125,24 @@ export function Timeline({
             >
               <span>Duplicate</span>
               <kbd>{CLIP_MENU_SHORTCUTS.duplicate}</kbd>
+            </button>
+          ) : null}
+          {onOverwrite3Point ? (
+            <button
+              type="button"
+              data-testid="clip-menu-overwrite"
+              onClick={() => {
+                onOverwrite3Point();
+                setMenu(null);
+              }}
+            >
+              <span>
+                {project.inPointMs != null &&
+                project.outPointMs != null &&
+                project.outPointMs > project.inPointMs
+                  ? "Overwrite IN/OUT"
+                  : "Overwrite at playhead"}
+              </span>
             </button>
           ) : null}
           <button

@@ -41,6 +41,7 @@ import {
   moveMarker,
   moveInOut,
   lastClipEndMsOnTrack,
+  overwrite3Point,
   placeAsset,
   pushHistory,
   redo as redoHistory,
@@ -535,6 +536,24 @@ export function applyPaste(session: Session): Session {
     withHistory(session, result.project, many ? "Pasted clips" : "Pasted clip"),
     result.clipIds,
   );
+}
+
+/** Punch selected-clip media into IN/OUT or playhead dest. Does not write clipboard. */
+export function applyOverwrite3Point(session: Session): Session {
+  const sourceId = session.selectedClipId ?? selectionOf(session)[0];
+  if (!sourceId) return session;
+  const source = clipById(session.project, sourceId);
+  if (!source) return session;
+  const dest = (() => {
+    const range = editRangeOf(session.project);
+    if (range) return range.outMs - range.inMs;
+    return source.durationMs;
+  })();
+  if (dest <= 0) return session;
+  const result = overwrite3Point(session.project, source.id);
+  if (result.error || !result.clipId) return session;
+  const status = editRangeOf(session.project) ? "Overwrite IN/OUT" : "Overwrite at playhead";
+  return withClipSelection(withHistory(session, result.project, status), [result.clipId]);
 }
 
 /** Clone the selection at the playhead. Does not write `session.clipboard`. */
