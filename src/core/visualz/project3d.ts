@@ -36,6 +36,11 @@ export function cam3(partial: Partial<Cam3> = {}): Cam3 {
   };
 }
 
+/** Yaw that faces (tx, tz) so camera +Z is toward the target. */
+export function lookAtYaw(camX: number, camZ: number, tx = 0, tz = 0): number {
+  return Math.atan2(-(tx - camX), tz - camZ);
+}
+
 export function project3(
   wx: number,
   wy: number,

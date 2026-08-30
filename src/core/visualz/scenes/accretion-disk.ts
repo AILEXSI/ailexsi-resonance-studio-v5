@@ -3,7 +3,7 @@
  */
 
 import { hexToRgba } from "../color";
-import { cam3, project3, sortFarFirst } from "../project3d";
+import { cam3, lookAtYaw, project3, sortFarFirst } from "../project3d";
 import type { AudioFeatures, Scene, SceneContext, SceneParams } from "../types";
 
 type Mark = { x: number; y: number; z: number; r: number; color: string };
@@ -23,11 +23,13 @@ export const accretionDiskScene: Scene = {
   render(ctxWrap: SceneContext, features: AudioFeatures, params: SceneParams, _dt: number) {
     const { ctx, width, height } = ctxWrap;
     const orbit = features.timeMs * 0.0002 * params.speed;
+    const cx = Math.sin(orbit) * 3.4;
+    const cz = Math.cos(orbit) * 3.4;
     const cam = cam3({
-      x: Math.sin(orbit) * 3.4,
+      x: cx,
       y: 1.35,
-      z: Math.cos(orbit) * 3.4,
-      yaw: orbit + Math.PI,
+      z: cz,
+      yaw: lookAtYaw(cx, cz),
       pitch: -0.38,
       far: 11,
     });
@@ -52,7 +54,7 @@ export const accretionDiskScene: Scene = {
         y: p.y,
         z: p.z,
         r: 1.05 + p.fog * 1.3,
-        color: hexToRgba(i % 5 === 0 ? "#ffd27a" : (params.colorPrimary as string), (0.2 + p.fog * 0.55) * doppler * params.intensity),
+        color: hexToRgba(i % 5 === 0 ? "#ffd27a" : (params.colorPrimary as string), (0.38 + p.fog * 0.5) * Math.max(0.45, doppler) * params.intensity),
       });
     }
 

@@ -3,7 +3,7 @@
  */
 
 import { hexToRgba } from "../color";
-import { cam3, project3, sortFarFirst } from "../project3d";
+import { cam3, lookAtYaw, project3, sortFarFirst } from "../project3d";
 import type { AudioFeatures, Scene, SceneContext, SceneParams } from "../types";
 
 type Mark = { x: number; y: number; z: number; r: number; color: string };
@@ -23,11 +23,13 @@ export const nebulaHelixScene: Scene = {
   render(ctxWrap: SceneContext, features: AudioFeatures, params: SceneParams, _dt: number) {
     const { ctx, width, height } = ctxWrap;
     const orbit = features.timeMs * 0.00028 * params.speed;
+    const cx = Math.sin(orbit) * 4.1;
+    const cz = Math.cos(orbit) * 4.1;
     const cam = cam3({
-      x: Math.sin(orbit) * 4.1,
+      x: cx,
       y: 0.55,
-      z: Math.cos(orbit) * 4.1,
-      yaw: orbit + Math.PI,
+      z: cz,
+      yaw: lookAtYaw(cx, cz),
       pitch: -0.12,
       far: 12,
     });
@@ -38,7 +40,7 @@ export const nebulaHelixScene: Scene = {
 
     for (let strand = 0; strand < 2; strand++) {
       const hex = strand === 0 ? (params.colorPrimary as string) : "#3dffe4";
-      ctx.strokeStyle = hexToRgba(hex, 0.28 + features.mid * 0.25);
+      ctx.strokeStyle = hexToRgba(hex, 0.45 + features.mid * 0.25);
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       let started = false;
@@ -58,8 +60,8 @@ export const nebulaHelixScene: Scene = {
           x: p.x,
           y: p.y,
           z: p.z,
-          r: 1.3 + p.fog * 1.6 + features.beatPulse * 1.1,
-          color: hexToRgba(i % 7 === 0 ? "#ffffff" : hex, (0.28 + p.fog * 0.62) * params.intensity),
+          r: 1.7 + p.fog * 1.8 + features.beatPulse * 1.1,
+          color: hexToRgba(i % 7 === 0 ? "#ffffff" : hex, (0.42 + p.fog * 0.55) * params.intensity),
         });
       }
       if (started) ctx.stroke();
