@@ -10,6 +10,8 @@ import {
   beatGrid,
   energyAt,
   featuresAt,
+  featuresFromMix,
+  visFeaturesForExport,
   nextSceneId,
   renderVisualizerScene,
   shouldShowVisualizer,
@@ -100,6 +102,31 @@ describe("visualizer energy", () => {
     // 250ms is a 240 BPM hat: treble/mid still feed the fake spectrum so bars move.
     expect(offBeat.treble).toBeGreaterThan(0);
     expect(offBeat.spectrum.some((v) => v > 0)).toBe(true);
+  });
+
+  it("visFeaturesForExport prefers loud mix PCM over the 120 BPM grid (P56)", () => {
+    const loud = new Float32Array(2048);
+    for (let i = 0; i < loud.length; i++) loud[i] = Math.sin((i / 44100) * 220 * Math.PI * 2);
+    const mix = {
+      sampleRate: 44100,
+      length: loud.length,
+      numberOfChannels: 1,
+      getChannelData: () => loud,
+    };
+    const fromMix = featuresFromMix(mix, 250);
+    expect(fromMix.rms).toBeGreaterThan(0.15);
+    expect(fromMix.spectrum).toHaveLength(64);
+    const exported = visFeaturesForExport(250, 10_000, mix);
+    expect(exported.rms).toBeGreaterThan(0.15);
+    expect(exported.tempoBpm).not.toBe(120);
+    const silent = visFeaturesForExport(250, 10_000, {
+      sampleRate: 44100,
+      length: 2048,
+      numberOfChannels: 1,
+      getChannelData: () => new Float32Array(2048),
+    });
+    expect(silent.tempoBpm).toBe(120);
+    expect(silent.energy).toBeCloseTo(0, 5);
   });
 });
 

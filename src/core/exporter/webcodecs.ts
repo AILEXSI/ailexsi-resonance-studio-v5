@@ -1,4 +1,4 @@
-import { encodeAac, mixJobAudio, probeAac, withTimeout } from "./audio";
+import { encodeAac, mixJobAudio, probeAac, withTimeout, type AacProbe } from "./audio";
 import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./frame-source";
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
@@ -17,7 +17,8 @@ import { exportVisOf } from "./job";
 
 export { compositeVideoAt as exportComposite } from "../transition";
 import {
-  featuresAt,
+  visFeaturesForExport,
+  type MixPcm,
   renderVisualizerScene,
   visualizerEventAt,
   visualizerEventsOf,
@@ -107,6 +108,7 @@ function paintVisualizer(
   job: ExportJob,
   timeMs: number,
   dt: number,
+  mix?: MixPcm | null,
 ): void {
   if (resolvePictureSource(exportPictureCtx(job), timeMs).kind !== "vis") return;
   const covering = visualizerEventAt(job.visualizer, timeMs);
@@ -116,7 +118,7 @@ function paintVisualizer(
       ? job.visualizer.sceneId
       : undefined;
   if (!sceneId) return;
-  const features = featuresAt(timeMs, job.durationMs);
+  const features = visFeaturesForExport(timeMs, job.durationMs, mix);
   renderVisualizerScene(ctx, job.width, job.height, sceneId, features, dt);
 }
 
@@ -228,6 +230,23 @@ export async function exportWithWebCodecs(
   const ctx = canvas.getContext("2d", { alpha: false, desynchronized: false });
   if (!ctx) return fail(job, "FAIL: 2D canvas unavailable");
 
+  hooks.onProgress?.({ percent: 4, stage: "Mixing audio" });
+  let aacProbe: AacProbe | null = null;
+  let mixed: MixPcm | null = null;
+  try {
+    aacProbe = await withTimeout(probeAac(), 4000, null);
+  } catch {
+    aacProbe = null;
+  }
+  const mixLayout = aacProbe ?? { sampleRate: 44100, channels: 2, bitrate: 128_000 };
+  if (job.visualizer.enabled && !job.visualizer.muted) {
+    try {
+      mixed = await withTimeout(mixJobAudio(job, mixLayout, hooks.signal), 12000, null);
+    } catch {
+      mixed = null;
+    }
+  }
+
   hooks.onProgress?.({ percent: 6, stage: "Encoding H.264" });
 
   const samples: AvcSample[] = [];
@@ -289,7 +308,7 @@ export async function exportWithWebCodecs(
 
   const encodeCanvas = async (i: number) => {
     const timeMs = (i / job.fps) * 1000;
-    paintVisualizer(ctx, job, timeMs, dt);
+    paintVisualizer(ctx, job, timeMs, dt, mixed);
     await waitForQueue();
     const frame = new VideoFrame(canvas, {
       timestamp: i * frameDurUs,
@@ -302,7 +321,7 @@ export async function exportWithWebCodecs(
   const paintFallback = (i: number) => {
     const timeMs = (i / job.fps) * 1000;
     beginExportFrame(ctx, width, height, job, timeMs);
-    paintVisualizer(ctx, job, timeMs, dt);
+    paintVisualizer(ctx, job, timeMs, dt, mixed);
   };
 
   try {
@@ -473,7 +492,9 @@ export async function exportWithWebCodecs(
   try {
     const aacProbe = await withTimeout(probeAac(), 4000, null);
     if (aacProbe) {
-      const mixed = await withTimeout(mixJobAudio(job, aacProbe, hooks.signal), 12000, null);
+      if (!mixed) {
+        mixed = await withTimeout(mixJobAudio(job, aacProbe, hooks.signal), 12000, null);
+      }
       if (mixed) {
         const encoded = await withTimeout(encodeAac(mixed, aacProbe, hooks), 12000, null);
         audioTrack = audioInputForMux(encoded, aacProbe);

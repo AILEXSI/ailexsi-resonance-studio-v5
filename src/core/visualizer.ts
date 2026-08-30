@@ -10,6 +10,7 @@ import {
 import { contextFromProject, resolvePictureSource } from "./transition";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
+import { preferLiveFeatures } from "./visualz/playback-tap";
 
 export const DEFAULT_VIS_EVENT_MS = 4000;
 
@@ -134,6 +135,69 @@ function syntheticSpectrum(
     spec[i] = clamp01(band * 0.88 + wobble * energy);
   }
   return spec;
+}
+
+export type MixPcm = Pick<AudioBuffer, "sampleRate" | "length" | "numberOfChannels" | "getChannelData">;
+
+/**
+ * Feature packet from mixed export PCM (same fields preview reads from the tap).
+ * Not a live AnalyserNode. Quiet / empty windows stay near 0 so the caller
+ * can fall back to `featuresAt`.
+ */
+export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+  const sr = buf.sampleRate > 0 ? buf.sampleRate : 44100;
+  const chans = Math.max(1, buf.numberOfChannels);
+  const win = Math.min(buf.length, Math.max(64, Math.round(sr * 0.023)));
+  const center = Math.round((Math.max(0, timeMs) / 1000) * sr);
+  const start = Math.max(0, Math.min(Math.max(0, buf.length - win), center - Math.floor(win / 2)));
+  const channels = Array.from({ length: chans }, (_, i) => buf.getChannelData(i));
+  let sumSq = 0;
+  let lowSq = 0;
+  let highSq = 0;
+  let prev = 0;
+  let lp = 0;
+  for (let i = 0; i < win; i++) {
+    let s = 0;
+    for (const ch of channels) s += ch[start + i] ?? 0;
+    s /= chans;
+    sumSq += s * s;
+    lp = lp * 0.9 + s * 0.1;
+    lowSq += lp * lp;
+    const d = s - prev;
+    highSq += d * d;
+    prev = s;
+  }
+  const n = Math.max(1, win);
+  const rms = clamp01(Math.sqrt(sumSq / n) * 2);
+  const bass = clamp01(Math.sqrt(lowSq / n) * 2.4);
+  const treble = clamp01(Math.sqrt(highSq / n) * 2);
+  const mid = clamp01(rms * 0.55 + treble * 0.45);
+  const energy = clamp01(rms * 0.5 + bass * 0.5);
+  const onset = energy > 0.35 && bass > mid * 0.8;
+  return {
+    timeMs,
+    energy,
+    rms,
+    bass,
+    mid,
+    high: treble,
+    treble,
+    spectrum: syntheticSpectrum(bass, mid, treble, timeMs, energy),
+    onset,
+    beatPulse: energy,
+    tempoBpm: null,
+  };
+}
+
+/** Preview=export: prefer mix energy, else the 120 BPM grid. */
+export function visFeaturesForExport(
+  timeMs: number,
+  durationMs: number,
+  mix?: MixPcm | null,
+): VisualizerFeatures {
+  const fallback = featuresAt(timeMs, durationMs);
+  if (!mix || mix.length < 8) return fallback;
+  return preferLiveFeatures(featuresFromMix(mix, timeMs), fallback) as VisualizerFeatures;
 }
 
 export function nextSceneId(current: VisualizerSceneId): VisualizerSceneId {

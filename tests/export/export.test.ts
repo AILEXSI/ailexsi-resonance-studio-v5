@@ -66,7 +66,7 @@ describe("export planner + fail path", () => {
       durationMs: 0,
       events: [],
     });
-    // Export paintVisualizer calls featuresAt — not an A1/A2 AnalyserNode FFT.
+    // No mix yet: paint still falls back to featuresAt (120 BPM grid).
     const f = featuresAt(0, job.durationMs);
     expect(f.tempoBpm).toBe(120);
     expect(f.spectrum).toHaveLength(64);
@@ -163,7 +163,7 @@ describe("export mute skip", () => {
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(1);
   });
 
-  it("copies visualizer onto the job; export featuresAt is the synthetic 120 BPM grid", () => {
+  it("copies visualizer onto the job; no-mix export still uses the 120 BPM fallback", () => {
     const p = projectReady();
     p.visualizer = { enabled: true, muted: false, sceneId: "lita-bloom" };
     const job = jobFromProject(p);
