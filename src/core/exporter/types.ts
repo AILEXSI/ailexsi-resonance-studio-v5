@@ -15,6 +15,7 @@ export interface ExportClip {
   rate: number;
   missing: boolean;
   label: string;
+  linkId?: string;
 }
 
 export interface ExportTrack {

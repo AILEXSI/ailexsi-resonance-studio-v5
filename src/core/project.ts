@@ -75,6 +75,7 @@ function sanitizeAsset(raw: unknown): MediaAsset | null {
     missing: looksMissing,
     width: typeof a.width === "number" ? a.width : undefined,
     height: typeof a.height === "number" ? a.height : undefined,
+    hasAudio: typeof a.hasAudio === "boolean" ? a.hasAudio : undefined,
   };
 }
 
@@ -104,6 +105,7 @@ function sanitizeClip(raw: unknown): Clip | null {
     fadeInMs: fades.fadeInMs,
     fadeOutMs: fades.fadeOutMs,
     rate: c.rate == null ? 1 : clampClipRate(Number(c.rate)),
+    linkId: typeof c.linkId === "string" && c.linkId.length > 0 ? c.linkId : undefined,
   };
 }
 

@@ -1,3 +1,4 @@
+import { unlinkClips } from "../core/link";
 import { importMediaFile, ImportError, defaultTrackForKind, type ProbeFn } from "../core/media";
 import { clipById, type Clip, type Project, type TrackId } from "../core/models";
 import {
@@ -171,10 +172,13 @@ export async function importFiles(
         continue;
       }
       await persistAssetBlob(next.store, asset, file);
+      const placedIds = placed.audioClip
+        ? [placed.clip.id, placed.audioClip.id]
+        : [placed.clip.id];
       next = {
         ...withClipSelection(
           withHistory(next, placed.project, `Imported ${asset.name}`),
-          [placed.clip.id],
+          placedIds,
         ),
         targetTrackId: preferred,
       };
@@ -218,10 +222,11 @@ export function applyPlaceAsset(
   }
   const project = maybeScrollToOrigin(result.project, { prevScrollMs, prevClipCount });
   const asset = project.assets.find((a) => a.id === assetId);
+  const placedIds = result.audioClip ? [result.clip.id, result.audioClip.id] : [result.clip.id];
   return {
     ...withClipSelection(
       withHistory(session, project, `Placed ${asset?.name ?? "clip"}`),
-      [result.clip.id],
+      placedIds,
     ),
     error: null,
   };
@@ -458,6 +463,13 @@ export function applySlip(session: Session, clipId: string, deltaMs: number): Se
   if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
   return withHistory(session, result.project, "Slipped clip");
+}
+
+export function applyUnlinkClips(session: Session, clipId: string): Session {
+  const result = unlinkClips(session.project, clipId);
+  if (result.error) return { ...session, error: result.error };
+  if (result.project === session.project) return session;
+  return withHistory(session, result.project, "Unlinked clips");
 }
 
 export function applySlideClip(

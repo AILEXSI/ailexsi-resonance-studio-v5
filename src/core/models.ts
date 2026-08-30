@@ -56,6 +56,8 @@ export interface MediaAsset {
   missing: boolean;
   width?: number;
   height?: number;
+  /** True when a video file also has decodable audio. Missing on legacy assets. */
+  hasAudio?: boolean;
 }
 
 export interface Clip {
@@ -73,6 +75,8 @@ export interface Clip {
   fadeOutMs: number;
   /** Playback rate. 1 = unity. Source window stays; durationMs = (sourceOut−sourceIn) / rate. */
   rate: number;
+  /** Shared id for a linked A/V pair. Missing = unlinked (legacy). */
+  linkId?: string;
 }
 
 export interface Track {

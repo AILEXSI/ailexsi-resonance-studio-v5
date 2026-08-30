@@ -14,6 +14,8 @@ export interface MediaProbe {
   durationMs: number;
   width?: number;
   height?: number;
+  /** Video file also has a decodable audio track. */
+  hasAudio?: boolean;
 }
 
 export type ProbeFn = (file: File) => Promise<MediaProbe>;
@@ -48,12 +50,13 @@ export function probeWithElement(file: File): Promise<MediaProbe> {
       const durationMs = Number.isFinite(el.duration) ? Math.round(el.duration * 1000) : 0;
       const width = kind === "video" ? (el as HTMLVideoElement).videoWidth : undefined;
       const height = kind === "video" ? (el as HTMLVideoElement).videoHeight : undefined;
+      const hasAudio = kind === "video" ? detectHasAudio(el) : undefined;
       cleanup();
       if (durationMs <= 0) {
         reject(new ImportError("PROBE_FAILED", `Could not read duration of ${file.name}`));
         return;
       }
-      resolve({ durationMs, width, height });
+      resolve({ durationMs, width, height, hasAudio });
     };
     el.onerror = () => {
       cleanup();
@@ -88,7 +91,20 @@ export async function importMediaFile(
     missing: false,
     width: meta.width,
     height: meta.height,
+    hasAudio: kind === "video" ? meta.hasAudio : undefined,
   };
+}
+
+function detectHasAudio(el: HTMLMediaElement): boolean | undefined {
+  const media = el as HTMLVideoElement & {
+    mozHasAudio?: boolean;
+    audioTracks?: { length: number };
+  };
+  if (media.audioTracks && typeof media.audioTracks.length === "number") {
+    return media.audioTracks.length > 0;
+  }
+  if (typeof media.mozHasAudio === "boolean") return media.mozHasAudio;
+  return undefined;
 }
 
 export function defaultTrackForKind(kind: MediaKind): "V1" | "A1" {

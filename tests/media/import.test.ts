@@ -184,5 +184,56 @@ describe("import sequential placement", () => {
     expect(session.project.clips[0]!.startMs).toBe(0);
     expect(session.project.clips[0]!.durationMs).toBe(1500);
   });
+
+  it("video+audio import creates a linked pair; video-only does not", async () => {
+    const av = await importFiles(
+      createSession(createMemoryBlobStore()),
+      [fakeFile("cam-1000ms.mp4", "video/mp4")],
+      async () => ({ durationMs: 1000, hasAudio: true, width: 16, height: 16 }),
+    );
+    expect(av.project.clips).toHaveLength(2);
+    const v = av.project.clips.find((c) => c.trackId === "V1")!;
+    const a = av.project.clips.find((c) => c.trackId === "A1")!;
+    expect(v.linkId).toBeTruthy();
+    expect(a.linkId).toBe(v.linkId);
+    expect(a.startMs).toBe(v.startMs);
+    expect(a.durationMs).toBe(v.durationMs);
+    expect(a.sourceInMs).toBe(v.sourceInMs);
+    expect(a.sourceOutMs).toBe(v.sourceOutMs);
+    expect(a.rate).toBe(v.rate);
+
+    const silent = await importFiles(
+      createSession(createMemoryBlobStore()),
+      [fakeFile("silent-1000ms.mp4", "video/mp4")],
+      async () => ({ durationMs: 1000, hasAudio: false, width: 16, height: 16 }),
+    );
+    expect(silent.project.clips).toHaveLength(1);
+    expect(silent.project.clips[0]!.trackId).toBe("V1");
+    expect(silent.project.clips[0]!.linkId).toBeUndefined();
+  });
+
+  it("sequential AV files abut on V; each pair is simultaneous not sequential on A", async () => {
+    const session = await importFiles(
+      createSession(createMemoryBlobStore()),
+      [fakeFile("one-1000ms.mp4", "video/mp4"), fakeFile("two-2000ms.mp4", "video/mp4")],
+      async (file) => ({
+        durationMs: file.name.includes("2000") ? 2000 : 1000,
+        hasAudio: true,
+        width: 16,
+        height: 16,
+      }),
+    );
+    const v = session.project.clips.filter((c) => c.trackId === "V1").sort((x, y) => x.startMs - y.startMs);
+    const a = session.project.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(v).toHaveLength(2);
+    expect(a).toHaveLength(2);
+    expect(v[0]!.startMs).toBe(0);
+    expect(v[1]!.startMs).toBe(1000);
+    expect(a[0]!.startMs).toBe(0);
+    expect(a[1]!.startMs).toBe(1000);
+    expect(a[0]!.linkId).toBe(v[0]!.linkId);
+    expect(a[1]!.linkId).toBe(v[1]!.linkId);
+    expect(v[0]!.linkId).not.toBe(v[1]!.linkId);
+  });
 });
 

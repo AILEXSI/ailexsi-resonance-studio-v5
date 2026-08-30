@@ -1,6 +1,12 @@
 import { applyNormalizedFades } from "./fades";
 import { createId } from "./ids";
 import {
+  expandLinkedClipIds,
+  firstFreeAudioTrack,
+  livingLinkedMate,
+  remapPastedLinkIds,
+} from "./link";
+import {
   SPLIT_EDGE_GUARD_MS,
   SNAP_THRESHOLD_MS,
   clampClipRate,
@@ -69,6 +75,7 @@ export function moveClip(
   clipId: string,
   nextStartMs: number,
   nextTrackId?: TrackId,
+  opts?: { skipLink?: boolean },
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
@@ -79,14 +86,68 @@ export function moveClip(
   }
 
   const startMs = clampStartMs(nextStartMs);
+  const delta = startMs - clip.startMs;
+  const mate = opts?.skipLink ? undefined : livingLinkedMate(project, clipId);
   return {
     project: {
       ...project,
       updatedAt: new Date().toISOString(),
-      clips: project.clips.map((c) =>
-        c.id === clipId ? { ...c, startMs, trackId } : c,
-      ),
+      clips: project.clips.map((c) => {
+        if (c.id === clipId) return { ...c, startMs, trackId };
+        if (mate && c.id === mate.id) return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        return c;
+      }),
     },
+  };
+}
+
+function trimOneClip(
+  project: Project,
+  clip: Clip,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): { clip: Clip } | { error: string } {
+  const asset = project.assets.find((a) => a.id === clip.assetId);
+  let edgeMs = Math.max(0, nextEdgeMs);
+  if (project.snap) {
+    edgeMs = snapTime(edgeMs, collectSnapTargets(project, clip.id)).timeMs;
+    edgeMs = Math.max(0, edgeMs);
+  }
+
+  const minSourceSpan = timelineDeltaToSource(clip, SPLIT_EDGE_GUARD_MS);
+  if (edge === "in") {
+    const newStart = edgeMs;
+    const newSourceIn = clip.sourceInMs + timelineDeltaToSource(clip, newStart - clip.startMs);
+    const newDuration = clipEndMs(clip) - newStart;
+    if (newSourceIn < 0) return { error: "sourceIn cannot go below 0" };
+    if (newDuration < SPLIT_EDGE_GUARD_MS) return { error: "Trim would leave less than 50ms" };
+    if (newSourceIn > clip.sourceOutMs - minSourceSpan) {
+      return { error: "sourceIn cannot exceed sourceOut - 50ms" };
+    }
+    return {
+      clip: applyNormalizedFades({
+        ...clip,
+        startMs: newStart,
+        sourceInMs: newSourceIn,
+        durationMs: newDuration,
+      }),
+    };
+  }
+  const newDuration = edgeMs - clip.startMs;
+  const newSourceOut = clip.sourceOutMs + timelineDeltaToSource(clip, newDuration - clip.durationMs);
+  if (newDuration < SPLIT_EDGE_GUARD_MS) return { error: "Trim would leave less than 50ms" };
+  if (newSourceOut < clip.sourceInMs + minSourceSpan) {
+    return { error: "Trim would leave less than 50ms" };
+  }
+  if (asset && newSourceOut > asset.durationMs) {
+    return { error: "sourceOut cannot exceed asset duration" };
+  }
+  return {
+    clip: applyNormalizedFades({
+      ...clip,
+      durationMs: newDuration,
+      sourceOutMs: newSourceOut,
+    }),
   };
 }
 
@@ -98,59 +159,22 @@ export function trimClip(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
-
-  const asset = project.assets.find((a) => a.id === clip.assetId);
-  let edgeMs = Math.max(0, nextEdgeMs);
-  if (project.snap) {
-    edgeMs = snapTime(edgeMs, collectSnapTargets(project, clipId)).timeMs;
-    edgeMs = Math.max(0, edgeMs);
+  const one = trimOneClip(project, clip, edge, nextEdgeMs);
+  if ("error" in one) return { project, error: one.error };
+  const mate = livingLinkedMate(project, clipId);
+  let two: { clip: Clip } | undefined;
+  if (mate) {
+    const mateTrim = trimOneClip(project, mate, edge, nextEdgeMs);
+    if ("error" in mateTrim) return { project, error: mateTrim.error };
+    two = mateTrim;
   }
-
-  let next: Clip;
-  const minSourceSpan = timelineDeltaToSource(clip, SPLIT_EDGE_GUARD_MS);
-  if (edge === "in") {
-    const newStart = edgeMs;
-    const newSourceIn = clip.sourceInMs + timelineDeltaToSource(clip, newStart - clip.startMs);
-    const newDuration = clipEndMs(clip) - newStart;
-    if (newSourceIn < 0) {
-      return { project, error: "sourceIn cannot go below 0" };
-    }
-    if (newDuration < SPLIT_EDGE_GUARD_MS) {
-      return { project, error: "Trim would leave less than 50ms" };
-    }
-    if (newSourceIn > clip.sourceOutMs - minSourceSpan) {
-      return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
-    }
-    next = applyNormalizedFades({
-      ...clip,
-      startMs: newStart,
-      sourceInMs: newSourceIn,
-      durationMs: newDuration,
-    });
-  } else {
-    const newDuration = edgeMs - clip.startMs;
-    const newSourceOut = clip.sourceOutMs + timelineDeltaToSource(clip, newDuration - clip.durationMs);
-    if (newDuration < SPLIT_EDGE_GUARD_MS) {
-      return { project, error: "Trim would leave less than 50ms" };
-    }
-    if (newSourceOut < clip.sourceInMs + minSourceSpan) {
-      return { project, error: "Trim would leave less than 50ms" };
-    }
-    if (asset && newSourceOut > asset.durationMs) {
-      return { project, error: "sourceOut cannot exceed asset duration" };
-    }
-    next = applyNormalizedFades({
-      ...clip,
-      durationMs: newDuration,
-      sourceOutMs: newSourceOut,
-    });
-  }
-
+  const byId = new Map<string, Clip>([[one.clip.id, one.clip]]);
+  if (two) byId.set(two.clip.id, two.clip);
   return {
     project: {
       ...project,
       updatedAt: new Date().toISOString(),
-      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+      clips: project.clips.map((c) => byId.get(c.id) ?? c),
     },
   };
 }
@@ -196,7 +220,9 @@ export function rippleTrimClip(
 ): { project: Project; error?: string } {
   const before = clipById(project, clipId);
   if (!before) return { project, error: "Clip not found" };
+  const mate = livingLinkedMate(project, clipId);
   const oldEnd = clipEndMs(before);
+  const mateOldEnd = mate ? clipEndMs(mate) : 0;
   const oldDur = before.durationMs;
   const trimmed = trimClip(project, clipId, edge, nextEdgeMs);
   if (trimmed.error) return trimmed;
@@ -204,17 +230,24 @@ export function rippleTrimClip(
   if (!after) return trimmed;
   const delta = after.durationMs - oldDur;
   if (delta === 0) return trimmed;
+  const mateId = mate?.id;
+  const mateTrack = mate?.trackId;
   return {
     project: {
       ...trimmed.project,
       clips: trimmed.project.clips.map((c) => {
-        if (c.trackId !== before.trackId) return c;
-        if (edge === "in" && c.id === clipId) {
+        if (edge === "in" && (c.id === clipId || c.id === mateId)) {
           return { ...c, startMs: clampStartMs(c.startMs + delta) };
         }
-        if (c.id === clipId) return c;
-        if (c.startMs + ABUT_TOLERANCE_MS < oldEnd) return c;
-        return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        if (c.id === clipId || c.id === mateId) return c;
+        const laterPrimary =
+          c.trackId === before.trackId && c.startMs + ABUT_TOLERANCE_MS >= oldEnd;
+        const laterMate =
+          Boolean(mateTrack) &&
+          c.trackId === mateTrack &&
+          c.startMs + ABUT_TOLERANCE_MS >= mateOldEnd;
+        if (laterPrimary || laterMate) return { ...c, startMs: clampStartMs(c.startMs + delta) };
+        return c;
       }),
       updatedAt: new Date().toISOString(),
     },
@@ -227,7 +260,8 @@ export function moveClipsByDelta(
   clipIds: readonly string[],
   deltaMs: number,
 ): { project: Project; error?: string } {
-  const targets = clipIds
+  const ids = expandLinkedClipIds(project, clipIds);
+  const targets = ids
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   if (targets.length === 0) return { project, error: "No clip selected" };
@@ -237,7 +271,13 @@ export function moveClipsByDelta(
   const starts = new Map(targets.map((c) => [c.id, c.startMs]));
   let next = project;
   for (const clip of targets) {
-    const result = moveClip(next, clip.id, (starts.get(clip.id) ?? clip.startMs) + delta);
+    const result = moveClip(
+      next,
+      clip.id,
+      (starts.get(clip.id) ?? clip.startMs) + delta,
+      undefined,
+      { skipLink: true },
+    );
     if (result.error) return result;
     next = result.project;
   }
@@ -245,7 +285,7 @@ export function moveClipsByDelta(
 }
 
 export function deleteClips(project: Project, clipIds: readonly string[]): Project {
-  const drop = new Set(clipIds);
+  const drop = new Set(expandLinkedClipIds(project, clipIds));
   return {
     ...project,
     clips: project.clips.filter((c) => !drop.has(c.id)),
@@ -258,7 +298,7 @@ export function deleteClips(project: Project, clipIds: readonly string[]): Proje
  * ripple shifts do not invalidate later selected starts.
  */
 export function rippleDeleteClips(project: Project, clipIds: readonly string[]): Project {
-  const selected = clipIds
+  const selected = expandLinkedClipIds(project, clipIds)
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => Boolean(c));
   const order = [...selected].sort((a, b) => {
@@ -337,33 +377,51 @@ export function rollEdit(
     durationMs: rightDur,
     sourceInMs: rightSourceIn,
   });
+  const leftMate = livingLinkedMate(project, leftId);
+  const rightMate = livingLinkedMate(project, rightId);
+  const nextLeftMate = leftMate
+    ? applyNormalizedFades({
+        ...leftMate,
+        startMs: clampStartMs(leftMate.startMs + (nextLeft.startMs - left.startMs)),
+        durationMs: leftMate.durationMs + (nextLeft.durationMs - left.durationMs),
+        sourceInMs: leftMate.sourceInMs + (nextLeft.sourceInMs - left.sourceInMs),
+        sourceOutMs: leftMate.sourceOutMs + (nextLeft.sourceOutMs - left.sourceOutMs),
+      })
+    : undefined;
+  const nextRightMate = rightMate
+    ? applyNormalizedFades({
+        ...rightMate,
+        startMs: clampStartMs(rightMate.startMs + (nextRight.startMs - right.startMs)),
+        durationMs: rightMate.durationMs + (nextRight.durationMs - right.durationMs),
+        sourceInMs: rightMate.sourceInMs + (nextRight.sourceInMs - right.sourceInMs),
+        sourceOutMs: rightMate.sourceOutMs + (nextRight.sourceOutMs - right.sourceOutMs),
+      })
+    : undefined;
+  const byId = new Map<string, Clip>([
+    [nextLeft.id, nextLeft],
+    [nextRight.id, nextRight],
+  ]);
+  if (nextLeftMate) byId.set(nextLeftMate.id, nextLeftMate);
+  if (nextRightMate) byId.set(nextRightMate.id, nextRightMate);
 
   return {
     project: {
       ...project,
       updatedAt: new Date().toISOString(),
-      clips: project.clips.map((c) => {
-        if (c.id === leftId) return nextLeft;
-        if (c.id === rightId) return nextRight;
-        return c;
-      }),
+      clips: project.clips.map((c) => byId.get(c.id) ?? c),
     },
   };
 }
 
-export function splitClipAt(
-  project: Project,
-  clipId: string,
+function splitOneClip(
+  clip: Clip,
   timeMs: number,
-  edgeGuardMs = SPLIT_EDGE_GUARD_MS,
-): { project: Project; leftId?: string; rightId?: string; error?: string } {
-  const clip = clipById(project, clipId);
-  if (!clip) return { project, error: "Clip not found" };
+  edgeGuardMs: number,
+): { left: Clip; right: Clip } | { error: string } {
   const offset = timeMs - clip.startMs;
   if (offset < edgeGuardMs || clip.durationMs - offset < edgeGuardMs) {
-    return { project, error: "Split too close to clip edge" };
+    return { error: "Split too close to clip edge" };
   }
-
   const cutSource = sourceTimeAt(clip, timeMs);
   const left: Clip = applyNormalizedFades({
     ...clip,
@@ -378,12 +436,42 @@ export function splitClipAt(
     sourceInMs: cutSource,
     sourceOutMs: clip.sourceOutMs,
   });
+  return { left, right };
+}
+
+export function splitClipAt(
+  project: Project,
+  clipId: string,
+  timeMs: number,
+  edgeGuardMs = SPLIT_EDGE_GUARD_MS,
+): { project: Project; leftId?: string; rightId?: string; error?: string } {
+  const clip = clipById(project, clipId);
+  if (!clip) return { project, error: "Clip not found" };
+  const first = splitOneClip(clip, timeMs, edgeGuardMs);
+  if ("error" in first) return { project, error: first.error };
+  const mate = livingLinkedMate(project, clipId);
+  let mateParts: { left: Clip; right: Clip } | undefined;
+  if (mate) {
+    const second = splitOneClip(mate, timeMs, edgeGuardMs);
+    if ("error" in second) return { project, error: second.error };
+    mateParts = second;
+  }
+  const rightLink = mateParts && clip.linkId ? createId("link") : undefined;
+  const left = first.left;
+  const right = rightLink ? { ...first.right, linkId: rightLink } : first.right;
+  const mateLeft = mateParts?.left;
+  const mateRight =
+    mateParts && rightLink ? { ...mateParts.right, linkId: rightLink } : mateParts?.right;
 
   return {
     project: {
       ...project,
       updatedAt: new Date().toISOString(),
-      clips: project.clips.flatMap((c) => (c.id === clipId ? [left, right] : [c])),
+      clips: project.clips.flatMap((c) => {
+        if (c.id === clipId) return [left, right];
+        if (mate && c.id === mate.id && mateLeft && mateRight) return [mateLeft, mateRight];
+        return [c];
+      }),
     },
     leftId: left.id,
     rightId: right.id,
@@ -770,10 +858,12 @@ export function pasteClips(
     nextClips.push(copy);
     clipIds.push(copy.id);
   });
+  const remapped = remapPastedLinkIds(nextClips.slice(project.clips.length));
+  const merged = [...project.clips, ...remapped];
   return {
     project: {
       ...project,
-      clips: nextClips,
+      clips: merged,
       updatedAt: new Date().toISOString(),
     },
     clipIds,
@@ -1065,7 +1155,7 @@ export function deleteClip(project: Project, clipId: string): Project {
  * Lift the clip, then shift later clips on the same track left by its duration.
  * Other tracks are unchanged.
  */
-export function rippleDeleteClip(project: Project, clipId: string): Project {
+function rippleDeleteOne(project: Project, clipId: string): Project {
   const clip = clipById(project, clipId);
   if (!clip) return project;
   const shift = clip.durationMs;
@@ -1083,6 +1173,13 @@ export function rippleDeleteClip(project: Project, clipId: string): Project {
   };
 }
 
+export function rippleDeleteClip(project: Project, clipId: string): Project {
+  const mate = livingLinkedMate(project, clipId);
+  let next = rippleDeleteOne(project, clipId);
+  if (mate) next = rippleDeleteOne(next, mate.id);
+  return next;
+}
+
 /** End of the last clip on `trackId`, or 0 if that track is empty. */
 export function lastClipEndMsOnTrack(project: Project, trackId: TrackId): number {
   let end = 0;
@@ -1097,13 +1194,13 @@ export function placeAsset(
   assetId: string,
   trackId: TrackId,
   startMs = 0,
-): { project: Project; clip?: Clip; error?: string } {
+): { project: Project; clip?: Clip; audioClip?: Clip; error?: string } {
   const asset = project.assets.find((a) => a.id === assetId);
   if (!asset) return { project, error: "Asset not found" };
   if (kindOfTrack(trackId) !== asset.kind) {
     return { project, error: `Asset kind ${asset.kind} cannot go on ${trackId}` };
   }
-  const clip: Clip = {
+  let clip: Clip = {
     id: createId("clip"),
     assetId: asset.id,
     trackId,
@@ -1116,13 +1213,30 @@ export function placeAsset(
     fadeOutMs: 0,
     rate: 1,
   };
+  let clips = [...project.clips, clip];
+  let audioClip: Clip | undefined;
+  if (asset.kind === "video" && asset.hasAudio === true) {
+    const aTrack = firstFreeAudioTrack({ ...project, clips }, clip.startMs, clip.durationMs);
+    if (aTrack) {
+      const linkId = createId("link");
+      clip = { ...clip, linkId };
+      audioClip = {
+        ...clip,
+        id: createId("clip"),
+        trackId: aTrack,
+        linkId,
+      };
+      clips = [...project.clips, clip, audioClip];
+    }
+  }
   return {
     project: {
       ...project,
-      clips: [...project.clips, clip],
+      clips,
       updatedAt: new Date().toISOString(),
     },
     clip,
+    audioClip,
   };
 }
 

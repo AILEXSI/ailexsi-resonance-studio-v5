@@ -34,6 +34,7 @@ import {
   applyToggleSolo,
   applyTrim,
   applyUndo,
+  applyUnlinkClips,
   type Session,
 } from "./session";
 
@@ -75,7 +76,8 @@ export type EditorCommand =
   | { type: "extractRange" }
   | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number }
   | { type: "setClipRate"; clipId: string; rate: number }
-  | { type: "setTrackPan"; trackId: TrackId; pan: number };
+  | { type: "setTrackPan"; trackId: TrackId; pan: number }
+  | { type: "unlinkClips"; clipId: string };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -147,6 +149,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applySetClipRate(session, command.clipId, command.rate);
     case "setTrackPan":
       return applySetTrackPan(session, command.trackId, command.pan);
+    case "unlinkClips":
+      return applyUnlinkClips(session, command.clipId);
     default: {
       const _never: never = command;
       return _never;
