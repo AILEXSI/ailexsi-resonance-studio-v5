@@ -138,7 +138,7 @@ Status: TEST-VERIFIED. Live Chromium ArrowUp/Down: RUNTIME-VERIFIED (IN → mark
 
 ## Relink
 
-Status: TEST-VERIFIED. Live Relink control: pending Chromium this follow-up. Live file swap: NOT VERIFIED unless a real file is picked.
+Status: TEST-VERIFIED. Live Relink control: RUNTIME-VERIFIED (visible on selected A1 clip; hidden on VIS). Live picker cancel: RUNTIME-VERIFIED (no mutate). Live replacement-file swap: NOT VERIFIED.
 
 `ingestRelinkFile` classifies the file, reuses `importMediaFile` + `persistAssetBlob`, and does not `placeAsset`. `{ type: "relinkClips", clipIds, assetId }` then retargets clips that share one assetId. Mixed / empty selection is a no-op (no picker). Wrong kind is rejected in ingest (command not called). Short replacement clamps `sourceOutMs` and `durationMs` via `sourceDeltaToTimeline`; `startMs` stays. One undo restores assetId + source window. Old asset stays in the bin. Inspector Relink next to Unlink; clip menu Relink. Picker is FSA `showOpenFilePicker` or a hidden file input — no invented `C:\` path. AbortError cancel: no-op, no history.
 
