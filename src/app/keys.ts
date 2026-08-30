@@ -99,7 +99,9 @@ function commandFromKey(
 /**
  * Editor key routing. Modifier chords run before bare letters.
  * Split is S (not V). Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
- * All mutations go through `applyCommand`.
+ * Home/End seek start/duration. Shift+Home/End seek IN/OUT (no-op if unset).
+ * Shift+I still clears marks — do not steal I/O.
+ * All mutations go through `applyCommand` except playhead seeks (`applyPlayhead`).
  */
 export function dispatchEditorKey(
   session: Session,
@@ -113,9 +115,25 @@ export function dispatchEditorKey(
   if (e.formFocus) return { type: "none" };
   const mod = Boolean(e.ctrlKey || e.metaKey);
   if (!mod && (e.key === "Home" || e.code === "Home")) {
+    if (e.shiftKey) {
+      if (session.project.inPointMs == null) return { type: "none" };
+      return {
+        type: "session",
+        session: applyPlayhead(session, session.project.inPointMs),
+        preventDefault: true,
+      };
+    }
     return { type: "session", session: applyPlayhead(session, 0), preventDefault: true };
   }
   if (!mod && (e.key === "End" || e.code === "End")) {
+    if (e.shiftKey) {
+      if (session.project.outPointMs == null) return { type: "none" };
+      return {
+        type: "session",
+        session: applyPlayhead(session, session.project.outPointMs),
+        preventDefault: true,
+      };
+    }
     return {
       type: "session",
       session: applyPlayhead(session, projectDurationMs(session.project)),

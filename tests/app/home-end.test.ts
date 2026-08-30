@@ -52,4 +52,39 @@ describe("Home / End seek (P49)", () => {
     expect(dispatchEditorKey(start, false, { key: "End", formFocus: true }).type).toBe("none");
     expect(start.project.playheadMs).toBe(2500);
   });
+
+  it("Shift+Home / Shift+End seek IN/OUT; unset is a no-op; I/O stay mark keys", () => {
+    const base = clipSession();
+    const marked = {
+      ...base,
+      project: { ...base.project, playheadMs: 2500, inPointMs: 800, outPointMs: 4200 },
+    };
+    expect(sessionOf(dispatchEditorKey(marked, false, { key: "Home", shiftKey: true })).project.playheadMs).toBe(
+      800,
+    );
+    expect(sessionOf(dispatchEditorKey(marked, false, { key: "End", shiftKey: true })).project.playheadMs).toBe(
+      4200,
+    );
+    const unset = clipSession();
+    expect(unset.project.inPointMs).toBeNull();
+    expect(unset.project.outPointMs).toBeNull();
+    expect(dispatchEditorKey(unset, false, { key: "Home", shiftKey: true }).type).toBe("none");
+    expect(dispatchEditorKey(unset, false, { key: "End", shiftKey: true }).type).toBe("none");
+    expect(unset.project.playheadMs).toBe(2500);
+    expect(
+      dispatchEditorKey(marked, false, { key: "Home", shiftKey: true, formFocus: true }).type,
+    ).toBe("none");
+    const afterI = sessionOf(dispatchEditorKey(unset, false, { key: "i" }));
+    expect(afterI.project.inPointMs).toBe(2500);
+    const afterO = sessionOf(dispatchEditorKey(unset, false, { key: "o" }));
+    expect(afterO.project.outPointMs).toBe(2500);
+    const cleared = sessionOf(dispatchEditorKey(marked, false, { key: "i", shiftKey: true }));
+    expect(cleared.project.inPointMs).toBeNull();
+    expect(cleared.project.outPointMs).toBeNull();
+    const jumpIn = dispatchEditorKey(marked, false, { key: "Home", shiftKey: true });
+    expect(jumpIn.type).toBe("session");
+    if (jumpIn.type === "session") expect(jumpIn.preventDefault).toBe(true);
+    expect(dispatchEditorKey(marked, false, { key: "Home", ctrlKey: true }).type).toBe("none");
+    expect(dispatchEditorKey(marked, false, { key: "End", metaKey: true }).type).toBe("none");
+  });
 });
