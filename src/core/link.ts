@@ -59,7 +59,11 @@ export function rangeOverlapsClip(clip: Clip, startMs: number, durationMs: numbe
   return clip.startMs < startMs + durationMs && clipEndMs(clip) > startMs;
 }
 
-/** First A lane (A1 then A2) that can hold `[startMs, startMs+durationMs)` without overlap. */
+/**
+ * First A lane (A1 then A2) that can hold `[startMs, startMs+durationMs)`
+ * without overlapping an enabled clip. Disabled takes do not occupy
+ * (same as G / lift / extract / roll-slide neighbor).
+ */
 export function firstFreeAudioTrack(
   project: Project,
   startMs: number,
@@ -67,7 +71,8 @@ export function firstFreeAudioTrack(
 ): TrackId | undefined {
   for (const id of ["A1", "A2"] as const) {
     const busy = project.clips.some(
-      (c) => c.trackId === id && rangeOverlapsClip(c, startMs, durationMs),
+      (c) =>
+        c.trackId === id && clipIsEnabled(c) && rangeOverlapsClip(c, startMs, durationMs),
     );
     if (!busy) return id;
   }

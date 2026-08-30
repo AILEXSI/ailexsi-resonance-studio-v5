@@ -280,6 +280,66 @@ describe("import sequential placement", () => {
     expect(a[1]!.linkId).toBe(v[1]!.linkId);
     expect(v[0]!.linkId).not.toBe(v[1]!.linkId);
   });
+
+  it("placeAsset linked A mate ignores a disabled take occupying A1 (P140)", async () => {
+    const video = await importMediaFile(fakeFile("cam.mp4", "video/mp4"), async () => ({
+      durationMs: 1000,
+      hasAudio: true,
+      width: 16,
+      height: 16,
+    }));
+    const parked = clip({
+      id: "off",
+      assetId: video.id,
+      trackId: "A1",
+      startMs: 0,
+      durationMs: 1000,
+      enabled: false,
+    });
+    const liveA1 = clip({
+      id: "live-a1",
+      assetId: video.id,
+      trackId: "A1",
+      startMs: 0,
+      durationMs: 1000,
+    });
+    const liveA2 = clip({
+      id: "live-a2",
+      assetId: video.id,
+      trackId: "A2",
+      startMs: 0,
+      durationMs: 1000,
+    });
+    const throughDim = placeAsset(
+      { ...createEmptyProject(), assets: [video], clips: [parked] },
+      video.id,
+      "V1",
+      0,
+    );
+    expect(throughDim.error).toBeUndefined();
+    expect(throughDim.audioClip?.trackId).toBe("A1");
+    expect(throughDim.project.clips.find((c) => c.id === "off")!.startMs).toBe(0);
+    expect(throughDim.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+
+    const pastLive = placeAsset(
+      { ...createEmptyProject(), assets: [video], clips: [liveA1] },
+      video.id,
+      "V1",
+      0,
+    );
+    expect(pastLive.error).toBeUndefined();
+    expect(pastLive.audioClip?.trackId).toBe("A2");
+
+    const bothLive = placeAsset(
+      { ...createEmptyProject(), assets: [video], clips: [liveA1, liveA2] },
+      video.id,
+      "V1",
+      0,
+    );
+    expect(bothLive.error).toBeUndefined();
+    expect(bothLive.audioClip).toBeUndefined();
+    expect(bothLive.clip?.trackId).toBe("V1");
+  });
 });
 
 describe("probe-fail recovery (P61)", () => {
