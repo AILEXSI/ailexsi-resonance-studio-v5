@@ -3,7 +3,7 @@ import { assetById, clipById, type TrackId } from "../core/models";
 import { MEDIA_FILE_ACCEPT, preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapTime } from "../core/timeline";
-import { downloadText, projectFilename } from "../core/project";
+import { downloadText, projectFilename, windowTitleFor } from "../core/project";
 import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import {
   browserPickerHost,
@@ -164,6 +164,10 @@ export function App() {
   const pickerHost = browserPickerHost();
   const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
+
+  useEffect(() => {
+    document.title = windowTitleFor(session.project.name);
+  }, [session.project.name]);
 
   useEffect(() => {
     void (async () => {
@@ -1085,6 +1089,8 @@ export function App() {
         onRedo={() => runCommand({ type: "redo" })}
         onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
+        projectName={session.project.name}
+        onRenameProject={(name) => runCommand({ type: "renameProject", name })}
       />
       <input
         type="file"

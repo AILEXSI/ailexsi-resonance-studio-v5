@@ -128,6 +128,7 @@ describe("export dialog DOM", () => {
         <Toolbar
           snap
           exporting
+          projectName="Chorus Cut"
           onNew={noop}
           onSave={noop}
           onOpen={noop}
@@ -147,5 +148,7 @@ describe("export dialog DOM", () => {
     const wav = host.querySelector('[data-testid="export-wav-btn"]') as HTMLButtonElement;
     expect(wav.textContent?.trim()).toBe("Export WAV");
     expect(wav.disabled).toBe(true);
+    const title = host.querySelector('[data-testid="project-name"]') as HTMLInputElement;
+    expect(title.value).toBe("Chorus Cut");
   });
 });

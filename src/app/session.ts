@@ -43,7 +43,7 @@ import {
   persistAssetBlob,
   type BlobStore,
 } from "../core/persistence";
-import { createEmptyProject, deserializeProject, serializeProject } from "../core/project";
+import { createEmptyProject, deserializeProject, renameProject, serializeProject } from "../core/project";
 import {
   addMarker,
   clearInOut,
@@ -1011,6 +1011,12 @@ export function applyNudge(session: Session, deltaMs: number): Session {
   if (result.error) return { ...session, error: result.error };
   const verb = deltaMs < 0 ? "Nudged left" : "Nudged right";
   return withHistory(session, result.project, verb);
+}
+
+export function applyRenameProject(session: Session, name: string): Session {
+  const next = renameProject(session.project, name);
+  if (next === session.project) return session;
+  return withHistory(session, next, "Project renamed");
 }
 
 export function applyRenameMarker(session: Session, markerId: string, label: string): Session {

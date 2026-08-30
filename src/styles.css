@@ -160,7 +160,19 @@ input[type="range"] { accent-color: var(--accent-2); }
   align-items: baseline;
   gap: 8px;
 }
-.toolbar-brand strong { font-size: 13px; letter-spacing: 0.02em; }
+.toolbar-brand .project-name {
+  width: min(220px, 28vw);
+  min-width: 96px;
+  background: transparent;
+  border-color: transparent;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.toolbar-brand .project-name:focus {
+  border-color: var(--line);
+  background: var(--panel-2);
+}
 .toolbar-brand .version {
   font-family: var(--mono);
   font-size: 11px;

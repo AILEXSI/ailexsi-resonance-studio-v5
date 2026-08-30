@@ -21,7 +21,9 @@ import { roundVisMs } from "./visualizer";
 export const PROJECT_SCHEMA_VERSION = 5;
 export const PROJECT_FILE_SUFFIX = ".resonance.json";
 
-export function createEmptyProject(name = "Untitled Resonance"): Project {
+export const DEFAULT_PROJECT_NAME = "Untitled Resonance";
+
+export function createEmptyProject(name = DEFAULT_PROJECT_NAME): Project {
   const now = new Date().toISOString();
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -49,6 +51,18 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
 
 export function touch(project: Project, patch: Partial<Project> = {}): Project {
   return { ...project, ...patch, updatedAt: new Date().toISOString() };
+}
+
+/** Same `Project.name` field that serialize/deserialize already require. */
+export function renameProject(project: Project, name: string): Project {
+  const next = name.trim() || DEFAULT_PROJECT_NAME;
+  if (next === project.name) return project;
+  return { ...project, name: next, updatedAt: new Date().toISOString() };
+}
+
+export function windowTitleFor(name: string): string {
+  const n = name.trim() || DEFAULT_PROJECT_NAME;
+  return `${n} — Resonance Studio`;
 }
 
 function isMediaKind(value: unknown): value is MediaKind {

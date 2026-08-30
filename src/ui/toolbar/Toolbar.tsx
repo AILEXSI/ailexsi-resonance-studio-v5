@@ -22,6 +22,8 @@ interface Props {
   onRedo: () => void;
   onSplit: () => void;
   onToggleSnap: () => void;
+  projectName?: string;
+  onRenameProject?: (name: string) => void;
 }
 
 export function Toolbar({
@@ -44,6 +46,8 @@ export function Toolbar({
   onRedo,
   onSplit,
   onToggleSnap,
+  projectName = "Untitled Resonance",
+  onRenameProject,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -142,7 +146,14 @@ export function Toolbar({
         </button>
       </div>
       <div className="toolbar-brand">
-        <strong>AILEXSI Resonance Studio</strong>
+        <input
+          className="project-name"
+          data-testid="project-name"
+          aria-label="Project name"
+          key={projectName}
+          defaultValue={projectName}
+          onBlur={(e) => onRenameProject?.(e.target.value)}
+        />
         <span className="version">5.0.0</span>
       </div>
     </header>
