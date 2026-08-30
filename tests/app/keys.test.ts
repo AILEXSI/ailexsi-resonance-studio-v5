@@ -213,6 +213,81 @@ describe("editor keys", () => {
     expect(back.project.clips.find((c) => c.id === "M")!.sourceInMs).toBe(200);
   });
 
+  it("Shift+Alt+, / . slides a valid selected block; gap falls back to single", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "A",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 50,
+              sourceOutMs: 1050,
+            }),
+            clip({
+              id: "B",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 80,
+              sourceOutMs: 1080,
+            }),
+            clip({
+              id: "R",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 3000,
+              durationMs: 1000,
+              sourceInMs: 400,
+              sourceOutMs: 1400,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "A",
+      selectedClipIds: ["A", "B"],
+    };
+    const right = sessionOf(
+      dispatchEditorKey(start, false, { key: ".", altKey: true, shiftKey: true }),
+    );
+    expect(right.project.clips.find((c) => c.id === "A")!.startMs).toBeCloseTo(1000 + FRAME_MS, 5);
+    expect(right.project.clips.find((c) => c.id === "B")!.startMs).toBeCloseTo(2000 + FRAME_MS, 5);
+    expect(right.project.clips.find((c) => c.id === "B")!.durationMs).toBe(1000);
+    expect(right.project.clips.find((c) => c.id === "A")!.sourceInMs).toBe(50);
+    expect(right.project.clips.find((c) => c.id === "B")!.sourceInMs).toBe(80);
+    expect(right.project.clips.find((c) => c.id === "R")!.startMs).toBeCloseTo(3000 + FRAME_MS, 5);
+
+    const gapped: Session = {
+      ...start,
+      selectedClipIds: ["A", "R"],
+      selectedClipId: "A",
+    };
+    const fallback = sessionOf(
+      dispatchEditorKey(gapped, false, { key: ".", altKey: true, shiftKey: true }),
+    );
+    expect(fallback.project.clips.find((c) => c.id === "A")!.startMs).toBeCloseTo(1000 + FRAME_MS, 5);
+    expect(fallback.project.clips.find((c) => c.id === "B")!.durationMs).toBeCloseTo(1000 - FRAME_MS, 5);
+    expect(fallback.project.clips.find((c) => c.id === "R")!.startMs).toBe(3000);
+    expect(fallback.project.clips.find((c) => c.id === "R")!.durationMs).toBe(1000);
+  });
+
   it("; lifts range and ' extracts; empty Delete uses the range", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
     const start: Session = {

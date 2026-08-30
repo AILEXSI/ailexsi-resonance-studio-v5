@@ -780,6 +780,102 @@ export function pasteClips(
   };
 }
 
+export type SlideBlock =
+  | { mids: Clip[]; left: Clip; right: Clip }
+  | { error: string };
+
+/**
+ * One clip, or 2+ same-track clips that abut (≤1ms) with outer neighbors on
+ * both sides. Cross-track, internal gap, or missing outer neighbor → error.
+ */
+export function resolveSlideBlock(
+  project: Project,
+  clipIds: readonly string[],
+): SlideBlock {
+  const unique = [...new Set(clipIds.filter(Boolean))];
+  if (unique.length === 0) return { error: "Clip not found" };
+  const found: Clip[] = [];
+  for (const id of unique) {
+    const clip = clipById(project, id);
+    if (!clip) return { error: "Clip not found" };
+    found.push(clip);
+  }
+  const trackId = found[0]!.trackId;
+  if (found.some((c) => c.trackId !== trackId)) {
+    return { error: "Slide block must be on one track" };
+  }
+  const mids = [...found].sort((a, b) => a.startMs - b.startMs || a.id.localeCompare(b.id));
+  for (let i = 1; i < mids.length; i++) {
+    if (Math.abs(clipEndMs(mids[i - 1]!) - mids[i]!.startMs) > ABUT_TOLERANCE_MS) {
+      return { error: "Slide requires a contiguous block" };
+    }
+  }
+  const left = abuttingNeighbor(project, mids[0]!.id, "in");
+  const right = abuttingNeighbor(project, mids[mids.length - 1]!.id, "out");
+  if (!left || !right) {
+    return { error: "Slide requires abutting clips on both sides" };
+  }
+  return { mids, left, right };
+}
+
+export function isSlideBlock(project: Project, clipIds: readonly string[]): boolean {
+  return clipIds.length >= 2 && !("error" in resolveSlideBlock(project, clipIds));
+}
+
+function applySlideThroughNeighbors(
+  project: Project,
+  mids: readonly Clip[],
+  left: Clip,
+  right: Clip,
+  deltaMs: number,
+): { project: Project; error?: string } {
+  if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
+
+  const leftAsset = project.assets.find((a) => a.id === left.assetId);
+  const maxGrowLeft = leftAsset
+    ? Math.max(0, sourceDeltaToTimeline(left, leftAsset.durationMs - left.sourceOutMs))
+    : Number.POSITIVE_INFINITY;
+  const maxPos = Math.max(
+    0,
+    Math.min(right.durationMs - SPLIT_EDGE_GUARD_MS, maxGrowLeft),
+  );
+  const maxNeg = Math.max(
+    0,
+    Math.min(left.durationMs - SPLIT_EDGE_GUARD_MS, sourceDeltaToTimeline(right, right.sourceInMs)),
+  );
+  const delta = Math.max(-maxNeg, Math.min(maxPos, deltaMs));
+  if (delta === 0) return { project, error: "Cannot slide further" };
+
+  const nextLeft = applyNormalizedFades({
+    ...left,
+    durationMs: left.durationMs + delta,
+    sourceOutMs: left.sourceOutMs + timelineDeltaToSource(left, delta),
+  });
+  const nextMids = mids.map((mid) => ({
+    ...mid,
+    startMs: mid.startMs + delta,
+  }));
+  const nextRight = applyNormalizedFades({
+    ...right,
+    startMs: right.startMs + delta,
+    durationMs: right.durationMs - delta,
+    sourceInMs: right.sourceInMs + timelineDeltaToSource(right, delta),
+  });
+  const byId = new Map<string, Clip>([
+    [nextLeft.id, nextLeft],
+    ...nextMids.map((c) => [c.id, c] as const),
+    [nextRight.id, nextRight],
+  ]);
+
+  return {
+    project: {
+      ...project,
+      updatedAt: new Date().toISOString(),
+      clips: project.clips.map((c) => byId.get(c.id) ?? c),
+    },
+  };
+}
+
 /**
  * Classic slide: middle clip keeps duration and source in/out and moves on
  * the timeline. The previous abutting clip absorbs the left delta (duration /
@@ -802,50 +898,25 @@ export function slideClip(
   if (!left || !right) {
     return { project, error: "Slide requires abutting clips on both sides" };
   }
+  return applySlideThroughNeighbors(project, [mid], left, right, deltaMs);
+}
 
-  const leftAsset = project.assets.find((a) => a.id === left.assetId);
-  const maxGrowLeft = leftAsset
-    ? Math.max(0, sourceDeltaToTimeline(left, leftAsset.durationMs - left.sourceOutMs))
-    : Number.POSITIVE_INFINITY;
-  const maxPos = Math.max(
-    0,
-    Math.min(right.durationMs - SPLIT_EDGE_GUARD_MS, maxGrowLeft),
-  );
-  const maxNeg = Math.max(
-    0,
-    Math.min(left.durationMs - SPLIT_EDGE_GUARD_MS, sourceDeltaToTimeline(right, right.sourceInMs)),
-  );
-  const delta = Math.max(-maxNeg, Math.min(maxPos, deltaMs));
-  if (delta === 0) return { project, error: "Cannot slide further" };
-
-  const nextLeft = applyNormalizedFades({
-    ...left,
-    durationMs: left.durationMs + delta,
-    sourceOutMs: left.sourceOutMs + timelineDeltaToSource(left, delta),
-  });
-  const nextMid: Clip = {
-    ...mid,
-    startMs: mid.startMs + delta,
-  };
-  const nextRight = applyNormalizedFades({
-    ...right,
-    startMs: right.startMs + delta,
-    durationMs: right.durationMs - delta,
-    sourceInMs: right.sourceInMs + timelineDeltaToSource(right, delta),
-  });
-
-  return {
-    project: {
-      ...project,
-      updatedAt: new Date().toISOString(),
-      clips: project.clips.map((c) => {
-        if (c.id === left.id) return nextLeft;
-        if (c.id === mid.id) return nextMid;
-        if (c.id === right.id) return nextRight;
-        return c;
-      }),
-    },
-  };
+/**
+ * Slide one clip (`slideClip`) or a contiguous same-track selection as one
+ * middle block. Inner clips keep relative starts and source in/out. Outer
+ * previous absorbs left; outer next absorbs right. Rate is unchanged.
+ */
+export function slideClips(
+  project: Project,
+  clipIds: readonly string[],
+  deltaMs: number,
+): { project: Project; error?: string } {
+  const unique = [...new Set(clipIds.filter(Boolean))];
+  if (unique.length <= 1) return slideClip(project, unique[0] ?? "", deltaMs);
+  if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
+  const block = resolveSlideBlock(project, unique);
+  if ("error" in block) return { project, error: block.error };
+  return applySlideThroughNeighbors(project, block.mids, block.left, block.right, deltaMs);
 }
 
 /**

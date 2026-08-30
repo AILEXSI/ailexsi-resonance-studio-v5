@@ -25,6 +25,7 @@ import {
   pasteClips,
   slipClip,
   slideClip,
+  slideClips,
   liftRange,
   extractRange,
   rollEdit,
@@ -458,6 +459,165 @@ describe("slide", () => {
     const gap = slideClip(gapped, "M", 50);
     expect(gap.project).toBe(gapped);
     expect(gap.error).toMatch(/abutting/i);
+  });
+});
+
+function fiveAbuttingA1(): ReturnType<typeof projectWith> {
+  const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+  return {
+    ...projectWith(
+      [
+        clip({
+          id: "L",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "A",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 100,
+          sourceOutMs: 1100,
+        }),
+        clip({
+          id: "B",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+        }),
+        clip({
+          id: "C",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 3000,
+          durationMs: 1000,
+          sourceInMs: 300,
+          sourceOutMs: 1300,
+        }),
+        clip({
+          id: "R",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 4000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+        }),
+      ],
+      [a],
+    ),
+    snap: false,
+  };
+}
+
+describe("group slide", () => {
+  it("slides a two-clip block; relative starts and inner source stay; span is invariant", () => {
+    const p = fiveAbuttingA1();
+    const span0 = spanOf(p.clips.filter((c) => ["L", "A", "B", "C"].includes(c.id)));
+    const block0 = spanOf(p.clips.filter((c) => c.id === "A" || c.id === "B"));
+    const next = slideClips(p, ["B", "A"], 200);
+    expect(next.error).toBeUndefined();
+    const L = next.project.clips.find((c) => c.id === "L")!;
+    const A = next.project.clips.find((c) => c.id === "A")!;
+    const B = next.project.clips.find((c) => c.id === "B")!;
+    const C = next.project.clips.find((c) => c.id === "C")!;
+    const R = next.project.clips.find((c) => c.id === "R")!;
+    expect(A.startMs).toBe(1200);
+    expect(B.startMs).toBe(2200);
+    expect(B.startMs - A.startMs).toBe(1000);
+    expect(A.durationMs).toBe(1000);
+    expect(B.durationMs).toBe(1000);
+    expect(A.sourceInMs).toBe(100);
+    expect(A.sourceOutMs).toBe(1100);
+    expect(B.sourceInMs).toBe(200);
+    expect(B.sourceOutMs).toBe(1200);
+    expect(L.durationMs).toBe(1200);
+    expect(L.sourceOutMs).toBe(1200);
+    expect(C.startMs).toBe(3200);
+    expect(C.durationMs).toBe(800);
+    expect(C.sourceInMs).toBe(500);
+    expect(R.startMs).toBe(4000);
+    expect(R.durationMs).toBe(1000);
+    expect(spanOf([L, A, B, C])).toBe(span0);
+    expect(spanOf([A, B])).toBe(block0);
+  });
+
+  it("slides a three-clip block as one middle", () => {
+    const p = fiveAbuttingA1();
+    const span0 = spanOf(p.clips);
+    const next = slideClips(p, ["A", "B", "C"], -200);
+    expect(next.error).toBeUndefined();
+    const L = next.project.clips.find((c) => c.id === "L")!;
+    const A = next.project.clips.find((c) => c.id === "A")!;
+    const B = next.project.clips.find((c) => c.id === "B")!;
+    const C = next.project.clips.find((c) => c.id === "C")!;
+    const R = next.project.clips.find((c) => c.id === "R")!;
+    expect(A.startMs).toBe(800);
+    expect(B.startMs).toBe(1800);
+    expect(C.startMs).toBe(2800);
+    expect(A.sourceInMs).toBe(100);
+    expect(B.sourceInMs).toBe(200);
+    expect(C.sourceInMs).toBe(300);
+    expect(L.durationMs).toBe(800);
+    expect(L.sourceOutMs).toBe(800);
+    expect(R.startMs).toBe(3800);
+    expect(R.durationMs).toBe(1200);
+    expect(R.sourceInMs).toBe(200);
+    expect(spanOf([L, A, B, C, R])).toBe(span0);
+  });
+
+  it("no-ops when the selection has an internal gap", () => {
+    const p = fiveAbuttingA1();
+    const next = slideClips(p, ["A", "C"], 200);
+    expect(next.project).toBe(p);
+    expect(next.error).toMatch(/contiguous|gap/i);
+  });
+
+  it("no-ops when an outer neighbor is missing", () => {
+    const p = fiveAbuttingA1();
+    const next = slideClips(p, ["L", "A"], 200);
+    expect(next.project).toBe(p);
+    expect(next.error).toMatch(/abutting/i);
+  });
+
+  it("no-ops when the selection spans tracks", () => {
+    const p = {
+      ...fiveAbuttingA1(),
+      clips: [
+        ...fiveAbuttingA1().clips,
+        clip({
+          id: "X",
+          assetId: "a",
+          trackId: "A2",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+      ],
+    };
+    const next = slideClips(p, ["A", "X"], 200);
+    expect(next.project).toBe(p);
+    expect(next.error).toMatch(/track/i);
+  });
+
+  it("single selection still matches slideClip", () => {
+    const p = threeAbuttingA1();
+    const one = slideClip(p, "M", 200);
+    const via = slideClips(p, ["M"], 200);
+    expect(via.error).toBeUndefined();
+    expect(via.project.clips.map((c) => [c.id, c.startMs, c.durationMs, c.sourceInMs, c.sourceOutMs])).toEqual(
+      one.project.clips.map((c) => [c.id, c.startMs, c.durationMs, c.sourceInMs, c.sourceOutMs]),
+    );
   });
 });
 

@@ -564,12 +564,12 @@ export function App() {
     }));
   };
 
-  const onSlideLive = (clipId: string, deltaMs: number) => {
+  const onSlideLive = (clipId: string, deltaMs: number, clipIds?: readonly string[]) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
       const preview = applyCommand(
         { ...dragBaseRef.current, history: { past: [], future: [] } },
-        { type: "slideClip", clipId, deltaMs },
+        { type: "slideClip", clipId, deltaMs, clipIds },
       );
       return {
         ...s,
@@ -587,7 +587,7 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Slid clip",
+      status: selectionOf(s).length > 1 ? "Slid clips" : "Slid clip",
       error: null,
     }));
   };

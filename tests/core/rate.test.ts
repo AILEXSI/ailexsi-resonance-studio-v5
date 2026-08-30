@@ -18,6 +18,7 @@ import {
   rollEdit,
   setClipRate,
   slideClip,
+  slideClips,
   slipClip,
   splitClipAt,
   trimClip,
@@ -470,5 +471,75 @@ describe("rate-aware source mapping on edits", () => {
     expect(R.durationMs).toBe(800);
     expect(R.sourceInMs).toBe(200);
     expect(R.rate).toBe(1);
+  });
+
+  it("group slide maps outer neighbor source through each clip's rate; block source stays", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 8000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "L",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          rate: 2,
+        }),
+        clip({
+          id: "A",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 50,
+          sourceOutMs: 1050,
+          rate: 1,
+        }),
+        clip({
+          id: "B",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 80,
+          sourceOutMs: 1080,
+          rate: 1,
+        }),
+        clip({
+          id: "R",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 3000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 500,
+          rate: 0.5,
+        }),
+      ],
+      [a],
+    );
+    const slid = slideClips(p, ["A", "B"], 200);
+    expect(slid.error).toBeUndefined();
+    const L = slid.project.clips.find((c) => c.id === "L")!;
+    const A = slid.project.clips.find((c) => c.id === "A")!;
+    const B = slid.project.clips.find((c) => c.id === "B")!;
+    const R = slid.project.clips.find((c) => c.id === "R")!;
+    expect(L.durationMs).toBe(1200);
+    expect(L.sourceOutMs).toBe(2400);
+    expect(L.rate).toBe(2);
+    expect(A.startMs).toBe(1200);
+    expect(B.startMs).toBe(2200);
+    expect(A.sourceInMs).toBe(50);
+    expect(A.sourceOutMs).toBe(1050);
+    expect(B.sourceInMs).toBe(80);
+    expect(B.sourceOutMs).toBe(1080);
+    expect(A.rate).toBe(1);
+    expect(B.rate).toBe(1);
+    expect(R.startMs).toBe(3200);
+    expect(R.durationMs).toBe(800);
+    expect(R.sourceInMs).toBe(100);
+    expect(R.rate).toBe(0.5);
   });
 });

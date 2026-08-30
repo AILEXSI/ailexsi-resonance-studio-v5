@@ -16,7 +16,7 @@ import {
   isMarqueeLane,
   type MarqueeLane,
 } from "../../core/marquee";
-import { abuttingNeighbor, collectSnapTargets, snapTime } from "../../core/timeline";
+import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
@@ -47,7 +47,7 @@ interface Props {
   onTrimCommit: () => void;
   onSlipLive?: (clipId: string, deltaMs: number) => void;
   onSlipCommit?: () => void;
-  onSlideLive?: (clipId: string, deltaMs: number) => void;
+  onSlideLive?: (clipId: string, deltaMs: number, clipIds?: readonly string[]) => void;
   onSlideCommit?: () => void;
   onFadesLive?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onFadesCommit?: () => void;
@@ -351,13 +351,15 @@ export function Timeline({
     setMarkerMenu(null);
     if ((e.ctrlKey || e.metaKey) && e.altKey) {
       if (dragKindRef.current) return;
-      if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+      const inSelectedBlock = selectedIds.includes(clip.id) && isSlideBlock(project, selectedIds);
+      if (!inSelectedBlock && !selectedIds.includes(clip.id)) onSelect(clip.id);
+      const slidingIds = inSelectedBlock ? selectedIds : [clip.id];
       dragKindRef.current = "slide";
       const originX = e.clientX;
       const move = (ev: PointerEvent) => {
         if (dragKindRef.current !== "slide") return;
         const deltaMs = ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
-        onSlideLive?.(clip.id, deltaMs);
+        onSlideLive?.(clip.id, deltaMs, slidingIds);
       };
       const up = () => {
         window.removeEventListener("pointermove", move);

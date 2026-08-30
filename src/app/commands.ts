@@ -70,7 +70,7 @@ export type EditorCommand =
   | { type: "selectClips"; clipIds: readonly string[]; union?: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number }
-  | { type: "slideClip"; clipId: string; deltaMs: number }
+  | { type: "slideClip"; clipId: string; deltaMs: number; clipIds?: readonly string[] }
   | { type: "liftRange" }
   | { type: "extractRange" }
   | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number }
@@ -136,7 +136,7 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
     case "slip":
       return applySlip(session, command.clipId, command.deltaMs);
     case "slideClip":
-      return applySlideClip(session, command.clipId, command.deltaMs);
+      return applySlideClip(session, command.clipId, command.deltaMs, command.clipIds);
     case "liftRange":
       return applyLiftRange(session);
     case "extractRange":

@@ -1,6 +1,7 @@
 import { FRAME_MS } from "../core/models";
+import { isSlideBlock } from "../core/timeline";
 import { applyCommand, type EditorCommand } from "./commands";
-import type { Session } from "./session";
+import { selectionOf, type Session } from "./session";
 
 export interface EditorKeyEvent {
   key: string;
@@ -41,7 +42,13 @@ function commandFromKey(
   if (e.altKey && (comma || period)) {
     if (!session.selectedClipId) return null;
     const deltaMs = (period ? 1 : -1) * FRAME_MS;
-    if (e.shiftKey) return { type: "slideClip", clipId: session.selectedClipId, deltaMs };
+    if (e.shiftKey) {
+      const ids = selectionOf(session);
+      if (ids.length >= 2 && isSlideBlock(session.project, ids)) {
+        return { type: "slideClip", clipId: session.selectedClipId ?? ids[0]!, clipIds: ids, deltaMs };
+      }
+      return { type: "slideClip", clipId: session.selectedClipId, deltaMs };
+    }
     return { type: "slip", clipId: session.selectedClipId, deltaMs };
   }
 

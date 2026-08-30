@@ -16,7 +16,7 @@ import {
   deleteClips,
   pasteClips,
   slipClip,
-  slideClip,
+  slideClips,
   setClipRate,
   maybeScrollToOrigin,
   moveClip,
@@ -460,11 +460,17 @@ export function applySlip(session: Session, clipId: string, deltaMs: number): Se
   return withHistory(session, result.project, "Slipped clip");
 }
 
-export function applySlideClip(session: Session, clipId: string, deltaMs: number): Session {
-  const result = slideClip(session.project, clipId, deltaMs);
+export function applySlideClip(
+  session: Session,
+  clipId: string,
+  deltaMs: number,
+  clipIds?: readonly string[],
+): Session {
+  const ids = clipIds && clipIds.length > 0 ? clipIds : [clipId];
+  const result = slideClips(session.project, ids, deltaMs);
   if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
-  return withHistory(session, result.project, "Slid clip");
+  return withHistory(session, result.project, ids.length > 1 ? "Slid clips" : "Slid clip");
 }
 
 export function applyUpdateClip(

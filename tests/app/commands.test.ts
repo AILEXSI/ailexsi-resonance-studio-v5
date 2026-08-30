@@ -55,6 +55,7 @@ describe("applyCommand determinism", () => {
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
       { type: "slideClip", clipId: "c2", deltaMs: 100 } as const,
+      { type: "slideClip", clipId: "c1", clipIds: ["c1", "c2"], deltaMs: 50 } as const,
       { type: "copy" } as const,
       { type: "liftRange" } as const,
       { type: "extractRange" } as const,
@@ -412,6 +413,75 @@ describe("applyCommand determinism", () => {
     expect(slid.project.clips.find((x) => x.id === "R")!.startMs).toBe(2200);
     const undone = applyCommand(slid, { type: "undo" });
     expect(undone.project.clips.find((x) => x.id === "M")!.startMs).toBe(1000);
+    expect(undone.project.clips.find((x) => x.id === "L")!.durationMs).toBe(1000);
+  });
+
+  it("slideClip with clipIds slides a contiguous block and undoes", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "A",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 50,
+              sourceOutMs: 1050,
+            }),
+            clip({
+              id: "B",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 80,
+              sourceOutMs: 1080,
+            }),
+            clip({
+              id: "R",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 3000,
+              durationMs: 1000,
+              sourceInMs: 400,
+              sourceOutMs: 1400,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "A",
+      selectedClipIds: ["A", "B"],
+    };
+    const slid = applyCommand(start, {
+      type: "slideClip",
+      clipId: "A",
+      clipIds: ["A", "B"],
+      deltaMs: 200,
+    });
+    expect(slid.project.clips.find((x) => x.id === "A")!.startMs).toBe(1200);
+    expect(slid.project.clips.find((x) => x.id === "B")!.startMs).toBe(2200);
+    expect(slid.project.clips.find((x) => x.id === "A")!.sourceInMs).toBe(50);
+    expect(slid.project.clips.find((x) => x.id === "L")!.durationMs).toBe(1200);
+    expect(slid.project.clips.find((x) => x.id === "R")!.startMs).toBe(3200);
+    expect(slid.history.past).toHaveLength(start.history.past.length + 1);
+    const undone = applyCommand(slid, { type: "undo" });
+    expect(undone.project.clips.find((x) => x.id === "A")!.startMs).toBe(1000);
+    expect(undone.project.clips.find((x) => x.id === "B")!.startMs).toBe(2000);
     expect(undone.project.clips.find((x) => x.id === "L")!.durationMs).toBe(1000);
   });
 
