@@ -5,6 +5,7 @@ import {
   applyCloseGap,
   applyCopy,
   applyCut,
+  applyDuplicate,
   applyDelete,
   applyExtractRange,
   applyIn,
@@ -55,6 +56,7 @@ export type EditorCommand =
   | { type: "copy" }
   | { type: "cut" }
   | { type: "paste" }
+  | { type: "duplicate" }
   | { type: "split" }
   | { type: "addMarker" }
   | { type: "clearInOut" }
@@ -111,6 +113,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyCut(session);
     case "paste":
       return applyPaste(session);
+    case "duplicate":
+      return applyDuplicate(session);
     case "split":
       return applySplit(session);
     case "addMarker":

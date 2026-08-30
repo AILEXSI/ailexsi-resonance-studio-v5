@@ -38,6 +38,7 @@ function commandFromKey(
     if (letter === "c") return { type: "copy" };
     if (letter === "x") return { type: "cut" };
     if (letter === "v") return { type: "paste" };
+    if (letter === "d") return { type: "duplicate" };
     if (letter === "l" && e.shiftKey) {
       const clipId = firstClipIdWithLivingMate(session.project, selectionOf(session));
       return clipId ? { type: "unlinkClips", clipId } : null;
@@ -127,6 +128,7 @@ export function dispatchEditorKey(
     command.type === "copy" ||
     command.type === "cut" ||
     command.type === "paste" ||
+    command.type === "duplicate" ||
     command.type === "clearInOut" ||
     command.type === "liftDelete" ||
     command.type === "rippleDelete" ||

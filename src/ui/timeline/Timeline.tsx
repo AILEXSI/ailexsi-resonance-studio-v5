@@ -80,6 +80,7 @@ interface Props {
   onCut: () => void;
   onCopy: () => void;
   onPaste: () => void;
+  onDuplicate?: () => void;
   onDelete: () => void;
   onRippleDelete?: () => void;
   onLiftRange?: () => void;
@@ -154,6 +155,7 @@ export function Timeline({
   onCut,
   onCopy,
   onPaste,
+  onDuplicate,
   onDelete,
   onRippleDelete,
   onLiftRange,
@@ -1053,6 +1055,19 @@ export function Timeline({
             <span>Paste</span>
             <kbd>{CLIP_MENU_SHORTCUTS.paste}</kbd>
           </button>
+          {onDuplicate ? (
+            <button
+              type="button"
+              data-testid="clip-menu-duplicate"
+              onClick={() => {
+                onDuplicate();
+                setMenu(null);
+              }}
+            >
+              <span>Duplicate</span>
+              <kbd>{CLIP_MENU_SHORTCUTS.duplicate}</kbd>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {

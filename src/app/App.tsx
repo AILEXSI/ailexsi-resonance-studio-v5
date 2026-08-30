@@ -1072,6 +1072,7 @@ export function App() {
         onCut={() => runCommand({ type: "cut" })}
         onCopy={() => runCommand({ type: "copy" })}
         onPaste={() => runCommand({ type: "paste" })}
+        onDuplicate={() => runCommand({ type: "duplicate" })}
         onDelete={() => runCommand({ type: "liftDelete" })}
         onRippleDelete={() => runCommand({ type: "rippleDelete" })}
         onLiftRange={() => runCommand({ type: "liftRange" })}

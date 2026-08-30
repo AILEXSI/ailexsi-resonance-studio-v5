@@ -516,6 +516,26 @@ export function applyPaste(session: Session): Session {
   );
 }
 
+/** Clone the selection at the playhead. Does not write `session.clipboard`. */
+export function applyDuplicate(session: Session): Session {
+  const ids = selectionOf(session);
+  const clips = ids
+    .map((id) => clipById(session.project, id))
+    .filter((c): c is Clip => Boolean(c));
+  if (clips.length === 0) return session;
+  const result = pasteClips(
+    session.project,
+    clips.map((c) => ({ ...c })),
+    session.project.playheadMs,
+  );
+  if (result.error) return { ...session, error: result.error };
+  const many = result.clipIds.length > 1;
+  return withClipSelection(
+    withHistory(session, result.project, many ? "Duplicated clips" : "Duplicated clip"),
+    result.clipIds,
+  );
+}
+
 export function applySlip(
   session: Session,
   clipId: string,

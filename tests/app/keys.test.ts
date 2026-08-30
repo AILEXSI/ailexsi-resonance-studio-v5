@@ -46,6 +46,26 @@ describe("editor keys", () => {
     expect(original?.startMs).toBe(0);
   });
 
+  it("Ctrl+D duplicates at the playhead; C/X/V stay bound", () => {
+    const start = clipSession();
+    const copied = applyCopy(start);
+    const duped = sessionOf(dispatchEditorKey(copied, false, { key: "d", ctrlKey: true }));
+    expect(duped.project.clips).toHaveLength(2);
+    expect(duped.clipboard[0]?.id).toBe("c1");
+    expect(duped.project.clips.find((c) => c.id !== "c1")!.startMs).toBe(1000);
+    const stillCopy = sessionOf(dispatchEditorKey(start, false, { key: "c", ctrlKey: true }));
+    expect(stillCopy.clipboard[0]?.id).toBe("c1");
+    expect(stillCopy.project.clips).toHaveLength(1);
+    const stillCut = sessionOf(dispatchEditorKey(start, false, { key: "x", ctrlKey: true }));
+    expect(stillCut.project.clips).toHaveLength(0);
+    expect(stillCut.clipboard[0]?.id).toBe("c1");
+    const stillPaste = sessionOf(dispatchEditorKey(copied, false, { key: "v", ctrlKey: true }));
+    expect(stillPaste.status).toBe("Pasted clip");
+    expect(stillPaste.project.clips).toHaveLength(2);
+    const metaD = sessionOf(dispatchEditorKey(start, false, { key: "d", metaKey: true }));
+    expect(metaD.project.clips).toHaveLength(2);
+  });
+
   it("Ctrl+C copies and leaves the clip", () => {
     const start = clipSession();
     const next = sessionOf(dispatchEditorKey(start, false, { key: "c", ctrlKey: true }));

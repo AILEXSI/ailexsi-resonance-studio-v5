@@ -35,6 +35,7 @@ function timelineProps() {
     onCut: noop,
     onCopy: noop,
     onPaste: noop,
+    onDuplicate: noop,
     onDelete: noop,
     onZoom: (_z: number, _w: number) => {},
     onFit: noopMs,
@@ -88,6 +89,9 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+C");
     expect(text).toContain("Paste");
     expect(text).toContain("Ctrl+V");
+    expect(text).toContain("Duplicate");
+    expect(text).toContain("Ctrl+D");
+    expect(menu!.querySelector('[data-testid="clip-menu-duplicate"]')).toBeTruthy();
     expect(text).toContain("Delete");
     expect(text).toContain("Ripple delete");
     expect(text).toContain("Shift+Delete");
@@ -130,6 +134,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+X");
     expect(text).toContain("Ctrl+C");
     expect(text).toContain("Ctrl+V");
+    expect(text).toContain("Ctrl+D");
+    expect(text).toContain("Duplicate selection at playhead");
     expect(text).toContain("Delete");
     expect(text).toContain("Shift+Delete");
     expect(text).toContain("J / K / L");

@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 09:59 UTC. P32 snap-to-markers on PR #1 after P31 Q/W. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 10:03 UTC. P33 duplicate at playhead on PR #1 after P32 marker snap. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -39,7 +39,7 @@ npx vite build
 exit 0. vite 7.3.6, 160 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-Coluu3rJ.css 19.48 kB
-- dist/assets/index-BaVFiXdv.js 727.50 kB
+- dist/assets/index-B59Js_x9.js 728.21 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -56,9 +56,11 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **401 passed / 56 files**. Start 09:59:07 UTC. Duration 9.87s.
+exit 0. vitest 3.2.7. **407 passed / 57 files**. Start 10:03:35 UTC. Duration 9.63s.
 
-P32: `collectSnapTargets` emits `project.markers[].timeMs` as kind `"marker"` when snap is on. Same `snapTime` / `SNAP_THRESHOLD_MS`. Snap off still only `{ timeMs: 0, kind: "zero" }`. KEEP P31 Q/W.
+P33: `{ type: "duplicate" }` clones the selection at the playhead via existing `pasteClips`. Does not write `session.clipboard`. **Ctrl+D** / clip-menu Duplicate. KEEP P32 marker snap.
+
+P32: `collectSnapTargets` emits `project.markers[].timeMs` as kind `"marker"` when snap is on. Same `snapTime` / `SNAP_THRESHOLD_MS`. Snap off still only `{ timeMs: 0, kind: "zero" }`. KEEP P31 Q/W. KEEP.
 
 P31: `{ type: "rippleTrimToPlayhead", edge }` via existing `applyRippleTrim`. **Q** in / **W** out. Playhead stays. KEEP P30 closeGap. KEEP.
 
@@ -170,7 +172,15 @@ Status: TEST-VERIFIED. Live clip-drag onto a marker: NOT VERIFIED.
 
 `collectSnapTargets` still owns snap. When `project.snap` is on, each `project.markers[].timeMs` is a `SnapTarget` with kind `"marker"`. Same `SNAP_THRESHOLD_MS` / `snapTime`. Move / trim / split already call `collectSnapTargets`, so they pick up markers. Snap off: only `{ timeMs: 0, kind: "zero" }` — no markers, no playhead/IN/OUT/clip edges. `ignoreClipId` still drops that clip's edges; markers stay. Not a second snap path. Not snap-to-grid. Not snap-to-VIS.
 
-`tests/timeline/timeline.test.ts` (50): prior plus marker inside threshold, outside, snap-off, ignoreClipId keeps markers.
+`tests/timeline/timeline.test.ts` (50): prior plus marker inside threshold, outside, snap-off, ignoreClipId keeps markers. KEEP.
+
+## Duplicate
+
+Status: TEST-VERIFIED. Live Chromium Ctrl+D: NOT VERIFIED (no imported clips this slice).
+
+`{ type: "duplicate" }` snapshots the current selection (same as copy) and calls existing `pasteClips(project, snapshots, playheadMs)`. Earliest clone on playhead, relatives kept, same-kind tracks, new ids, `remapPastedLinkIds` on the clones. Then select the new clips. Empty selection → same session, no history. `session.clipboard` is not written — Ctrl+V still pastes the previous copy. Key: **Ctrl+D** / Cmd+D (form fields already swallow all chords except Tab, same as C/X/V). Clip menu: Duplicate. C/X/V/S/G/Q/W/TAB stay.
+
+`tests/app/duplicate.test.ts` (5). Ctrl+D + C/X/V in `tests/app/keys.test.ts`.
 
 ## Ruler
 
@@ -194,9 +204,9 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. **Ctrl+Shift+L** (Cmd+Shift+L via `ctrlKey || metaKey`) unlinks a living A/V pair. Ctrl+L without Shift is unused. Bare L stays shuttle. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (20): prior plus **Q** / **W** → `rippleTrimToPlayhead` (form focus is `none`). **G** / **S** / **Tab** stay.
+`tests/app/keys.test.ts` (21): prior plus **Ctrl+D** → `duplicate`. **C** / **X** / **V** stay.
 
-`tests/timeline/clip-menu.test.tsx` (4): prior plus Close gap / Q / W overlay rows.
+`tests/timeline/clip-menu.test.tsx` (4): prior plus Duplicate / Ctrl+D overlay row.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -372,13 +382,14 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Live Close gap (G / clip menu with two clips and a hole) NOT VERIFIED. Units only. Not magnetic; not all-tracks; linked mate does not auto-move.
 - Live Q/W ripple-trim to playhead NOT VERIFIED. Units only. Not extend-to-playhead. Not a second ripple engine.
 - Live snap-to-marker drag NOT VERIFIED. Units only. Not a second snap engine. Not snap-to-grid / VIS.
+- Live Ctrl+D duplicate NOT VERIFIED. Units only. Does not clobber the editor clipboard. Not Alt-drag / overwrite-paste.
 - Nested sequences / link-picker: still not present. Unlink chrome is inspector button + Ctrl+Shift+L.
 
 ## Command dispatch
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `{ type: "rippleTrimToPlayhead", edge }` (`applyRippleTrimToPlayhead` → existing `applyRippleTrim`). Adds `{ type: "closeGap" }` (`applyCloseGap` / `closeGapOnTrack`). Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `relinkClips`, `gotoNextEdit` / `gotoPrevEdit`, `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `{ type: "duplicate" }` (`applyDuplicate` → existing `pasteClips`, no clipboard write). Adds `{ type: "rippleTrimToPlayhead", edge }` (`applyRippleTrimToPlayhead` → existing `applyRippleTrim`). Adds `{ type: "closeGap" }` (`applyCloseGap` / `closeGapOnTrack`). Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `relinkClips`, `gotoNextEdit` / `gotoPrevEdit`, `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Chrome / Preview height (P27)
 
@@ -655,7 +666,11 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 `tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 09:59 UTC)
+## Changelog this follow-up (2026-08-30 10:03 UTC)
+
+- Duplicate selection at playhead (`duplicate` / **Ctrl+D** / clip menu). Existing `pasteClips`; clipboard unchanged. TEST-VERIFIED. Live Ctrl+D: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 09:59 UTC)
 
 - Snap to markers: `collectSnapTargets` emits kind `"marker"` when snap is on. Same threshold. TEST-VERIFIED. Live drag: NOT VERIFIED.
 
@@ -816,7 +831,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P32 snap-to-markers (this commit). P31 Q/W `6676308`. P30 close-gap `8fa9128`. P29 Relink `1b6709c` / `d1cd249`. P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
+Tip after this follow-up: P33 duplicate (this commit). P32 snap-to-markers `cf26e44`. P31 Q/W `6676308`. P30 close-gap `8fa9128`. P29 Relink `1b6709c` / `d1cd249`. P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
 
 ## Not added
 
