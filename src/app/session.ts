@@ -244,6 +244,23 @@ export function newProject(session: Session): Session {
   };
 }
 
+const NEW_PROJECT_CONFIRM = "Discard unsaved changes and start a new project?";
+
+function defaultNewProjectConfirm(): boolean {
+  if (typeof window === "undefined" || typeof window.confirm !== "function") return true;
+  return window.confirm(NEW_PROJECT_CONFIRM);
+}
+
+/** Empty timeline, same IDB store. Confirms only when dirty. */
+export function confirmNewProject(
+  session: Session,
+  confirmDiscard: () => boolean = defaultNewProjectConfirm,
+): Session {
+  if (!isProjectDirty(session)) return newProject(session);
+  if (!confirmDiscard()) return session;
+  return newProject(session);
+}
+
 export async function importFiles(
   session: Session,
   files: FileList | File[],

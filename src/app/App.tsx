@@ -82,9 +82,9 @@ import {
   hydrateSession,
   importFiles,
   ingestRelinkFile,
+  confirmNewProject,
   isProjectDirty,
   markProjectClean,
-  newProject,
   withClipSelection,
   openSerialized,
   projectJson,
@@ -1083,7 +1083,7 @@ export function App() {
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
-        onNew={() => setSession(newProject(session))}
+        onNew={() => setSession(confirmNewProject(session))}
         onSave={onToolbarSave}
         onOpen={onToolbarOpen}
         onOpenLast={onToolbarOpenLast}
