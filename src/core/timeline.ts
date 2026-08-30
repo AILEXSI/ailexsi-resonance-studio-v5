@@ -660,7 +660,7 @@ function deleteUnlockedClips(project: Project, clipIds: readonly string[]): Proj
   const drop = new Set(
     expandLinkedClipIds(project, clipIds).filter((id) => {
       const clip = clipById(project, id);
-      return Boolean(clip) && !clipIsLocked(clip);
+      return clip != null && !clipIsLocked(clip);
     }),
   );
   if (drop.size === 0) return project;
