@@ -377,23 +377,27 @@ export function playheadStrictlyInsideClip(clip: Clip, timeMs: number): boolean 
 /**
  * Clip to ripple-trim to the playhead: selected if playhead is strictly inside it;
  * else a covering clip on that track; else first of V1→V2→A1→A2. VIS is not a track.
+ * Disabled and locked clips are skipped (same as P105 disable) so Q/W can hit
+ * an unlocked mate after the picture is locked.
  */
 export function resolveRippleTrimToPlayheadClip(
   project: Project,
   opts: { selectedClipId: string | null; selectedVis?: boolean },
 ): Clip | null {
   const timeMs = project.playheadMs;
+  const canTrim = (c: Clip | undefined): c is Clip =>
+    Boolean(c && isTrackId(c.trackId) && clipIsEnabled(c) && !clipIsLocked(c));
   if (!opts.selectedVis) {
     const primary = opts.selectedClipId ? clipById(project, opts.selectedClipId) : undefined;
-    if (primary && isTrackId(primary.trackId) && clipIsEnabled(primary)) {
+    if (canTrim(primary)) {
       if (playheadStrictlyInsideClip(primary, timeMs)) return primary;
       const onTrack = clipOnTrackAt(project, primary.trackId, timeMs);
-      if (onTrack && playheadStrictlyInsideClip(onTrack, timeMs)) return onTrack;
+      if (canTrim(onTrack) && playheadStrictlyInsideClip(onTrack, timeMs)) return onTrack;
     }
   }
   for (const id of TRACK_IDS) {
     const hit = clipOnTrackAt(project, id, timeMs);
-    if (hit && playheadStrictlyInsideClip(hit, timeMs)) return hit;
+    if (canTrim(hit) && playheadStrictlyInsideClip(hit, timeMs)) return hit;
   }
   return null;
 }
