@@ -84,6 +84,7 @@ import {
   ingestRelinkFile,
   beforeUnloadIfDirty,
   confirmNewProject,
+  confirmOpenProject,
   isProjectDirty,
   markProjectClean,
   withClipSelection,
@@ -356,10 +357,12 @@ export function App() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
-  const applyOpenedText = async (text: string, status: string) => {
+  const applyOpenedText = async (text: string, status: string): Promise<boolean> => {
+    if (!confirmOpenProject(sessionRef.current)) return false;
     const opened = openSerialized(sessionRef.current, text);
     const hydrated = await hydrateSession(opened);
     setSession({ ...hydrated, status, error: null });
+    return true;
   };
 
   const persistSave = (
@@ -434,8 +437,8 @@ export function App() {
           document.querySelector<HTMLInputElement>("[data-testid=open-input]")?.click();
           return;
         }
+        if (!(await applyOpenedText(result.text, result.status))) return;
         setProjectFile(result.memory);
-        await applyOpenedText(result.text, result.status);
         setProjectPanelOpen(false);
       } catch (e) {
         setSession((s) => ({
@@ -451,7 +454,7 @@ export function App() {
     void (async () => {
       const last = await tryReadGrantedFile(projectFileRef.current);
       if (last?.kind === "ready") {
-        await applyOpenedText(last.text, `Geladen: ${last.fileName}`);
+        if (!(await applyOpenedText(last.text, `Geladen: ${last.fileName}`))) return;
         setProjectPanelOpen(false);
         return;
       }
@@ -461,8 +464,9 @@ export function App() {
         if (perm === "granted" && handle.getFile) {
           const file = await handle.getFile();
           const memory = await rememberFileHandle(projectFileStore, handle, projectFileRef.current);
+          const text = await readFileText(file);
+          if (!(await applyOpenedText(text, `Geladen: ${file.name}`))) return;
           setProjectFile(memory);
-          await applyOpenedText(await readFileText(file), `Geladen: ${file.name}`);
           setProjectPanelOpen(false);
           return;
         }
@@ -480,8 +484,8 @@ export function App() {
           recent,
         });
         if (result.kind === "opened") {
+          if (!(await applyOpenedText(result.text, result.status))) return;
           setProjectFile(result.memory);
-          await applyOpenedText(result.text, result.status);
           setProjectPanelOpen(false);
           return;
         }
@@ -499,7 +503,7 @@ export function App() {
   const openProject = async (file: File) => {
     try {
       const text = await readFileText(file);
-      await applyOpenedText(text, loadStatusFallback(file.name));
+      if (!(await applyOpenedText(text, loadStatusFallback(file.name)))) return;
       setProjectPanelOpen(false);
     } catch (e) {
       setSession((s) => ({

@@ -272,6 +272,22 @@ export function confirmNewProject(
   return newProject(session);
 }
 
+const OPEN_PROJECT_CONFIRM = "Discard unsaved changes and open another project?";
+
+function defaultOpenProjectConfirm(): boolean {
+  if (typeof window === "undefined" || typeof window.confirm !== "function") return true;
+  return window.confirm(OPEN_PROJECT_CONFIRM);
+}
+
+/** Proceed with Open / last / recent. Confirms only when dirty. */
+export function confirmOpenProject(
+  session: Session,
+  confirmDiscard: () => boolean = defaultOpenProjectConfirm,
+): boolean {
+  if (!isProjectDirty(session)) return true;
+  return confirmDiscard();
+}
+
 export async function importFiles(
   session: Session,
   files: FileList | File[],
