@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 04:46 UTC. Mixer channel-strip follow-up on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 05:00 UTC. Projekt panel + mixer-in-layout follow-up on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 144 modules. Outputs:
+exit 0. vite 7.3.6, 146 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-CNIg9MS1.css 10.20 kB
-- dist/assets/index-DQ-OMaKv.js 646.44 kB
+- dist/assets/index-B6Z0Nrlv.css 12.15 kB
+- dist/assets/index-BWYoeifZ.js 651.79 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **112 passed / 16 files**. Start 04:46:06 UTC. Duration 2.65s.
+exit 0. vitest 3.2.7. **123 passed / 20 files**. Start 05:00:43 UTC. Duration 3.29s.
 
-Files: import 11, visualizer 17, user-fixtures 2, persistence 6, project-file 4, mixer 5, timeline 18, zoom 8, ruler 3, clip-preview 3, clip-preview-dom 2, clip-menu 3, keys 7, export 12, foundation 8, preview 3.
+New this follow-up: project-file 9 (was 4), project-file-panel 1, arrange-mixer 1, app-mixer 1, display-name 3. No test asserts a fake `C:\Users` path.
 
 ## Visualizer
 
@@ -149,19 +149,27 @@ No video frame seen and no audio heard this run.
 
 ## Project file Save / Open
 
-Status: TEST-VERIFIED (mocked pickers). Live showSaveFilePicker / showOpenFilePicker: NOT VERIFIED.
+Status: TEST-VERIFIED (store + panel). Live pickers clicked this run: RUNTIME-VERIFIED (dialogs opened, then cancelled — no file written).
 
-Chrome File System Access: first picker `startIn: documents`. After save/open, the directory (or file) handle is stored in IndexedDB and passed as `startIn` next time. Status after FSA save: `Gespeichert: Name.resonance.json — Projektordner gemerkt`. After load: `Geladen: Name.resonance.json`. No invented `C:\` path.
+Compact **Projekt** panel (left, above MEDIA): last file name, folder remembered (`directoryHandle.name` or `filename — Ordner gemerkt`), recents list, Speichern / Speichern unter / Öffnen / Ordner wählen. The panel never invents a `C:\` path; the OS dialog still shows the real filesystem path.
 
-Fallback (no FSA): download/upload; status says Browser-Downloads / Datei gewählt and Pfad unbekannt. Boot restore only if the stored file handle already has permission; otherwise status `Zuletzt geladen: … — Öffnen klicken`.
+Chrome File System Access: first picker `startIn: documents`. After save/open, the directory (or file) handle plus last-N recents are stored in IndexedDB and passed as `startIn` next time. `showDirectoryPicker` sets an explicit default folder.
 
-`tests/persistence/project-file.test.ts` (4): startIn memory, next-picker startIn, status contains filename, fallback has no fake path.
+Live this run (Chromium on this VM, http://127.0.0.1:1421):
+- Speichern unter → native save dialog (`Untitled_Resonance.resonance.json`) → Escape
+- Öffnen → native “Select a file this site can read” → Escape
+- Ordner wählen → native directory picker → Escape
+Folder was not persisted this run because the dialogs were cancelled. Recents stay empty until a completed save/open.
+
+`tests/persistence/project-file.test.ts` (9): startIn, recents file+dir handle round-trip, panel view names, Speichern unter/Öffnen startIn last dir, Ordner wählen, recent reopen. No fake Windows path asserts. Panel DOM: `tests/persistence/project-file-panel.test.tsx`.
 
 ## Mixer
 
-Status: TEST-VERIFIED (curve + persist). Live fader/meter drag: NOT VERIFIED.
+Status: RUNTIME-VERIFIED (visible next to timeline + A1 fader drag). Curve/persist: TEST-VERIFIED.
 
-Right of the arrange window: V1 V2 A1 A2 + Master. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
+Right of the arrange/timeline (`.arrange-row`: timeline | 228px mixer). V1 V2 A1 A2 + Master. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
+
+Layout CSS: mixer `min-width`/`width` 228px, not `display:none`. Arrange row has a reserved height so the strip cannot collapse to width 0. Live: mixer sat beside the timeline; A1 fader dragged from 0.00 dB to about -7.31 dB; status showed the A1 dB.
 
 Curve: linear = 10^(dB/20). 0 dB = 1. -6 dB ≈ 0.501. Bottom / -∞ = 0. Track `volume` and `masterVolume` persist in `.resonance.json`. Preview applies track+master via GainNodes when Web Audio is up; export bakes the mix into clip gain. VIS is not a mixer channel.
 
@@ -223,7 +231,11 @@ Status: TEST-VERIFIED (static + config)
 
 Status: IMPLEMENTED. Full Import→Edit→Preview→Persist→Export click-path: NOT VERIFIED.
 
-VIS scene button this run: RUNTIME-VERIFIED (pointer). Opened http://127.0.0.1:1421, clicked the VIS lane scene control through Wave / Tunnel / Bloom / Orb / Bars / Field and wrap. Preview canvas stayed up; status showed `Visualizer <id>`. No import and no export in that pass.
+Projekt panel + mixer this run: RUNTIME-VERIFIED (pointer). Speichern unter / Öffnen / Ordner wählen opened native File System Access dialogs (cancelled). A1 fader dragged ~0 dB → about -7.31 dB. Mixer stayed to the right of the timeline.
+
+VIS scene button earlier: RUNTIME-VERIFIED (pointer). Opened http://127.0.0.1:1421, clicked the VIS lane scene control through Wave / Tunnel / Bloom / Orb / Bars / Field and wrap. Preview canvas stayed up; status showed `Visualizer <id>`. No import and no export in that pass.
+
+MEDIA display names are shortened in the bin (tooltip keeps the real filename). Files on disk are not renamed.
 
 ## Adversarial (unit, this run)
 
@@ -238,18 +250,24 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Audio export NOT IMPLEMENTED (no AAC track proven).
 - IndexedDB across a real page reload NOT VERIFIED.
 - Start-V5.cmd Windows double-click NOT VERIFIED.
-- Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle was pointer-tested this run.
+- Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle and Projekt/mixer clicks were pointer-tested this run. Recents after a completed save: NOT VERIFIED (dialogs cancelled).
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
 
-## Changelog this follow-up (2026-08-30 04:46 UTC)
+## Changelog this follow-up (2026-08-30 05:00 UTC)
 
-- Cubase-style mixer strip right of the timeline (V1–A2 + Master). TEST-VERIFIED (curve/persist). Live fader: NOT VERIFIED.
+- Compact Projekt panel: last file name, remembered folder (handle `.name` or “Ordner gemerkt”), recents, Speichern / Speichern unter / Öffnen / Ordner wählen. TEST-VERIFIED. Live pickers opened then cancelled: RUNTIME-VERIFIED. No fake `C:\` path.
+- Mixer column pinned beside the timeline (228px, not width 0). Live A1 fader drag: RUNTIME-VERIFIED.
+- MEDIA short display names + tooltip. Disk names unchanged. TEST-VERIFIED.
+
+## Changelog prior (2026-08-30 04:46 UTC)
+
+- Cubase-style mixer strip right of the timeline (V1–A2 + Master). TEST-VERIFIED (curve/persist). Live fader: later RUNTIME-VERIFIED (05:00).
 
 ## Changelog prior (2026-08-30 04:42 UTC)
 
-- Save/Open remember last project folder via File System Access handles. TEST-VERIFIED (mocked). Live picker: NOT VERIFIED.
+- Save/Open remember last project folder via File System Access handles. TEST-VERIFIED (mocked). Live picker: later RUNTIME-VERIFIED (05:00, dialogs cancelled).
 - Status shows filename; fallback admits path unknown. TEST-VERIFIED.
 
 ## Changelog prior (2026-08-30 04:31 UTC)
