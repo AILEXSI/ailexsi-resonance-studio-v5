@@ -117,6 +117,32 @@ describe("linked A/V", () => {
     expect(vR.linkId).not.toBe(vL.linkId);
   });
 
+  it("split of an unlocked clip skips a locked mate and drops the pair (P115)", () => {
+    const start = linkedPair();
+    const locked = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "v1" ? { ...c, locked: true } : c)),
+    };
+    const split = splitClipAt(locked, "a1", 1000);
+    expect(split.error).toBeUndefined();
+    const clips = split.project.clips;
+    expect(clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(clips.find((c) => c.id === "v1")!.locked).toBe(true);
+    expect(clips.find((c) => c.id === "v1")!.linkId).toBeUndefined();
+    const audio = clips.filter((c) => c.trackId === "A1").sort((a, b) => a.startMs - b.startMs);
+    expect(audio).toHaveLength(2);
+    expect(audio[0]!.durationMs).toBe(1000);
+    expect(audio[1]!.startMs).toBe(1000);
+    expect(audio.every((c) => !c.linkId)).toBe(true);
+
+    const viaCommand = applyCommand(
+      { ...start, project: locked, selectedClipId: "a1", selectedClipIds: ["a1"] },
+      { type: "split" },
+    );
+    expect(viaCommand.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(viaCommand.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(2);
+  });
+
   it("split at playhead through applyCommand cuts the pair", () => {
     const start = linkedPair();
     const next = applyCommand(start, { type: "split" });

@@ -563,19 +563,25 @@ export function splitClipAt(
   const first = splitOneClip(clip, timeMs, edgeGuardMs);
   if ("error" in first) return { project, error: first.error };
   const mate = livingLinkedMate(project, clipId);
-  if (mate && clipIsLocked(mate)) return { project, error: "Clip is locked" };
+  const skipLockedMate = Boolean(mate && clipIsLocked(mate));
+  const liveMate = skipLockedMate ? undefined : mate;
   let mateParts: { left: Clip; right: Clip } | undefined;
-  if (mate) {
-    const second = splitOneClip(mate, timeMs, edgeGuardMs);
+  if (liveMate) {
+    const second = splitOneClip(liveMate, timeMs, edgeGuardMs);
     if ("error" in second) return { project, error: second.error };
     mateParts = second;
   }
   const rightLink = mateParts && clip.linkId ? createId("link") : undefined;
-  const left = first.left;
-  const right = rightLink ? { ...first.right, linkId: rightLink } : first.right;
+  const left = skipLockedMate ? { ...first.left, linkId: undefined } : first.left;
+  const right = skipLockedMate
+    ? { ...first.right, linkId: undefined }
+    : rightLink
+      ? { ...first.right, linkId: rightLink }
+      : first.right;
   const mateLeft = mateParts?.left;
   const mateRight =
     mateParts && rightLink ? { ...mateParts.right, linkId: rightLink } : mateParts?.right;
+  const lockedMateId = skipLockedMate ? mate!.id : undefined;
 
   return {
     project: {
@@ -583,7 +589,8 @@ export function splitClipAt(
       updatedAt: new Date().toISOString(),
       clips: project.clips.flatMap((c) => {
         if (c.id === clipId) return [left, right];
-        if (mate && c.id === mate.id && mateLeft && mateRight) return [mateLeft, mateRight];
+        if (liveMate && c.id === liveMate.id && mateLeft && mateRight) return [mateLeft, mateRight];
+        if (lockedMateId && c.id === lockedMateId) return [{ ...c, linkId: undefined }];
         return [c];
       }),
     },

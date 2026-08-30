@@ -116,6 +116,14 @@ describe("clip lock (P53)", () => {
     expect(moved.project.clips.find((c) => c.id === "v")?.startMs).toBe(0);
     expect(moved.project.clips.find((c) => c.id === "v")?.locked).toBe(true);
     expect(moved.project.clips.find((c) => c.id === "au")?.locked).not.toBe(true);
+
+    const split = applyCommand(
+      { ...start, project: { ...start.project, playheadMs: 1000, snap: false } },
+      { type: "split" },
+    );
+    expect(split.project.clips.find((c) => c.id === "v")?.durationMs).toBe(2000);
+    expect(split.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(2);
+    expect(split.error).toBeNull();
   });
 
   it("liftRange keeps a locked clip fully inside IN/OUT (P110)", () => {
