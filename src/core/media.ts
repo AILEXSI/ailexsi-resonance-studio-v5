@@ -26,6 +26,8 @@ const VIDEO_MIME = /^video\//i;
 const AUDIO_MIME = /^audio\//i;
 const IMAGE_MIME = /^image\/(jpeg|jpg|png|webp|gif)$/i;
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
+const AUDIO_EXT = /\.(wav|mp3|ogg|m4a|aac|flac)$/i;
+const VIDEO_EXT = /\.(mp4|webm|mov|mkv|m4v)$/i;
 
 /** HTML5 drag payload for a bin asset id. */
 export const MEDIA_ASSET_DRAG_TYPE = "application/x-resonance-asset-id";
@@ -34,13 +36,14 @@ export const MEDIA_FILE_ACCEPT =
   "audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*";
 
 export function classifyFile(file: File): MediaKind {
+  const name = file.name.toLowerCase();
+  // Known audio containers win over a lying MIME (application/mp4 / video/mp4 on .m4a).
+  if (AUDIO_EXT.test(name)) return "audio";
   if (VIDEO_MIME.test(file.type)) return "video";
   if (AUDIO_MIME.test(file.type)) return "audio";
   if (IMAGE_MIME.test(file.type)) return "image";
-  const name = file.name.toLowerCase();
   const emptyType = !file.type || file.type === "application/octet-stream";
-  if (emptyType && /\.(mp4|webm|mov|mkv|m4v)$/.test(name)) return "video";
-  if (emptyType && /\.(wav|mp3|ogg|m4a|aac|flac)$/.test(name)) return "audio";
+  if (emptyType && VIDEO_EXT.test(name)) return "video";
   if (emptyType && IMAGE_EXT.test(name)) return "image";
   throw new ImportError(
     "WRONG_TYPE",
@@ -107,6 +110,17 @@ function fallbackMime(kind: MediaKind): string {
   return "audio/unknown";
 }
 
+function mimeFromAudioName(name: string): string | undefined {
+  const n = name.toLowerCase();
+  if (n.endsWith(".mp3")) return "audio/mpeg";
+  if (n.endsWith(".m4a")) return "audio/mp4";
+  if (n.endsWith(".aac")) return "audio/aac";
+  if (n.endsWith(".wav")) return "audio/wav";
+  if (n.endsWith(".ogg")) return "audio/ogg";
+  if (n.endsWith(".flac")) return "audio/flac";
+  return undefined;
+}
+
 export async function importMediaFile(
   file: File,
   probe: ProbeFn = probeWithElement,
@@ -127,7 +141,10 @@ export async function importMediaFile(
     id,
     name: file.name,
     kind,
-    mimeType: file.type || fallbackMime(kind),
+    mimeType:
+      kind === "audio" && !AUDIO_MIME.test(file.type)
+        ? mimeFromAudioName(file.name) ?? fallbackMime(kind)
+        : file.type || fallbackMime(kind),
     durationMs,
     blobId: id,
     objectUrl,

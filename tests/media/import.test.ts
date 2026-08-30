@@ -29,6 +29,30 @@ describe("media import", () => {
     expect(classifyFile(fakeFile("take.mp4", "video/mp4"))).toBe("video");
   });
 
+  it("classifies mp3/m4a/aac even when MIME is empty, octet-stream, or a video container", async () => {
+    expect(classifyFile(fakeFile("bed.mp3", "audio/mpeg"))).toBe("audio");
+    expect(classifyFile(fakeFile("bed.mp3", ""))).toBe("audio");
+    expect(classifyFile(fakeFile("bed.mp3", "application/octet-stream"))).toBe("audio");
+    expect(classifyFile(fakeFile("song.m4a", "audio/mp4"))).toBe("audio");
+    expect(classifyFile(fakeFile("song.m4a", "application/mp4"))).toBe("audio");
+    expect(classifyFile(fakeFile("song.m4a", "video/mp4"))).toBe("audio");
+    expect(classifyFile(fakeFile("song.m4a", ""))).toBe("audio");
+    expect(classifyFile(fakeFile("lead.aac", "audio/aac"))).toBe("audio");
+    expect(classifyFile(fakeFile("lead.aac", "application/octet-stream"))).toBe("audio");
+    expect(classifyFile(fakeFile("take.mp4", "video/mp4"))).toBe("video");
+    expect(classifyFile(fakeFile("beat.wav", "application/octet-stream"))).toBe("audio");
+
+    const m4a = await importMediaFile(fakeFile("song.m4a", "application/mp4"), async () => ({
+      durationMs: 2400,
+    }));
+    expect(m4a.kind).toBe("audio");
+    expect(m4a.mimeType).toBe("audio/mp4");
+    expect(m4a.durationMs).toBe(2400);
+    const placed = placeAsset({ ...createEmptyProject(), assets: [m4a] }, m4a.id, "A1", 0);
+    expect(placed.error).toBeUndefined();
+    expect(placed.clip?.trackId).toBe("A1");
+  });
+
   it("imports asset then places a clip (integration)", async () => {
     const file = fakeFile("voice.wav", "audio/wav", 256);
     const asset = await importMediaFile(file, async () => ({ durationMs: 1500 }));
