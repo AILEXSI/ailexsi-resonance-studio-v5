@@ -97,7 +97,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       enabled: project.visualizer.enabled,
       muted: project.visualizer.muted,
       sceneId: project.visualizer.sceneId,
-      startMs: project.visualizer.startMs ?? 0,
+      startMs: (project.visualizer.startMs ?? 0) - startMs,
       durationMs: project.visualizer.durationMs ?? 0,
       events: (project.visualizer.events ?? [])
         .map((e) => ({ ...e, startMs: e.startMs - startMs }))

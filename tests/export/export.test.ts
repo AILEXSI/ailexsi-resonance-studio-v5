@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyProject } from "../../src/core/project";
-import { jobFromProject, ExportPlanError } from "../../src/core/exporter/job";
+import { exportVisOf, jobFromProject, ExportPlanError } from "../../src/core/exporter/job";
 import { exportTimeline, canUseWebCodecs, webCodecsUnavailableMessage } from "../../src/core/exporter";
 import { hexHeader, looksLikeWebm, validateMp4Ftyp } from "../../src/core/exporter/ftyp";
 import { muxAvcToMp4 } from "../../src/core/exporter/mp4";
 import { DEFAULT_VISUALIZER_SCENE_ID } from "../../src/core/models";
+import { contextFromExportClips, contextFromProject, resolvePictureSource } from "../../src/core/transition";
 import { featuresAt } from "../../src/core/visualizer";
 import { asset, clip, projectWith } from "../helpers";
 import type { ExportJob } from "../../src/core/exporter/types";
@@ -82,6 +83,32 @@ describe("export planner + fail path", () => {
     expect(job.durationMs).toBe(600);
     expect(job.tracks.find((t) => t.id === "V1")!.clips[0]!.startMs).toBe(0);
     expect(job.fileName.endsWith(".mp4")).toBe(true);
+  });
+
+  it("shifts the legacy VIS window by IN like events (P96)", () => {
+    const p = createEmptyProject("VIS");
+    p.inPointMs = 2000;
+    p.outPointMs = 4000;
+    p.visualizer = {
+      ...p.visualizer,
+      enabled: true,
+      muted: false,
+      startMs: 1000,
+      durationMs: 4000,
+      events: [],
+    };
+    const job = jobFromProject(p);
+    expect(job.visualizer.startMs).toBe(-1000);
+    expect(job.visualizer.durationMs).toBe(4000);
+    expect(job.durationMs).toBe(2000);
+    const preview = resolvePictureSource(contextFromProject(p), 2000);
+    const exported = resolvePictureSource(
+      contextFromExportClips([], job.transitions ?? [], job.frontVideoTrackId, exportVisOf(job)),
+      0,
+    );
+    expect(preview.kind).toBe("vis");
+    expect(exported.kind).toBe("vis");
+    expect(exported).toEqual(preview);
   });
 
   it("exportTimeline FAILs without WebCodecs (never WebM success)", async () => {
