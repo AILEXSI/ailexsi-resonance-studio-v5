@@ -1128,6 +1128,84 @@ describe("range lift / extract", () => {
     expect(a1.find((c) => c.id === "later")!.startMs).toBe(3000);
   });
 
+  it("liftRange does not delete a disabled unlocked mid inside IN/OUT (P139)", () => {
+    const base = rangeA1();
+    const p = {
+      ...base,
+      clips: [
+        ...base.clips,
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A2",
+          startMs: 1200,
+          durationMs: 600,
+          enabled: false,
+        }),
+      ],
+    };
+    const lifted = liftRange(p).project;
+    expect(lifted.clips.find((c) => c.id === "off")).toBeTruthy();
+    expect(lifted.clips.find((c) => c.id === "off")!.startMs).toBe(1200);
+    expect(lifted.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+    const a1 = lifted.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1).toHaveLength(2);
+    expect(a1[0]!.durationMs).toBe(1000);
+    expect(a1[1]!.startMs).toBe(2000);
+
+    const extracted = extractRange(p);
+    expect(extracted.error).toBeUndefined();
+    expect(extracted.project.clips.find((c) => c.id === "off")).toBeTruthy();
+    expect(extracted.project.clips.find((c) => c.id === "off")!.startMs).toBe(1200);
+    const a1e = extracted.project.clips
+      .filter((c) => c.trackId === "A1")
+      .sort((x, y) => x.startMs - y.startMs);
+    expect(a1e[1]!.startMs).toBe(1000);
+  });
+
+  it("liftRange does not delete a disabled unlocked mate of an enabled mid (P139)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 8000 });
+    const v = asset({ id: "v", kind: "video", durationMs: 4000 });
+    const p = {
+      ...projectWith(
+        [
+          clip({
+            id: "v-mid",
+            assetId: "v",
+            trackId: "V1",
+            startMs: 1000,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            linkId: "pair",
+          }),
+          clip({
+            id: "a-off",
+            assetId: "a",
+            trackId: "A1",
+            startMs: 1000,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+            linkId: "pair",
+            enabled: false,
+          }),
+        ],
+        [a, v],
+      ),
+      inPointMs: 1000,
+      outPointMs: 2000,
+      snap: false,
+    };
+    const lifted = liftRange(p).project;
+    expect(lifted.clips.find((c) => c.id === "v-mid")).toBeUndefined();
+    const parked = lifted.clips.find((c) => c.id === "a-off");
+    expect(parked).toBeTruthy();
+    expect(parked!.startMs).toBe(1000);
+    expect(parked!.enabled).toBe(false);
+    expect(parked!.linkId).toBeUndefined();
+  });
+
   it("later disabled locked is not an extract wall (P137)", () => {
     const base = rangeA1();
     const p = {

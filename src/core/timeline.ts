@@ -732,24 +732,28 @@ function splitAllAtTime(project: Project, timeMs: number): Project {
 
 function clipsFullyInsideRange(project: Project, inMs: number, outMs: number): Clip[] {
   return project.clips.filter(
-    (c) => !clipIsLocked(c) && c.startMs >= inMs && clipEndMs(c) <= outMs,
+    (c) =>
+      clipIsEnabled(c) &&
+      !clipIsLocked(c) &&
+      c.startMs >= inMs &&
+      clipEndMs(c) <= outMs,
   );
 }
 
-/** Range lift deletes unlocked mids only — a locked mate stays parked. */
+/**
+ * Range lift deletes unlocked enabled mids only. A locked mate stays
+ * parked (P110). A disabled mate stays parked and is unlinked (same as
+ * lift-delete skip locked mate).
+ */
 function deleteUnlockedClips(project: Project, clipIds: readonly string[]): Project {
   const drop = new Set(
     expandLinkedClipIds(project, clipIds).filter((id) => {
       const clip = clipById(project, id);
-      return clip != null && !clipIsLocked(clip);
+      return clip != null && !clipIsLocked(clip) && clipIsEnabled(clip);
     }),
   );
   if (drop.size === 0) return project;
-  return {
-    ...project,
-    clips: project.clips.filter((c) => !drop.has(c.id)),
-    updatedAt: new Date().toISOString(),
-  };
+  return dropClipsAndOrphanLinks(project, drop);
 }
 
 /** Split every clip that straddles IN or OUT (50ms guard). */
@@ -763,7 +767,8 @@ export function splitAtRangeBounds(project: Project): Project {
  * Split at IN/OUT, then lift pieces that lie fully inside [in, out).
  * Later clips stay. Invalid range is a no-op.
  * Locked clips are not split or deleted (lock is relocate-only; range lift
- * is not an explicit selection delete).
+ * is not an explicit selection delete). Disabled clips stay parked
+ * (same as G / extract later-disabled / roll-slide neighbor).
  */
 export function liftRange(project: Project): { project: Project } {
   const range = editRangeOf(project);
