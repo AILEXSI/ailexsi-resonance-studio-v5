@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:16 UTC. Rate-aware edit mapping on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:22 UTC. V-track audio in preview + export on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CbhRT8ol.css 16.89 kB
-- dist/assets/index-BNapn6cI.js 689.25 kB
+- dist/assets/index-Cv9ZlPlW.js 689.64 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **244 passed / 33 files**. Start 07:15:46 UTC. Duration 7.12s.
+exit 0. vitest 3.2.7. **249 passed / 34 files**. Start 07:21:39 UTC. Duration 6.69s.
 
-New this follow-up: trim / ripple / roll / slip / slide / split / inspector duration+source fields map through `Clip.rate` at 2 and 0.5. Rate-1 suites stay green (235 → 244; same 33 files). `tests/core/rate.test.ts` is now 16.
+New this follow-up: `audioClipsForMix` includes present V1/V2 clips; missing V excluded; mix gain uses V volume/pan; 0-channel decode is not audible. Preview routes V audio through the existing playback tap. Prior suites remain green (244 → 249; +1 file).
 
 ## Visualizer
 
@@ -158,6 +158,8 @@ Preview audio now multiplies `gainAtClipTime` (fade × clip gain) into `mixLinea
 
 Preview video/audio set `playbackRate` from `Clip.rate`. `sourceTimeAt` is sourceIn + clip-localMs × rate. Live rate hear/see: NOT VERIFIED.
 
+`<video>` stays muted (no double audio). V1/V2 hidden `<audio>` elements play the same object URL through the existing Web Audio tap (MediaElementSource → gain → pan → analyser → mixer). Mute/solo/fader/clip-gain/fades/rate on V tracks match A. MixPeaks V1/V2 read those analysers — 0 when no samples, not a fake meter. Live V-audio hear / meter: NOT VERIFIED.
+
 ## Project file Save / Open
 
 Status: TEST-VERIFIED (store + panel). Live pickers clicked this run: RUNTIME-VERIFIED (dialogs opened, then cancelled — no file written).
@@ -235,6 +237,8 @@ Also unit-green:
 
 audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain, then sets `playbackRate` from `Clip.rate` and plays the source-window length. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video `sourceTimeSec` is sourceIn + localMs × rate. Visualizer paint is not faded. Live export of fades/rate: NOT VERIFIED.
 
+`audioClipsForMix` includes present V1/V2 clips (not audio-kind only). `mixJobAudio` still skips a decode that throws or has no channels (video-only file). Mute/solo already empty the job track. V-track volume/pan/fades/rate use the same path as A. Live V-audio in an exported file: NOT VERIFIED. AAC still NOT IMPLEMENTED.
+
 No `artifacts/v5-user-export.mp4` in this workspace this run.
 
 ## Start-V5.cmd
@@ -287,6 +291,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Known limitations (plain)
 
+- Live V-track audio (preview hear / MixPeaks / export) NOT VERIFIED.
 - Live clip rate (preview/export hear/see) NOT VERIFIED.
 - Live trim / ripple / roll / slip / slide / split / inspector at rate ≠ 1 NOT VERIFIED (units only).
 - Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
@@ -429,9 +434,9 @@ Equal-power (shared `equalPowerPan`): L = cos((pan+1)/2 · π/2), R = sin((pan+1
 
 Mute/solo/fader/clip-gain/fades still apply first. Pan is last on that track’s contribution:
 - export `mixJobAudio`: `StereoPannerNode` after the fade-gain envelope (splitter/merger fallback uses the same helper)
-- live preview: `StereoPannerNode` after each A1/A2 track gain when the Web Audio tap exists
+- live preview: `StereoPannerNode` after each V1/V2/A1/A2 track gain when the Web Audio tap exists
 
-Video tracks store pan. `audioClipsForMix` is still audio-kind only, so V1/V2 stay silent in the mix unless they have audio clips on an audio track. Video `<video>` stays muted. Pan on a video-only track is stored but silent. OK.
+Video tracks store pan. Present V1/V2 clips now enter `audioClipsForMix`. Video-only decode (no channels) is skipped. `<video>` stays muted; V audio is the hidden element + same tap. Video-only files stay silent (no fake meter).
 
 Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `stopPropagation` on click and pointerdown. `{ type: "setTrackPan", trackId, pan }` via `applyCommand` (no history, same as fader).
 
@@ -467,7 +472,23 @@ Invariant: `timelineMs * rate = sourceMs`. Helpers: `timelineDeltaToSource` / `s
 
 No elastic audio. No fade handles. No marquee. No group slide. No new gestures.
 
-## Changelog this follow-up (2026-08-30 07:16 UTC)
+## V-track audio
+
+Status: TEST-VERIFIED (mix candidates + gain/pan bake + decode skip). Live preview/export hear: NOT VERIFIED.
+
+`audioClipsForMix` takes every non-missing clip on V1/V2/A1/A2. Mute/solo still empty the job track first. `mixJobAudio` decodes; 0 channels or throw → skip that clip, mix still succeeds. Same fade envelope, track pan, clip rate as A.
+
+Preview: `<video>` muted. Hidden `<audio>` per V lane, same object URL, same `sourceTimeAt` / `playbackRate` / `gainAtClipTime` / fader / mute-solo / pan as A. One playback tap (not a second mixer). MixPeaks V1/V2 are analyser peaks from those lanes.
+
+No linked A/V split-to-new-track. No fade handles. No marquee. No group slide. No elastic audio.
+
+`tests/export/vtrack-audio.test.ts` (4). `mixClipsAt` in `tests/foundation/models.test.ts`.
+
+## Changelog this follow-up (2026-08-30 07:22 UTC)
+
+- V-track audio in preview + export mix (`audioClipsForMix` includes V, hidden V `<audio>` + same tap, MixPeaks from analysers). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:16 UTC)
 
 - Rate-aware source mapping on trim / ripple / roll / slip / slide / split / inspector duration+source. TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -580,7 +601,7 @@ No elastic audio. No fade handles. No marquee. No group slide. No new gestures.
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `59b303b` (rate-aware edits). Assigned start: `be7899c`. Prior rate: `fcb3626` / evidence `be7899c`.
+Tip after this follow-up: `8a9ae3d` (V-track audio). Assigned start: `4bd5e2d`. Prior rate-aware edits: `59b303b` / evidence `4bd5e2d`.
 
 ## Not added
 
