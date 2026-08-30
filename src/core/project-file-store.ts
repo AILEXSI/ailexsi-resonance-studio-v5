@@ -1,19 +1,18 @@
 import {
   emptyProjectFileMemory,
-  type DirectoryHandleLike,
-  type FileHandleLike,
+  normalizeProjectFileMemory,
   type ProjectFileMemory,
   type ProjectFileStore,
 } from "./project-file";
 
 export function createMemoryProjectFileStore(initial?: ProjectFileMemory): ProjectFileStore {
-  let memory = initial ?? emptyProjectFileMemory();
+  let memory = normalizeProjectFileMemory(initial ?? emptyProjectFileMemory());
   return {
     async load() {
       return memory;
     },
     async save(next) {
-      memory = next;
+      memory = normalizeProjectFileMemory(next);
     },
   };
 }
@@ -56,11 +55,7 @@ export function createIndexedDbProjectFileStore(): ProjectFileStore {
               resolve(null);
               return;
             }
-            resolve({
-              fileHandle: (raw.fileHandle as FileHandleLike | null) ?? null,
-              directoryHandle: (raw.directoryHandle as DirectoryHandleLike | null) ?? null,
-              lastFileName: raw.lastFileName ?? null,
-            });
+            resolve(normalizeProjectFileMemory(raw));
           };
           req.onerror = () => reject(req.error);
         });

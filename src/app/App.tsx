@@ -12,10 +12,14 @@ import {
   loadStatusFallback,
   readFileText,
   rememberFileHandle,
+  runChooseFolder,
   runOpen,
+  runOpenRecent,
   runSave,
+  runSaveAs,
   tryReadGrantedFile,
   type ProjectFileMemory,
+  type RecentProject,
 } from "../core/project-file";
 import {
   downloadMp4,
@@ -29,6 +33,7 @@ import { Inspector } from "../ui/inspector/Inspector";
 import { Transport } from "../ui/transport/Transport";
 import { Timeline } from "../ui/timeline/Timeline";
 import { Mixer, type MixPeaks } from "../ui/mixer/Mixer";
+import { ProjectFilePanel } from "../ui/project-file/ProjectFilePanel";
 import { Toolbar } from "../ui/toolbar/Toolbar";
 import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
 import {
@@ -187,10 +192,12 @@ export function App() {
     setSession({ ...hydrated, status, error: null });
   };
 
-  const saveProject = () => {
+  const persistSave = (
+    runner: typeof runSave | typeof runSaveAs,
+  ) => {
     void (async () => {
       try {
-        const result = await runSave({
+        const result = await runner({
           host: pickerHost,
           store: projectFileStore,
           memory: projectFileRef.current,
@@ -206,6 +213,30 @@ export function App() {
           ...s,
           error: e instanceof Error ? e.message : String(e),
           status: "Save failed",
+        }));
+      }
+    })();
+  };
+
+  const saveProject = () => persistSave(runSave);
+  const saveProjectAs = () => persistSave(runSaveAs);
+
+  const chooseFolder = () => {
+    void (async () => {
+      try {
+        const result = await runChooseFolder({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+        });
+        if (result.cancelled) return;
+        setProjectFile(result.memory);
+        setSession((s) => ({ ...s, status: result.status, error: null }));
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Folder pick failed",
         }));
       }
     })();
@@ -255,6 +286,30 @@ export function App() {
         }
       }
       openWithPicker();
+    })();
+  };
+
+  const openRecent = (recent: RecentProject) => {
+    void (async () => {
+      try {
+        const result = await runOpenRecent({
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          recent,
+        });
+        if (result.kind === "opened") {
+          setProjectFile(result.memory);
+          await applyOpenedText(result.text, result.status);
+          return;
+        }
+        openWithPicker();
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Open failed",
+        }));
+      }
     })();
   };
 
@@ -415,29 +470,40 @@ export function App() {
       />
 
       <div className="workspace">
-        <MediaBrowser
-          project={session.project}
-          targetTrackId={session.targetTrackId}
-          selectedAssetId={selectedAssetId}
-          onSelectAsset={setSelectedAssetId}
-          onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
-          onImport={(files) => {
-            void importFiles(session, files).then(setSession);
-          }}
-          onPlace={(assetId) => {
-            const asset = session.project.assets.find((a) => a.id === assetId);
-            if (!asset) return;
-            const trackId: TrackId =
-              asset.kind === "video"
-                ? session.targetTrackId === "V2"
-                  ? "V2"
-                  : "V1"
-                : session.targetTrackId === "A2"
-                  ? "A2"
-                  : "A1";
-            setSession((s) => applyPlaceAsset(s, assetId, trackId));
-          }}
-        />
+        <div className="workspace-left">
+          <ProjectFilePanel
+            memory={projectFile}
+            fileSystemAccess={fsa}
+            onSave={saveProject}
+            onSaveAs={saveProjectAs}
+            onOpen={openWithPicker}
+            onChooseFolder={chooseFolder}
+            onOpenRecent={openRecent}
+          />
+          <MediaBrowser
+            project={session.project}
+            targetTrackId={session.targetTrackId}
+            selectedAssetId={selectedAssetId}
+            onSelectAsset={setSelectedAssetId}
+            onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+            onImport={(files) => {
+              void importFiles(session, files).then(setSession);
+            }}
+            onPlace={(assetId) => {
+              const asset = session.project.assets.find((a) => a.id === assetId);
+              if (!asset) return;
+              const trackId: TrackId =
+                asset.kind === "video"
+                  ? session.targetTrackId === "V2"
+                    ? "V2"
+                    : "V1"
+                  : session.targetTrackId === "A2"
+                    ? "A2"
+                    : "A1";
+              setSession((s) => applyPlaceAsset(s, assetId, trackId));
+            }}
+          />
+        </div>
         <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
         <Inspector
           project={session.project}
@@ -461,7 +527,7 @@ export function App() {
         onSplit={() => setSession(applySplit(session))}
       />
 
-      <div className="arrange-row">
+      <div className="arrange-row" data-testid="arrange-row">
       <Timeline
         project={session.project}
         selectedClipId={session.selectedClipId}

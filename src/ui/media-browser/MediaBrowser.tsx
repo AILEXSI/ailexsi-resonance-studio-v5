@@ -1,4 +1,5 @@
 import type { Project, TrackId } from "../../core/models";
+import { displayMediaName } from "../../core/media-display";
 import { describeMissing } from "../../core/persistence";
 
 interface Props {
@@ -56,10 +57,13 @@ export function MediaBrowser({
             <div
               key={asset.id}
               className={`media-item${selectedAssetId === asset.id ? " selected" : ""}${asset.missing ? " missing" : ""}`}
+              title={asset.name}
               onClick={() => onSelectAsset(asset.id)}
               onDoubleClick={() => onPlace(asset.id)}
             >
-              <strong>{asset.missing ? describeMissing(asset) : asset.name}</strong>
+              <strong title={asset.name}>
+                {asset.missing ? describeMissing(asset) : displayMediaName(asset.name)}
+              </strong>
               <div className="media-meta">
                 {asset.kind} · {(asset.durationMs / 1000).toFixed(2)}s
               </div>

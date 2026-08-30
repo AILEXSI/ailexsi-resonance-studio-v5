@@ -14,6 +14,7 @@ export interface FileHandleLike {
   getParent?: () => Promise<DirectoryHandleLike>;
   queryPermission?: (opts?: { mode?: "read" | "readwrite" }) => Promise<PermissionState | string>;
   requestPermission?: (opts?: { mode?: "read" | "readwrite" }) => Promise<PermissionState | string>;
+  isSameEntry?: (other: FileHandleLike) => Promise<boolean>;
 }
 
 export interface DirectoryHandleLike {
@@ -25,11 +26,20 @@ export interface DirectoryHandleLike {
 
 export type StartIn = DirectoryHandleLike | FileHandleLike | WellKnownStartIn;
 
+export interface RecentProject {
+  fileHandle: FileHandleLike;
+  directoryHandle: DirectoryHandleLike | null;
+  lastFileName: string;
+}
+
 export interface ProjectFileMemory {
   fileHandle: FileHandleLike | null;
   directoryHandle: DirectoryHandleLike | null;
   lastFileName: string | null;
+  recents: RecentProject[];
 }
+
+export const MAX_RECENT_PROJECTS = 8;
 
 export interface SavePickerOptions {
   suggestedName: string;
@@ -43,9 +53,15 @@ export interface OpenPickerOptions {
   types: Array<{ description: string; accept: Record<string, string[]> }>;
 }
 
+export interface DirectoryPickerOptions {
+  startIn: StartIn;
+  mode?: "read" | "readwrite";
+}
+
 export interface PickerHost {
   showSaveFilePicker?: (opts: SavePickerOptions) => Promise<FileHandleLike>;
   showOpenFilePicker?: (opts: OpenPickerOptions) => Promise<FileHandleLike[]>;
+  showDirectoryPicker?: (opts: DirectoryPickerOptions) => Promise<DirectoryHandleLike>;
 }
 
 export interface ProjectFileStore {
@@ -61,7 +77,71 @@ const PROJECT_TYPES = [
 ];
 
 export function emptyProjectFileMemory(): ProjectFileMemory {
-  return { fileHandle: null, directoryHandle: null, lastFileName: null };
+  return { fileHandle: null, directoryHandle: null, lastFileName: null, recents: [] };
+}
+
+export function normalizeProjectFileMemory(
+  raw: Partial<ProjectFileMemory> | null | undefined,
+): ProjectFileMemory {
+  if (!raw) return emptyProjectFileMemory();
+  const recents = Array.isArray(raw.recents)
+    ? raw.recents
+        .filter((row): row is RecentProject =>
+          Boolean(row && row.fileHandle && typeof row.lastFileName === "string" && row.lastFileName),
+        )
+        .slice(0, MAX_RECENT_PROJECTS)
+    : [];
+  return {
+    fileHandle: raw.fileHandle ?? null,
+    directoryHandle: raw.directoryHandle ?? null,
+    lastFileName: raw.lastFileName ?? null,
+    recents,
+  };
+}
+
+export function upsertRecent(recents: RecentProject[], entry: RecentProject): RecentProject[] {
+  const rest = recents.filter((row) => row.lastFileName !== entry.lastFileName);
+  return [entry, ...rest].slice(0, MAX_RECENT_PROJECTS);
+}
+
+/** Panel copy only — never invent a drive letter or /Users path. */
+export function projectPanelView(memory: ProjectFileMemory): {
+  fileName: string;
+  folderLabel: string;
+  folderRemembered: boolean;
+} {
+  const fileName = memory.lastFileName ?? memory.fileHandle?.name ?? null;
+  const dirName =
+    typeof memory.directoryHandle?.name === "string" && memory.directoryHandle.name.length > 0
+      ? memory.directoryHandle.name
+      : null;
+  const folderRemembered = Boolean(memory.directoryHandle || memory.fileHandle);
+  if (dirName) {
+    return {
+      fileName: fileName ?? "Noch nicht gespeichert",
+      folderLabel: dirName,
+      folderRemembered: true,
+    };
+  }
+  if (folderRemembered && fileName) {
+    return {
+      fileName,
+      folderLabel: `${fileName} — Ordner gemerkt`,
+      folderRemembered: true,
+    };
+  }
+  if (folderRemembered) {
+    return {
+      fileName: fileName ?? "Noch nicht gespeichert",
+      folderLabel: "Ordner gemerkt",
+      folderRemembered: true,
+    };
+  }
+  return {
+    fileName: fileName ?? "Noch nicht gespeichert",
+    folderLabel: "Kein Ordner gemerkt",
+    folderRemembered: false,
+  };
 }
 
 export function hasFileSystemAccess(host: PickerHost): boolean {
@@ -140,10 +220,26 @@ export async function rememberFileHandle(
   previous: ProjectFileMemory = emptyProjectFileMemory(),
 ): Promise<ProjectFileMemory> {
   const directoryHandle = (await directoryOf(fileHandle)) ?? previous.directoryHandle;
+  const lastFileName = fileHandle.name;
+  const recent: RecentProject = { fileHandle, directoryHandle, lastFileName };
   const memory: ProjectFileMemory = {
     fileHandle,
     directoryHandle,
-    lastFileName: fileHandle.name,
+    lastFileName,
+    recents: upsertRecent(previous.recents ?? [], recent),
+  };
+  await store.save(memory);
+  return memory;
+}
+
+export async function rememberDirectoryHandle(
+  store: ProjectFileStore,
+  directoryHandle: DirectoryHandleLike,
+  previous: ProjectFileMemory = emptyProjectFileMemory(),
+): Promise<ProjectFileMemory> {
+  const memory: ProjectFileMemory = {
+    ...normalizeProjectFileMemory(previous),
+    directoryHandle,
   };
   await store.save(memory);
   return memory;
@@ -213,6 +309,82 @@ export async function runSave(opts: {
   return { status: saveStatusFsa(handle.name), memory, usedFallback: false };
 }
 
+/** Always open the save picker (Speichern unter). startIn is the last folder. */
+export async function runSaveAs(opts: {
+  host: PickerHost;
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+  filename: string;
+  json: string;
+  fallbackDownload: (filename: string, text: string) => void;
+}): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
+  return runSave({
+    ...opts,
+    memory: { ...normalizeProjectFileMemory(opts.memory), fileHandle: null },
+  });
+}
+
+export async function runChooseFolder(opts: {
+  host: PickerHost;
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+}): Promise<{ memory: ProjectFileMemory; status: string; cancelled?: boolean }> {
+  if (typeof opts.host.showDirectoryPicker !== "function") {
+    return { memory: opts.memory, status: "Ordner wählen nicht verfügbar" };
+  }
+  try {
+    const directoryHandle = await opts.host.showDirectoryPicker({
+      startIn: startInForPicker(opts.memory),
+      mode: "readwrite",
+    });
+    const memory = await rememberDirectoryHandle(opts.store, directoryHandle, opts.memory);
+    const name = directoryHandle.name;
+    return {
+      memory,
+      status: name ? `Ordner gemerkt: ${name}` : "Ordner gemerkt",
+    };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "AbortError") {
+      return { memory: opts.memory, status: "", cancelled: true };
+    }
+    throw e;
+  }
+}
+
+export async function runOpenRecent(opts: {
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+  recent: RecentProject;
+}): Promise<
+  | { kind: "opened"; text: string; fileName: string; status: string; memory: ProjectFileMemory }
+  | { kind: "needsPicker" }
+> {
+  const handle = opts.recent.fileHandle;
+  if (handle.requestPermission) {
+    try {
+      const perm = await handle.requestPermission({ mode: "read" });
+      if (perm !== "granted") return { kind: "needsPicker" };
+    } catch {
+      return { kind: "needsPicker" };
+    }
+  }
+  if (typeof handle.getFile !== "function") return { kind: "needsPicker" };
+  try {
+    const file = await handle.getFile();
+    const text = await readFileText(file);
+    const previous: ProjectFileMemory = {
+      ...normalizeProjectFileMemory(opts.memory),
+      directoryHandle: opts.recent.directoryHandle ?? opts.memory.directoryHandle,
+    };
+    const memory = await rememberFileHandle(opts.store, handle, previous);
+    const fileName = file.name || handle.name;
+    return { kind: "opened", text, fileName, status: loadStatusFsa(fileName), memory };
+  } catch {
+    return { kind: "needsPicker" };
+  }
+}
+
 export async function runOpen(opts: {
   host: PickerHost;
   store: ProjectFileStore;
@@ -250,9 +422,11 @@ export function browserPickerHost(): PickerHost {
   const rec = w as unknown as {
     showSaveFilePicker?: PickerHost["showSaveFilePicker"];
     showOpenFilePicker?: PickerHost["showOpenFilePicker"];
+    showDirectoryPicker?: PickerHost["showDirectoryPicker"];
   };
   return {
     showSaveFilePicker: rec?.showSaveFilePicker?.bind(w),
     showOpenFilePicker: rec?.showOpenFilePicker?.bind(w),
+    showDirectoryPicker: rec?.showDirectoryPicker?.bind(w),
   };
 }
