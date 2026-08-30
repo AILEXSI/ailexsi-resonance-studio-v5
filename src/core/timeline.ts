@@ -669,7 +669,7 @@ export function extractRange(project: Project): { project: Project } {
 
 export interface SnapTarget {
   timeMs: number;
-  kind: "clip-start" | "clip-end" | "playhead" | "in" | "out" | "zero";
+  kind: "clip-start" | "clip-end" | "playhead" | "in" | "out" | "zero" | "marker";
 }
 
 export function collectSnapTargets(
@@ -688,6 +688,9 @@ export function collectSnapTargets(
       if (ignore.has(clip.id)) continue;
       targets.push({ timeMs: clip.startMs, kind: "clip-start" });
       targets.push({ timeMs: clipEndMs(clip), kind: "clip-end" });
+    }
+    for (const marker of project.markers) {
+      targets.push({ timeMs: marker.timeMs, kind: "marker" });
     }
   }
   return targets;

@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 09:56 UTC. P31 ripple-trim to playhead on PR #1 after P30 close-gap. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 09:59 UTC. P32 snap-to-markers on PR #1 after P31 Q/W. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -39,7 +39,7 @@ npx vite build
 exit 0. vite 7.3.6, 160 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-Coluu3rJ.css 19.48 kB
-- dist/assets/index-BqEDt7vv.js 727.43 kB
+- dist/assets/index-BaVFiXdv.js 727.50 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -56,9 +56,11 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **397 passed / 56 files**. Start 09:56:03 UTC. Duration 9.54s.
+exit 0. vitest 3.2.7. **401 passed / 56 files**. Start 09:59:07 UTC. Duration 9.87s.
 
-P31: `{ type: "rippleTrimToPlayhead", edge }` via existing `applyRippleTrim`. **Q** in / **W** out. Playhead stays. KEEP P30 closeGap.
+P32: `collectSnapTargets` emits `project.markers[].timeMs` as kind `"marker"` when snap is on. Same `snapTime` / `SNAP_THRESHOLD_MS`. Snap off still only `{ timeMs: 0, kind: "zero" }`. KEEP P31 Q/W.
+
+P31: `{ type: "rippleTrimToPlayhead", edge }` via existing `applyRippleTrim`. **Q** in / **W** out. Playhead stays. KEEP P30 closeGap. KEEP.
 
 P30: `{ type: "closeGap" }`. Packs empty time under the playhead on one track via `moveClipsByDelta(..., { skipLink: true })`. **G** + clip-menu Close gap. Linked A1 does not follow V1. Playhead ms unchanged. KEEP.
 
@@ -116,7 +118,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (41 in `timeline.test.ts`): prior plus slide +N/−N, span invariant, 50ms hard-stop, no-neighbor/gap no-op, two-/three-clip group slide, gap/cross-track/missing-outer no-op, single match. Also move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim, mute, loop, ripple-delete, solo, ripple-trim, roll, group move/delete. Rate-1 trim/split/roll/slip/slide stay 1:1. Rate ≠ 1 mapping lives in `tests/core/rate.test.ts`.
+Existing units still green (50 in `timeline.test.ts`): prior plus marker snap inside/outside threshold, snap-off ignores markers, ignoreClipId keeps markers. Also slide +N/−N, span invariant, 50ms hard-stop, no-neighbor/gap no-op, two-/three-clip group slide, gap/cross-track/missing-outer no-op, single match. Also move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim, mute, loop, ripple-delete, solo, ripple-trim, roll, group move/delete. Rate-1 trim/split/roll/slip/slide stay 1:1. Rate ≠ 1 mapping lives in `tests/core/rate.test.ts`.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -160,7 +162,15 @@ Status: TEST-VERIFIED. Live Chromium Q/W: NOT VERIFIED (no two imported clips th
 
 `{ type: "rippleTrimToPlayhead", edge: "in" | "out" }` is a playhead call-site on existing `applyRippleTrim` / `rippleTrimClip` / `trimClip`. Not a second ripple engine. Not extend-to-playhead. Target: selected clip if playhead is strictly inside it; else covering clip on that track; else first of V1→V2→A1→A2. Gap / on-edge → same session, no history. **Q** = in (left gone, sourceIn via existing rate-aware trim, later same-track clips pack). **W** = out (right gone, sourceOut via existing trim). Playhead ms stays. Selection stays on the trimmed clip. Linked A/V follows existing ripple-trim (no new `skipLink`). Form fields keep Q/W. Clip menu: Ripple trim in/out to playhead. G / S / TAB stay.
 
-`tests/app/ripple-trim-to-playhead.test.ts` (6). Q/W + formFocus + G/S/Tab in `tests/app/keys.test.ts`.
+`tests/app/ripple-trim-to-playhead.test.ts` (6). Q/W + formFocus + G/S/Tab in `tests/app/keys.test.ts`. KEEP.
+
+## Snap to markers
+
+Status: TEST-VERIFIED. Live clip-drag onto a marker: NOT VERIFIED.
+
+`collectSnapTargets` still owns snap. When `project.snap` is on, each `project.markers[].timeMs` is a `SnapTarget` with kind `"marker"`. Same `SNAP_THRESHOLD_MS` / `snapTime`. Move / trim / split already call `collectSnapTargets`, so they pick up markers. Snap off: only `{ timeMs: 0, kind: "zero" }` — no markers, no playhead/IN/OUT/clip edges. `ignoreClipId` still drops that clip's edges; markers stay. Not a second snap path. Not snap-to-grid. Not snap-to-VIS.
+
+`tests/timeline/timeline.test.ts` (50): prior plus marker inside threshold, outside, snap-off, ignoreClipId keeps markers.
 
 ## Ruler
 
@@ -361,6 +371,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Relink is one picker + `{ type: "relinkClips" }` for clips that share one assetId. No folder auto-scan, no mixed-asset relink, no new clip place.
 - Live Close gap (G / clip menu with two clips and a hole) NOT VERIFIED. Units only. Not magnetic; not all-tracks; linked mate does not auto-move.
 - Live Q/W ripple-trim to playhead NOT VERIFIED. Units only. Not extend-to-playhead. Not a second ripple engine.
+- Live snap-to-marker drag NOT VERIFIED. Units only. Not a second snap engine. Not snap-to-grid / VIS.
 - Nested sequences / link-picker: still not present. Unlink chrome is inspector button + Ctrl+Shift+L.
 
 ## Command dispatch
@@ -644,7 +655,11 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 `tests/core/linked-av.test.ts` (13). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 09:56 UTC)
+## Changelog this follow-up (2026-08-30 09:59 UTC)
+
+- Snap to markers: `collectSnapTargets` emits kind `"marker"` when snap is on. Same threshold. TEST-VERIFIED. Live drag: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 09:56 UTC)
 
 - Ripple-trim to playhead (`rippleTrimToPlayhead` / **Q** in / **W** out). Existing `applyRippleTrim` call-site. TEST-VERIFIED. Live Q/W: NOT VERIFIED.
 
@@ -801,7 +816,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P31 ripple-trim to playhead (this commit). P30 close-gap `8fa9128`. P29 Relink `1b6709c` / `d1cd249`. P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
+Tip after this follow-up: P32 snap-to-markers (this commit). P31 Q/W `6676308`. P30 close-gap `8fa9128`. P29 Relink `1b6709c` / `d1cd249`. P28 `cf78963`. P26 `fcf47fc`. P27 layout `7f619a2`. P25 mux `c3487e8`.
 
 ## Not added
 

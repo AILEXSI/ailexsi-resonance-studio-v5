@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyInAt, applyOutAt, createSession } from "../../src/app/session";
 import {
+  SNAP_THRESHOLD_MS,
   SPLIT_EDGE_GUARD_MS,
   type Project,
 } from "../../src/core/models";
@@ -15,6 +16,7 @@ import {
   redo,
   setInPoint,
   setOutPoint,
+  collectSnapTargets,
   snapTime,
   splitClipAt,
   rippleDeleteClip,
@@ -97,6 +99,79 @@ describe("timeline move/split/snap/undo", () => {
     expect(snapped.timeMs).toBe(100);
     const not = snapTime(200, [{ timeMs: 100, kind: "zero" }], 20);
     expect(not.snapped).toBe(false);
+  });
+
+  it("snaps a clip start to a marker inside the threshold", () => {
+    const p: Project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 100 })],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: true,
+      playheadMs: 0,
+      markers: [{ id: "m1", timeMs: 2000, label: "M1" }],
+    };
+    const targets = collectSnapTargets(p, "c1");
+    expect(targets.some((t) => t.kind === "marker" && t.timeMs === 2000)).toBe(true);
+    const near = snapTime(2000 + SNAP_THRESHOLD_MS - 10, targets);
+    expect(near.snapped).toBe(true);
+    expect(near.timeMs).toBe(2000);
+    expect(near.target?.kind).toBe("marker");
+  });
+
+  it("does not snap to a marker outside the threshold", () => {
+    const p: Project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 100 })],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: true,
+      playheadMs: 0,
+      markers: [{ id: "m1", timeMs: 2000, label: "M1" }],
+    };
+    const far = snapTime(2000 + SNAP_THRESHOLD_MS + 10, collectSnapTargets(p, "c1"));
+    expect(far.snapped).toBe(false);
+    expect(far.timeMs).toBe(2000 + SNAP_THRESHOLD_MS + 10);
+  });
+
+  it("ignores markers when snap is off (only zero)", () => {
+    const p: Project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 100 })],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: false,
+      playheadMs: 500,
+      inPointMs: 100,
+      outPointMs: 300,
+      markers: [{ id: "m1", timeMs: 2000, label: "M1" }],
+    };
+    expect(collectSnapTargets(p)).toEqual([{ timeMs: 0, kind: "zero" }]);
+    const atMarker = snapTime(2000, collectSnapTargets(p));
+    expect(atMarker.snapped).toBe(false);
+    expect(atMarker.timeMs).toBe(2000);
+  });
+
+  it("ignoreClipId drops that clip's edges but keeps markers", () => {
+    const p: Project = {
+      ...projectWith(
+        [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 1000, durationMs: 500 })],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: true,
+      playheadMs: 0,
+      markers: [{ id: "m1", timeMs: 1500, label: "M1" }],
+    };
+    const targets = collectSnapTargets(p, "c1");
+    expect(targets.some((t) => t.kind === "clip-start" && t.timeMs === 1000)).toBe(false);
+    expect(targets.some((t) => t.kind === "clip-end" && t.timeMs === 1500)).toBe(false);
+    expect(targets.some((t) => t.kind === "marker" && t.timeMs === 1500)).toBe(true);
+    const nearEdge = snapTime(1000 + 20, targets);
+    expect(nearEdge.snapped).toBe(false);
+    const nearMarker = snapTime(1500 + 20, targets);
+    expect(nearMarker.snapped).toBe(true);
+    expect(nearMarker.timeMs).toBe(1500);
+    expect(nearMarker.target?.kind).toBe("marker");
   });
 
   it("undo/redo restores clip position", () => {
