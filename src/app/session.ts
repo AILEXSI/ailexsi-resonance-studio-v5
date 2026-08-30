@@ -36,6 +36,9 @@ import {
   setTrackVolume,
   rippleDeleteClips,
   rippleTrimClip,
+  liftRange,
+  extractRange,
+  editRangeOf,
   rollEdit,
   abuttingNeighbor,
   toggleTrackMute,
@@ -464,6 +467,20 @@ export function applyUpdateClip(
   return withHistory(session, result.project, "Clip updated");
 }
 
+export function applyLiftRange(session: Session): Session {
+  if (!editRangeOf(session.project)) return session;
+  const result = liftRange(session.project);
+  if (result.project === session.project) return session;
+  return withClipSelection(withHistory(session, result.project, "Lifted range"), []);
+}
+
+export function applyExtractRange(session: Session): Session {
+  if (!editRangeOf(session.project)) return session;
+  const result = extractRange(session.project);
+  if (result.project === session.project) return session;
+  return withClipSelection(withHistory(session, result.project, "Extracted range"), []);
+}
+
 export function applyDelete(session: Session): Session {
   const ids = selectionOf(session);
   if (ids.length > 0) {
@@ -478,16 +495,18 @@ export function applyDelete(session: Session): Session {
     if (result.error) return { ...session, error: result.error };
     return { ...withHistory(session, result.project, "Marker deleted"), selectedMarkerId: null };
   }
+  if (editRangeOf(session.project)) return applyLiftRange(session);
   return { ...session, error: "No clip selected" };
 }
 
 export function applyRippleDelete(session: Session): Session {
   const ids = selectionOf(session);
-  if (ids.length === 0) {
-    return { ...session, error: "No clip selected" };
+  if (ids.length > 0) {
+    const next = rippleDeleteClips(session.project, ids);
+    return withClipSelection(withHistory(session, next, "Ripple deleted"), []);
   }
-  const next = rippleDeleteClips(session.project, ids);
-  return withClipSelection(withHistory(session, next, "Ripple deleted"), []);
+  if (editRangeOf(session.project)) return applyExtractRange(session);
+  return { ...session, error: "No clip selected" };
 }
 
 export function applyNudge(session: Session, deltaMs: number): Session {

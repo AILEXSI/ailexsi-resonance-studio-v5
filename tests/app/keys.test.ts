@@ -158,6 +158,46 @@ describe("editor keys", () => {
     expect(left.project.clips[0]!.startMs).toBe(1000);
   });
 
+  it("; lifts range and ' extracts; empty Delete uses the range", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 3000,
+              sourceInMs: 0,
+              sourceOutMs: 3000,
+            }),
+          ],
+          [a],
+        ),
+        inPointMs: 1000,
+        outPointMs: 2000,
+      },
+      selectedClipId: null,
+      selectedClipIds: [],
+    };
+    const lifted = sessionOf(dispatchEditorKey(start, false, { key: ";" }));
+    expect(lifted.project.clips).toHaveLength(2);
+    expect(lifted.project.clips.sort((x, y) => x.startMs - y.startMs)[1]!.startMs).toBe(2000);
+    expect(lifted.status).toBe("Lifted range");
+
+    const extracted = sessionOf(dispatchEditorKey(start, false, { key: "'" }));
+    expect(extracted.project.clips.sort((x, y) => x.startMs - y.startMs)[1]!.startMs).toBe(1000);
+    expect(extracted.status).toBe("Extracted range");
+
+    const del = sessionOf(dispatchEditorKey(start, false, { key: "Delete" }));
+    expect(del.status).toBe("Lifted range");
+    const shiftDel = sessionOf(dispatchEditorKey(start, false, { key: "Delete", shiftKey: true }));
+    expect(shiftDel.status).toBe("Extracted range");
+  });
+
   it("Ctrl/Meta ignore bare letter shortcuts S M X I O", () => {
     const start = clipSession();
     for (const key of ["s", "m", "x", "i", "o"] as const) {

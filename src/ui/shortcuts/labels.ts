@@ -9,6 +9,8 @@ export const CLIP_MENU_SHORTCUTS = {
   paste: "Ctrl+V",
   delete: "Delete",
   rippleDelete: "Shift+Delete",
+  liftRange: ";",
+  extractRange: "'",
 } as const;
 
 export const SHORTCUT_ROWS: { key: string; action: string }[] = [
@@ -22,6 +24,8 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "M", action: "Add marker" },
   { key: CLIP_MENU_SHORTCUTS.delete, action: "Lift-delete selected clip(s) or marker" },
   { key: CLIP_MENU_SHORTCUTS.rippleDelete, action: "Ripple delete selected clip(s)" },
+  { key: CLIP_MENU_SHORTCUTS.liftRange, action: "Lift range (IN/OUT)" },
+  { key: CLIP_MENU_SHORTCUTS.extractRange, action: "Extract range (IN/OUT)" },
   { key: "Ctrl+click clip", action: "Toggle clip in selection" },
   { key: ", / .", action: "Nudge clip ±1 frame" },
   { key: "Shift+, / Shift+.", action: "Nudge clip ±10 frames" },

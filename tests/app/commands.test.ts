@@ -54,6 +54,8 @@ describe("applyCommand determinism", () => {
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
       { type: "copy" } as const,
+      { type: "liftRange" } as const,
+      { type: "extractRange" } as const,
     ];
     for (const command of commands) {
       const a = applyCommand(start, command);
@@ -337,6 +339,73 @@ describe("applyCommand determinism", () => {
     expect(clamped.project.clips.find((x) => x.id === "c1")!.sourceOutMs).toBe(3000);
     expect(clamped.project.clips.find((x) => x.id === "c1")!.durationMs).toBe(2000);
     expect(clamped.project.clips.find((x) => x.id === "c1")!.startMs).toBe(1000);
+  });
+
+  it("liftRange leaves a gap; extractRange ripples closed; undo restores; video stays put", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const v = asset({ id: "vv", kind: "video", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 3000,
+              sourceInMs: 0,
+              sourceOutMs: 3000,
+            }),
+            clip({
+              id: "v1",
+              assetId: "vv",
+              trackId: "V1",
+              startMs: 0,
+              durationMs: 800,
+              sourceInMs: 0,
+              sourceOutMs: 800,
+            }),
+          ],
+          [a, v],
+        ),
+        inPointMs: 1000,
+        outPointMs: 2000,
+        snap: false,
+      },
+      selectedClipId: null,
+      selectedClipIds: [],
+    };
+    const lifted = applyCommand(start, { type: "liftRange" });
+    const a1 = lifted.project.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1).toHaveLength(2);
+    expect(a1[0]!.startMs).toBe(0);
+    expect(a1[0]!.durationMs).toBe(1000);
+    expect(a1[1]!.startMs).toBe(2000);
+    expect(lifted.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(lifted.selectedClipId).toBeNull();
+    const undoneLift = applyCommand(lifted, { type: "undo" });
+    expect(clipStarts(undoneLift)).toEqual(clipStarts(start));
+    expect(undoneLift.project.clips).toHaveLength(2);
+
+    const extracted = applyCommand(start, { type: "extractRange" });
+    const a1e = extracted.project.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1e[1]!.startMs).toBe(1000);
+    expect(extracted.project.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    const undoneEx = applyCommand(extracted, { type: "undo" });
+    expect(clipStarts(undoneEx)).toEqual(clipStarts(start));
+  });
+
+  it("liftRange / extractRange no-op when IN/OUT is missing or inverted", () => {
+    const start = twoClipSession();
+    expect(applyCommand(start, { type: "liftRange" }).project.clips).toHaveLength(3);
+    expect(applyCommand(start, { type: "extractRange" }).history.past).toHaveLength(0);
+    const inverted = {
+      ...start,
+      project: { ...start.project, inPointMs: 2000, outPointMs: 1000 },
+    };
+    expect(applyCommand(inverted, { type: "liftRange" }).history.past).toHaveLength(0);
   });
 });
 

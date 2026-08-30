@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:44 UTC. Group clipboard + slip on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:49 UTC. Range lift + extract on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CtDAR3fN.css 16.46 kB
-- dist/assets/index-CGHSte1b.js 678.10 kB
+- dist/assets/index-DWVs-rSg.js 680.13 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **203 passed / 31 files**. Start 06:43:46 UTC. Duration 6.02s.
+exit 0. vitest 3.2.7. **208 passed / 31 files**. Start 06:48:30 UTC. Duration 6.14s.
 
-New this follow-up: group copy/cut/paste (relative time + same-kind tracks; one undo); slip (start/duration stay, sourceIn/Out slide; asset-end clamp; Alt+drag / Alt+, / Alt+.). Prior suites remain green.
+New this follow-up: liftRange / extractRange (split at IN/OUT, lift middles, extract ripples later clips per track by out−in). `;` / `'` keys. Invalid IN/OUT no-op. Undo restores. Video independent of audio. Prior suites remain green.
 
 ## Visualizer
 
@@ -140,9 +140,9 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (11): prior plus Alt+, / Alt+. slip ±1 frame (start unchanged). Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
+`tests/app/keys.test.ts` (12): prior plus `;` lift range / `'` extract range; empty Delete + valid I/O = liftRange, Shift+Delete = extractRange. Clip Delete still lifts when a clip is selected. Alt+, / Alt+. slip ±1 frame.
 
-`tests/timeline/clip-menu.test.tsx` (4): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll, Alt+drag slip, Alt+, / Alt+. slip, Copy selected clip(s); toolbar + transport Split show S; multi-select chrome on both clips, trim handles on primary only. Overlay also lists Ctrl+click toggle.
+`tests/timeline/clip-menu.test.tsx` (4): prior plus Lift range / `;` and Extract range / `'`. Overlay lists those rows.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -292,7 +292,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. `EditorCommand` covers existing key/toolbar edits plus ripple, nudge, shuttle, mute, solo, `select`, `moveClips`, `slip`. Copy/cut/paste now take the full selection. `dispatchEditorKey` and App keyboard/toolbar/transport/mixer/timeline select+group-move+slip go through it. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate (`tests/app/commands.test.ts`). Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -364,7 +364,23 @@ Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
 `{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip only — no group slip this slice. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
 
-## Changelog this follow-up (2026-08-30 06:44 UTC)
+## Range lift / extract
+
+Status: TEST-VERIFIED. Live `;` / `'` / I/O + Delete: NOT VERIFIED.
+
+IN/OUT stay loop/export markers. When both are set and out > in, they also cut:
+
+1. Split every clip that straddles IN or OUT (same 50ms guard as S).
+2. **liftRange** (`;`) removes pieces fully inside `[in, out)`. Later clips stay. Gap remains. All tracks. One history entry. Selection clears.
+3. **extractRange** (`'`) = liftRange, then each track shifts clips that start at/after OUT left by `(out−in)`. One undo restores splits, deletions, and shifts.
+
+Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still delete the selection when `selectedClipIds` is non-empty. When selection is empty and the range is valid, Delete = liftRange, Shift+Delete = extractRange. Marker delete still wins if a marker is selected and no clip is.
+
+## Changelog this follow-up (2026-08-30 06:49 UTC)
+
+- Range lift (`;`) and extract (`'`). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:44 UTC)
 
 - Group copy / cut / paste (relative time + same-kind tracks). TEST-VERIFIED. Live: NOT VERIFIED.
 - Slip (Alt+drag / Alt+, / Alt+.). TEST-VERIFIED. Live: NOT VERIFIED.
@@ -453,7 +469,7 @@ Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up is recorded in git. Prior multi-select tip: `96ea8f3`.
+Tip after this follow-up is recorded in git. Prior clipboard/slip tip: `379bc62`.
 
 ## Not added
 

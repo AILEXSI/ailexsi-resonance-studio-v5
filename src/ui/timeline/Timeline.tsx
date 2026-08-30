@@ -49,6 +49,8 @@ interface Props {
   onPaste: () => void;
   onDelete: () => void;
   onRippleDelete?: () => void;
+  onLiftRange?: () => void;
+  onExtractRange?: () => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -111,6 +113,8 @@ export function Timeline({
   onPaste,
   onDelete,
   onRippleDelete,
+  onLiftRange,
+  onExtractRange,
   onZoom,
   onFit,
   onScroll,
@@ -754,6 +758,28 @@ export function Timeline({
           >
             <span>Ripple delete</span>
             <kbd>{CLIP_MENU_SHORTCUTS.rippleDelete}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="clip-menu-lift-range"
+            onClick={() => {
+              onLiftRange?.();
+              setMenu(null);
+            }}
+          >
+            <span>Lift range</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.liftRange}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="clip-menu-extract-range"
+            onClick={() => {
+              onExtractRange?.();
+              setMenu(null);
+            }}
+          >
+            <span>Extract range</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.extractRange}</kbd>
           </button>
         </div>
       ) : null}

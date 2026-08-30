@@ -4,7 +4,9 @@ import {
   applyCopy,
   applyCut,
   applyDelete,
+  applyExtractRange,
   applyIn,
+  applyLiftRange,
   applyMarker,
   applyMoveClips,
   applyNudge,
@@ -61,7 +63,9 @@ export type EditorCommand =
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "select"; clipId: string | null; toggle?: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
-  | { type: "slip"; clipId: string; deltaMs: number };
+  | { type: "slip"; clipId: string; deltaMs: number }
+  | { type: "liftRange" }
+  | { type: "extractRange" };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -119,6 +123,10 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
     case "slip":
       return applySlip(session, command.clipId, command.deltaMs);
+    case "liftRange":
+      return applyLiftRange(session);
+    case "extractRange":
+      return applyExtractRange(session);
     default: {
       const _never: never = command;
       return _never;

@@ -895,6 +895,8 @@ export function App() {
         onPaste={() => runCommand({ type: "paste" })}
         onDelete={() => runCommand({ type: "liftDelete" })}
         onRippleDelete={() => runCommand({ type: "rippleDelete" })}
+        onLiftRange={() => runCommand({ type: "liftRange" })}
+        onExtractRange={() => runCommand({ type: "extractRange" })}
         onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx))}
         onFit={(widthPx) => setSession(applyFit(session, widthPx))}
         onScroll={(ms) => setSession(applyScroll(session, ms))}

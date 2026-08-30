@@ -88,6 +88,10 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Delete");
     expect(text).toContain("Ripple delete");
     expect(text).toContain("Shift+Delete");
+    expect(text).toContain("Lift range");
+    expect(text).toContain("Extract range");
+    expect(text).toContain(CLIP_MENU_SHORTCUTS.liftRange);
+    expect(text).toContain(CLIP_MENU_SHORTCUTS.extractRange);
     expect(CLIP_MENU_SHORTCUTS.split).toBe("S");
     expect(CLIP_MENU_SHORTCUTS.rippleDelete).toBe("Shift+Delete");
     const splitRow = [...menu!.querySelectorAll("button")].find((b) =>
@@ -122,6 +126,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Alt+drag clip");
     expect(text).toContain("Alt+, / Alt+.");
     expect(text).toContain("Copy selected clip(s)");
+    expect(text).toContain("Lift range (IN/OUT)");
+    expect(text).toContain("Extract range (IN/OUT)");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });

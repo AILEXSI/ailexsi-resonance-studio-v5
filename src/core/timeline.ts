@@ -409,6 +409,75 @@ export function splitAtPlayhead(
   return { project: next };
 }
 
+/** Valid edit range [in, out) or null. */
+export function editRangeOf(project: Project): { inMs: number; outMs: number } | null {
+  const inMs = project.inPointMs;
+  const outMs = project.outPointMs;
+  if (inMs == null || outMs == null || outMs <= inMs) return null;
+  return { inMs, outMs };
+}
+
+function splitAllAtTime(project: Project, timeMs: number): Project {
+  const hits = project.clips.filter((c) => c.startMs < timeMs && clipEndMs(c) > timeMs);
+  let next = project;
+  for (const clip of hits) {
+    const current = clipById(next, clip.id);
+    if (!current) continue;
+    if (!(current.startMs < timeMs && clipEndMs(current) > timeMs)) continue;
+    const result = splitClipAt(next, current.id, timeMs);
+    if (!result.error) next = result.project;
+  }
+  return next;
+}
+
+function clipsFullyInsideRange(project: Project, inMs: number, outMs: number): Clip[] {
+  return project.clips.filter((c) => c.startMs >= inMs && clipEndMs(c) <= outMs);
+}
+
+/** Split every clip that straddles IN or OUT (50ms guard). */
+export function splitAtRangeBounds(project: Project): Project {
+  const range = editRangeOf(project);
+  if (!range) return project;
+  return splitAllAtTime(splitAllAtTime(project, range.inMs), range.outMs);
+}
+
+/**
+ * Split at IN/OUT, then lift pieces that lie fully inside [in, out).
+ * Later clips stay. Invalid range is a no-op.
+ */
+export function liftRange(project: Project): { project: Project } {
+  const range = editRangeOf(project);
+  if (!range) return { project };
+  const split = splitAtRangeBounds(project);
+  const mids = clipsFullyInsideRange(split, range.inMs, range.outMs);
+  if (mids.length === 0 && split === project) return { project };
+  return { project: deleteClips(split, mids.map((c) => c.id)) };
+}
+
+/**
+ * liftRange, then on each track shift clips that start at/after OUT left by (out−in).
+ */
+export function extractRange(project: Project): { project: Project } {
+  const range = editRangeOf(project);
+  if (!range) return { project };
+  const lifted = liftRange(project).project;
+  const span = range.outMs - range.inMs;
+  let moved = lifted !== project;
+  const clips = lifted.clips.map((c) => {
+    if (c.startMs < range.outMs) return c;
+    moved = true;
+    return { ...c, startMs: clampStartMs(c.startMs - span) };
+  });
+  if (!moved) return { project };
+  return {
+    project: {
+      ...lifted,
+      clips,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 export interface SnapTarget {
   timeMs: number;
   kind: "clip-start" | "clip-end" | "playhead" | "in" | "out" | "zero";

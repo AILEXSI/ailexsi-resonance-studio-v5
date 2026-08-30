@@ -24,6 +24,8 @@ import {
   deleteClips,
   pasteClips,
   slipClip,
+  liftRange,
+  extractRange,
   rollEdit,
   abuttingNeighbor,
   toggleTrackMute,
@@ -360,6 +362,71 @@ describe("slip", () => {
     expect(clamped.project.clips[0]!.sourceOutMs).toBe(3000);
     expect(clamped.project.clips[0]!.durationMs).toBe(2000);
     expect(clamped.project.clips[0]!.startMs).toBe(1000);
+  });
+});
+
+function rangeA1(): ReturnType<typeof projectWith> {
+  const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+  const v = asset({ id: "v", kind: "video", durationMs: 4000 });
+  return {
+    ...projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 3000,
+          sourceInMs: 0,
+          sourceOutMs: 3000,
+        }),
+        clip({
+          id: "v1",
+          assetId: "v",
+          trackId: "V1",
+          startMs: 0,
+          durationMs: 800,
+          sourceInMs: 0,
+          sourceOutMs: 800,
+        }),
+      ],
+      [a, v],
+    ),
+    inPointMs: 1000,
+    outPointMs: 2000,
+    snap: false,
+  };
+}
+
+describe("range lift / extract", () => {
+  it("liftRange splits at IN/OUT and leaves a gap; extract closes it", () => {
+    const p = rangeA1();
+    const lifted = liftRange(p).project;
+    const a1 = lifted.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1).toHaveLength(2);
+    expect(a1[0]!.startMs).toBe(0);
+    expect(a1[0]!.durationMs).toBe(1000);
+    expect(a1[0]!.sourceInMs).toBe(0);
+    expect(a1[0]!.sourceOutMs).toBe(1000);
+    expect(a1[1]!.startMs).toBe(2000);
+    expect(a1[1]!.durationMs).toBe(1000);
+    expect(a1[1]!.sourceInMs).toBe(2000);
+    expect(a1[1]!.sourceOutMs).toBe(3000);
+    expect(lifted.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+    expect(lifted.clips.find((c) => c.id === "v1")!.durationMs).toBe(800);
+
+    const extracted = extractRange(p).project;
+    const a1e = extracted.clips.filter((c) => c.trackId === "A1").sort((x, y) => x.startMs - y.startMs);
+    expect(a1e).toHaveLength(2);
+    expect(a1e[1]!.startMs).toBe(1000);
+    expect(extracted.clips.find((c) => c.id === "v1")!.startMs).toBe(0);
+  });
+
+  it("missing or inverted IN/OUT is a no-op", () => {
+    const p = rangeA1();
+    expect(liftRange({ ...p, outPointMs: null }).project.clips).toHaveLength(2);
+    expect(extractRange({ ...p, inPointMs: null }).project.clips).toHaveLength(2);
+    expect(liftRange({ ...p, inPointMs: 2000, outPointMs: 1000 }).project.clips).toHaveLength(2);
   });
 });
 

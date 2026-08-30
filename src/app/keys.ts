@@ -52,6 +52,9 @@ function commandFromKey(
   if (letter === "k") return { type: "shuttle", dir: 0 };
   if (letter === "l") return { type: "shuttle", dir: 1 };
 
+  if (e.key === ";" || e.code === "Semicolon") return { type: "liftRange" };
+  if (e.key === "'" || e.key === '"' || e.code === "Quote") return { type: "extractRange" };
+
   if (e.key === "Delete" || e.key === "Backspace") {
     return e.shiftKey ? { type: "rippleDelete" } : { type: "liftDelete" };
   }
@@ -90,7 +93,9 @@ export function dispatchEditorKey(
     command.type === "rippleDelete" ||
     command.type === "nudgeClip" ||
     command.type === "shuttle" ||
-    command.type === "slip";
+    command.type === "slip" ||
+    command.type === "liftRange" ||
+    command.type === "extractRange";
   return {
     type: "session",
     session: applyCommand(session, command),
