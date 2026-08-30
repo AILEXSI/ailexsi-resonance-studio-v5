@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { dispatchEditorKey } from "../../src/app/keys";
 import { createSession, type Session } from "../../src/app/session";
-import { clipIsLocked, type TrackId } from "../../src/core/models";
+import { clipEndMs, clipIsLocked, type TrackId } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
 import { Inspector } from "../../src/ui/inspector/Inspector";
