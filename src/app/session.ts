@@ -17,6 +17,7 @@ import {
   classifyFile,
   importMediaFile,
   ImportError,
+  missingAssetFromImport,
   defaultTrackForKind,
   preferredTrackForAsset,
   type ProbeFn,
@@ -29,6 +30,7 @@ import {
   kindOfTrack,
   type Clip,
   type FrontVideoTrackId,
+  type MediaAsset,
   type MediaKind,
   type Project,
   type TrackId,
@@ -229,56 +231,105 @@ export async function importFiles(
   let next = session;
   const errors: string[] = [];
   let imported = 0;
+  let recovered = 0;
   const prevScrollMs = session.project.scrollMs;
   const prevClipCount = session.project.clips.length;
   for (const file of list) {
     try {
       const asset = await importMediaFile(file, probe);
-      const projectWithAsset = {
-        ...next.project,
-        assets: [...next.project.assets, asset],
-        updatedAt: new Date().toISOString(),
-      };
-      const preferred = preferredTrackForAsset(asset.kind, next.targetTrackId);
-      const placed = placeAsset(
-        projectWithAsset,
-        asset.id,
-        preferred,
-        lastClipEndMsOnTrack(projectWithAsset, preferred),
-      );
-      if (placed.error || !placed.clip) {
-        errors.push(placed.error ?? "Place failed");
+      const placedNext = await placeImportedAsset(next, asset, file, { persist: !asset.missing });
+      if ("error" in placedNext) {
+        errors.push(placedNext.error);
         continue;
       }
-      await persistAssetBlob(next.store, asset, file);
-      const placedIds = placed.audioClip
-        ? [placed.clip.id, placed.audioClip.id]
-        : [placed.clip.id];
-      next = {
-        ...withClipSelection(
-          withHistory(next, placed.project, `Imported ${asset.name}`),
-          placedIds,
-        ),
-        targetTrackId: preferred,
-      };
+      next = placedNext.session;
       imported += 1;
     } catch (e) {
-      if (e instanceof ImportError) errors.push(e.message);
-      else errors.push(e instanceof Error ? e.message : String(e));
+      if (e instanceof ImportError && e.code === "PROBE_FAILED") {
+        try {
+          const asset = missingAssetFromImport(file);
+          const placedNext = await placeImportedAsset(next, asset, file, { persist: false });
+          if ("error" in placedNext) {
+            errors.push(placedNext.error);
+            continue;
+          }
+          next = {
+            ...placedNext.session,
+            error: e.message,
+            status: "Probe failed — Relink",
+          };
+          recovered += 1;
+        } catch (inner) {
+          errors.push(inner instanceof Error ? inner.message : String(inner));
+        }
+      } else if (e instanceof ImportError) {
+        errors.push(e.message);
+      } else {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
     }
   }
-  if (imported === 0) {
+  if (imported === 0 && recovered === 0) {
     return {
       ...next,
       error: errors.join(" · ") || "Import failed",
       status: "Import failed",
     };
   }
+  const failNote = [recovered ? `${recovered} need Relink` : null, errors.length ? `${errors.length} failed` : null]
+    .filter(Boolean)
+    .join(", ");
   return {
     ...next,
     project: maybeScrollToOrigin(next.project, { prevScrollMs, prevClipCount }),
-    error: errors.length ? errors.join(" · ") : null,
-    status: errors.length ? `Imported ${imported}, ${errors.length} failed` : `Imported ${imported} file(s)`,
+    error:
+      errors.length || recovered
+        ? [...errors, recovered ? "Probe failed — Relink" : null].filter(Boolean).join(" · ")
+        : null,
+    status:
+      imported === 0 && recovered
+        ? `Marked ${recovered} missing — Relink`
+        : failNote
+          ? `Imported ${imported}, ${failNote}`
+          : `Imported ${imported} file(s)`,
+  };
+}
+
+async function placeImportedAsset(
+  session: Session,
+  asset: MediaAsset,
+  file: File,
+  opts: { persist: boolean },
+): Promise<{ session: Session } | { error: string }> {
+  const projectWithAsset = {
+    ...session.project,
+    assets: [...session.project.assets, asset],
+    updatedAt: new Date().toISOString(),
+  };
+  const preferred = preferredTrackForAsset(asset.kind, session.targetTrackId);
+  const placed = placeAsset(
+    projectWithAsset,
+    asset.id,
+    preferred,
+    lastClipEndMsOnTrack(projectWithAsset, preferred),
+  );
+  if (placed.error || !placed.clip) {
+    return { error: placed.error ?? "Place failed" };
+  }
+  if (opts.persist && !asset.missing) {
+    await persistAssetBlob(session.store, asset, file);
+  }
+  const placedIds = placed.audioClip
+    ? [placed.clip.id, placed.audioClip.id]
+    : [placed.clip.id];
+  return {
+    session: {
+      ...withClipSelection(
+        withHistory(session, placed.project, asset.missing ? `Missing ${asset.name}` : `Imported ${asset.name}`),
+        placedIds,
+      ),
+      targetTrackId: preferred,
+    },
   };
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSession, importFiles } from "../../src/app/session";
-import { classifyFile, importMediaFile, ImportError } from "../../src/core/media";
+import { classifyFile, importMediaFile, ImportError, missingAssetFromImport } from "../../src/core/media";
+import { relinkSelectionForAsset } from "../../src/core/relink";
 import { clipEndMs } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { createEmptyProject } from "../../src/core/project";
@@ -258,6 +259,47 @@ describe("import sequential placement", () => {
     expect(a[0]!.linkId).toBe(v[0]!.linkId);
     expect(a[1]!.linkId).toBe(v[1]!.linkId);
     expect(v[0]!.linkId).not.toBe(v[1]!.linkId);
+  });
+});
+
+describe("probe-fail recovery (P61)", () => {
+  it("PROBE_FAILED marks the asset missing, places a clip, and Relink can target it", async () => {
+    const file = fakeFile("broken.m4a", "application/mp4");
+    const ghost = missingAssetFromImport(file);
+    expect(ghost.missing).toBe(true);
+    expect(ghost.objectUrl).toBeUndefined();
+    expect(ghost.kind).toBe("audio");
+
+    const session = await importFiles(
+      createSession(createMemoryBlobStore()),
+      [file],
+      async () => {
+        throw new ImportError("PROBE_FAILED", "Could not read duration of broken.m4a");
+      },
+    );
+    expect(session.project.assets).toHaveLength(1);
+    const asset = session.project.assets[0]!;
+    expect(asset.missing).toBe(true);
+    expect(asset.kind).toBe("audio");
+    expect(asset.objectUrl).toBeUndefined();
+    expect(session.project.clips).toHaveLength(1);
+    expect(session.project.clips[0]!.assetId).toBe(asset.id);
+    expect(session.project.clips[0]!.trackId).toBe("A1");
+    expect(relinkSelectionForAsset(session.project, asset.id)?.clipIds).toEqual([
+      session.project.clips[0]!.id,
+    ]);
+    expect(session.status).toMatch(/Relink/i);
+    expect(session.error).toMatch(/Could not read duration/);
+  });
+
+  it("WRONG_TYPE still rejects with no asset", async () => {
+    const session = await importFiles(
+      createSession(createMemoryBlobStore()),
+      [fakeFile("notes.txt", "text/plain")],
+    );
+    expect(session.project.assets).toHaveLength(0);
+    expect(session.project.clips).toHaveLength(0);
+    expect(session.status).toBe("Import failed");
   });
 });
 

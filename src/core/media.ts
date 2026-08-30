@@ -104,6 +104,9 @@ export function probeWithElement(file: File): Promise<MediaProbe> {
   });
 }
 
+/** Placeholder length when probe/decode fails so a clip exists for Relink. */
+export const PROBE_FAIL_PLACEHOLDER_MS = DEFAULT_IMAGE_DURATION_MS;
+
 function fallbackMime(kind: MediaKind): string {
   if (kind === "video") return "video/unknown";
   if (kind === "image") return "image/unknown";
@@ -119,6 +122,29 @@ function mimeFromAudioName(name: string): string | undefined {
   if (n.endsWith(".ogg")) return "audio/ogg";
   if (n.endsWith(".flac")) return "audio/flac";
   return undefined;
+}
+
+function mimeForImportedFile(file: File, kind: MediaKind): string {
+  if (kind === "audio" && !AUDIO_MIME.test(file.type)) {
+    return mimeFromAudioName(file.name) ?? fallbackMime(kind);
+  }
+  return file.type || fallbackMime(kind);
+}
+
+/** Classified file whose probe failed — missing so Relink can recover. No blob URL. */
+export function missingAssetFromImport(file: File): MediaAsset {
+  const kind = classifyFile(file);
+  const id = createId("asset");
+  return {
+    id,
+    name: file.name,
+    kind,
+    mimeType: mimeForImportedFile(file, kind),
+    durationMs: kind === "image" ? DEFAULT_IMAGE_DURATION_MS : PROBE_FAIL_PLACEHOLDER_MS,
+    blobId: id,
+    objectUrl: undefined,
+    missing: true,
+  };
 }
 
 export async function importMediaFile(
@@ -141,10 +167,7 @@ export async function importMediaFile(
     id,
     name: file.name,
     kind,
-    mimeType:
-      kind === "audio" && !AUDIO_MIME.test(file.type)
-        ? mimeFromAudioName(file.name) ?? fallbackMime(kind)
-        : file.type || fallbackMime(kind),
+    mimeType: mimeForImportedFile(file, kind),
     durationMs,
     blobId: id,
     objectUrl,
