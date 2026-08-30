@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:22 UTC. V-track audio in preview + export on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:27 UTC. Fade handles on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -34,10 +34,10 @@ exit 0
 npx vite build
 ```
 
-exit 0. vite 7.3.6, 150 modules. Outputs:
+exit 0. vite 7.3.6, 152 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-CbhRT8ol.css 16.89 kB
-- dist/assets/index-Cv9ZlPlW.js 689.64 kB
+- dist/assets/index-ST9luGUK.css 17.08 kB
+- dist/assets/index-CoWZxWpZ.js 691.26 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **249 passed / 34 files**. Start 07:21:39 UTC. Duration 6.69s.
+exit 0. vitest 3.2.7. **257 passed / 36 files**. Start 07:26:50 UTC. Duration 6.91s.
 
-New this follow-up: `audioClipsForMix` includes present V1/V2 clips; missing V excluded; mix gain uses V volume/pan; 0-channel decode is not audible. Preview routes V audio through the existing playback tap. Prior suites remain green (244 → 249; +1 file).
+New this follow-up: fade-handle hit vs trim, pixel→fade ms, clamp/overlap, DOM handles + drag + Alt does not steal. Prior fade units stay green (249 → 257; +2 files).
 
 ## Visualizer
 
@@ -296,6 +296,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Live trim / ripple / roll / slip / slide / split / inspector at rate ≠ 1 NOT VERIFIED (units only).
 - Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
 - Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
+- Live fade-handle drag NOT VERIFIED (hit + pixel map + DOM units only).
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
 - Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
 - IndexedDB across a real page reload NOT VERIFIED.
@@ -391,7 +392,7 @@ The fourth edit-point tool. Classic slide: selected clip keeps duration and sour
 
 Gesture: **Ctrl+Alt+drag** (Ctrl or Meta + Alt) on the clip body, not edges. Does not steal Alt+drag slip, Shift+edge ripple, abutting-edge roll, or Ctrl+click toggle-select. Keys: **Shift+Alt+, / Shift+Alt+.** = ±1 `FRAME_MS`. `{ type: "slideClip", clipId, deltaMs }` via `applyCommand`. One history entry. Undo restores.
 
-No fade handles, marquee, automation, or time-stretch.
+Fade handles sit on the clip body (not this slide gesture). No marquee, automation, or time-stretch.
 
 ## Clip fades
 
@@ -408,7 +409,7 @@ Visualizer is not a clip; `paintVisualizer` / VIS canvas are not faded.
 
 Inspector (exactly one clip): Fade in / Fade out (ms), same number+timecode style as duration. `{ type: "setClipFades", clipId, fadeInMs, fadeOutMs }` is one history entry. Undo restores.
 
-Timeline: `.clip-fade-in` / `.clip-fade-out` gradient ramps when fade > 0. `pointer-events: none`. Trim/roll handles unchanged. No fade drag handles this slice.
+Timeline: `.clip-fade-in` / `.clip-fade-out` gradient ramps when fade > 0. `pointer-events: none`. Fade handles are separate (see Fade handles). Trim/roll handles unchanged.
 
 `tests/core/fades.test.ts` (12): factor 0 at t=0 with fadeIn 1000, 1 at t=1000; middle/out; gain multiply; overlap scale; video alpha clamp; envelope points; setClipFades + undo; legacy JSON; job copies fades.
 
@@ -470,7 +471,7 @@ Invariant: `timelineMs * rate = sourceMs`. Helpers: `timelineDeltaToSource` / `s
 - Split: cut source = `sourceTimeAt(cut)`. Both halves keep `clip.rate`.
 - Inspector `updateClip`: duration → `sourceOut = sourceIn + duration * rate`. Source-in/out → `duration = sourceSpan / rate`. `setClipRate` not touched.
 
-No elastic audio. No fade handles. No marquee. No group slide. No new gestures.
+No elastic audio. No marquee. No group slide.
 
 ## V-track audio
 
@@ -480,11 +481,29 @@ Status: TEST-VERIFIED (mix candidates + gain/pan bake + decode skip). Live previ
 
 Preview: `<video>` muted. Hidden `<audio>` per V lane, same object URL, same `sourceTimeAt` / `playbackRate` / `gainAtClipTime` / fader / mute-solo / pan as A. One playback tap (not a second mixer). MixPeaks V1/V2 are analyser peaks from those lanes.
 
-No linked A/V split-to-new-track. No fade handles. No marquee. No group slide. No elastic audio.
+No linked A/V split-to-new-track. No marquee. No group slide. No elastic audio.
 
 `tests/export/vtrack-audio.test.ts` (4). `mixClipsAt` in `tests/foundation/models.test.ts`.
 
-## Changelog this follow-up (2026-08-30 07:22 UTC)
+## Fade handles
+
+Status: TEST-VERIFIED (hit vs trim + pixel map + DOM). Live drag: NOT VERIFIED.
+
+Ramps stay paint-only (`pointer-events: none`). Selected primary clip gets two inset handles: fade-in just inside the left trim edge, fade-out just inside the right. Cursor `w-resize` / `e-resize` (trim stays `ew-resize`, roll `col-resize`).
+
+Clip width under 48 px → handles hidden, trim edges stay. Alt / Ctrl / Meta on a handle is ignored so slip, slide, and toggle-select still win.
+
+Drag → `applyCommand` `{ type: "setClipFades" }` from the drag base (same live/commit as slip). `normalizeClipFades`: 0..duration, scale if they would overlap. One history entry. Inspector fields unchanged.
+
+No marquee. No group slide. No linked A/V split. No elastic audio. No crossfade objects. No automation curves.
+
+`tests/core/fade-handles.test.ts` (4). `tests/timeline/fade-handles.test.tsx` (4). `tests/core/fades.test.ts` (12) still green.
+
+## Changelog this follow-up (2026-08-30 07:27 UTC)
+
+- Fade handles on the clip body (`setClipFades` via applyCommand, inset from trim). TEST-VERIFIED. Live drag: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:22 UTC)
 
 - V-track audio in preview + export mix (`audioClipsForMix` includes V, hidden V `<audio>` + same tap, MixPeaks from analysers). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -601,7 +620,7 @@ No linked A/V split-to-new-track. No fade handles. No marquee. No group slide. N
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `8a9ae3d` (V-track audio). Assigned start: `4bd5e2d`. Prior rate-aware edits: `59b303b` / evidence `4bd5e2d`.
+Tip after this follow-up: `ccef9ca` (fade handles). Assigned start: `e77b02d`. Prior V-audio: `8a9ae3d` / evidence `e77b02d`.
 
 ## Not added
 
