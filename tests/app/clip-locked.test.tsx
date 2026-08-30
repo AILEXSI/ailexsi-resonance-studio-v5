@@ -118,6 +118,46 @@ describe("clip lock (P53)", () => {
     expect(moved.project.clips.find((c) => c.id === "au")?.locked).not.toBe(true);
   });
 
+  it("extractRange refuses to slide a locked clip after OUT (P109)", () => {
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "c1",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 3000,
+              sourceInMs: 0,
+              sourceOutMs: 3000,
+            }),
+            clip({
+              id: "parked",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 4000,
+              durationMs: 500,
+              locked: true,
+            }),
+          ],
+          [asset({ id: "a", kind: "audio", durationMs: 8000 })],
+        ),
+        inPointMs: 1000,
+        outPointMs: 2000,
+        snap: false,
+      },
+      selectedClipId: null,
+      selectedClipIds: [],
+    };
+    const blocked = applyCommand(start, { type: "extractRange" });
+    expect(blocked.project.clips.find((c) => c.id === "parked")?.startMs).toBe(4000);
+    expect(blocked.project.clips.find((c) => c.id === "c1")?.durationMs).toBe(3000);
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.history.past.length).toBe(start.history.past.length);
+  });
+
   it("setClipsLocked writes history and undo restores", () => {
     const start = clipSession();
     const viaCommand = applyCommand(start, { type: "setClipsLocked", locked: true });

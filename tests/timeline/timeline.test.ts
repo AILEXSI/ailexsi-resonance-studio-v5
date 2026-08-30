@@ -902,6 +902,39 @@ describe("range lift / extract", () => {
     expect(extractRange({ ...p, inPointMs: null }).project.clips).toHaveLength(2);
     expect(liftRange({ ...p, inPointMs: 2000, outPointMs: 1000 }).project.clips).toHaveLength(2);
   });
+
+  it("extractRange does not slide a locked clip that starts at/after OUT (P109)", () => {
+    const base = rangeA1();
+    const p = {
+      ...base,
+      clips: [
+        ...base.clips,
+        clip({
+          id: "parked",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 4000,
+          durationMs: 500,
+          sourceInMs: 0,
+          sourceOutMs: 500,
+          locked: true,
+        }),
+      ],
+    };
+    const blocked = extractRange(p);
+    expect(blocked.error).toBe("Clip is locked");
+    expect(blocked.project).toBe(p);
+    expect(blocked.project.clips.find((c) => c.id === "parked")!.startMs).toBe(4000);
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(3000);
+
+    const free = {
+      ...p,
+      clips: p.clips.map((c) => (c.id === "parked" ? { ...c, locked: undefined } : c)),
+    };
+    const extracted = extractRange(free);
+    expect(extracted.error).toBeUndefined();
+    expect(extracted.project.clips.find((c) => c.id === "parked")!.startMs).toBe(3000);
+  });
 });
 
 describe("roll edit", () => {

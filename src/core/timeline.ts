@@ -675,10 +675,14 @@ export function liftRange(project: Project): { project: Project } {
 
 /**
  * liftRange, then on each track shift clips that start at/after OUT left by (out−in).
+ * A locked clip at/after OUT blocks the ripple (same as close-gap / ripple-trim).
  */
-export function extractRange(project: Project): { project: Project } {
+export function extractRange(project: Project): { project: Project; error?: string } {
   const range = editRangeOf(project);
   if (!range) return { project };
+  if (project.clips.some((c) => clipIsLocked(c) && c.startMs >= range.outMs)) {
+    return { project, error: "Clip is locked" };
+  }
   const lifted = liftRange(project).project;
   const span = range.outMs - range.inMs;
   let moved = lifted !== project;

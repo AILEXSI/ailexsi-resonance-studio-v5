@@ -1086,6 +1086,7 @@ export function applyLiftRange(session: Session): Session {
 export function applyExtractRange(session: Session): Session {
   if (!editRangeOf(session.project)) return session;
   const result = extractRange(session.project);
+  if (result.error) return { ...session, error: result.error };
   if (result.project === session.project) return session;
   return withClipSelection(withHistory(session, result.project, "Extracted range"), []);
 }
