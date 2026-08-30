@@ -43,4 +43,4 @@ describe("revert to last save (P79)", () => {
     expect(reverted.project.name).toBe(start.project.name);
     expect(isProjectDirty(reverted)).toBe(false);
   });
-}
+});
