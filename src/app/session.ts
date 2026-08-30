@@ -207,8 +207,36 @@ export function markProjectClean(session: Session): Session {
   };
 }
 
+/**
+ * Walk the existing undo/redo stacks back to the last save checkpoint.
+ * Does not invent a second history. Drops redo of discarded edits.
+ */
+export function revertToLastSave(session: Session): Session {
+  if (!isProjectDirty(session)) return session;
+  let next = session;
+  let guard = 0;
+  while (next.history.past.length > next.savedPastLength && guard < 10_000) {
+    guard += 1;
+    const undone = applyUndo(next);
+    if (undone.history.past.length === next.history.past.length) break;
+    next = undone;
+  }
+  while (next.history.past.length < next.savedPastLength && guard < 10_000) {
+    guard += 1;
+    const redone = applyRedo(next);
+    if (redone.history.past.length === next.history.past.length) break;
+    next = redone;
+  }
+  const future = next.history.future.slice(0, next.savedFutureLength);
+  return {
+    ...next,
+    history: { past: next.history.past, future },
+    status: "Reverted to last save",
+    error: null,
+  };
+}
+
 /** Browser beforeunload: warn only when history is past the last save. */
-export function beforeUnloadIfDirty(
   session: Session,
   event: { preventDefault: () => void; returnValue: string },
 ): boolean {
