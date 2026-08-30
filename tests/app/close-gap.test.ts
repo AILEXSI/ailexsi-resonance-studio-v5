@@ -209,6 +209,67 @@ describe("closeGap", () => {
     expect(next.history.past.length).toBe(start.history.past.length);
   });
 
+  it("skips disabled clips when finding and packing the gap (P133)", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({ id: "a", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+            clip({
+              id: "off",
+              assetId: "va",
+              trackId: "V1",
+              startMs: 2000,
+              durationMs: 1000,
+              enabled: false,
+            }),
+            clip({ id: "c", assetId: "va", trackId: "V1", startMs: 4000, durationMs: 500 }),
+          ],
+          [va],
+        ),
+        playheadMs: 1500,
+      },
+      selectedClipId: "a",
+      selectedClipIds: ["a"],
+    };
+    const next = applyCommand(start, { type: "closeGap" });
+    expect(next.error).toBeNull();
+    expect(starts(next)).toEqual({ a: 0, off: 2000, c: 1000 });
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+  });
+
+  it("playhead inside a disabled clip still closes the enabled gap (P133)", () => {
+    const va = asset({ id: "va", kind: "video", durationMs: 8000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({ id: "a", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1000 }),
+            clip({
+              id: "off",
+              assetId: "va",
+              trackId: "V1",
+              startMs: 1200,
+              durationMs: 600,
+              enabled: false,
+            }),
+            clip({ id: "c", assetId: "va", trackId: "V1", startMs: 3000, durationMs: 500 }),
+          ],
+          [va],
+        ),
+        playheadMs: 1500,
+      },
+      selectedClipId: "a",
+      selectedClipIds: ["a"],
+    };
+    const next = applyCommand(start, { type: "closeGap" });
+    expect(next.error).toBeNull();
+    expect(starts(next)).toEqual({ a: 0, off: 1200, c: 1000 });
+  });
+
   it("still packs unlocked later clips that do not hit a locked wall", () => {
     const va = asset({ id: "va", kind: "video", durationMs: 8000 });
     const start: Session = {

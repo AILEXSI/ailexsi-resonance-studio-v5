@@ -314,13 +314,14 @@ export function moveClipsByDelta(
   return { project: next };
 }
 
-/** Gap under the playhead on one track: later clips pack left by −gapMs. */
+/** Gap under the playhead on one track: later enabled clips pack left by −gapMs.
+ * Disabled clips do not occupy or close the gap (same as ArrowUp / snap). */
 export function findGapOnTrack(
   project: Project,
   trackId: TrackId,
   timeMs: number,
 ): { prevEnd: number; nextClip: Clip; gapMs: number } | null {
-  const onTrack = project.clips.filter((c) => c.trackId === trackId);
+  const onTrack = project.clips.filter((c) => c.trackId === trackId && clipIsEnabled(c));
   if (onTrack.some((c) => timeMs >= c.startMs && timeMs < clipEndMs(c))) return null;
   const later = onTrack.filter((c) => c.startMs > timeMs).sort((a, b) => a.startMs - b.startMs);
   const nextClip = later[0];
@@ -359,7 +360,9 @@ export function closeGapOnTrack(
   // later unlocked clips that are not filling the playhead gap (P132).
   if (clipIsLocked(gap.nextClip)) return { error: "Clip is locked" };
   const onTrack = project.clips.filter((c) => c.trackId === trackId);
-  const movers = onTrack.filter((c) => c.startMs >= gap.nextClip.startMs);
+  const movers = onTrack.filter(
+    (c) => clipIsEnabled(c) && c.startMs >= gap.nextClip.startMs,
+  );
   if (movers.length === 0) return { unchanged: true };
   const lockedWalls = onTrack.filter((c) => clipIsLocked(c));
   const wouldOverlapLocked = movers.some((c) => {
