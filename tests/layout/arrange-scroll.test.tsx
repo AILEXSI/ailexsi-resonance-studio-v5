@@ -5,7 +5,6 @@ import { createEmptyProject } from "../../src/core/project";
 import { Mixer } from "../../src/ui/mixer/Mixer";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import type { TrackId } from "../../src/core/models";
-import stylesCss from "../../src/styles.css?raw";
 import "../../src/styles.css";
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
@@ -93,6 +92,7 @@ describe("arrange overflow", () => {
     expect(host.querySelector('[data-testid="solo-A2"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="solo-V1"]')).toBeTruthy();
     expect(lanes.classList.contains("timeline-lanes")).toBe(true);
-    expect(stylesCss).toMatch(/\.timeline-lanes\s*\{[^}]*overflow-y:\s*auto/);
+    const lanesOverflow = lanes.style.overflowY || getComputedStyle(lanes).overflowY;
+    expect(lanesOverflow === "auto" || lanesOverflow === "scroll").toBe(true);
   });
 });

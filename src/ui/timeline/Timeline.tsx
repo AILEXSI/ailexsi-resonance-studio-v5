@@ -1014,7 +1014,7 @@ export function Timeline({
           />
         </div>
       </div>
-      <div className="timeline-lanes" data-testid="timeline-lanes">
+      <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "auto" }}>
       <div
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
         data-testid="lane-VIS"
