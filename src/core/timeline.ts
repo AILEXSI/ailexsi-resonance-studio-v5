@@ -1349,7 +1349,7 @@ export function duplicateClip(
 export function updateClip(
   project: Project,
   clipId: string,
-  patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "fadeInMs" | "fadeOutMs">>,
+    patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "fadeInMs" | "fadeOutMs" | "enabled">>,
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };

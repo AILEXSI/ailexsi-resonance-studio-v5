@@ -115,6 +115,7 @@ interface Props {
   onRippleTrimToPlayhead?: (edge: "in" | "out") => void;
   onSelectAll?: () => void;
   onSelectAllOnTrack?: () => void;
+  onSetClipsEnabled?: (enabled: boolean) => void;
   onZoom: (zoom: number, timelineWidthPx: number) => void;
   onFit: (timelineWidthPx: number) => void;
   onScroll: (ms: number) => void;
@@ -217,6 +218,7 @@ export function Timeline({
   onRippleTrimToPlayhead,
   onSelectAll,
   onSelectAllOnTrack,
+  onSetClipsEnabled,
   onZoom,
   onFit,
   onScroll,
@@ -1217,9 +1219,10 @@ export function Timeline({
                   return (
                     <div
                       key={clip.id}
-                      className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}`}
+                      className={`clip ${kind}${selected ? " selected" : ""}${asset?.missing ? " missing" : ""}${clip.enabled === false ? " disabled" : ""}`}
                       data-testid={`clip-${clip.id}`}
                       data-selected={selected ? "true" : "false"}
+                      data-enabled={clip.enabled === false ? "false" : "true"}
                       style={{
                         left: msToX(clip.startMs, project.zoomPxPerSec, project.scrollMs),
                         width: clipW,
@@ -1469,6 +1472,23 @@ export function Timeline({
             >
               <span>Select All on Track</span>
               <kbd>{CLIP_MENU_SHORTCUTS.selectAllOnTrack}</kbd>
+            </button>
+          ) : null}
+          {onSetClipsEnabled ? (
+            <button
+              type="button"
+              data-testid="clip-menu-toggle-enabled"
+              onClick={() => {
+                const target = project.clips.find((c) => c.id === menu.clipId);
+                onSetClipsEnabled(target?.enabled === false);
+                setMenu(null);
+              }}
+            >
+              <span>
+                {project.clips.find((c) => c.id === menu.clipId)?.enabled === false
+                  ? "Enable"
+                  : "Disable"}
+              </span>
             </button>
           ) : null}
           <button

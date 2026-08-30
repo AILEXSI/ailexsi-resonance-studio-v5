@@ -23,6 +23,7 @@ import {
 } from "../core/media";
 import {
   clipById,
+  clipIsEnabled,
   clipOnTrackAt,
   kindOfTrack,
   type Clip,
@@ -727,6 +728,24 @@ export function applyUpdateClip(
   const result = updateClip(session.project, clipId, patch);
   if (result.error) return { ...session, error: result.error };
   return withHistory(session, result.project, "Clip updated");
+}
+
+export function applySetClipsEnabled(session: Session, enabled: boolean): Session {
+  const ids = selectionOf(session);
+  if (ids.length === 0) return session;
+  let nextProject = session.project;
+  let changed = 0;
+  for (const id of ids) {
+    const existing = clipById(nextProject, id);
+    if (!existing || clipIsEnabled(existing) === enabled) continue;
+    const result = updateClip(nextProject, id, { enabled });
+    if (result.error) continue;
+    nextProject = result.project;
+    changed += 1;
+  }
+  if (changed === 0 || nextProject === session.project) return session;
+  const noun = changed === 1 ? "Clip" : "Clips";
+  return withHistory(session, nextProject, enabled ? `${noun} enabled` : `${noun} disabled`);
 }
 
 export function applySetClipFades(

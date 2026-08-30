@@ -618,6 +618,7 @@ body.media-asset-dragging .project-overlay-drawer {
 .clip.selected.video { background: var(--video-sel); }
 .clip.selected.audio { background: var(--audio-sel); }
 .clip.missing { background: #6b2c33; }
+.clip.disabled { opacity: 0.4; }
 .clip-fade-in,
 .clip-fade-out {
   position: absolute;

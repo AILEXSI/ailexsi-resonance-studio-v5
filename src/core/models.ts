@@ -109,6 +109,12 @@ export interface Clip {
   rate: number;
   /** Shared id for a linked A/V pair. Missing = unlinked (legacy). */
   linkId?: string;
+  /** False = skip picture and mix. Missing = enabled. */
+  enabled?: boolean;
+}
+
+export function clipIsEnabled(clip: { enabled?: boolean }): boolean {
+  return clip.enabled !== false;
 }
 
 export interface Track {
@@ -272,7 +278,11 @@ export function clipsOnTrack(project: Project, trackId: TrackId): Clip[] {
 
 export function topVideoClipAt(project: Project, timeMs: number): Clip | undefined {
   const hits = project.clips.filter(
-    (c) => kindOfTrack(c.trackId) === "video" && timeMs >= c.startMs && timeMs < clipEndMs(c),
+    (c) =>
+      clipIsEnabled(c) &&
+      kindOfTrack(c.trackId) === "video" &&
+      timeMs >= c.startMs &&
+      timeMs < clipEndMs(c),
   );
   const front = project.frontVideoTrackId === "V1" ? "V1" : "V2";
   return hits.find((c) => c.trackId === front) ?? hits.find((c) => c.trackId === "V1" || c.trackId === "V2");
@@ -281,6 +291,7 @@ export function topVideoClipAt(project: Project, timeMs: number): Clip | undefin
 export function audioClipsAt(project: Project, timeMs: number): Clip[] {
   return project.clips.filter(
     (c) =>
+      clipIsEnabled(c) &&
       kindOfTrack(c.trackId) === "audio" &&
       isTrackAudible(project, c.trackId) &&
       timeMs >= c.startMs &&
@@ -290,7 +301,11 @@ export function audioClipsAt(project: Project, timeMs: number): Clip[] {
 
 export function clipOnTrackAt(project: Project, trackId: TrackId, timeMs: number): Clip | undefined {
   return project.clips.find(
-    (c) => c.trackId === trackId && timeMs >= c.startMs && timeMs < clipEndMs(c),
+    (c) =>
+      clipIsEnabled(c) &&
+      c.trackId === trackId &&
+      timeMs >= c.startMs &&
+      timeMs < clipEndMs(c),
   );
 }
 

@@ -44,7 +44,7 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
       return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips: [] };
     }
     const clips: ExportClip[] = project.clips
-      .filter((c) => c.trackId === track.id)
+      .filter((c) => c.trackId === track.id && c.enabled !== false)
       .filter((c) => clipEndMs(c) > startMs && c.startMs < endMs)
       .map((c) => {
         const asset = assets.get(c.assetId);

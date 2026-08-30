@@ -54,6 +54,7 @@ describe("applyCommand determinism", () => {
       { type: "selectClips", clipIds: ["c2", "c3"], union: true } as const,
       { type: "selectAll" } as const,
       { type: "selectAllOnTrack" } as const,
+      { type: "setClipsEnabled", enabled: false } as const,
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", clipIds: ["c1", "c2"], deltaMs: 50 } as const,

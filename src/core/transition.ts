@@ -445,12 +445,14 @@ function visFromProject(project: Project): CompositeVis {
 export function contextFromProject(project: Project): CompositeContext {
   const mutedTrackIds = (["A1", "A2"] as const).filter((id) => !isTrackAudible(project, id));
   return {
-    clips: project.clips.map((c) => ({
-      id: c.id,
-      trackId: c.trackId,
-      startMs: c.startMs,
-      endMs: clipEndMs(c),
-    })),
+    clips: project.clips
+      .filter((c) => c.enabled !== false)
+      .map((c) => ({
+        id: c.id,
+        trackId: c.trackId,
+        startMs: c.startMs,
+        endMs: clipEndMs(c),
+      })),
     transitions: project.transitions ?? [],
     frontVideoTrackId: project.frontVideoTrackId === "V1" ? "V1" : "V2",
     mutedTrackIds,

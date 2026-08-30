@@ -50,6 +50,7 @@ function timelineProps() {
     onRippleTrimToPlayhead: (_edge: "in" | "out") => {},
     onSelectAll: noop,
     onSelectAllOnTrack: noop,
+    onSetClipsEnabled: (_enabled: boolean) => {},
   };
 }
 
@@ -99,6 +100,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+Shift+A");
     expect(menu!.querySelector('[data-testid="clip-menu-select-all"]')).toBeTruthy();
     expect(menu!.querySelector('[data-testid="clip-menu-select-all-on-track"]')).toBeTruthy();
+    expect(text).toContain("Disable");
+    expect(menu!.querySelector('[data-testid="clip-menu-toggle-enabled"]')).toBeTruthy();
     expect(menu!.querySelector('[data-testid="clip-menu-duplicate"]')).toBeTruthy();
     expect(text).toContain("Delete");
     expect(text).toContain("Ripple delete");

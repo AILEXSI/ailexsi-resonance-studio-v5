@@ -32,7 +32,8 @@ interface Props {
   selectedClipIds?: string[];
   selectedVis?: boolean;
   selectedVisEventId?: string | null;
-  onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId">>) => void;
+  onChange: (clipId: string, patch: Partial<Pick<Clip, "startMs" | "durationMs" | "sourceInMs" | "sourceOutMs" | "gain" | "trackId" | "enabled">>) => void;
+  onSetEnabled?: (enabled: boolean) => void;
   onFades?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
   onRate?: (clipId: string, rate: number) => void;
   onUnlink?: (clipId: string) => void;
@@ -94,6 +95,7 @@ export function Inspector({
   selectedVis,
   selectedVisEventId,
   onChange,
+  onSetEnabled,
   onFades,
   onRate,
   onUnlink,
@@ -165,9 +167,29 @@ export function Inspector({
           />
         </dl>
       ) : ids.length >= 2 ? (
-        <p data-testid="inspector-selection-count" style={{ color: "var(--muted)" }}>
-          {ids.length} clips
-        </p>
+        <>
+          <p data-testid="inspector-selection-count" style={{ color: "var(--muted)" }}>
+            {ids.length} clips
+          </p>
+          {onSetEnabled ? (
+            <div className="inspector-clip-actions">
+              <button
+                type="button"
+                data-testid="inspector-enable-clips"
+                onClick={() => onSetEnabled(true)}
+              >
+                Enable
+              </button>
+              <button
+                type="button"
+                data-testid="inspector-disable-clips"
+                onClick={() => onSetEnabled(false)}
+              >
+                Disable
+              </button>
+            </div>
+          ) : null}
+        </>
       ) : !clip ? (
         <p style={{ color: "var(--muted)" }}>No clip selected.</p>
       ) : (
@@ -222,6 +244,19 @@ export function Inspector({
             value={clip.fadeOutMs}
             onChange={(v) => onFades?.(clip.id, clip.fadeInMs, v)}
           />
+          <Field label="Enabled">
+            <input
+              type="checkbox"
+              aria-label="clip-enabled"
+              data-testid="inspector-clip-enabled"
+              checked={clip.enabled !== false}
+              onChange={(e) => {
+                const next = e.target.checked;
+                if (onSetEnabled) onSetEnabled(next);
+                else onChange(clip.id, { enabled: next });
+              }}
+            />
+          </Field>
           <Field label="Asset">{asset?.missing ? <span className="err">{asset.name}</span> : (asset?.name ?? "—")}</Field>
         </dl>
       )}

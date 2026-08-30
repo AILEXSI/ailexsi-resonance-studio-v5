@@ -63,6 +63,8 @@ describe("inspector selection", () => {
     expect(host!.querySelector('[data-testid="inspector-selection-count"]')).toBeNull();
     expect(host!.querySelector('[data-testid="inspector-fade-in"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="inspector-fade-out"]')).toBeTruthy();
+    expect(text).toContain("Enabled");
+    expect(host!.querySelector('[data-testid="inspector-clip-enabled"]')).toBeTruthy();
   });
 
   it("shows only a count when two or more clips are selected", () => {

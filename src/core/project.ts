@@ -111,6 +111,7 @@ function sanitizeClip(raw: unknown): Clip | null {
     fadeOutMs: fades.fadeOutMs,
     rate: c.rate == null ? 1 : clampClipRate(Number(c.rate)),
     linkId: typeof c.linkId === "string" && c.linkId.length > 0 ? c.linkId : undefined,
+    enabled: c.enabled === false ? false : undefined,
   };
 }
 
