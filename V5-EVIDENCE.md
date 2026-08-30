@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:56 UTC. Per-clip linear fades on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:01 UTC. Track pan on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BsE7NJk-.css 16.72 kB
-- dist/assets/index-hJOYkcs2.js 683.14 kB
+- dist/assets/index-CbhRT8ol.css 16.89 kB
+- dist/assets/index-LqvqYu-0.js 685.27 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **220 passed / 32 files**. Start 06:55:28 UTC. Duration 6.22s.
+exit 0. vitest 3.2.7. **223 passed / 32 files**. Start 07:00:55 UTC. Duration 6.30s.
 
-New this follow-up: `gainAtClipTime` / fade factor (t=0 fadeIn 1000 → 0; t=1000 → 1), overlap scale, mix envelope helper, `setClipFades` + undo, legacy JSON missing fades → 0, inspector Fade in/out fields, job copies fades. Prior suites remain green (208 → 220; +1 file).
+New this follow-up: equal-power pan at −1/0/+1, `setTrackPan` + persist, legacy missing pan → 0, job copies track pan, mixer `mix-pan-V1`…`A2` present (not Master). Prior suites remain green (220 → 223).
 
 ## Visualizer
 
@@ -186,13 +186,13 @@ Place (M / Marker button) already existed. This pass: drag a flag along the rule
 
 Status: RUNTIME-VERIFIED (visible next to timeline + A1 fader drag). Collapse: TEST-VERIFIED. Live collapse click this run: NOT VERIFIED.
 
-Right of the arrange/timeline (`.arrange-row`: timeline | 228px mixer). Collapse control is top-left of the mixer pane. Collapsed = **MST only** (V1–A2 unmounted, not deleted). Expanded = V1 V2 A1 A2 + MST. Persist `resonance-studio-v5-mixer-collapsed`. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged.
+Right of the arrange/timeline (`.arrange-row`: timeline | 228px mixer). Collapse control is top-left of the mixer pane. Collapsed = **MST only** (V1–A2 unmounted, not deleted). Expanded = V1 V2 A1 A2 + MST. Persist `resonance-studio-v5-mixer-collapsed`. Vertical fader, dB label, peak meter. Mute stays a separate switch. Clip Gain in the inspector is unchanged. V1–A2 now have a pan range above the fader (L/C/R label). Master has no pan.
 
 Layout CSS: mixer `min-width`/`width` 228px, not `display:none`. Arrange row has a reserved height so the strip cannot collapse to width 0. Live: mixer sat beside the timeline; A1 fader dragged from 0.00 dB to about -7.31 dB; status showed the A1 dB.
 
-Curve: linear = 10^(dB/20). 0 dB = 1. -6 dB ≈ 0.501. Bottom / -∞ = 0. Track `volume` and `masterVolume` persist in `.resonance.json`. Preview applies track+master via GainNodes when Web Audio is up; export bakes the mix into clip gain. VIS is not a mixer channel.
+Curve: linear = 10^(dB/20). 0 dB = 1. -6 dB ≈ 0.501. Bottom / -∞ = 0. Track `volume`, `pan`, and `masterVolume` persist in `.resonance.json`. Preview applies track+master via GainNodes when Web Audio is up, then StereoPannerNode last when the tap exists; export bakes the mix into clip gain then pans. VIS is not a mixer channel.
 
-`tests/mixer/volume.test.ts` (6): unity / -6 dB / silence; peakToDb; mute zeros mix; session JSON round-trip; legacy missing volume → 1; solo persist + legacy missing solo → false.
+`tests/mixer/volume.test.ts` (9): prior six plus equal-power −1/0/+1, `setTrackPan` persist, legacy missing pan → 0, job copies pan.
 
 Mixer S sits next to M on V1–A2 only (not Master). TEST-VERIFIED (DOM). Chrome S buttons seen this run: RUNTIME-VERIFIED (empty project, no click). Live S click / audible mix: NOT VERIFIED.
 
@@ -283,6 +283,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Known limitations (plain)
 
+- Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
 - Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
 - IndexedDB across a real page reload NOT VERIFIED.
@@ -296,7 +297,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setClipFades` (and prior `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setTrackPan` (and prior `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -399,7 +400,27 @@ IN/OUT stay loop/export markers. When both are set and out > in, they also cut:
 
 Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still delete the selection when `selectedClipIds` is non-empty. When selection is empty and the range is valid, Delete = liftRange, Shift+Delete = extractRange. Marker delete still wins if a marker is selected and no clip is.
 
-## Changelog this follow-up (2026-08-30 06:56 UTC)
+## Track pan
+
+Status: TEST-VERIFIED (helper + persist + command + mixer DOM). Live hear: NOT VERIFIED.
+
+`Track.pan` is −1 (L) … +1 (R), default 0. Master has no pan. Legacy JSON missing `pan` → 0. Clamp to [−1, 1].
+
+Equal-power (shared `equalPowerPan`): L = cos((pan+1)/2 · π/2), R = sin((pan+1)/2 · π/2). Unit: −1 → L=1 R=0; 0 → √2/2 both; +1 → L=0 R=1.
+
+Mute/solo/fader/clip-gain/fades still apply first. Pan is last on that track’s contribution:
+- export `mixJobAudio`: `StereoPannerNode` after the fade-gain envelope (splitter/merger fallback uses the same helper)
+- live preview: `StereoPannerNode` after each A1/A2 track gain when the Web Audio tap exists
+
+Video tracks store pan. `audioClipsForMix` is still audio-kind only, so V1/V2 stay silent in the mix unless they have audio clips on an audio track. Video `<video>` stays muted. Pan on a video-only track is stored but silent. OK.
+
+Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `stopPropagation` on click and pointerdown. `{ type: "setTrackPan", trackId, pan }` via `applyCommand` (no history, same as fader).
+
+## Changelog this follow-up (2026-08-30 07:01 UTC)
+
+- Track pan (`Track.pan`, equal-power, mixer control, `setTrackPan`, mix + preview). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:56 UTC)
 
 - Per-clip linear fade in/out (`fadeInMs` / `fadeOutMs`, `gainAtClipTime`, inspector `setClipFades`, mix + video alpha, timeline ramps). TEST-VERIFIED. Live preview/export: NOT VERIFIED.
 
@@ -496,7 +517,7 @@ Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still dele
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `03f4d23` (evidence; fades impl `14327c4`). Assigned start: `7e0efc8`. Prior clipboard/slip tip: `379bc62`.
+Tip after this follow-up: `340fe7b` (track pan). Assigned start: `a215c63`. Prior fades: `14327c4`.
 
 ## Not added
 
