@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import {
   applyPlayhead,
+  beforeUnloadIfDirty,
   createSession,
   isProjectDirty,
   markProjectClean,
@@ -38,6 +39,15 @@ describe("project dirty (P71)", () => {
 
     expect(isProjectDirty(newProject(named))).toBe(false);
     expect(isProjectDirty(openSerialized(named, projectJson(named)))).toBe(false);
+
+    const cleanEvent = { preventDefault: () => {}, returnValue: "keep" };
+    expect(beforeUnloadIfDirty(start, cleanEvent)).toBe(false);
+    expect(cleanEvent.returnValue).toBe("keep");
+    let prevented = 0;
+    const dirtyEvent = { preventDefault: () => { prevented += 1; }, returnValue: "keep" };
+    expect(beforeUnloadIfDirty(named, dirtyEvent)).toBe(true);
+    expect(prevented).toBe(1);
+    expect(dirtyEvent.returnValue).toBe("");
   });
 });
 

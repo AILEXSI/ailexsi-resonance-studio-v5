@@ -82,6 +82,7 @@ import {
   hydrateSession,
   importFiles,
   ingestRelinkFile,
+  beforeUnloadIfDirty,
   confirmNewProject,
   isProjectDirty,
   markProjectClean,
@@ -338,6 +339,14 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      beforeUnloadIfDirty(sessionRef.current, e);
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, []);
 
   const applyOpenedText = async (text: string, status: string) => {

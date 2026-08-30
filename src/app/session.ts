@@ -207,6 +207,17 @@ export function markProjectClean(session: Session): Session {
   };
 }
 
+/** Browser beforeunload: warn only when history is past the last save. */
+export function beforeUnloadIfDirty(
+  session: Session,
+  event: { preventDefault: () => void; returnValue: string },
+): boolean {
+  if (!isProjectDirty(session)) return false;
+  event.preventDefault();
+  event.returnValue = "";
+  return true;
+}
+
 /** Clip ids currently selected. Falls back to `selectedClipId` so older tests stay valid. */
 export function selectionOf(session: Session): string[] {
   if (session.selectedClipIds && session.selectedClipIds.length > 0) {
