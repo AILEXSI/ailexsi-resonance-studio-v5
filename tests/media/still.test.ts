@@ -191,6 +191,33 @@ describe("still images (P41)", () => {
     expect(next.project.clips[0]!.startMs).toBe(800);
     expect(next.project.clips[0]!.durationMs).toBe(5000);
     expect(clipEndMs(next.project.clips[0]!)).toBe(5800);
+    expect(next.project.playheadMs).toBe(800);
+  });
+
+  it("parks playhead on bin-drop place so preview is not empty (P83)", () => {
+    const session = createSession(createMemoryBlobStore());
+    session.project = {
+      ...projectWith([], [asset({ id: "still", kind: "image", durationMs: 5000 })]),
+      playheadMs: 5000,
+    };
+    const placed = applyPlaceAsset(session, "still", "V1", 800);
+    expect(placed.error).toBeNull();
+    expect(placed.project.clips[0]!.startMs).toBe(800);
+    expect(placed.project.playheadMs).toBe(800);
+
+    const atHead = applyPlaceAsset(placed, "still", "V2");
+    expect(atHead.project.clips[1]!.startMs).toBe(800);
+    expect(atHead.project.playheadMs).toBe(800);
+
+    const failed = applyPlaceAsset(
+      { ...session, project: { ...session.project, playheadMs: 5000 } },
+      "still",
+      "A1",
+      1200,
+    );
+    expect(failed.error).toMatch(/cannot go on A1/);
+    expect(failed.project.playheadMs).toBe(5000);
+    expect(failed.project.clips).toHaveLength(0);
   });
 
   it("filmstrip for a still is one thumb, not a video strip", () => {

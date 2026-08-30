@@ -463,13 +463,14 @@ export function applyPlaceAsset(
   const project = maybeScrollToOrigin(result.project, { prevScrollMs, prevClipCount });
   const asset = project.assets.find((a) => a.id === assetId);
   const placedIds = result.audioClip ? [result.clip.id, result.audioClip.id] : [result.clip.id];
-  return {
+  const placed = {
     ...withClipSelection(
       withHistory(session, project, `Placed ${asset?.name ?? "clip"}`),
       placedIds,
     ),
     error: null,
   };
+  return applyPlayhead(placed, result.clip.startMs);
 }
 
 export function applyMove(
