@@ -585,6 +585,23 @@ input[type="range"] { accent-color: var(--accent-2); }
   background: rgba(212, 180, 90, 0.55);
   cursor: col-resize;
 }
+.fade-handle {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 10px;
+  z-index: 2;
+  background: rgba(244, 200, 90, 0.75);
+  border-radius: 2px;
+}
+.fade-handle.in {
+  left: 8px;
+  cursor: w-resize;
+}
+.fade-handle.out {
+  right: 8px;
+  cursor: e-resize;
+}
 .lane-ms { display: flex; gap: 2px; }
 .lane.soloed .lane-label { color: var(--accent); }
 .playhead {

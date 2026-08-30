@@ -603,6 +603,36 @@ export function App() {
     }));
   };
 
+  const onFadesLive = (clipId: string, fadeInMs: number, fadeOutMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type: "setClipFades", clipId, fadeInMs, fadeOutMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipId,
+        selectedClipIds: [clipId],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onFadesCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Clip fades",
+      error: null,
+    }));
+  };
+
   const onLoopClick = (ms: number) => {
     setSession((s) => {
       if (s.project.inPointMs != null && s.project.outPointMs == null) {
@@ -919,6 +949,8 @@ export function App() {
         onSlipCommit={onSlipCommit}
         onSlideLive={onSlideLive}
         onSlideCommit={onSlideCommit}
+        onFadesLive={onFadesLive}
+        onFadesCommit={onFadesCommit}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}

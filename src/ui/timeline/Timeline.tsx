@@ -8,6 +8,7 @@ import {
   type Project,
   type TrackId,
 } from "../../core/models";
+import { fadeHandlesVisible, fadesFromHandleDrag } from "../../core/fade-handles";
 import { normalizeClipFades } from "../../core/fades";
 import { abuttingNeighbor, collectSnapTargets, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
@@ -42,6 +43,8 @@ interface Props {
   onSlipCommit?: () => void;
   onSlideLive?: (clipId: string, deltaMs: number) => void;
   onSlideCommit?: () => void;
+  onFadesLive?: (clipId: string, fadeInMs: number, fadeOutMs: number) => void;
+  onFadesCommit?: () => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
@@ -108,6 +111,8 @@ export function Timeline({
   onSlipCommit,
   onSlideLive,
   onSlideCommit,
+  onFadesLive,
+  onFadesCommit,
   onToggleMute,
   onToggleSolo,
   onToggleVisualizerMute,
@@ -131,7 +136,9 @@ export function Timeline({
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const dragKindRef = useRef<"move" | "trim" | "slip" | "slide" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
+  const dragKindRef = useRef<
+    "move" | "trim" | "fade" | "slip" | "slide" | "loop-in" | "loop-out" | "loop-move" | "marker" | null
+  >(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
   const [viewWidth, setViewWidth] = useState(1000);
@@ -357,6 +364,40 @@ export function Timeline({
       window.removeEventListener("pointerup", up);
       dragKindRef.current = null;
       onTrimCommit();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onFadePointerDown = (e: ReactPointerEvent, clip: Clip, edge: "in" | "out") => {
+    if (e.button !== 0) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    if (dragKindRef.current) return;
+    dragKindRef.current = "fade";
+    onSelect(clip.id);
+    const originX = e.clientX;
+    const originIn = clip.fadeInMs;
+    const originOut = clip.fadeOutMs;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "fade") return;
+      const next = fadesFromHandleDrag(
+        originIn,
+        originOut,
+        clip.durationMs,
+        ev.clientX - originX,
+        project.zoomPxPerSec,
+        edge,
+      );
+      onFadesLive?.(clip.id, next.fadeInMs, next.fadeOutMs);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      onFadesCommit?.();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -712,6 +753,22 @@ export function Timeline({
                       <span className="clip-name">{label}</span>
                       {primary ? (
                         <>
+                          {fadeHandlesVisible(clipW) ? (
+                            <>
+                              <div
+                                className="fade-handle in"
+                                data-testid={`fade-handle-in-${clip.id}`}
+                                title="Fade in"
+                                onPointerDown={(e) => onFadePointerDown(e, clip, "in")}
+                              />
+                              <div
+                                className="fade-handle out"
+                                data-testid={`fade-handle-out-${clip.id}`}
+                                title="Fade out"
+                                onPointerDown={(e) => onFadePointerDown(e, clip, "out")}
+                              />
+                            </>
+                          ) : null}
                           <div
                             className={`trim-handle in${abuttingNeighbor(project, clip.id, "in") ? " roll" : ""}`}
                             data-testid={`trim-in-${clip.id}`}
