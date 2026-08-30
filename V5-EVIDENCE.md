@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:50 UTC. Linked slip + rate on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:54 UTC. Inspector Unlink + Ctrl+Shift+L on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 154 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BIOCqzoX.css 17.20 kB
-- dist/assets/index-Ddu2rvVk.js 699.42 kB
+- dist/assets/index-Bc8mcmyi.css 17.23 kB
+- dist/assets/index-Bj3bY-DQ.js 699.90 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **291 passed / 40 files**. Start 07:50:07 UTC. Duration 8.00s.
+exit 0. vitest 3.2.7. **295 passed / 40 files**. Start 07:54:18 UTC. Duration 9.18s.
 
-New this follow-up: linked slip both, slip blocked by mate bounds (neither moves), linked `setClipRate` both, rate no-op when mate would overlap, unlink then slip one. Prior linked split/move/trim/import units stay green (286 → 291).
+New this follow-up: inspector Unlink iff living mate; click/`unlinkClips` clears `linkId` and hides the control; Ctrl+Shift+L / Cmd+Shift+L map to `unlinkClips`; unlinked or orphan `linkId` hides Unlink; overlay lists Ctrl+Shift+L. Prior linked split/move/trim/slip/rate units stay green (291 → 295).
 
 ## Visualizer
 
@@ -142,11 +142,11 @@ Import is not blocked. Empty fill stays until samples/thumbs arrive. No V4, no f
 
 Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
-Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
+Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. **Ctrl+Shift+L** (Cmd+Shift+L via `ctrlKey || metaKey`) unlinks a living A/V pair. Ctrl+L without Shift is unused. Bare L stays shuttle. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (13): prior plus Shift+Alt+, / Shift+Alt+. slide ±1 frame (does not slip source). `;` lift range / `'` extract range; empty Delete + valid I/O = liftRange. Alt+, / Alt+. still slip.
+`tests/app/keys.test.ts` (15): prior plus Ctrl+Shift+L / meta+Shift+L → `unlinkClips`; Ctrl+L alone is none; bare L still shuttle.
 
-`tests/timeline/clip-menu.test.tsx` (4): prior plus Lift range / `;` and Extract range / `'`. Overlay lists those rows.
+`tests/timeline/clip-menu.test.tsx` (4): prior plus overlay row Ctrl+Shift+L / Unlink A/V pair.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -220,9 +220,9 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 ## Inspector
 
-Status: TEST-VERIFIED (0 / 1 / 2+). Live fields: NOT VERIFIED.
+Status: TEST-VERIFIED (0 / 1 / 2+ / unlink). Live fields / Unlink click: NOT VERIFIED.
 
-0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3). Duration field writes `sourceOut = sourceIn + duration * rate`. Source-in / source-out resize timeline duration via `sourceSpan / rate`. Rate field still goes through `setClipRate` (unchanged).
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. Field layout unchanged. **Unlink** (`data-testid="inspector-unlink"`) appears after the existing block when any selected id has a living same-`linkId` mate (including the 2+ count view). Hidden when unlinked, orphan `linkId`, or nothing selected. Click dispatches `{ type: "unlinkClips", clipId }` on the first selected member with a mate. After unlink the control hides. No relink. `tests/inspector/inspector.test.tsx` (6). Duration field writes `sourceOut = sourceIn + duration * rate`. Source-in / source-out resize timeline duration via `sourceSpan / rate`. Rate field still goes through `setClipRate` (unchanged).
 
 ## Export
 
@@ -311,9 +311,9 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
 - Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
 - src-tauri leftover unused.
-- Live linked A/V import / split / move NOT VERIFIED (units only).
+- Live linked A/V import / split / move / unlink click / Ctrl+Shift+L NOT VERIFIED (units only).
 - No group slip, elastic audio, crossfade objects, or automation curves.
-- No unlink UI chrome beyond `{ type: "unlinkClips" }`.
+- No relink, link-picker, or nested sequences. Unlink chrome is inspector button + Ctrl+Shift+L only.
 - No Shift+click range-select (Ctrl/Cmd+click toggle + Shift+marquee union only).
 
 ## Command dispatch
@@ -390,7 +390,7 @@ Status: TEST-VERIFIED. Live Ctrl+C/X/V: NOT VERIFIED.
 
 Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
-`{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip only — no group slip this slice. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
+`{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip — a living linked mate takes the same source delta, or both no-op. No group slip of an arbitrary multi-select. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
 
 ## Slide
 
@@ -459,7 +459,7 @@ Status: TEST-VERIFIED (math + persist + command + inspector + clocks). Live hear
 
 If the new duration would overlap the next same-track clip, reject (unchanged project + error). No auto-ripple. A shrink that leaves a gap is OK.
 
-Inspector (one clip): Rate number field. `{ type: "setClipRate", clipId, rate }` via `applyCommand`. One history entry.
+Inspector (one clip): Rate number field. `{ type: "setClipRate", clipId, rate }` via `applyCommand`. One history entry. A living linked mate gets the same rate and `durationMs = sourceSpan / rate`; if either would overlap its next clip, both no-op.
 
 Preview: `<video>` / `<audio>` `playbackRate`. `sourceTimeAt` = sourceIn + clip-local × rate. Export mix: `AudioBufferSourceNode.playbackRate` + source-window duration. Export video: `sourceTimeSec` uses the same clock. Mute/solo/fader/gain/fades/pan still apply.
 
@@ -537,7 +537,7 @@ Ctrl+Alt+drag on a selected clip in a valid block slides the block (`clipIds`). 
 
 ## Linked A/V
 
-Status: TEST-VERIFIED (import + mix skip + split/move/trim/slip/rate/unlink). Live import / slip / rate: NOT VERIFIED.
+Status: TEST-VERIFIED (import + mix skip + split/move/trim/slip/rate/unlink + inspector/shortcut). Live import / slip / rate / Unlink click: NOT VERIFIED.
 
 `Clip.linkId` optional. Legacy JSON missing `linkId` stays unlinked. `MediaAsset.hasAudio` optional; probe may set it on video (`audioTracks` / `mozHasAudio`). Unknown → no pair (V-only + P11 mix).
 
@@ -547,11 +547,15 @@ Mix: living linked A clip carries audio; that V clip is omitted from `audioClips
 
 Edits that follow a living mate: split (S) at the same timeline time (lefts keep `linkId`, rights get a new shared id), move (same delta; track change stays same-kind), lift-delete and ripple-delete of one lift the other, trim / ripple-trim / roll of a linked edge apply to both. Slip applies the same source-in/source-out delta (start/duration stay); if either side would exceed source bounds, both no-op. `setClipRate` writes the same rate and `durationMs = sourceSpan / rate` on both; if either would overlap the next clip, both no-op. Fades stay independent (each clip’s fades re-clamp to its own new duration). Slide does not follow (neighbors live on different tracks).
 
-`{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. No new track types. No unlink button.
+`{ type: "unlinkClips", clipId }` clears `linkId` on the pair. After unlink they edit independently. Inspector **Unlink** + **Ctrl+Shift+L** reach that command. No new track types. No relink.
 
-`tests/core/linked-av.test.ts` (12). Import pair cases in `tests/media/import.test.ts`.
+`tests/core/linked-av.test.ts` (12). Inspector unlink in `tests/inspector/inspector.test.tsx`. Shortcut in `tests/app/keys.test.ts`. Import pair cases in `tests/media/import.test.ts`.
 
-## Changelog this follow-up (2026-08-30 07:50 UTC)
+## Changelog this follow-up (2026-08-30 07:54 UTC)
+
+- Inspector Unlink + Ctrl+Shift+L dispatch existing `{ type: "unlinkClips" }`. TEST-VERIFIED. Live click: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:50 UTC)
 
 - Linked slip + `setClipRate` follow a living mate (same source delta / same rate; both no-op on bounds). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -688,7 +692,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: linked slip+rate evidence (this commit). Feature `0625280`. Assigned start: `7acf9cd`. Prior linked-A/V evidence: `7acf9cd`.
+Tip after this follow-up: unlink UI evidence (this commit). Feature `dd59ce3`. Assigned start: `6681b36`. Prior slip/rate evidence: `6681b36`.
 
 ## Not added
 
