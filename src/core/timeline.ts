@@ -290,7 +290,11 @@ export function rippleTrimClip(
   };
 }
 
-/** Move many clips by the same delta. Clamps so no start goes below 0. */
+/**
+ * Move many clips by the same delta. Clamps so no start goes below 0.
+ * A 2+ selection skips disabled members (same as multi-select S / group
+ * slip). A single selected disabled clip still moves.
+ */
 export function moveClipsByDelta(
   project: Project,
   clipIds: readonly string[],
@@ -503,7 +507,8 @@ export function rippleDeleteClips(
 /**
  * Move the shared cut between two abutting clips. Total A+B span stays constant.
  * A living unlocked linked mate takes the same edge delta. A locked mate is
- * skipped (same as split/slip/rate/move/trim).
+ * skipped (same as split/slip/rate/move/trim). A disabled endpoint is not
+ * a roll (dimmed-handle drag must not move a living neighbor).
  */
 export function rollEdit(
   project: Project,
@@ -515,6 +520,9 @@ export function rollEdit(
   const right = clipById(project, rightId);
   if (!left || !right) return { project, error: "Clip not found" };
   if (clipIsLocked(left) || clipIsLocked(right)) return { project, error: "Clip is locked" };
+  if (!clipIsEnabled(left) || !clipIsEnabled(right)) {
+    return { project, error: "No abutting clip to roll" };
+  }
   if (left.trackId !== right.trackId) {
     return { project, error: "Roll requires two clips on the same track" };
   }

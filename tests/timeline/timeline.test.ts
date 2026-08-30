@@ -1529,6 +1529,9 @@ describe("roll edit", () => {
     };
     expect(abuttingNeighbor(p, "c1", "out")).toBeUndefined();
     expect(abuttingNeighbor(p, "c2", "in")?.id).toBe("c1");
+    const fromDim = rollEdit(p, "c1", "c2", 1200);
+    expect(fromDim.error).toMatch(/abutting/i);
+    expect(fromDim.project).toBe(p);
   });
 });
 

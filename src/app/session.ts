@@ -591,6 +591,7 @@ export function applyRoll(
 ): Session {
   const clip = session.project.clips.find((c) => c.id === clipId);
   if (!clip) return { ...session, error: "Clip not found" };
+  if (!clipIsEnabled(clip)) return { ...session, error: "No abutting clip to roll" };
   const neighbor = abuttingNeighbor(session.project, clipId, edge);
   if (!neighbor) return { ...session, error: "No abutting clip to roll" };
   const leftId = edge === "out" ? clipId : neighbor.id;

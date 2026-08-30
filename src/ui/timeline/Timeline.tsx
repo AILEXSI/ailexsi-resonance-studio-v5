@@ -594,16 +594,19 @@ export function Timeline({
     onSelect(clip.id);
     const originX = e.clientX;
     const originEdge = edge === "in" ? clip.startMs : clipEndMs(clip);
-    const mode: "lift" | "ripple" | "roll" = e.shiftKey
-      ? "ripple"
-      : abuttingNeighbor(project, clip.id, edge)
-        ? "roll"
-        : "lift";
+    const dimmed = clip.enabled === false;
+    const mode: "lift" | "ripple" | "roll" = dimmed
+      ? "lift"
+      : e.shiftKey
+        ? "ripple"
+        : abuttingNeighbor(project, clip.id, edge)
+          ? "roll"
+          : "lift";
     const move = (ev: PointerEvent) => {
       if (dragKindRef.current !== "trim") return;
       const dx = ev.clientX - originX;
       const nextEdge = originEdge + (dx / project.zoomPxPerSec) * 1000;
-      onTrimLive(clip.id, edge, nextEdge, ev.shiftKey ? "ripple" : mode);
+      onTrimLive(clip.id, edge, nextEdge, dimmed ? "lift" : ev.shiftKey ? "ripple" : mode);
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
