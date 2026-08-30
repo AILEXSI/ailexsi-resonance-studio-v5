@@ -100,6 +100,20 @@ describe("applyCommand determinism", () => {
     expect(next.selectedClipId).toBeNull();
   });
 
+  it("ripple-delete of a selected disabled clip does not pack later enabled (P149)", () => {
+    const start = twoClipSession();
+    start.project = {
+      ...start.project,
+      clips: start.project.clips.map((c) => (c.id === "c1" ? { ...c, enabled: false } : c)),
+    };
+    const blocked = applyCommand(start, { type: "rippleDelete" });
+    expect(blocked.error).toMatch(/disabled/i);
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.startMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "c1")!.enabled).toBe(false);
+    expect(blocked.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    expect(blocked.history.past.length).toBe(start.history.past.length);
+  });
+
   it("ripple-delete refuses to pack a later locked clip (P128)", () => {
     const start = twoClipSession();
     start.project = {

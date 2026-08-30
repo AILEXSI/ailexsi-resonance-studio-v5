@@ -231,6 +231,7 @@ export function abuttingNeighbor(
  * A living unlocked linked mate takes the same trim and pack. A locked mate
  * is skipped (same as split/slip/rate/roll/slide) so Q/W can trim the
  * unlocked clip. Later disabled clips stay parked (same as G / ArrowUp).
+ * A disabled primary is refused (Shift+drag must not pack living clips).
  */
 export function rippleTrimClip(
   project: Project,
@@ -483,14 +484,20 @@ export function deleteClips(project: Project, clipIds: readonly string[]): Proje
  * A locked later clip on any affected track refuses the whole edit
  * (same wall as ripple-trim / G / extract).
  * An unselected locked or disabled mate is skipped (same as lift-delete).
+ * A 2+ selection skips disabled members (same as group move / slip).
+ * A single selected disabled clip is refused — it does not occupy the
+ * living arrangement, so Shift+Delete must not pack later enabled clips.
  */
 export function rippleDeleteClips(
   project: Project,
   clipIds: readonly string[],
 ): { project: Project; error?: string } {
+  const explicit = new Set(clipIds.filter(Boolean));
+  const group = explicit.size >= 2;
   const selected = expandDeletableClipIds(project, clipIds)
     .map((id) => clipById(project, id))
-    .filter((c): c is Clip => Boolean(c));
+    .filter((c): c is Clip => Boolean(c) && (!group || clipIsEnabled(c)));
+  if (selected.length === 0) return { project };
   const order = [...selected].sort((a, b) => {
     if (a.trackId !== b.trackId) return a.trackId.localeCompare(b.trackId);
     return b.startMs - a.startMs;
@@ -1776,6 +1783,7 @@ export function deleteClip(project: Project, clipId: string): Project {
  * Other tracks are unchanged. A locked later enabled clip is a wall —
  * refuse (same as ripple-trim / closeGap / extract). Deleting the clip
  * itself is still allowed even when it is locked.
+ * A disabled primary is refused (Shift+Delete must not pack living clips).
  */
 function rippleDeleteOne(
   project: Project,
@@ -1783,6 +1791,7 @@ function rippleDeleteOne(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project };
+  if (!clipIsEnabled(clip)) return { project, error: "Clip is disabled" };
   const shift = clip.durationMs;
   const cutoff = clip.startMs;
   const trackId = clip.trackId;
@@ -1810,6 +1819,7 @@ function rippleDeleteOne(
   };
 }
 
+/** Refuse a disabled primary (same as ripple-trim). Lift-delete still removes it. */
 export function rippleDeleteClip(
   project: Project,
   clipId: string,

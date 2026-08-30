@@ -391,6 +391,57 @@ describe("ripple delete", () => {
     expect(next.project.clips.find((c) => c.id === "c3")!.startMs).toBe(2000);
   });
 
+  it("does not ripple-delete a disabled clip or pack later enabled (P149)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          enabled: false,
+        }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 2000, durationMs: 500 }),
+        clip({ id: "c3", assetId: "a", trackId: "A2", startMs: 2000, durationMs: 400 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClip(p, "off");
+    expect(next.error).toMatch(/disabled/i);
+    expect(next.project).toBe(p);
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(0);
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(2000);
+    expect(next.project.clips.find((c) => c.id === "c3")!.startMs).toBe(2000);
+  });
+
+  it("group ripple-delete skips a disabled member; later enabled still pack (P149)", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({ id: "c1", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({
+          id: "off",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 500,
+          enabled: false,
+        }),
+        clip({ id: "c2", assetId: "a", trackId: "A1", startMs: 2000, durationMs: 500 }),
+      ],
+      [a],
+    );
+    const next = rippleDeleteClips(p, ["c1", "off"]);
+    expect(next.error).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "c1")).toBeUndefined();
+    expect(next.project.clips.find((c) => c.id === "off")!.startMs).toBe(1000);
+    expect(next.project.clips.find((c) => c.id === "off")!.enabled).toBe(false);
+    expect(next.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+  });
+
   it("later disabled locked is not a ripple-delete wall (P135)", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
     const p = projectWith(
