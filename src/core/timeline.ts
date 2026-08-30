@@ -789,7 +789,7 @@ export function collectSnapTargets(
     if (project.inPointMs != null) targets.push({ timeMs: project.inPointMs, kind: "in" });
     if (project.outPointMs != null) targets.push({ timeMs: project.outPointMs, kind: "out" });
     for (const clip of project.clips) {
-      if (ignore.has(clip.id)) continue;
+      if (ignore.has(clip.id) || !clipIsEnabled(clip)) continue;
       targets.push({ timeMs: clip.startMs, kind: "clip-start" });
       targets.push({ timeMs: clipEndMs(clip), kind: "clip-end" });
     }

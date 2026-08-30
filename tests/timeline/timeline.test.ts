@@ -175,6 +175,31 @@ describe("timeline move/split/snap/undo", () => {
     expect(nearMarker.target?.kind).toBe("marker");
   });
 
+  it("skips disabled clip edges in snap targets (P126)", () => {
+    const p: Project = {
+      ...projectWith(
+        [
+          clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 1000 }),
+          clip({
+            id: "off",
+            assetId: "a",
+            trackId: "V2",
+            startMs: 2000,
+            durationMs: 1000,
+            enabled: false,
+          }),
+        ],
+        [asset({ id: "a", kind: "video", durationMs: 4000 })],
+      ),
+      snap: true,
+      playheadMs: 0,
+    };
+    const targets = collectSnapTargets(p, "c1");
+    expect(targets.some((t) => t.kind === "clip-start" && t.timeMs === 2000)).toBe(false);
+    expect(targets.some((t) => t.kind === "clip-end" && t.timeMs === 3000)).toBe(false);
+    expect(snapTime(2000 + 20, targets).snapped).toBe(false);
+  });
+
   it("ruler/lane seek snaps to clip edges, not to the current playhead (P86)", () => {
     const p: Project = {
       ...projectWith(
