@@ -180,6 +180,39 @@ describe("transition source override", () => {
     expect(redone.project.transitions[0]?.source).toBe("V1");
   });
 
+  it("off-grid playhead still writes the thin overlap, not a cover clip (P95)", () => {
+    const project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1001 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    project.playheadMs = 1070;
+    project.snap = true;
+    const start = sessionOf(project, []);
+    expect(start.selectedClipId).toBeNull();
+    expect(start.selectedClipIds).toEqual([]);
+    const next = applyCommand(start, { type: "setTransitionSource", source: "V1" });
+    expect(next.project.playheadMs).toBe(1070);
+    expect(next.project.transitions).toHaveLength(1);
+    expect(next.project.transitions[0]?.sourceAClipId).toBe("v1");
+    expect(next.project.transitions[0]?.sourceBClipId).toBe("v2");
+    expect(next.project.transitions[0]?.source).toBe("V1");
+    expect(next.project.transitions[0]?.startMs).toBe(1000);
+    expect(next.status).toBe("Source V1");
+
+    const off = applyCommand(
+      { ...start, project: { ...start.project, snap: false } },
+      { type: "setTransitionSource", source: "V1" },
+    );
+    expect(off.project.playheadMs).toBe(1070);
+    expect(off.project.transitions[0]?.sourceAClipId).not.toBe("v1");
+  });
+
   it("compositeVideoAt preview path === export path", () => {
     expect(previewComposite).toBe(exportComposite);
     expect(previewComposite).toBe(compositeVideoAt);

@@ -13,12 +13,13 @@ import {
   type VisualizerSceneId,
 } from "../../core/models";
 import { canShowRelink } from "../../core/relink";
+import { snapPlayheadSeek } from "../../core/timeline";
 import {
   TRANSITION_TYPES,
-  editPairAt,
+  editPairAtProbe,
   findTransitionForPair,
   resolveEditPair,
-  transitionAt,
+  transitionAtProbe,
   transitionAudioDurationMs,
   transitionAudioOf,
   transitionSourceOf,
@@ -118,10 +119,11 @@ export function Inspector({
   const asset = clip ? project.assets.find((a) => a.id === clip.assetId) : undefined;
   const unlinkId = firstClipIdWithLivingMate(project, ids);
   const showRelink = !selectedVis && canShowRelink(project, ids);
-  const pair = resolveEditPair(project, ids) ?? editPairAt(project, project.playheadMs);
+  const probe = snapPlayheadSeek(project, project.playheadMs);
+  const pair = resolveEditPair(project, ids) ?? editPairAtProbe(project, probe);
   const stored = pair
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
-    : transitionAt(project.transitions ?? [], project.playheadMs);
+    : transitionAtProbe(project.transitions ?? [], probe);
   const source = transitionSourceOf(stored);
   const audio = transitionAudioOf(stored);
   const audioDurationMs = transitionAudioDurationMs(stored);

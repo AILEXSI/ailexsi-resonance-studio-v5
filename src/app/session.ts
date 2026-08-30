@@ -1,10 +1,10 @@
 import { unlinkClips } from "../core/link";
 import {
-  editPairAt,
+  editPairAtProbe,
   findTransitionForPair,
   resolveEditPair,
   setTransitionSource,
-  transitionAt,
+  transitionAtProbe,
   transitionAudioDurationMs,
   transitionAudioOf,
   transitionSourceOf,
@@ -973,7 +973,7 @@ export function applySetTransition(
 ): Session {
   const pair =
     resolveEditPair(session.project, selectionOf(session)) ??
-    editPairAt(session.project, session.project.playheadMs);
+    editPairAtProbe(session.project, snapPlayheadSeek(session.project, session.project.playheadMs));
   if (!pair) return session;
   const mapped = {
     ...patch,
@@ -985,9 +985,9 @@ export function applySetTransition(
 }
 
 function resolveAudioPair(session: Session) {
-  const playhead = session.project.playheadMs;
+  const probe = snapPlayheadSeek(session.project, session.project.playheadMs);
   return (
-    resolveEditPair(session.project, selectionOf(session)) ?? editPairAt(session.project, playhead)
+    resolveEditPair(session.project, selectionOf(session)) ?? editPairAtProbe(session.project, probe)
   );
 }
 
@@ -1041,9 +1041,9 @@ function sourceStatus(source: TransitionSource): string {
 }
 
 export function applySetTransitionSource(session: Session, source: TransitionSource): Session {
-  const playhead = session.project.playheadMs;
+  const probe = snapPlayheadSeek(session.project, session.project.playheadMs);
   const pair =
-    resolveEditPair(session.project, selectionOf(session)) ?? editPairAt(session.project, playhead);
+    resolveEditPair(session.project, selectionOf(session)) ?? editPairAtProbe(session.project, probe);
   if (pair) {
     const existing = findTransitionForPair(session.project.transitions ?? [], pair.sourceA.id, pair.sourceB.id);
     if (existing && transitionSourceOf(existing) === source) return session;
@@ -1053,13 +1053,13 @@ export function applySetTransitionSource(session: Session, source: TransitionSou
     });
     return withHistory(session, project, sourceStatus(source));
   }
-  const existing = transitionAt(session.project.transitions ?? [], playhead);
+  const existing = transitionAtProbe(session.project.transitions ?? [], probe);
   if (existing) {
     const project = setTransitionSource(session.project, existing.id, source);
     if (project === session.project) return session;
     return withHistory(session, project, sourceStatus(source));
   }
-  const cover = clipOnTrackAt(session.project, "V1", playhead) ?? clipOnTrackAt(session.project, "V2", playhead);
+  const cover = clipOnTrackAt(session.project, "V1", probe) ?? clipOnTrackAt(session.project, "V2", probe);
   if (!cover) return session;
   const { project } = upsertTransition(
     session.project,

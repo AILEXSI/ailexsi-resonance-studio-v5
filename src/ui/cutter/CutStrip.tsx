@@ -1,7 +1,7 @@
-import { collectEditPoints, nearestEditPointMs } from "../../core/timeline";
+import { collectEditPoints, nearestEditPointMs, snapPlayheadSeek } from "../../core/timeline";
 import { LANE_LABEL_PX, RULER_PAD_PX } from "../../core/zoom";
 import type { Project } from "../../core/models";
-import { transitionAt } from "../../core/transition";
+import { transitionAtProbe } from "../../core/transition";
 
 function msToX(ms: number, zoom: number, scrollMs: number, laneLabelPx = LANE_LABEL_PX): number {
   return laneLabelPx + RULER_PAD_PX + ((ms - scrollMs) / 1000) * zoom;
@@ -11,9 +11,10 @@ function msToX(ms: number, zoom: number, scrollMs: number, laneLabelPx = LANE_LA
 export function currentCutTickMs(project: Project): number | undefined {
   const points = collectEditPoints(project);
   if (!points.length) return undefined;
-  const stored = transitionAt(project.transitions ?? [], project.playheadMs);
+  const probe = snapPlayheadSeek(project, project.playheadMs);
+  const stored = transitionAtProbe(project.transitions ?? [], probe);
   if (stored && points.includes(stored.startMs)) return stored.startMs;
-  return nearestEditPointMs(project, stored?.startMs ?? project.playheadMs);
+  return nearestEditPointMs(project, stored?.startMs ?? probe);
 }
 
 export function CutStrip({

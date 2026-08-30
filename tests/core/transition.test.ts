@@ -9,6 +9,8 @@ import {
   listStackedEditPairs,
   resolveEditPair,
   transitionAudioGain,
+  editPairAt,
+  editPairAtProbe,
   upsertTransition,
 } from "../../src/core/transition";
 import { previewComposite } from "../../src/ui/preview/Preview";
@@ -79,6 +81,23 @@ describe("edit pair resolve", () => {
     expect(flipped[0]?.sourceA.id).toBe("v2");
     expect(flipped[0]?.sourceB.id).toBe("v1");
     expect(flipped[0]?.type).toBe("cut");
+  });
+
+  it("probe at exclusive overlap end still resolves the pair (P95)", () => {
+    const project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1001 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    expect(editPairAt(project, 1001)).toBeUndefined();
+    expect(editPairAtProbe(project, 1001)?.sourceA.id).toBe("v1");
+    expect(editPairAtProbe(project, 1001)?.sourceB.id).toBe("v2");
+    expect(editPairAtProbe(project, 1000)?.overlapStartMs).toBe(1000);
   });
 
   it("returns no pair without a stacked video overlap", () => {

@@ -2,15 +2,16 @@ import type { EditorCommand } from "../../app/commands";
 import type { TransitionType } from "../../core/transition";
 import {
   TRANSITION_TYPES,
-  editPairAt,
+  editPairAtProbe,
   findTransitionForPair,
   resolveEditPair,
-  transitionAt,
+  transitionAtProbe,
   transitionAudioDurationMs,
   transitionAudioOf,
   transitionSourceOf,
 } from "../../core/transition";
 import type { Project } from "../../core/models";
+import { snapPlayheadSeek } from "../../core/timeline";
 import { AudioButtons } from "./AudioButtons";
 import { CutStrip } from "./CutStrip";
 import { DurationHandles } from "./DurationHandles";
@@ -35,12 +36,13 @@ export function Cutter({
   onPlayhead?: (ms: number) => void;
   laneLabelPx?: number;
 }) {
+  const probe = snapPlayheadSeek(project, project.playheadMs);
   const pair =
     resolveEditPair(project, selectedClipIds.length ? selectedClipIds : selectedClipId ? [selectedClipId] : []) ??
-    editPairAt(project, project.playheadMs);
+    editPairAtProbe(project, probe);
   const stored = pair
     ? findTransitionForPair(project.transitions ?? [], pair.sourceA.id, pair.sourceB.id)
-    : transitionAt(project.transitions ?? [], project.playheadMs);
+    : transitionAtProbe(project.transitions ?? [], probe);
   const type: TransitionType = stored?.type ?? "cut";
   const durationMs = stored?.durationMs ?? (pair ? Math.max(1, pair.overlapDurationMs) : 0);
   const audio = transitionAudioOf(stored);

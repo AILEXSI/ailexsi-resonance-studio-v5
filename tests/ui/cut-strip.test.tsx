@@ -120,6 +120,31 @@ describe("Cutter cut strip", () => {
     expect(currentCutTickMs(project)).toBe(1000);
   });
 
+  it("off-grid playhead still prefers the thin-cut transition start (P95)", () => {
+    let project = projectWith(
+      [
+        clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1001 }),
+        clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 1000 }),
+      ],
+      [
+        asset({ id: "va", kind: "video", durationMs: 4000 }),
+        asset({ id: "vb", kind: "video", durationMs: 4000 }),
+      ],
+    );
+    project = upsertTransition(
+      project,
+      {
+        sourceA: project.clips[0]!,
+        sourceB: project.clips[1]!,
+        overlapStartMs: 1000,
+        overlapDurationMs: 1,
+      },
+      { type: "cut", durationMs: 1, startMs: 1000 },
+    ).project;
+    project = { ...project, playheadMs: 1070, snap: true };
+    expect(currentCutTickMs(project)).toBe(1000);
+  });
+
   it("ticks include VIS event edges (same collectEditPoints as ArrowUp/Down)", () => {
     const project = {
       ...mappedProject(),

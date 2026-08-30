@@ -79,6 +79,28 @@ describe("Cutter", () => {
     expect(host!.querySelector("[data-testid=cutter-audio-cut]")?.classList.contains("on")).toBe(true);
   });
 
+  it("off-grid playhead still shows the thin overlap pair (P95)", () => {
+    const project = {
+      ...projectWith(
+        [
+          clip({ id: "v1", assetId: "va", trackId: "V1", startMs: 0, durationMs: 1001 }),
+          clip({ id: "v2", assetId: "vb", trackId: "V2", startMs: 1000, durationMs: 1000 }),
+        ],
+        [
+          asset({ id: "va", kind: "video", name: "Outgoing", durationMs: 4000 }),
+          asset({ id: "vb", kind: "video", name: "Incoming", durationMs: 4000 }),
+        ],
+      ),
+      playheadMs: 1070,
+      snap: true,
+    };
+    render(<Cutter project={project} selectedClipId={null} selectedClipIds={[]} apply={() => {}} />);
+    expect(host!.querySelector("[data-testid=cutter-empty]")).toBeNull();
+    expect(host!.querySelector("[data-testid=cutter-edit]")).toBeTruthy();
+    expect(host!.querySelector("[data-testid=cutter-source-a]")?.textContent).toMatch(/Outgoing/);
+    expect(host!.querySelector("[data-testid=cutter-source-b]")?.textContent).toMatch(/Incoming/);
+  });
+
   it("video duration handle writes setTransition on pointerup only", () => {
     const project = {
       ...projectWith(

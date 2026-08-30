@@ -369,6 +369,21 @@ export function editPairAt(project: Project, timeMs: number): EditPair | undefin
   return undefined;
 }
 
+/**
+ * Probe after snapPlayheadSeek. Half-open overlap/window: a snap to the
+ * exclusive end still counts as this edit. Does not move the playhead.
+ */
+export function editPairAtProbe(project: Project, timeMs: number): EditPair | undefined {
+  return editPairAt(project, timeMs) ?? editPairAt(project, Math.max(0, timeMs - 1));
+}
+
+export function transitionAtProbe(
+  transitions: readonly Transition[],
+  timeMs: number,
+): Transition | undefined {
+  return transitionAt(transitions, timeMs) ?? transitionAt(transitions, Math.max(0, timeMs - 1));
+}
+
 function mixEndsOf(t: Transition, ctx: CompositeContext, timeMs: number): { a: string; b: string } {
   const src = transitionSourceOf(t);
   if (src !== "V1" && src !== "V2") return { a: t.sourceAClipId, b: t.sourceBClipId };
