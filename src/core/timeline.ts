@@ -601,6 +601,7 @@ export function splitAtPlayhead(
   const hits = project.clips.filter(
     (c) =>
       (!allow || allow.has(c.id)) &&
+      (allow ? true : clipIsEnabled(c)) &&
       project.playheadMs > c.startMs &&
       project.playheadMs < clipEndMs(c),
   );
@@ -634,7 +635,9 @@ export function editRangeOf(project: Project): { inMs: number; outMs: number } |
 }
 
 function splitAllAtTime(project: Project, timeMs: number): Project {
-  const hits = project.clips.filter((c) => c.startMs < timeMs && clipEndMs(c) > timeMs);
+  const hits = project.clips.filter(
+    (c) => clipIsEnabled(c) && c.startMs < timeMs && clipEndMs(c) > timeMs,
+  );
   let next = project;
   for (const clip of hits) {
     const current = clipById(next, clip.id);

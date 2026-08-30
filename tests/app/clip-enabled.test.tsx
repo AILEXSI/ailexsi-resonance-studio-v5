@@ -105,6 +105,22 @@ describe("clip enable / disable (P45)", () => {
     expect(same).toBe(disabled);
   });
 
+  it("S splits the covering enabled clip, not a disabled clip under the playhead (P102)", () => {
+    const start = stackedSession();
+    start.project.playheadMs = 500;
+    start.project.frontVideoTrackId = "V1";
+    const disabled = applyCommand(start, { type: "setClipsEnabled", enabled: false });
+    expect(topVideoClipAt(disabled.project, 500)?.id).toBe("v2");
+    const split = applyCommand(disabled, { type: "split" });
+    expect(split.project.clips.filter((c) => c.assetId === "va").map((c) => c.id)).toEqual(["v1"]);
+    expect(split.project.clips.find((c) => c.id === "v1")?.enabled).toBe(false);
+    expect(split.project.clips.filter((c) => c.assetId === "vb")).toHaveLength(2);
+    expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(2);
+    const halves = split.project.clips.filter((c) => c.assetId === "vb").sort((a, b) => a.startMs - b.startMs);
+    expect(halves[0]!.durationMs).toBe(500);
+    expect(halves[1]!.startMs).toBe(500);
+  });
+
   it("does not steal a key for enable/disable", () => {
     const start = stackedSession();
     for (const key of ["e", "d", "b"]) {
