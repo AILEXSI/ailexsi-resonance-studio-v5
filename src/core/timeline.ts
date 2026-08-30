@@ -1009,9 +1009,22 @@ export function slideClips(
   return applySlideThroughNeighbors(project, block.mids, block.left, block.right, deltaMs);
 }
 
+function slipSourceWindow(
+  clip: Clip,
+  sourceDelta: number,
+  maxOut: number,
+): { sourceInMs: number; sourceOutMs: number } | { error: string } {
+  const span = sourceSpanMs(clip);
+  const sourceInMs = clip.sourceInMs + sourceDelta;
+  const sourceOutMs = sourceInMs + span;
+  if (sourceInMs < 0 || sourceOutMs > maxOut) return { error: "Cannot slip further" };
+  return { sourceInMs, sourceOutMs };
+}
+
 /**
  * Slide source in/out. Timeline start and duration stay put.
  * Clamps sourceIn ≥ 0 and sourceOut ≤ asset duration.
+ * A living linked mate takes the same source delta or both no-op.
  */
 export function slipClip(
   project: Project,
@@ -1023,19 +1036,43 @@ export function slipClip(
   const asset = project.assets.find((a) => a.id === clip.assetId);
   const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
   const span = sourceSpanMs(clip);
-  const maxIn = maxOut - span;
   const sourceDelta = timelineDeltaToSource(clip, deltaMs);
-  const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
-  if (sourceInMs === clip.sourceInMs) return { project };
-  const next: Clip = {
-    ...clip,
-    sourceInMs,
-    sourceOutMs: sourceInMs + span,
-  };
+  const mate = livingLinkedMate(project, clipId);
+  if (!mate) {
+    const maxIn = maxOut - span;
+    const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
+    if (sourceInMs === clip.sourceInMs) return { project };
+    const next: Clip = {
+      ...clip,
+      sourceInMs,
+      sourceOutMs: sourceInMs + span,
+    };
+    return {
+      project: {
+        ...project,
+        clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+  const mateAsset = project.assets.find((a) => a.id === mate.assetId);
+  const mateMax = mateAsset?.durationMs ?? Number.POSITIVE_INFINITY;
+  const one = slipSourceWindow(clip, sourceDelta, maxOut);
+  const two = slipSourceWindow(mate, sourceDelta, mateMax);
+  if ("error" in one || "error" in two) {
+    return { project, error: "Cannot slip further" };
+  }
+  if (one.sourceInMs === clip.sourceInMs && two.sourceInMs === mate.sourceInMs) return { project };
+  const next: Clip = { ...clip, sourceInMs: one.sourceInMs, sourceOutMs: one.sourceOutMs };
+  const nextMate: Clip = { ...mate, sourceInMs: two.sourceInMs, sourceOutMs: two.sourceOutMs };
   return {
     project: {
       ...project,
-      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+      clips: project.clips.map((c) => {
+        if (c.id === clipId) return next;
+        if (c.id === mate.id) return nextMate;
+        return c;
+      }),
       updatedAt: new Date().toISOString(),
     },
   };
@@ -1100,10 +1137,42 @@ export function updateClip(
   };
 }
 
+function planClipRate(
+  project: Project,
+  clip: Clip,
+  rate: number,
+): { clip: Clip } | { error: string } | { unchanged: true } {
+  const nextRate = clampClipRate(rate);
+  const wanted = timelineDurationForRate(sourceSpanMs(clip), nextRate);
+  const nextNeighbor = project.clips
+    .filter((c) => c.trackId === clip.trackId && c.id !== clip.id && c.startMs > clip.startMs)
+    .sort((a, b) => a.startMs - b.startMs)[0];
+  const available = nextNeighbor
+    ? Math.max(0, nextNeighbor.startMs - clip.startMs)
+    : Number.POSITIVE_INFINITY;
+  if (wanted > available + ABUT_TOLERANCE_MS) {
+    const clamped = Math.max(1, available);
+    if (Math.abs(clamped * nextRate - sourceSpanMs(clip)) > 1) {
+      return { error: "Rate would overlap the next clip" };
+    }
+  }
+  const durationMs = Math.min(wanted, available);
+  if (durationMs < 1) return { error: "Rate would overlap the next clip" };
+  if (nextRate === clip.rate && durationMs === clip.durationMs) return { unchanged: true };
+  return {
+    clip: applyNormalizedFades({
+      ...clip,
+      rate: nextRate,
+      durationMs,
+    }),
+  };
+}
+
 /**
  * Classic NLE speed: source in/out stay. durationMs = sourceSpan / rate.
  * Grows/shrinks to the right. Overlap with the next same-track clip is a
  * hard reject (no auto-ripple). Fades re-clamp to the new duration.
+ * A living linked mate gets the same rate or both no-op.
  */
 export function setClipRate(
   project: Project,
@@ -1112,32 +1181,32 @@ export function setClipRate(
 ): { project: Project; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
-  const nextRate = clampClipRate(rate);
-  const wanted = timelineDurationForRate(sourceSpanMs(clip), nextRate);
-  const nextNeighbor = project.clips
-    .filter((c) => c.trackId === clip.trackId && c.id !== clipId && c.startMs > clip.startMs)
-    .sort((a, b) => a.startMs - b.startMs)[0];
-  const available = nextNeighbor
-    ? Math.max(0, nextNeighbor.startMs - clip.startMs)
-    : Number.POSITIVE_INFINITY;
-  if (wanted > available + ABUT_TOLERANCE_MS) {
-    const clamped = Math.max(1, available);
-    if (Math.abs(clamped * nextRate - sourceSpanMs(clip)) > 1) {
-      return { project, error: "Rate would overlap the next clip" };
-    }
+  const one = planClipRate(project, clip, rate);
+  if ("error" in one) return { project, error: one.error };
+  const mate = livingLinkedMate(project, clipId);
+  if (!mate) {
+    if ("unchanged" in one) return { project };
+    return {
+      project: {
+        ...project,
+        clips: project.clips.map((c) => (c.id === clipId ? one.clip : c)),
+        updatedAt: new Date().toISOString(),
+      },
+    };
   }
-  const durationMs = Math.min(wanted, available);
-  if (durationMs < 1) return { project, error: "Rate would overlap the next clip" };
-  if (nextRate === clip.rate && durationMs === clip.durationMs) return { project };
-  const next = applyNormalizedFades({
-    ...clip,
-    rate: nextRate,
-    durationMs,
-  });
+  const two = planClipRate(project, mate, rate);
+  if ("error" in two) return { project, error: two.error };
+  if ("unchanged" in one && "unchanged" in two) return { project };
+  const next = "unchanged" in one ? clip : one.clip;
+  const nextMate = "unchanged" in two ? mate : two.clip;
   return {
     project: {
       ...project,
-      clips: project.clips.map((c) => (c.id === clipId ? next : c)),
+      clips: project.clips.map((c) => {
+        if (c.id === clipId) return next;
+        if (c.id === mate.id) return nextMate;
+        return c;
+      }),
       updatedAt: new Date().toISOString(),
     },
   };

@@ -4,7 +4,7 @@ import { createSession, type Session } from "../../src/app/session";
 import { audioClipsForMix, jobFromProject } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { moveClip, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
+import { moveClip, setClipRate, slipClip, splitClipAt, splitAtPlayhead } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function linkedPair(): Session {
@@ -129,5 +129,96 @@ describe("linked A/V", () => {
     const start = linkedPair();
     const gone = applyCommand(start, { type: "liftDelete" });
     expect(gone.project.clips).toHaveLength(0);
+  });
+
+  it("slip of one linked clip applies the same source delta to the mate", () => {
+    const start = linkedPair();
+    start.project.assets = [
+      asset({
+        id: "va",
+        kind: "video",
+        durationMs: 4000,
+        objectUrl: "blob:v",
+        hasAudio: true,
+      }),
+    ];
+    const slipped = slipClip(start.project, "v1", 200);
+    expect(slipped.error).toBeUndefined();
+    const v = slipped.project.clips.find((c) => c.id === "v1")!;
+    const a = slipped.project.clips.find((c) => c.id === "a1")!;
+    expect(v.startMs).toBe(0);
+    expect(v.durationMs).toBe(2000);
+    expect(v.sourceInMs).toBe(200);
+    expect(v.sourceOutMs).toBe(2200);
+    expect(a.startMs).toBe(0);
+    expect(a.durationMs).toBe(2000);
+    expect(a.sourceInMs).toBe(200);
+    expect(a.sourceOutMs).toBe(2200);
+  });
+
+  it("slip blocked by mate source bounds moves neither clip", () => {
+    const start = linkedPair();
+    start.project.assets = [
+      asset({ id: "va", kind: "video", durationMs: 4000, objectUrl: "blob:v", hasAudio: true }),
+      asset({ id: "aa", kind: "audio", durationMs: 2000, objectUrl: "blob:a" }),
+    ];
+    start.project.clips = start.project.clips.map((c) =>
+      c.id === "a1" ? { ...c, assetId: "aa" } : c,
+    );
+    const blocked = slipClip(start.project, "v1", 200);
+    expect(blocked.project).toBe(start.project);
+    expect(blocked.error).toMatch(/slip/i);
+    expect(blocked.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(0);
+    expect(blocked.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(0);
+  });
+
+  it("setClipRate on a linked clip sets the same rate and resizes both durations", () => {
+    const start = linkedPair();
+    const next = setClipRate(start.project, "v1", 2);
+    expect(next.error).toBeUndefined();
+    const v = next.project.clips.find((c) => c.id === "v1")!;
+    const a = next.project.clips.find((c) => c.id === "a1")!;
+    expect(v.rate).toBe(2);
+    expect(a.rate).toBe(2);
+    expect(v.durationMs).toBe(1000);
+    expect(a.durationMs).toBe(1000);
+    expect(v.sourceInMs).toBe(0);
+    expect(v.sourceOutMs).toBe(2000);
+    expect(a.sourceInMs).toBe(0);
+    expect(a.sourceOutMs).toBe(2000);
+    expect(v.startMs).toBe(0);
+    expect(a.startMs).toBe(0);
+  });
+
+  it("setClipRate no-ops both when the mate would overlap the next clip", () => {
+    const start = linkedPair();
+    start.project.clips = [
+      ...start.project.clips,
+      clip({ id: "a2", assetId: "va", trackId: "A1", startMs: 2000, durationMs: 500 }),
+    ];
+    const rejected = setClipRate(start.project, "v1", 0.5);
+    expect(rejected.project).toBe(start.project);
+    expect(rejected.error).toMatch(/overlap/i);
+    expect(rejected.project.clips.find((c) => c.id === "v1")!.rate).toBe(1);
+    expect(rejected.project.clips.find((c) => c.id === "a1")!.rate).toBe(1);
+    expect(rejected.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+  });
+
+  it("unlink then slip one leaves the other", () => {
+    const start = linkedPair();
+    start.project.assets = [
+      asset({
+        id: "va",
+        kind: "video",
+        durationMs: 4000,
+        objectUrl: "blob:v",
+        hasAudio: true,
+      }),
+    ];
+    const unlinked = applyCommand(start, { type: "unlinkClips", clipId: "v1" });
+    const slipped = applyCommand(unlinked, { type: "slip", clipId: "v1", deltaMs: 200 });
+    expect(slipped.project.clips.find((c) => c.id === "v1")!.sourceInMs).toBe(200);
+    expect(slipped.project.clips.find((c) => c.id === "a1")!.sourceInMs).toBe(0);
+    expect(slipped.project.clips.find((c) => c.id === "a1")!.sourceOutMs).toBe(2000);
   });
 });
