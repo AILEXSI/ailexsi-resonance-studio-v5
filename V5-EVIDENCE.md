@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 147 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-gbxsonfE.css 14.31 kB
-- dist/assets/index-jSndHOKz.js 657.38 kB
+- dist/assets/index-CfoWhFQf.js 658.68 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **131 passed / 25 files**. Start 05:34:13 UTC. Duration 4.79s.
+exit 0. vitest 3.2.7. **138 passed / 25 files**. Start 05:38:42 UTC. Duration 5.55s.
 
-New this follow-up: project-overlay 1, arrange-scroll 1, layout-prefs now includes horizontal split persist. Overlay closed by default; Open/Save open it; Esc/outside close.
+New this follow-up: clip-preview envelope (width ≈ pixels, zoom-in grows count, empty fill fallback, adjacent-x path) + clip-preview-dom (gapless path, zoom peak-count, not-ready null). Overlay / arrange-scroll tests remain green.
 
 ## Visualizer
 

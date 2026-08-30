@@ -127,7 +127,7 @@ export function VideoClipStrip(props: {
     if (!loader) return;
     setThumbs([]);
     void (async () => {
-      const next: Array<{ timeMs: number; src: string }>> = [];
+      const next: Array<{ timeMs: number; src: string }> = [];
       for (const timeMs of times) {
         const src = await loader(timeMs);
         if (cancelled) return;
