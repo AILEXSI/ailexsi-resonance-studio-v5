@@ -974,8 +974,36 @@ input[type="range"] { accent-color: var(--accent-2); }
   letter-spacing: 0.1em;
   color: var(--muted);
 }
+.screen-nav-item {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+}
 .screen-nav-item.on {
   color: var(--accent);
+}
+
+.overlap-mark {
+  position: absolute;
+  top: 2px;
+  z-index: 4;
+  height: 14px;
+  min-width: 28px;
+  padding: 0 4px;
+  border: 1px solid rgba(240, 210, 122, 0.55);
+  border-radius: 3px;
+  background: rgba(16, 19, 24, 0.82);
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  line-height: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .cutter {

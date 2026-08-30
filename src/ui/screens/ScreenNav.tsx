@@ -6,18 +6,28 @@ const LABELS: Record<ProductionScreen, string> = {
   cutter: "CUTTER",
 };
 
-export function ScreenNav({ screen }: { screen: ProductionScreen }) {
+export function ScreenNav({
+  screen,
+  onSelect,
+}: {
+  screen: ProductionScreen;
+  onSelect: (screen: ProductionScreen) => void;
+}) {
   return (
     <div className="screen-nav" data-testid="screen-nav" aria-label="Production screen">
       {PRODUCTION_SCREENS.map((id) => (
-        <span
+        <button
           key={id}
+          type="button"
           className={id === screen ? "screen-nav-item on" : "screen-nav-item"}
+          data-testid={`screen-nav-${id}`}
           data-screen={id}
           data-active={id === screen ? "true" : "false"}
+          aria-pressed={id === screen}
+          onClick={() => onSelect(id)}
         >
           [{LABELS[id]}]
-        </span>
+        </button>
       ))}
     </div>
   );

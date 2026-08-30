@@ -21,6 +21,7 @@ import { RULER_PAD_PX } from "../../core/zoom";
 import { sceneShortName } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
+import { listStackedEditPairs } from "../../core/transition";
 import { buildRulerTicks } from "../../core/ruler";
 
 export { RULER_PAD_PX };
@@ -343,6 +344,7 @@ export function Timeline({
       ? [selectedClipId]
       : [];
   const primaryId = selectedClipId ?? selectedIds[0] ?? null;
+  const overlapMarks = useMemo(() => listStackedEditPairs(project), [project]);
 
   const onClipPointerDown = (e: ReactPointerEvent, clip: Clip) => {
     if (e.button !== 0) return;
@@ -890,6 +892,37 @@ export function Timeline({
                     </div>
                   );
                 })}
+              {kindOfTrack(id) === "video"
+                ? overlapMarks
+                    .filter((m) => m.sourceA.trackId === id)
+                    .map((m) => (
+                      <button
+                        key={`${m.sourceA.id}:${m.sourceB.id}`}
+                        type="button"
+                        className="overlap-mark"
+                        data-testid="overlap-mark"
+                        data-type={m.type}
+                        data-duration-ms={String(m.durationMs)}
+                        data-a={m.sourceA.id}
+                        data-b={m.sourceB.id}
+                        style={{
+                          left: msToX(m.overlapStartMs, project.zoomPxPerSec, project.scrollMs),
+                          width: Math.max(28, msToWidth(m.durationMs, project.zoomPxPerSec)),
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          onSelectClips?.([m.sourceA.id, m.sourceB.id]);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectClips?.([m.sourceA.id, m.sourceB.id]);
+                        }}
+                      >
+                        {m.type} {m.durationMs}ms
+                      </button>
+                    ))
+                : null}
               <div
                 className="playhead"
                 style={{ left: msToX(project.playheadMs, project.zoomPxPerSec, project.scrollMs) }}

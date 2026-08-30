@@ -6,6 +6,7 @@ import { exportComposite } from "../../src/core/exporter/webcodecs";
 import {
   compositeVideoAt,
   contextFromProject,
+  listStackedEditPairs,
   resolveEditPair,
   transitionAudioGain,
   upsertTransition,
@@ -66,6 +67,18 @@ describe("edit pair resolve", () => {
     const pair = resolveEditPair(stackedV2EndsFirst(), ["v1"]);
     expect(pair?.sourceA.id).toBe("v2");
     expect(pair?.sourceB.id).toBe("v1");
+  });
+
+  it("lists stacked overlaps; implicit type is cut", () => {
+    const marks = listStackedEditPairs(stackedV1OverV2());
+    expect(marks).toHaveLength(1);
+    expect(marks[0]?.type).toBe("cut");
+    expect(marks[0]?.sourceA.id).toBe("v1");
+    expect(marks[0]?.sourceB.id).toBe("v2");
+    const flipped = listStackedEditPairs(stackedV2EndsFirst());
+    expect(flipped[0]?.sourceA.id).toBe("v2");
+    expect(flipped[0]?.sourceB.id).toBe("v1");
+    expect(flipped[0]?.type).toBe("cut");
   });
 
   it("returns no pair without a stacked video overlap", () => {

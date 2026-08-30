@@ -814,7 +814,7 @@ export function App() {
         onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
       />
-      <ScreenNav screen={screen} />
+      <ScreenNav screen={screen} onSelect={setScreen} />
       <input
         type="file"
         accept="audio/*,video/*"

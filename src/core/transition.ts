@@ -133,6 +133,45 @@ export function resolveEditPair(
   return undefined;
 }
 
+export interface StackedOverlapMark {
+  sourceA: Clip;
+  sourceB: Clip;
+  overlapStartMs: number;
+  overlapDurationMs: number;
+  type: TransitionType;
+  durationMs: number;
+}
+
+/** Every stacked video overlap (any two video tracks). Implicit = cut. */
+export function listStackedEditPairs(project: Project): StackedOverlapMark[] {
+  const videos = project.clips.filter((c) => kindOfTrack(c.trackId) === "video");
+  const out: StackedOverlapMark[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < videos.length; i++) {
+    for (let j = i + 1; j < videos.length; j++) {
+      const x = videos[i]!;
+      const y = videos[j]!;
+      if (x.trackId === y.trackId) continue;
+      const overlap = clipsOverlapMs(x, y);
+      if (!overlap) continue;
+      const { sourceA, sourceB } = orderOutgoingIncoming(x, y);
+      const key = `${sourceA.id}\0${sourceB.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const stored = findTransitionForPair(project.transitions ?? [], sourceA.id, sourceB.id);
+      out.push({
+        sourceA,
+        sourceB,
+        overlapStartMs: overlap.startMs,
+        overlapDurationMs: overlap.durationMs,
+        type: stored?.type ?? "cut",
+        durationMs: stored?.durationMs ?? Math.max(1, overlap.durationMs),
+      });
+    }
+  }
+  return out;
+}
+
 export function findTransitionForPair(
   transitions: readonly Transition[],
   sourceAClipId: string,
