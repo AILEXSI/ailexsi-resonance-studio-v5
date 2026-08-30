@@ -1,102 +1,189 @@
 # V5 Evidence
-Stand: 2026-08-29 19:18 PT (Europe/Berlin). Commands below actually ran.
 
-Repo: local ailexsi-resonance-studio-v5 (no remote; not pushed; not published).
-V4 was not copied. No files taken from ailexsi-resonance-studio or suite-v4.2. src-tauri leftover unused.
+Stand: 2026-08-30 03:59 UTC. Commands and observations below are from this run only.
+Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
+V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
 
-Levels used: PLANNED | IMPLEMENTED | CODE-VERIFIED | RUNTIME-VERIFIED | ACCEPTANCE-VERIFIED
+Allowed statuses: IMPLEMENTED | RUNTIME-VERIFIED | TEST-VERIFIED | NOT VERIFIED | PLANNED | NOT IMPLEMENTED
 
 ## Browser host
+
 Status: RUNTIME-VERIFIED
-npx vite --host 127.0.0.1 --port 1421 --strictPort (running)
-curl => HTTP 200, 585 bytes, text/html, mounts #root. Host is loopback, not IPv6-only.
+
+Vite was already listening from an earlier session on this VM.
+
+```
+curl -sS -D - -o /tmp/v5-index.html http://127.0.0.1:1421
+```
+
+Observed: HTTP/1.1 200 OK, Content-Type text/html, Content-Length 585, body contains `id="root"`.
+`vite.config.ts` binds `host: "127.0.0.1"`, `port: 1421`, `strictPort: true`. Not 0.0.0.0.
 
 ## Build
+
 Status: RUNTIME-VERIFIED
-npx tsc --noEmit => exit 0
-npx vite build => exit 0 (50 modules). package.json script build maps to vite build.
+
+```
+npx tsc --noEmit
+```
+
+exit 0
+
+```
+npx vite build
+```
+
+exit 0. vite 7.3.6, 134 modules. Outputs:
+- dist/index.html 0.41 kB
+- dist/assets/index-BqKW0e4x.css 8.00 kB
+- dist/assets/index-aYb5mCCW.js 628.13 kB
+Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
-Status: RUNTIME-VERIFIED
-npx vitest run => exit 0, 65 passed / 8 files
+
+Status: TEST-VERIFIED
+
+```
+npx vitest run
+```
+
+exit 0. vitest 3.2.7. 71 passed / 8 files. Start 03:59:55 UTC. Duration 1.38s.
+
+Files: timeline 18, user-fixtures 2, visualizer 17, persistence 6, import 5, export 12, foundation 8, preview 3.
 
 ## Visualizer
-Status: CODE-VERIFIED
-Six Visualz Canvas-2D scenes vendored from https://github.com/AILEXSI/ailexsi-visualz @ b67410c (@ailexsi/visualz 0.1.0-blueprint). Not V4. Not MilkDrop/Butterchurn. No live npm dep.
-Scene ids: pulse-orb, spectrum-bars, particle-field, resonance-wave (default / signature), tunnel-spiral, lita-bloom.
-Project.visualizer defaults enabled true, muted false, sceneId resonance-wave.
-TRACK_IDS unchanged: V1 V2 A1 A2. VIS is not a TrackId and is not a clip drop target.
-Core: src/core/visualz/ engine + 6 scenes; src/core/visualizer.ts beatGrid, energyAt, featuresAt (synthetic 120 BPM AudioFeatures fallback, not file FFT), renderVisualizerScene, nextSceneId cycles all 6, shouldShowVisualizer.
-Preview: no unmuted V1/V2 under playhead and enabled and not muted -> canvas visualizer-canvas. User video wins. When A1/A2 play, Preview tries an AnalyserNode tap; if the graph is quiet or unavailable it keeps the synthetic grid so all 6 scenes still animate.
-Old projects missing visualizer deserialize to the default (unit).
-Not human-clicked. Canvas pixels not seen. Export paints VIS with the same synthetic AudioFeatures when no user video frame is available.
-COMPLETE: NO
+
+Status: TEST-VERIFIED
+
+Six Canvas-2D scenes vendored from https://github.com/AILEXSI/ailexsi-visualz @ b67410c (`@ailexsi/visualz` 0.1.0-blueprint). Not V4. Not MilkDrop/Butterchurn. No live npm dep.
+
+Ids: pulse-orb, spectrum-bars, particle-field, resonance-wave (default), tunnel-spiral, lita-bloom.
+VIS is not a TrackId (`isTrackId("VIS") === false`, unit).
+
+Unit (this run):
+- all 6 ids accepted; `nextSceneId` cycles without repeats until wrap
+- software pixel canvas: each scene paints >20 non-empty pixels; six fingerprints differ
+- `featuresAt` is a synthetic 120 BPM `AudioFeatures` grid (not file FFT)
+- Preview code can tap A1/A2 AnalyserNode; that live path was not measured this run
+
+VIS-in-export: `paintVisualizer` calls `featuresAt`. SYNTHETIC FALLBACK. Never a real FFT during encode.
+
+UI click-cycle this run: see UI chrome (VIS button only).
 
 ## Import
-Status: CODE-VERIFIED
-tests/media/import.test.ts: wrong type throws ImportError; import then place clip. No live UI picker in this run.
+
+Status: TEST-VERIFIED
+
+`tests/media/import.test.ts`:
+- text/png throw `ImportError` WRONG_TYPE (message matches /only audio and video/)
+- wav → audio, mp4 → video
+- place video on V1 and V2, audio on A1 and A2
+- video on A1 rejected
+
+No live file-picker click this run.
 
 ## Timeline
-Status: CODE-VERIFIED
-Unit: split, trim in and out, 50ms guard, source range rejects, move clamp, snap, undo/redo, IN>OUT reject, mute toggle.
-UI drag not pointer-tested by a human.
 
-## Preview
-Status: CODE-VERIFIED
-tests/preview/playback.test.ts: source time, loop IN/OUT, stop. No frame seen / no audio heard.
-Visualizer fallback is CODE-VERIFIED only (see Visualizer).
+Status: TEST-VERIFIED
+
+Existing units still green (18): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut.
+No timeline defects found this pass. No new timeline tests except VIS-is-not-TrackId in foundation.
+UI drag: NOT VERIFIED this run.
+
+## Preview / playback
+
+Status: TEST-VERIFIED
+
+`tests/preview/playback.test.ts` (3): sourceTimeAt, loop IN/OUT stop, bounds from clip extent.
+No video frame seen and no audio heard this run.
 
 ## Persistence
-Status: CODE-VERIFIED
-Serialize strips blob URLs; hydrate from memory store; missing flagged. IndexedDB implemented; no real browser reload in this run.
-visualizer field serializes; missing visualizer on load goes to default.
+
+Status: TEST-VERIFIED
+
+Memory store hydrate + serialize strip blob URLs: pass.
+Visualizer field round-trips; missing `visualizer` deserializes to `{ enabled: true, muted: false, sceneId: "resonance-wave" }`.
+`createIndexedDbBlobStore` exercised with an in-process IDB shim (`tests/helpers/fake-indexeddb.ts`). That is not a browser IndexedDB and not a page reload.
+
+IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 ## Inspector
+
 Status: IMPLEMENTED
-Fields: track, start, duration, sourceIn, sourceOut, gain. Time fields also show mm:ss.cc. Blend and Speed rows removed. Not clicked in a UI session.
+
+Fields exist in `src/ui/inspector/Inspector.tsx`. Not clicked this run.
 
 ## Export
-Status: ACCEPTANCE-VERIFIED (user-clip H.264 MP4 frames; AAC audio track NOT present)
-Node: exportTimeline FAIL path without VideoEncoder. Planner rejects empty and IN>=OUT. Muted tracks omitted from the job (unit). ftyp validator rejects WebM. Missing-only video => FAIL missing:user-video.mp4.
-Chrome headless dump-dom loaded /export-check.html, imported user-video.mp4 + user-audio.mp3, placed V1+A1, OUT=5000, exportTimeline.
-Wrote artifacts/v5-user-export.mp4
-size=1806778 bytes (>> 2279 slate)
-hex header: 00 00 00 20 66 74 79 70 69 73 6f 6d 00 00 02 00
-brands: isom iso2 avc1 mp41. audio=none hasAudioTrack=false. SHA-256 db8201818fdac91dbdc5e9b4999293a373e43e7e90183567f45e2b0456c4da89. t=1s frame matches user-video, not a slate.
-Mediabunny decoder true for user-video.mp4. ffprobe: 5.00s H.264 Constrained Baseline 1280x720 30fps 2890 kb/s. No AAC track.
 
-## Adversarial (unit)
-empty project export: FAIL. bad file type: ImportError. split near edge: reject. move past 0: clamp. undo/redo: pass. IN>OUT: reject. missing-only video: FAIL missing:user-video.mp4.
+Status: TEST-VERIFIED (fail planner + ftyp). Successful H.264 encode: NOT VERIFIED this run.
 
-## Deps
-package install => exit 0. Product scripts: dev, build, test. mediabunny ^1.55.3 added for frame decode. Tauri CLI dropped from product deps.
+This environment has no `VideoEncoder`. `exportTimeline` returns FAIL WebCodecs / WebM is not a fallback (unit).
 
-## Known issues
-- MP4 has no AAC audio mix this run (audio=none). Preview still plays A1/A2.
-- Visualizer export uses the synthetic 120 BPM AudioFeatures grid (no live A1/A2 FFT during encode).
-- No GitHub remote, no publish, no sell claim.
-- UI chrome not human-clicked (IMPLEMENTED only).
-- IndexedDB hydrate not proven across a real page reload.
-- src-tauri leftover unused.
+Also unit-green:
+- empty project / empty job FAIL
+- IN >= OUT throws
+- missing-only video FAIL `missing:user-video.mp4`
+- WebM bytes rejected as MP4
+- synthetic mux has ftyp `isom`/`avc1` (not a runtime user export)
+- job copies visualizer scene; encode features stay synthetic 120 BPM
+
+audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven.
+
+No `artifacts/v5-user-export.mp4` in this workspace this run.
+
+## Start-V5.cmd
+
+Status: IMPLEMENTED (files). Windows double-click: NOT VERIFIED.
+
+`Start-V5.cmd` and `scripts/start-v5.ps1` exist at repo root / scripts. This Linux VM did not execute the `.cmd`.
+
+## Security / boundary
+
+Status: TEST-VERIFIED (static + config)
+
+- Vite host 127.0.0.1 only
+- no CORS wildcard in src
+- no secrets in tree
+- no installer download in Start-V5 (German error + pause if node/npm missing)
+- `isPlayableSource` blocks javascript:/data:/vbscript:; export fetch is for clip `sourceUrl` (blob/file/http)
+- product code has no child_process / eval
+- Start-V5.cmd may call local npm/node (allowed)
 
 ## UI chrome
-Status: IMPLEMENTED
-Toolbar File | Edit | brand 5.0.0. Transport has Clear. Question-mark shortcuts overlay. 52px lanes plus VIS lane. Status shows asset name. Not ACCEPTANCE-VERIFIED.
 
-## Commits this session
-2346cfc feat(v5): add browser core, persistence, and WebCodecs exporter
-62b81f1 feat(v5): compose browser NLE ui
-b51bad4 test(v5): add vitest suites and tiny fixtures
-ace8304 feat(v5): add clip edge trim and track mute
-27722a9 test(v5): trim and mute cases
-572abcc feat(v5): studio chrome and shortcuts overlay
-ebf63cf feat(v5): add visualizer lane fallback canvas
-60f36d1 test(v5): visualizer energy and fallback rules
-0138ed9 feat(v5): decode user frames and mix audio into mp4
-9c2a771 test(v5): export fails on missing source
-47f3ef7 feat(v5): vendor Visualz engine and six VIS scenes
+Status: IMPLEMENTED. Full Import→Edit→Preview→Persist→Export click-path: NOT VERIFIED.
+
+VIS scene button this run: RUNTIME-VERIFIED (pointer). Opened http://127.0.0.1:1421, clicked the VIS lane scene control through Wave / Tunnel / Bloom / Orb / Bars / Field and wrap. Preview canvas stayed up; status showed `Visualizer <id>`. No import and no export in that pass.
+
+## Adversarial (unit, this run)
+
+empty export FAIL; bad type ImportError; split near edge reject; move past 0 clamp; undo/redo; IN>OUT reject; missing-only video FAIL; WebM not MP4.
+
+## Deps
+
+`npm ci` earlier this session. Product scripts: dev, build, test, fixtures. mediabunny ^1.55.3 for frame decode. No unpublished Visualz npm dep.
+
+## Known limitations (plain)
+
+- Audio export NOT IMPLEMENTED (no AAC track proven).
+- IndexedDB across a real page reload NOT VERIFIED.
+- Start-V5.cmd Windows double-click NOT VERIFIED.
+- Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle was pointer-tested this run.
+- VIS encode uses SYNTHETIC 120 BPM features, not live FFT.
+- Successful user-clip H.264 MP4 encode NOT VERIFIED this run (no VideoEncoder here).
+- src-tauri leftover unused.
+
+## Commits on this branch (tip)
+
+```
+d552d82 test(v5): paint VIS pixels and close persist/import holes
+51d93dc feat(v5): Windows Start-V5.cmd app launcher
+ebff927 test(v5): fix Visualz engine types and synthetic spectrum assert
 a2770e9 test(v5): cover six Visualz scene ids and cycle
+47f3ef7 feat(v5): vendor Visualz engine and six VIS scenes
+```
 
 ## Not added
-chat, Ollama, vault, AI Arrangement, Beats, AI_EVENTS, VIS TrackId, a second loop, V4 file copies, publish.
+
+chat, Ollama, vault, AI Arrangement, Beats, AI_EVENTS, VIS TrackId, MilkDrop, Butterchurn, ffmpeg.wasm, MediaRecorder-as-MP4, unpublished deps, V4 file copies, publish, sale.

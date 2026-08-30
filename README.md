@@ -9,4 +9,4 @@ Implemented: audio/video import with visible fail; V1 V2 A1 A2; timeline move/tr
 WebM is never treated as export success.
 VIS overlay lane cycles 6 Canvas-2D scenes ported from AILEXSI Visualz (@ailexsi/visualz 0.1.0-blueprint, https://github.com/AILEXSI/ailexsi-visualz @ b67410c) — not V4, not MilkDrop/Butterchurn: pulse-orb, spectrum-bars, particle-field, resonance-wave (default), tunnel-spiral, lita-bloom.
 Limits: MP4 video-only; missing media encodes slate; no ffmpeg.wasm, MediaRecorder-as-success, Vault, LLM, beats, images.
-See V5-EVIDENCE.md. Docs alone are not verification. Not complete. Not for sale.
+See V5-EVIDENCE.md for commands and statuses from the last verification run. Docs alone are not verification. COMPLETE: NO. Not for sale.
