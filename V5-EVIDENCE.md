@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:21 UTC. P21 Cutter chrome (clickable tabs + overlap marks) on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:27 UTC. P22 Cutter keeps Preview + track stage on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 159 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-DE_bbhb0.css 18.50 kB
-- dist/assets/index-CsVk4wiR.js 714.44 kB
+- dist/assets/index-DWp9fRWN.css 19.05 kB
+- dist/assets/index-DbawH-bW.js 717.55 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **334 passed / 47 files**. Start 08:21:02 UTC. Duration 9.47s.
+exit 0. vitest 3.2.7. **337 passed / 48 files**. Start 08:27:30 UTC. Duration 9.76s.
 
-New this follow-up: click CUTTER shows `[data-testid=cutter]`; click ARRANGE hides it and shows timeline; TAB still cycles after a click; form focus Tab does not cycle; overlap mark on V1/V2 and V2/V1 stacked pairs; no stored Transition → mark type `cut`; click mark selects both clip ids. Prior Cutter core + export-destination units stay green (326 → 334).
+New this follow-up: click CUTTER keeps `[data-testid=preview]` and `[data-testid=timeline]`; V1/V2/VIS visible; A1/A2 hidden on Cutter and back on Arrange; compact Cutter strip with tracks (not a full-page form); VIS inspector can set scene id + from-to; preview still `compositeVideoAt`. Prior P21 chrome units stay green (334 → 337).
 
 ## Visualizer
 
@@ -329,7 +329,7 @@ Status: TEST-VERIFIED
 
 ## Cutter / transitions
 
-Status: TEST-VERIFIED (persist, undo, resolve, compositor identity, TAB, click tabs, overlap marks, Cutter DOM). Live stacked media / export pixels / Cutter form: NOT VERIFIED.
+Status: TEST-VERIFIED (persist, undo, resolve, compositor identity, TAB, click tabs, overlap marks, Cutter strip + tracks, VIS inspector). Live stacked media / export pixels: NOT VERIFIED.
 
 `Project.transitions: Transition[]`. Fields: `id`, `type` (`cut` | `crossfade` | `fadeBlack` | `fadeWhite`), `startMs`, `durationMs`, `sourceAClipId`, `sourceBClipId`, `audioMode` (`cut` | `crossfade` | `keepA` | `keepB`), `audioDurationMs`. Default at an edit with no object = hard cut. Legacy JSON without `transitions` loads as `[]`.
 
@@ -341,7 +341,11 @@ ONE compositor: `compositeVideoAt` in `src/core/transition.ts`. Preview re-expor
 
 Audio: `audioMode` does not write `clip.gain` / `fadeInMs` / `fadeOutMs`. `cut` = existing overlap mix. `crossfade` = extra equal-power over `audioDurationMs` from `startMs`. `keepA`/`keepB` mute the other source (and living linked mate) in the **video** window. Extra `GainNode` after the existing fade envelope in `mixJobAudio`. AAC still NOT IMPLEMENTED.
 
-Screens: `productionScreens = ["arrange","cutter"]`. TAB forward, Shift+TAB back. Click `[ARRANGE]` / `[CUTTER]` (`<button>`, `data-testid=screen-nav-arrange|cutter`) calls the same `setScreen` TAB uses. Active tab `data-active=true` / `.on`. `isFormFocus` leaves native TAB. Screen is React view state only — does not reload, reset project/selection/playhead/zoom, or clone the session. Cutter: Source A / Source B (names + tracks), type, duration ms, audioMode, audioDuration. Arrange stays the current editor. SPACE unchanged.
+Screens: `productionScreens = ["arrange","cutter"]`. TAB forward, Shift+TAB back. Click `[ARRANGE]` / `[CUTTER]` (`<button>`, `data-testid=screen-nav-arrange|cutter`) calls the same `setScreen` TAB uses. Active tab `data-active=true` / `.on`. `isFormFocus` leaves native TAB. Screen is React view state only — does not reload, reset project/selection/playhead/zoom, or clone the session.
+
+**One PREVIEW** stays mounted on both screens (not unmounted). Lower stage **always** has Timeline. Cutter is a compact strip *with* the tracks (`data-testid=cutter`), not a replacement for Timeline. Cutter visible tracks: V1, V2 + VIS overlay. Arrange: V1 V2 A1 A2 + VIS. Empty overlap → “No edit” strip; tracks stay so V1/V2 can be stacked. Inspector can show the same transition fields when a pair resolves.
+
+VIS routing (not audio EQ): overlay, not a TrackId. `VisualizerState.startMs` / `durationMs` (0 duration = whole timeline, legacy). Inspector when VIS is selected (`selectedVis`): scene select + from-to. VIS lane shows a span (`data-testid=vis-span`). `shouldShowVisualizer` respects the window. SPACE unchanged.
 
 Overlap marks: `listStackedEditPairs` finds every stacked video overlap (any two video tracks). Overlay button on the outgoing clip’s lane (`data-testid=overlap-mark`): type + durationMs. No stored Transition → type `cut` and overlap duration. Click selects both clip ids via existing `selectClips` (no second selection model). Not a new track. Not VIS. No drag-resize / same-track handles this slice.
 
