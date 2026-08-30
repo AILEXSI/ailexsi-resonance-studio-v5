@@ -158,6 +158,61 @@ describe("editor keys", () => {
     expect(left.project.clips[0]!.startMs).toBe(1000);
   });
 
+  it("Shift+Alt+, / Shift+Alt+. slide ±1 frame and do not slip source", () => {
+    const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "M",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 200,
+              sourceOutMs: 1200,
+            }),
+            clip({
+              id: "R",
+              assetId: "a",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 400,
+              sourceOutMs: 1400,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "M",
+      selectedClipIds: ["M"],
+    };
+    const right = sessionOf(
+      dispatchEditorKey(start, false, { key: ".", altKey: true, shiftKey: true }),
+    );
+    expect(right.project.clips.find((c) => c.id === "M")!.startMs).toBeCloseTo(1000 + FRAME_MS, 5);
+    expect(right.project.clips.find((c) => c.id === "M")!.sourceInMs).toBe(200);
+    expect(right.project.clips.find((c) => c.id === "L")!.durationMs).toBeCloseTo(1000 + FRAME_MS, 5);
+    const back = sessionOf(
+      dispatchEditorKey(right, false, { key: ",", altKey: true, shiftKey: true }),
+    );
+    expect(back.project.clips.find((c) => c.id === "M")!.startMs).toBe(1000);
+    expect(back.project.clips.find((c) => c.id === "M")!.sourceInMs).toBe(200);
+  });
+
   it("; lifts range and ' extracts; empty Delete uses the range", () => {
     const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
     const start: Session = {

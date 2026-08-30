@@ -53,6 +53,7 @@ describe("applyCommand determinism", () => {
       { type: "select", clipId: "c2", toggle: true } as const,
       { type: "moveClips", clipIds: ["c1", "c3"], deltaMs: 200 } as const,
       { type: "slip", clipId: "c1", deltaMs: 200 } as const,
+      { type: "slideClip", clipId: "c2", deltaMs: 100 } as const,
       { type: "copy" } as const,
       { type: "liftRange" } as const,
       { type: "extractRange" } as const,
@@ -341,6 +342,58 @@ describe("applyCommand determinism", () => {
     expect(clamped.project.clips.find((x) => x.id === "c1")!.sourceOutMs).toBe(3000);
     expect(clamped.project.clips.find((x) => x.id === "c1")!.durationMs).toBe(2000);
     expect(clamped.project.clips.find((x) => x.id === "c1")!.startMs).toBe(1000);
+  });
+
+  it("slideClip moves the middle clip and undoes", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const start: Session = {
+      ...createSession(createMemoryBlobStore()),
+      project: {
+        ...projectWith(
+          [
+            clip({
+              id: "L",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 0,
+              durationMs: 1000,
+              sourceInMs: 0,
+              sourceOutMs: 1000,
+            }),
+            clip({
+              id: "M",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 1000,
+              durationMs: 1000,
+              sourceInMs: 200,
+              sourceOutMs: 1200,
+            }),
+            clip({
+              id: "R",
+              assetId: "aa",
+              trackId: "A1",
+              startMs: 2000,
+              durationMs: 1000,
+              sourceInMs: 400,
+              sourceOutMs: 1400,
+            }),
+          ],
+          [a],
+        ),
+        snap: false,
+      },
+      selectedClipId: "M",
+      selectedClipIds: ["M"],
+    };
+    const slid = applyCommand(start, { type: "slideClip", clipId: "M", deltaMs: 200 });
+    expect(slid.project.clips.find((x) => x.id === "M")!.startMs).toBe(1200);
+    expect(slid.project.clips.find((x) => x.id === "M")!.sourceInMs).toBe(200);
+    expect(slid.project.clips.find((x) => x.id === "L")!.durationMs).toBe(1200);
+    expect(slid.project.clips.find((x) => x.id === "R")!.startMs).toBe(2200);
+    const undone = applyCommand(slid, { type: "undo" });
+    expect(undone.project.clips.find((x) => x.id === "M")!.startMs).toBe(1000);
+    expect(undone.project.clips.find((x) => x.id === "L")!.durationMs).toBe(1000);
   });
 
   it("liftRange leaves a gap; extractRange ripples closed; undo restores; video stays put", () => {

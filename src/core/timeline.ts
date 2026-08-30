@@ -768,6 +768,74 @@ export function pasteClips(
 }
 
 /**
+ * Classic slide: middle clip keeps duration and source in/out and moves on
+ * the timeline. The previous abutting clip absorbs the left delta (duration /
+ * source out). The next abutting clip absorbs the right delta (start / source in).
+ * The three-clip span stays constant. A missing or non-abutting neighbor is a
+ * hard stop on that side (no hole, no overlap). Delta is clamped so neither
+ * neighbor drops below SPLIT_EDGE_GUARD_MS and source windows stay in media.
+ */
+export function slideClip(
+  project: Project,
+  clipId: string,
+  deltaMs: number,
+): { project: Project; error?: string } {
+  const mid = clipById(project, clipId);
+  if (!mid) return { project, error: "Clip not found" };
+  if (!Number.isFinite(deltaMs) || deltaMs === 0) return { project };
+
+  const left = abuttingNeighbor(project, clipId, "in");
+  const right = abuttingNeighbor(project, clipId, "out");
+  if (!left || !right) {
+    return { project, error: "Slide requires abutting clips on both sides" };
+  }
+
+  const leftAsset = project.assets.find((a) => a.id === left.assetId);
+  const maxGrowLeft = leftAsset
+    ? Math.max(0, leftAsset.durationMs - left.sourceOutMs)
+    : Number.POSITIVE_INFINITY;
+  const maxPos = Math.max(
+    0,
+    Math.min(right.durationMs - SPLIT_EDGE_GUARD_MS, maxGrowLeft),
+  );
+  const maxNeg = Math.max(
+    0,
+    Math.min(left.durationMs - SPLIT_EDGE_GUARD_MS, right.sourceInMs),
+  );
+  const delta = Math.max(-maxNeg, Math.min(maxPos, deltaMs));
+  if (delta === 0) return { project, error: "Cannot slide further" };
+
+  const nextLeft = applyNormalizedFades({
+    ...left,
+    durationMs: left.durationMs + delta,
+    sourceOutMs: left.sourceOutMs + delta,
+  });
+  const nextMid: Clip = {
+    ...mid,
+    startMs: mid.startMs + delta,
+  };
+  const nextRight = applyNormalizedFades({
+    ...right,
+    startMs: right.startMs + delta,
+    durationMs: right.durationMs - delta,
+    sourceInMs: right.sourceInMs + delta,
+  });
+
+  return {
+    project: {
+      ...project,
+      updatedAt: new Date().toISOString(),
+      clips: project.clips.map((c) => {
+        if (c.id === left.id) return nextLeft;
+        if (c.id === mid.id) return nextMid;
+        if (c.id === right.id) return nextRight;
+        return c;
+      }),
+    },
+  };
+}
+
+/**
  * Slide source in/out. Timeline start and duration stay put.
  * Clamps sourceIn ≥ 0 and sourceOut ≤ asset duration.
  */

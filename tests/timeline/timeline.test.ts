@@ -24,6 +24,7 @@ import {
   deleteClips,
   pasteClips,
   slipClip,
+  slideClip,
   liftRange,
   extractRange,
   rollEdit,
@@ -330,6 +331,133 @@ describe("group move / delete", () => {
     expect(next.clips.find((c) => c.id === "c2")).toBeUndefined();
     expect(next.clips.find((c) => c.id === "c4")!.startMs).toBe(500);
     expect(next.clips.find((c) => c.id === "c3")!.startMs).toBe(1000);
+  });
+});
+
+function threeAbuttingA1(): ReturnType<typeof projectWith> {
+  const a = asset({ id: "a", kind: "audio", durationMs: 4000 });
+  return {
+    ...projectWith(
+      [
+        clip({
+          id: "L",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+        }),
+        clip({
+          id: "M",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 200,
+          sourceOutMs: 1200,
+        }),
+        clip({
+          id: "R",
+          assetId: "a",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 400,
+          sourceOutMs: 1400,
+        }),
+      ],
+      [a],
+    ),
+    snap: false,
+  };
+}
+
+function spanOf(clips: { startMs: number; durationMs: number }[]): number {
+  const start = Math.min(...clips.map((c) => c.startMs));
+  const end = Math.max(...clips.map((c) => c.startMs + c.durationMs));
+  return end - start;
+}
+
+describe("slide", () => {
+  it("slides +N and -N; span is invariant; middle source stays; neighbors shift", () => {
+    const p = threeAbuttingA1();
+    const before = p.clips.filter((c) => c.trackId === "A1");
+    const span0 = spanOf(before);
+
+    const right = slideClip(p, "M", 200);
+    expect(right.error).toBeUndefined();
+    const Lr = right.project.clips.find((c) => c.id === "L")!;
+    const Mr = right.project.clips.find((c) => c.id === "M")!;
+    const Rr = right.project.clips.find((c) => c.id === "R")!;
+    expect(Mr.startMs).toBe(1200);
+    expect(Mr.durationMs).toBe(1000);
+    expect(Mr.sourceInMs).toBe(200);
+    expect(Mr.sourceOutMs).toBe(1200);
+    expect(Lr.startMs).toBe(0);
+    expect(Lr.durationMs).toBe(1200);
+    expect(Lr.sourceOutMs).toBe(1200);
+    expect(Rr.startMs).toBe(2200);
+    expect(Rr.durationMs).toBe(800);
+    expect(Rr.sourceInMs).toBe(600);
+    expect(Rr.sourceOutMs).toBe(1400);
+    expect(spanOf([Lr, Mr, Rr])).toBe(span0);
+
+    const left = slideClip(p, "M", -200);
+    expect(left.error).toBeUndefined();
+    const Ll = left.project.clips.find((c) => c.id === "L")!;
+    const Ml = left.project.clips.find((c) => c.id === "M")!;
+    const Rl = left.project.clips.find((c) => c.id === "R")!;
+    expect(Ml.startMs).toBe(800);
+    expect(Ml.sourceInMs).toBe(200);
+    expect(Ml.sourceOutMs).toBe(1200);
+    expect(Ll.durationMs).toBe(800);
+    expect(Ll.sourceOutMs).toBe(800);
+    expect(Rl.startMs).toBe(1800);
+    expect(Rl.durationMs).toBe(1200);
+    expect(Rl.sourceInMs).toBe(200);
+    expect(spanOf([Ll, Ml, Rl])).toBe(span0);
+  });
+
+  it("hard-stops at min neighbor duration and does not change the project past the clamp", () => {
+    const p = threeAbuttingA1();
+    const huge = slideClip(p, "M", 10_000);
+    const L = huge.project.clips.find((c) => c.id === "L")!;
+    const M = huge.project.clips.find((c) => c.id === "M")!;
+    const R = huge.project.clips.find((c) => c.id === "R")!;
+    expect(R.durationMs).toBe(SPLIT_EDGE_GUARD_MS);
+    expect(L.durationMs + M.durationMs + R.durationMs).toBe(3000);
+    expect(M.sourceInMs).toBe(200);
+    expect(M.sourceOutMs).toBe(1200);
+
+    const already = slideClip(huge.project, "M", 100);
+    expect(already.project).toBe(huge.project);
+    expect(already.error).toMatch(/slide/i);
+  });
+
+  it("no-neighbor and a gap are no-ops", () => {
+    const lone = projectWith(
+      [clip({ id: "M", assetId: "a", trackId: "A1", startMs: 1000, durationMs: 1000 })],
+      [asset({ id: "a", kind: "audio", durationMs: 4000 })],
+    );
+    const none = slideClip(lone, "M", 100);
+    expect(none.project).toBe(lone);
+    expect(none.error).toMatch(/abutting/i);
+
+    const gapped = {
+      ...projectWith(
+        [
+          clip({ id: "L", assetId: "a", trackId: "A1", startMs: 0, durationMs: 1000 }),
+          clip({ id: "M", assetId: "a", trackId: "A1", startMs: 1100, durationMs: 1000 }),
+          clip({ id: "R", assetId: "a", trackId: "A1", startMs: 2100, durationMs: 1000 }),
+        ],
+        [asset({ id: "a", kind: "audio", durationMs: 4000 })],
+      ),
+      snap: false,
+    };
+    const gap = slideClip(gapped, "M", 50);
+    expect(gap.project).toBe(gapped);
+    expect(gap.error).toMatch(/abutting/i);
   });
 });
 

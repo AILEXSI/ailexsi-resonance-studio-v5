@@ -24,6 +24,7 @@ import {
   applySetClipFades,
   applySetTrackPan,
   applyShuttle,
+  applySlideClip,
   applySlip,
   applySplit,
   applyStop,
@@ -66,6 +67,7 @@ export type EditorCommand =
   | { type: "select"; clipId: string | null; toggle?: boolean }
   | { type: "moveClips"; clipIds: readonly string[]; deltaMs: number; trackId?: TrackId }
   | { type: "slip"; clipId: string; deltaMs: number }
+  | { type: "slideClip"; clipId: string; deltaMs: number }
   | { type: "liftRange" }
   | { type: "extractRange" }
   | { type: "setClipFades"; clipId: string; fadeInMs: number; fadeOutMs: number }
@@ -127,6 +129,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyMoveClips(session, command.clipIds, command.deltaMs, command.trackId);
     case "slip":
       return applySlip(session, command.clipId, command.deltaMs);
+    case "slideClip":
+      return applySlideClip(session, command.clipId, command.deltaMs);
     case "liftRange":
       return applyLiftRange(session);
     case "extractRange":

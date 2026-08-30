@@ -40,6 +40,8 @@ interface Props {
   onTrimCommit: () => void;
   onSlipLive?: (clipId: string, deltaMs: number) => void;
   onSlipCommit?: () => void;
+  onSlideLive?: (clipId: string, deltaMs: number) => void;
+  onSlideCommit?: () => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
   onToggleVisualizerMute: () => void;
@@ -104,6 +106,8 @@ export function Timeline({
   onTrimCommit,
   onSlipLive,
   onSlipCommit,
+  onSlideLive,
+  onSlideCommit,
   onToggleMute,
   onToggleSolo,
   onToggleVisualizerMute,
@@ -127,7 +131,7 @@ export function Timeline({
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const dragKindRef = useRef<"move" | "trim" | "slip" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
+  const dragKindRef = useRef<"move" | "trim" | "slip" | "slide" | "loop-in" | "loop-out" | "loop-move" | "marker" | null>(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
   const [viewWidth, setViewWidth] = useState(1000);
@@ -251,6 +255,26 @@ export function Timeline({
     e.stopPropagation();
     setMenu(null);
     setMarkerMenu(null);
+    if ((e.ctrlKey || e.metaKey) && e.altKey) {
+      if (dragKindRef.current) return;
+      if (!selectedIds.includes(clip.id)) onSelect(clip.id);
+      dragKindRef.current = "slide";
+      const originX = e.clientX;
+      const move = (ev: PointerEvent) => {
+        if (dragKindRef.current !== "slide") return;
+        const deltaMs = ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
+        onSlideLive?.(clip.id, deltaMs);
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        dragKindRef.current = null;
+        onSlideCommit?.();
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      return;
+    }
     if (e.ctrlKey || e.metaKey) {
       onSelect(clip.id, { toggle: true });
       return;

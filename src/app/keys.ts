@@ -40,7 +40,9 @@ function commandFromKey(
   const period = e.key === "." || e.key === ">" || e.code === "Period";
   if (e.altKey && (comma || period)) {
     if (!session.selectedClipId) return null;
-    return { type: "slip", clipId: session.selectedClipId, deltaMs: (period ? 1 : -1) * FRAME_MS };
+    const deltaMs = (period ? 1 : -1) * FRAME_MS;
+    if (e.shiftKey) return { type: "slideClip", clipId: session.selectedClipId, deltaMs };
+    return { type: "slip", clipId: session.selectedClipId, deltaMs };
   }
 
   if (letter === "s") return { type: "split" };
@@ -94,6 +96,7 @@ export function dispatchEditorKey(
     command.type === "nudgeClip" ||
     command.type === "shuttle" ||
     command.type === "slip" ||
+    command.type === "slideClip" ||
     command.type === "liftRange" ||
     command.type === "extractRange";
   return {

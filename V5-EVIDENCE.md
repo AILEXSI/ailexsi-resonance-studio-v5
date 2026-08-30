@@ -203,6 +203,7 @@ Status: TEST-VERIFIED
 Memory store hydrate + serialize strip blob URLs: pass.
 Visualizer field round-trips; missing `visualizer` deserializes to `{ enabled: true, muted: false, sceneId: "resonance-wave" }`.
 Legacy clip JSON without `fadeInMs` / `fadeOutMs` loads as 0 / 0 (`tests/core/fades.test.ts` + persist deserialize).
+Legacy track JSON without `pan` loads as 0.
 `createIndexedDbBlobStore` exercised with an in-process IDB shim (`tests/helpers/fake-indexeddb.ts`). That is not a browser IndexedDB and not a page reload.
 
 IndexedDB page-reload: NOT VERIFIED (no browser reload this run).

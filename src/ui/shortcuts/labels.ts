@@ -40,5 +40,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "Abutting edge-drag", action: "Roll edit (shared cut)" },
   { key: "Alt+drag clip", action: "Slip source (in/out slide)" },
   { key: "Alt+, / Alt+.", action: "Slip ±1 frame" },
+  { key: "Ctrl+Alt+drag clip", action: "Slide clip (neighbors absorb)" },
+  { key: "Shift+Alt+, / Shift+Alt+.", action: "Slide ±1 frame" },
   { key: "?", action: "Toggle this sheet" },
 ];

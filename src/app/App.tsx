@@ -564,6 +564,34 @@ export function App() {
     }));
   };
 
+  const onSlideLive = (clipId: string, deltaMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type: "slideClip", clipId, deltaMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onSlideCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Slid clip",
+      error: null,
+    }));
+  };
+
   const onTrimCommit = () => {
     const base = dragBaseRef.current;
     dragBaseRef.current = null;
@@ -886,6 +914,8 @@ export function App() {
         onTrimCommit={onTrimCommit}
         onSlipLive={onSlipLive}
         onSlipCommit={onSlipCommit}
+        onSlideLive={onSlideLive}
+        onSlideCommit={onSlideCommit}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}

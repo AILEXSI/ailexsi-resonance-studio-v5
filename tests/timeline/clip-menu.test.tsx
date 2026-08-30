@@ -125,6 +125,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Abutting edge-drag");
     expect(text).toContain("Alt+drag clip");
     expect(text).toContain("Alt+, / Alt+.");
+    expect(text).toContain("Ctrl+Alt+drag clip");
+    expect(text).toContain("Shift+Alt+, / Shift+Alt+.");
     expect(text).toContain("Copy selected clip(s)");
     expect(text).toContain("Lift range (IN/OUT)");
     expect(text).toContain("Extract range (IN/OUT)");
