@@ -570,6 +570,72 @@ export function App() {
     }));
   };
 
+  const onVisEventMoveLive = (eventId: string, startMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const base = dragBaseRef.current;
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        { type: "moveVisEvent", eventId, startMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedVis: true,
+        selectedVisEventId: eventId,
+        selectedClipId: null,
+        selectedClipIds: [],
+        status: preview.status,
+        error: preview.error,
+      };
+    });
+  };
+
+  const onVisEventMoveCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Moved VIS event",
+      error: null,
+    }));
+  };
+
+  const onVisEventStretchLive = (eventId: string, edge: "in" | "out", nextEdgeMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const base = dragBaseRef.current;
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        { type: "stretchVisEvent", eventId, edge, nextEdgeMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedVis: true,
+        selectedVisEventId: eventId,
+        selectedClipId: null,
+        selectedClipIds: [],
+        status: preview.status,
+        error: preview.error,
+      };
+    });
+  };
+
+  const onVisEventStretchCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Stretched VIS event",
+      error: null,
+    }));
+  };
+
   const onMarkerMoveLive = (markerId: string, timeMs: number) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
@@ -1071,6 +1137,10 @@ export function App() {
           setSession((s) => applyCommand(s, { type: "selectVisEvent", eventId }))
         }
         onInsertVisEvent={() => setSession((s) => applyCommand(s, { type: "insertVisEvent" }))}
+        onVisEventMoveLive={onVisEventMoveLive}
+        onVisEventMoveCommit={onVisEventMoveCommit}
+        onVisEventStretchLive={onVisEventStretchLive}
+        onVisEventStretchCommit={onVisEventStretchCommit}
         onSetFrontVideoTrack={(trackId) =>
           setSession((s) => applyCommand(s, { type: "setFrontVideoTrack", trackId }))
         }
@@ -1082,7 +1152,6 @@ export function App() {
         onCopy={() => runCommand({ type: "copy" })}
         onPaste={() => runCommand({ type: "paste" })}
         onDuplicate={() => runCommand({ type: "duplicate" })}
-        onOverwrite3Point={() => runCommand({ type: "overwrite3Point" })}
         onDelete={() => runCommand({ type: "liftDelete" })}
         onRippleDelete={() => runCommand({ type: "rippleDelete" })}
         onLiftRange={() => runCommand({ type: "liftRange" })}

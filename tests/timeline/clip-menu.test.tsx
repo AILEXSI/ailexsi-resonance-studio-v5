@@ -36,7 +36,6 @@ function timelineProps() {
     onCopy: noop,
     onPaste: noop,
     onDuplicate: noop,
-    onOverwrite3Point: noop,
     onDelete: noop,
     onZoom: (_z: number, _w: number) => {},
     onFit: noopMs,
@@ -93,8 +92,6 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Duplicate");
     expect(text).toContain("Ctrl+D");
     expect(menu!.querySelector('[data-testid="clip-menu-duplicate"]')).toBeTruthy();
-    expect(text).toContain("Overwrite at playhead");
-    expect(menu!.querySelector('[data-testid="clip-menu-overwrite"]')).toBeTruthy();
     expect(text).toContain("Delete");
     expect(text).toContain("Ripple delete");
     expect(text).toContain("Shift+Delete");
@@ -139,7 +136,7 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ctrl+V");
     expect(text).toContain("Ctrl+D");
     expect(text).toContain("Duplicate selection at playhead");
-    expect(text).toContain("Overwrite IN/OUT or at playhead");
+    expect(text).toContain("Move, stretch, Copy / Cut / Paste / Delete");
     expect(text).toContain("Delete");
     expect(text).toContain("Shift+Delete");
     expect(text).toContain("J / K / L");
@@ -260,5 +257,65 @@ describe("timeline multi-select chrome", () => {
     expect(host.querySelector('[data-testid="trim-out-c1"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="trim-in-c2"]')).toBeNull();
     expect(host.querySelector('[data-testid="trim-out-c2"]')).toBeNull();
+  });
+});
+
+describe("VIS event context menu", () => {
+  let host: HTMLDivElement | undefined;
+  let root: Root | undefined;
+
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  it("offers Copy, Cut, Paste, Delete and not clip-only verbs", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const project = projectWith(
+      [clip({ id: "c1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 })],
+      [asset({ id: "a", kind: "video", durationMs: 2000 })],
+    );
+    project.visualizer = {
+      ...project.visualizer,
+      events: [{ id: "ve1", sceneId: "spectrum-bars", startMs: 0, durationMs: 2000 }],
+    };
+    act(() => {
+      root!.render(
+        <Timeline
+          {...timelineProps()}
+          project={project}
+          selectedClipId={null}
+          selectedVisEventId="ve1"
+        />,
+      );
+    });
+    const eventEl = host.querySelector('[data-testid="vis-event-ve1"]');
+    expect(eventEl).toBeTruthy();
+    act(() => {
+      eventEl!.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }),
+      );
+    });
+    const menu = host.querySelector('[data-testid="vis-event-menu"]');
+    expect(menu).toBeTruthy();
+    const text = menu!.textContent ?? "";
+    expect(text).toContain("Copy");
+    expect(text).toContain("Cut");
+    expect(text).toContain("Paste");
+    expect(text).toContain("Delete");
+    expect(text).not.toContain("Split");
+    expect(text).not.toContain("Unlink");
+    expect(text).not.toContain("Duplicate");
+    expect(text).not.toContain("Relink");
+    expect(menu!.querySelector('[data-testid="vis-event-menu-copy"]')).toBeTruthy();
+    expect(menu!.querySelector('[data-testid="vis-event-menu-cut"]')).toBeTruthy();
+    expect(menu!.querySelector('[data-testid="vis-event-menu-paste"]')).toBeTruthy();
+    expect(menu!.querySelector('[data-testid="vis-event-menu-delete"]')).toBeTruthy();
   });
 });

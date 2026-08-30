@@ -16,6 +16,7 @@ import {
   type VisualizerEvent,
   type VisualizerState,
 } from "./models";
+import { roundVisMs } from "./visualizer";
 
 export const PROJECT_SCHEMA_VERSION = 5;
 export const PROJECT_FILE_SUFFIX = ".resonance.json";
@@ -143,8 +144,8 @@ function sanitizeVisualizerEvent(raw: unknown): VisualizerEvent | null {
   return {
     id: rec.id,
     sceneId: rec.sceneId,
-    startMs: Math.max(0, rec.startMs),
-    durationMs: rec.durationMs,
+    startMs: Math.max(0, roundVisMs(rec.startMs)),
+    durationMs: Math.max(1, roundVisMs(rec.durationMs)),
   };
 }
 
@@ -159,8 +160,8 @@ function sanitizeVisualizer(raw: unknown): VisualizerState {
     enabled: v.enabled !== false,
     muted: v.muted === true,
     sceneId: isVisualizerSceneId(v.sceneId) ? v.sceneId : fallback.sceneId,
-    startMs: Math.max(0, Number(v.startMs) || 0),
-    durationMs: Math.max(0, Number(v.durationMs) || 0),
+    startMs: Math.max(0, roundVisMs(Number(v.startMs) || 0)),
+    durationMs: Math.max(0, roundVisMs(Number(v.durationMs) || 0)),
     events,
   };
 }

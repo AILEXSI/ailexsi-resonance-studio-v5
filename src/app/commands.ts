@@ -14,7 +14,6 @@ import {
   applyMoveClips,
   applyNudge,
   applyOut,
-  applyOverwrite3Point,
   applyPaste,
   applyPause,
   applyPlay,
@@ -33,6 +32,8 @@ import {
   applySelectVisEvent,
   applySetFrontVideoTrack,
   applyInsertVisEvent,
+  applyMoveVisEvent,
+  applyStretchVisEvent,
   applySetClipFades,
   applySetClipRate,
   applySetTrackPan,
@@ -107,7 +108,8 @@ export type EditorCommand =
   | { type: "setFrontVideoTrack"; trackId: FrontVideoTrackId }
   | { type: "insertVisEvent" }
   | { type: "selectVisEvent"; eventId: string }
-  | { type: "overwrite3Point" };
+  | { type: "moveVisEvent"; eventId: string; startMs: number }
+  | { type: "stretchVisEvent"; eventId: string; edge: "in" | "out"; nextEdgeMs: number };
 
 export function applyCommand(session: Session, command: EditorCommand): Session {
   switch (command.type) {
@@ -207,8 +209,10 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyInsertVisEvent(session);
     case "selectVisEvent":
       return applySelectVisEvent(session, command.eventId);
-    case "overwrite3Point":
-      return applyOverwrite3Point(session);
+    case "moveVisEvent":
+      return applyMoveVisEvent(session, command.eventId, command.startMs);
+    case "stretchVisEvent":
+      return applyStretchVisEvent(session, command.eventId, command.edge, command.nextEdgeMs);
     default: {
       const _never: never = command;
       return _never;

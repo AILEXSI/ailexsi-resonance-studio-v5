@@ -1061,6 +1061,12 @@ input[type="range"] { accent-color: var(--accent-2); }
   border-color: #fff;
   box-shadow: 0 0 0 1px rgba(212, 180, 90, 0.45);
 }
+.vis-span-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
 
 .cutter {
   flex: 0 0 auto;

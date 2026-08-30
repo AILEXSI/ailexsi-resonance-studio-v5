@@ -24,6 +24,7 @@ import {
   deleteMarker,
   closeGapOnTrack,
   collectSnapTargets,
+  collectVisEventSnapTargets,
   createHistory,
   resolveCloseGapTrack,
   playheadStrictlyInsideClip,
@@ -41,7 +42,6 @@ import {
   moveMarker,
   moveInOut,
   lastClipEndMsOnTrack,
-  overwrite3Point,
   placeAsset,
   pushHistory,
   redo as redoHistory,
@@ -72,11 +72,17 @@ import {
 import { nextShuttleRate } from "../core/playback";
 import {
   cycleVisualizerScene,
+  deleteVisualizerEvent,
   insertVisualizerEvent,
+  moveVisualizerEvent,
+  pasteVisualizerEvent,
   setVisualizer,
+  stretchVisualizerEvent,
   toggleVisualizerMute,
   updateVisualizerEvent,
+  visEventClipboardOf,
   visualizerEventsOf,
+  type VisEventClipboard,
 } from "../core/visualizer";
 import type { VisualizerState } from "../core/models";
 import { formatDb, formatPan, linearToDb } from "../core/volume";
@@ -102,6 +108,10 @@ export interface Session {
   selectionAnchorClipId: string | null;
   /** Snapshot of copied clips. Empty = none. One-clip copy is a single-item array. */
   clipboard: Clip[];
+  /** VIS event copy. Separate from clip clipboard. */
+  visClipboard: VisEventClipboard | null;
+  /** Which clipboard Ctrl+V prefers when no clip is selected. */
+  lastClipboardKind: "clip" | "vis" | null;
   targetTrackId: TrackId;
   status: string;
   error: string | null;
@@ -122,6 +132,8 @@ export function createSession(store?: BlobStore): Session {
     selectedVisEventId: null,
     selectionAnchorClipId: null,
     clipboard: [],
+    visClipboard: null,
+    lastClipboardKind: null,
     targetTrackId: "V1",
     status: "New project",
     error: null,
@@ -495,7 +507,30 @@ export function applyMarker(session: Session): Session {
   };
 }
 
+function selectedVisEvent(session: Session) {
+  if (selectionOf(session).length > 0) return undefined;
+  if (!session.selectedVisEventId) return undefined;
+  return visualizerEventsOf(session.project).find((e) => e.id === session.selectedVisEventId);
+}
+
+function shouldPasteVisEvent(session: Session): boolean {
+  if (!session.visClipboard) return false;
+  if (selectionOf(session).length > 0) return false;
+  if (session.selectedVisEventId || session.selectedVis) return true;
+  return session.lastClipboardKind === "vis";
+}
+
 export function applyCopy(session: Session): Session {
+  const vis = selectedVisEvent(session);
+  if (vis) {
+    return {
+      ...session,
+      visClipboard: visEventClipboardOf(vis),
+      lastClipboardKind: "vis",
+      status: "Copied VIS event",
+      error: null,
+    };
+  }
   const ids = selectionOf(session);
   const clips = ids
     .map((id) => clipById(session.project, id))
@@ -504,6 +539,7 @@ export function applyCopy(session: Session): Session {
   return {
     ...session,
     clipboard: clips.map((c) => ({ ...c })),
+    lastClipboardKind: "clip",
     status: clips.length > 1 ? "Copied clips" : "Copied clip",
     error: null,
   };
@@ -511,6 +547,16 @@ export function applyCopy(session: Session): Session {
 
 /** Copy then lift-delete the selection. One history entry. */
 export function applyCut(session: Session): Session {
+  const vis = selectedVisEvent(session);
+  if (vis) {
+    const copied = applyCopy(session);
+    const next = deleteVisualizerEvent(session.project, vis.id);
+    return {
+      ...withHistory(copied, next, "Cut VIS event"),
+      selectedVisEventId: null,
+      selectedVis: true,
+    };
+  }
   const ids = selectionOf(session);
   const copied = applyCopy(session);
   if (copied.error || copied.clipboard.length === 0) {
@@ -528,6 +574,25 @@ export function applyCut(session: Session): Session {
 }
 
 export function applyPaste(session: Session): Session {
+  if (shouldPasteVisEvent(session) && session.visClipboard) {
+    const { project, event } = pasteVisualizerEvent(
+      session.project,
+      session.visClipboard,
+      session.project.playheadMs,
+    );
+    return {
+      ...withHistory(session, project, "Pasted VIS event"),
+      selectedClipId: null,
+      selectedClipIds: [],
+      selectedMarkerId: null,
+      selectedVis: true,
+      selectedVisEventId: event.id,
+      selectionAnchorClipId: null,
+    };
+  }
+  if (selectionOf(session).length === 0 && (session.selectedVisEventId || session.selectedVis)) {
+    return { ...session, error: "Clipboard empty" };
+  }
   if (session.clipboard.length === 0) return { ...session, error: "Clipboard empty" };
   const result = pasteClips(session.project, session.clipboard, session.project.playheadMs);
   if (result.error) return { ...session, error: result.error };
@@ -536,24 +601,6 @@ export function applyPaste(session: Session): Session {
     withHistory(session, result.project, many ? "Pasted clips" : "Pasted clip"),
     result.clipIds,
   );
-}
-
-/** Punch selected-clip media into IN/OUT or playhead dest. Does not write clipboard. */
-export function applyOverwrite3Point(session: Session): Session {
-  const sourceId = session.selectedClipId ?? selectionOf(session)[0];
-  if (!sourceId) return session;
-  const source = clipById(session.project, sourceId);
-  if (!source) return session;
-  const dest = (() => {
-    const range = editRangeOf(session.project);
-    if (range) return range.outMs - range.inMs;
-    return source.durationMs;
-  })();
-  if (dest <= 0) return session;
-  const result = overwrite3Point(session.project, source.id);
-  if (result.error || !result.clipId) return session;
-  const status = editRangeOf(session.project) ? "Overwrite IN/OUT" : "Overwrite at playhead";
-  return withClipSelection(withHistory(session, result.project, status), [result.clipId]);
 }
 
 /** Clone the selection at the playhead. Does not write `session.clipboard`. */
@@ -715,6 +762,15 @@ export function applyDelete(session: Session): Session {
       [],
     );
   }
+  if (session.selectedVisEventId) {
+    const next = deleteVisualizerEvent(session.project, session.selectedVisEventId);
+    if (next === session.project) return session;
+    return {
+      ...withHistory(session, next, "Deleted VIS event"),
+      selectedVisEventId: null,
+      selectedVis: true,
+    };
+  }
   if (session.selectedMarkerId) {
     const result = deleteMarker(session.project, session.selectedMarkerId);
     if (result.error) return { ...session, error: result.error };
@@ -730,6 +786,7 @@ export function applyRippleDelete(session: Session): Session {
     const next = rippleDeleteClips(session.project, ids);
     return withClipSelection(withHistory(session, next, "Ripple deleted"), []);
   }
+  if (session.selectedVisEventId) return applyDelete(session);
   if (editRangeOf(session.project)) return applyExtractRange(session);
   return { ...session, error: "No clip selected" };
 }
@@ -901,7 +958,11 @@ export function applySelectVisEvent(session: Session, eventId: string): Session 
 }
 
 export function applyInsertVisEvent(session: Session): Session {
-  const { project, event } = insertVisualizerEvent(session.project, session.project.playheadMs);
+  const { project, event, inserted } = insertVisualizerEvent(
+    session.project,
+    session.project.playheadMs,
+  );
+  if (!inserted) return applySelectVisEvent(session, event.id);
   return {
     ...withHistory(session, project, "VIS event"),
     selectedClipId: null,
@@ -910,6 +971,41 @@ export function applyInsertVisEvent(session: Session): Session {
     selectedVis: true,
     selectedVisEventId: event.id,
     selectionAnchorClipId: null,
+  };
+}
+
+export function applyMoveVisEvent(session: Session, eventId: string, startMs: number): Session {
+  const snapped = session.project.snap
+    ? snapTime(startMs, collectVisEventSnapTargets(session.project, eventId)).timeMs
+    : startMs;
+  const project = moveVisualizerEvent(session.project, eventId, snapped);
+  if (project === session.project) return session;
+  return {
+    ...withHistory(session, project, "Moved VIS event"),
+    selectedVis: true,
+    selectedVisEventId: eventId,
+    selectedClipId: null,
+    selectedClipIds: [],
+  };
+}
+
+export function applyStretchVisEvent(
+  session: Session,
+  eventId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): Session {
+  const snapped = session.project.snap
+    ? snapTime(nextEdgeMs, collectVisEventSnapTargets(session.project, eventId)).timeMs
+    : nextEdgeMs;
+  const project = stretchVisualizerEvent(session.project, eventId, edge, snapped);
+  if (project === session.project) return session;
+  return {
+    ...withHistory(session, project, "Stretched VIS event"),
+    selectedVis: true,
+    selectedVisEventId: eventId,
+    selectedClipId: null,
+    selectedClipIds: [],
   };
 }
 

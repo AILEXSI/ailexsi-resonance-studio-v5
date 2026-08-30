@@ -8,6 +8,7 @@ import {
   type Clip,
   type Project,
   type TrackId,
+  type VisualizerEvent,
 } from "../../core/models";
 import { fadeHandlesVisible, fadesFromHandleDrag } from "../../core/fade-handles";
 import { normalizeClipFades } from "../../core/fades";
@@ -19,7 +20,7 @@ import {
 } from "../../core/marquee";
 import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapTime } from "../../core/timeline";
 import { RULER_PAD_PX } from "../../core/zoom";
-import { sceneShortName, visualizerEventsOf } from "../../core/visualizer";
+import { formatVisEventLabel, sceneShortName, visualizerEventsOf } from "../../core/visualizer";
 import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
 import { listStackedEditPairs } from "../../core/transition";
@@ -77,6 +78,10 @@ interface Props {
   onSelectVis?: () => void;
   onSelectVisEvent?: (eventId: string) => void;
   onInsertVisEvent?: () => void;
+  onVisEventMoveLive?: (eventId: string, startMs: number) => void;
+  onVisEventMoveCommit?: () => void;
+  onVisEventStretchLive?: (eventId: string, edge: "in" | "out", nextEdgeMs: number) => void;
+  onVisEventStretchCommit?: () => void;
   onSetFrontVideoTrack?: (trackId: "V1" | "V2") => void;
   /** Arrange = all tracks. Cutter = video only. VIS overlay is separate. */
   visibleTrackIds?: TrackId[];
@@ -85,7 +90,6 @@ interface Props {
   onCopy: () => void;
   onPaste: () => void;
   onDuplicate?: () => void;
-  onOverwrite3Point?: () => void;
   onDelete: () => void;
   onRippleDelete?: () => void;
   onLiftRange?: () => void;
@@ -128,6 +132,12 @@ interface MarkerMenu {
   markerId: string;
 }
 
+interface VisEventMenu {
+  x: number;
+  y: number;
+  eventId: string;
+}
+
 export function Timeline({
   project,
   selectedClipId,
@@ -158,6 +168,10 @@ export function Timeline({
   onSelectVis,
   onSelectVisEvent,
   onInsertVisEvent,
+  onVisEventMoveLive,
+  onVisEventMoveCommit,
+  onVisEventStretchLive,
+  onVisEventStretchCommit,
   onSetFrontVideoTrack,
   visibleTrackIds,
   onSplitHere,
@@ -165,7 +179,6 @@ export function Timeline({
   onCopy,
   onPaste,
   onDuplicate,
-  onOverwrite3Point,
   onDelete,
   onRippleDelete,
   onLiftRange,
@@ -195,10 +208,13 @@ export function Timeline({
     | "loop-out"
     | "loop-move"
     | "marker"
+    | "vis-move"
+    | "vis-trim"
     | null
   >(null);
   const [menu, setMenu] = useState<ClipMenu | null>(null);
   const [markerMenu, setMarkerMenu] = useState<MarkerMenu | null>(null);
+  const [visMenu, setVisMenu] = useState<VisEventMenu | null>(null);
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(
     null,
   );
@@ -256,6 +272,7 @@ export function Timeline({
     if (e.button !== 0) return;
     setMenu(null);
     setMarkerMenu(null);
+    setVisMenu(null);
     onPlayhead(timeFromEvent(e.clientX, e.currentTarget));
   };
 
@@ -263,6 +280,7 @@ export function Timeline({
     e.preventDefault();
     setMenu(null);
     setMarkerMenu(null);
+    setVisMenu(null);
     onLoopClick(snapIf(timeFromEvent(e.clientX, e.currentTarget)));
   };
 
@@ -271,6 +289,7 @@ export function Timeline({
     if (dragKindRef.current) return;
     setMenu(null);
     setMarkerMenu(null);
+    setVisMenu(null);
     const originEl = e.currentTarget;
     onPlayhead(timeFromEvent(e.clientX, originEl));
     dragKindRef.current = "marquee";
@@ -507,6 +526,66 @@ export function Timeline({
       window.removeEventListener("pointerup", up);
       dragKindRef.current = null;
       onTrimCommit();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onVisEventPointerDown = (e: ReactPointerEvent, event: VisualizerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    setMarkerMenu(null);
+    setVisMenu(null);
+    if (dragKindRef.current) return;
+    onSelectVisEvent?.(event.id);
+    if (!onVisEventMoveLive) return;
+    dragKindRef.current = "vis-move";
+    const originX = e.clientX;
+    const originStart = event.startMs;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "vis-move") return;
+      const nextStart = originStart + ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
+      onVisEventMoveLive(event.id, nextStart);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      onVisEventMoveCommit?.();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const onVisEventTrimPointerDown = (
+    e: ReactPointerEvent,
+    event: VisualizerEvent,
+    edge: "in" | "out",
+  ) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setMenu(null);
+    setMarkerMenu(null);
+    setVisMenu(null);
+    if (dragKindRef.current) return;
+    onSelectVisEvent?.(event.id);
+    if (!onVisEventStretchLive) return;
+    dragKindRef.current = "vis-trim";
+    const originX = e.clientX;
+    const originEdge = edge === "in" ? event.startMs : event.startMs + event.durationMs;
+    const move = (ev: PointerEvent) => {
+      if (dragKindRef.current !== "vis-trim") return;
+      const nextEdge = originEdge + ((ev.clientX - originX) / project.zoomPxPerSec) * 1000;
+      onVisEventStretchLive(event.id, edge, nextEdge);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      dragKindRef.current = null;
+      onVisEventStretchCommit?.();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -801,9 +880,10 @@ export function Timeline({
             const events = visualizerEventsOf(project);
             if (events.length > 0) {
               return events.map((event) => (
-                <button
+                <div
                   key={event.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   className={`vis-span${selectedVisEventId === event.id ? " selected" : ""}`}
                   data-testid={`vis-event-${event.id}`}
                   data-vis-event={event.id}
@@ -812,18 +892,33 @@ export function Timeline({
                     left: msToX(event.startMs, project.zoomPxPerSec, project.scrollMs),
                     width: Math.max(28, msToWidth(event.durationMs, project.zoomPxPerSec)),
                   }}
-                  onPointerDown={(e) => {
+                  onPointerDown={(e) => onVisEventPointerDown(e, event)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     onSelectVisEvent?.(event.id);
+                    setMenu(null);
+                    setMarkerMenu(null);
+                    setVisMenu({ x: e.clientX, y: e.clientY, eventId: event.id });
                   }}
                 >
-                  {sceneShortName(event.sceneId)} {event.startMs}–{event.startMs + event.durationMs}ms
-                </button>
+                  <span className="vis-span-label">{formatVisEventLabel(event)}</span>
+                  <div
+                    className="trim-handle in"
+                    data-testid={`vis-event-in-${event.id}`}
+                    onPointerDown={(e) => onVisEventTrimPointerDown(e, event, "in")}
+                  />
+                  <div
+                    className="trim-handle out"
+                    data-testid={`vis-event-out-${event.id}`}
+                    onPointerDown={(e) => onVisEventTrimPointerDown(e, event, "out")}
+                  />
+                </div>
               ));
             }
-            const start = project.visualizer.startMs ?? 0;
+            const start = Math.round(project.visualizer.startMs ?? 0);
             const rawDur = project.visualizer.durationMs ?? 0;
-            const dur = rawDur > 0 ? rawDur : Math.max(10_000, projectDurationMs(project));
+            const dur = rawDur > 0 ? Math.round(rawDur) : Math.max(10_000, projectDurationMs(project));
             return (
               <button
                 type="button"
@@ -1127,24 +1222,6 @@ export function Timeline({
               <kbd>{CLIP_MENU_SHORTCUTS.duplicate}</kbd>
             </button>
           ) : null}
-          {onOverwrite3Point ? (
-            <button
-              type="button"
-              data-testid="clip-menu-overwrite"
-              onClick={() => {
-                onOverwrite3Point();
-                setMenu(null);
-              }}
-            >
-              <span>
-                {project.inPointMs != null &&
-                project.outPointMs != null &&
-                project.outPointMs > project.inPointMs
-                  ? "Overwrite IN/OUT"
-                  : "Overwrite at playhead"}
-              </span>
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -1239,6 +1316,59 @@ export function Timeline({
               </button>
             </>
           ) : null}
+        </div>
+      ) : null}
+      {visMenu ? (
+        <div
+          className="clip-menu"
+          data-testid="vis-event-menu"
+          style={{ left: visMenu.x, top: visMenu.y }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            data-testid="vis-event-menu-copy"
+            onClick={() => {
+              onCopy();
+              setVisMenu(null);
+            }}
+          >
+            <span>Copy</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.copy}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="vis-event-menu-cut"
+            onClick={() => {
+              onCut();
+              setVisMenu(null);
+            }}
+          >
+            <span>Cut</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.cut}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="vis-event-menu-paste"
+            onClick={() => {
+              onPaste();
+              setVisMenu(null);
+            }}
+          >
+            <span>Paste</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.paste}</kbd>
+          </button>
+          <button
+            type="button"
+            data-testid="vis-event-menu-delete"
+            onClick={() => {
+              onDelete();
+              setVisMenu(null);
+            }}
+          >
+            <span>Delete</span>
+            <kbd>{CLIP_MENU_SHORTCUTS.delete}</kbd>
+          </button>
         </div>
       ) : null}
       {markerMenu ? (

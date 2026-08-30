@@ -13,7 +13,6 @@ import {
   clipById,
   clipEndMs,
   clipOnTrackAt,
-  clipRateOf,
   isTrackId,
   kindOfTrack,
   sourceDeltaToTimeline,
@@ -27,6 +26,7 @@ import {
   type Project,
   type TrackId,
 } from "./models";
+import { visualizerEventsOf } from "./visualizer";
 
 export interface HistoryStack {
   past: Project[];
@@ -668,110 +668,6 @@ export function extractRange(project: Project): { project: Project } {
   };
 }
 
-/** IN/OUT when both set and OUT > IN; else playhead + source duration. */
-export function overwrite3PointDestOf(
-  project: Project,
-  source: Clip,
-): { startMs: number; endMs: number } | null {
-  const range = editRangeOf(project);
-  if (range) return { startMs: range.inMs, endMs: range.outMs };
-  const startMs = Math.max(0, project.playheadMs);
-  const endMs = startMs + Math.max(0, source.durationMs);
-  if (endMs <= startMs) return null;
-  return { startMs, endMs };
-}
-
-function leftoverBeforeDest(clip: Clip, destStartMs: number): Clip | null {
-  if (clip.startMs >= destStartMs) return null;
-  const durationMs = destStartMs - clip.startMs;
-  if (durationMs < 1) return null;
-  return applyNormalizedFades({
-    ...clip,
-    durationMs,
-    sourceOutMs: sourceTimeAt(clip, destStartMs),
-  });
-}
-
-function leftoverAfterDest(clip: Clip, destEndMs: number): Clip | null {
-  const end = clipEndMs(clip);
-  if (end <= destEndMs) return null;
-  const durationMs = end - destEndMs;
-  if (durationMs < 1) return null;
-  return applyNormalizedFades({
-    ...clip,
-    id: createId("clip"),
-    startMs: destEndMs,
-    durationMs,
-    sourceInMs: sourceTimeAt(clip, destEndMs),
-    sourceOutMs: clip.sourceOutMs,
-    linkId: undefined,
-  });
-}
-
-/**
- * Punch selected-clip media into dest on that clip's track. Later clips do not ripple.
- * Dest is [IN, OUT] or [playhead, playhead + source.durationMs].
- */
-export function overwrite3Point(
-  project: Project,
-  sourceClipId: string,
-): { project: Project; clipId?: string; error?: string } {
-  const source = clipById(project, sourceClipId);
-  if (!source) return { project, error: "No clip selected" };
-  const dest = overwrite3PointDestOf(project, source);
-  if (!dest) return { project, error: "Dest duration is empty" };
-  const destDur = dest.endMs - dest.startMs;
-  if (destDur <= 0) return { project, error: "Dest duration is empty" };
-
-  const nextClips: Clip[] = [];
-  for (const clip of project.clips) {
-    if (clip.trackId !== source.trackId) {
-      nextClips.push(clip);
-      continue;
-    }
-    const end = clipEndMs(clip);
-    if (end <= dest.startMs || clip.startMs >= dest.endMs) {
-      nextClips.push(clip);
-      continue;
-    }
-    const left = leftoverBeforeDest(clip, dest.startMs);
-    if (left) nextClips.push(left);
-    const right = leftoverAfterDest(clip, dest.endMs);
-    if (right) nextClips.push(right);
-  }
-
-  const rate = clipRateOf(source);
-  const punched: Clip = applyNormalizedFades({
-    id: createId("clip"),
-    assetId: source.assetId,
-    trackId: source.trackId,
-    startMs: dest.startMs,
-    durationMs: destDur,
-    sourceInMs: source.sourceInMs,
-    sourceOutMs: source.sourceInMs + destDur * rate,
-    gain: source.gain,
-    fadeInMs: source.fadeInMs,
-    fadeOutMs: source.fadeOutMs,
-    rate: source.rate,
-  });
-  nextClips.push(punched);
-
-  const kept = new Set(nextClips.map((c) => c.id));
-  const transitions = (project.transitions ?? []).filter(
-    (t) => kept.has(t.sourceAClipId) && kept.has(t.sourceBClipId),
-  );
-
-  return {
-    project: {
-      ...project,
-      clips: nextClips,
-      transitions,
-      updatedAt: new Date().toISOString(),
-    },
-    clipId: punched.id,
-  };
-}
-
 export interface SnapTarget {
   timeMs: number;
   kind: "clip-start" | "clip-end" | "playhead" | "in" | "out" | "zero" | "marker";
@@ -797,6 +693,21 @@ export function collectSnapTargets(
     for (const marker of project.markers) {
       targets.push({ timeMs: marker.timeMs, kind: "marker" });
     }
+  }
+  return targets;
+}
+
+/** Clip/IN/OUT/playhead/marker snaps plus other VIS event edges. */
+export function collectVisEventSnapTargets(
+  project: Project,
+  ignoreEventId?: string,
+): SnapTarget[] {
+  const targets = collectSnapTargets(project);
+  if (!project.snap) return targets;
+  for (const event of visualizerEventsOf(project)) {
+    if (event.id === ignoreEventId) continue;
+    targets.push({ timeMs: event.startMs, kind: "clip-start" });
+    targets.push({ timeMs: event.startMs + event.durationMs, kind: "clip-end" });
   }
   return targets;
 }

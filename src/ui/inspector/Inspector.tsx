@@ -130,13 +130,13 @@ export function Inspector({
             label="VIS from (ms)"
             testId="inspector-vis-start"
             value={visStart}
-            onChange={(v) => onVisualizer?.({ startMs: v })}
+            onChange={(v) => onVisualizer?.({ startMs: Math.round(v) })}
           />
           <MsField
             label="VIS to span (ms)"
             testId="inspector-vis-duration"
             value={visDuration}
-            onChange={(v) => onVisualizer?.({ durationMs: v })}
+            onChange={(v) => onVisualizer?.({ durationMs: Math.round(v) })}
           />
         </dl>
       ) : ids.length >= 2 ? (

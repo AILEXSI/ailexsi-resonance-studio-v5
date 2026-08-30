@@ -1,5 +1,6 @@
 import { createId } from "./ids";
 import {
+  FRAME_MS,
   topVideoClipAt,
   VISUALIZER_SCENE_IDS,
   type Project,
@@ -11,6 +12,30 @@ import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
 
 export const DEFAULT_VIS_EVENT_MS = 4000;
+
+export type VisEventClipboard = {
+  sceneId: VisualizerSceneId;
+  durationMs: number;
+};
+
+export function roundVisMs(ms: number): number {
+  if (!Number.isFinite(ms)) return 0;
+  return Math.round(ms);
+}
+
+export function minVisEventDurationMs(): number {
+  return Math.max(1, Math.round(FRAME_MS));
+}
+
+export function visEventEndMs(event: VisualizerEvent): number {
+  return event.startMs + event.durationMs;
+}
+
+export function formatVisEventLabel(event: Pick<VisualizerEvent, "sceneId" | "startMs" | "durationMs">): string {
+  const start = roundVisMs(event.startMs);
+  const end = roundVisMs(event.startMs + event.durationMs);
+  return `${sceneShortName(event.sceneId)} ${start}–${end}ms`;
+}
 
 export const BEAT_WINDOW_MS = 90;
 export const DEFAULT_VISUALIZER_BPM = 120;
@@ -178,8 +203,8 @@ export function setVisualizer(
   project: Project,
   patch: Partial<Pick<VisualizerState, "sceneId" | "startMs" | "durationMs" | "enabled" | "muted">>,
 ): Project {
-  const startMs = Math.max(0, patch.startMs ?? project.visualizer.startMs ?? 0);
-  const durationMs = Math.max(0, patch.durationMs ?? project.visualizer.durationMs ?? 0);
+  const startMs = Math.max(0, roundVisMs(patch.startMs ?? project.visualizer.startMs ?? 0));
+  const durationMs = Math.max(0, roundVisMs(patch.durationMs ?? project.visualizer.durationMs ?? 0));
   return {
     ...project,
     visualizer: {
@@ -220,11 +245,15 @@ export function cycleVisualizerScene(project: Project, eventId?: string | null):
 export function insertVisualizerEvent(project: Project, timeMs: number): {
   project: Project;
   event: VisualizerEvent;
+  inserted: boolean;
 } {
-  const t = Math.max(0, timeMs);
+  const t = Math.max(0, roundVisMs(timeMs));
+  const covering = visualizerEventAt(project, t);
+  if (covering) return { project, event: covering, inserted: false };
   const existing = [...visualizerEventsOf(project)].sort((a, b) => a.startMs - b.startMs);
   const next = existing.find((e) => e.startMs > t);
-  const durationMs = next ? Math.max(1, next.startMs - t) : DEFAULT_VIS_EVENT_MS;
+  const rawDur = next ? next.startMs - t : DEFAULT_VIS_EVENT_MS;
+  const durationMs = Math.max(1, roundVisMs(rawDur));
   const event: VisualizerEvent = {
     id: createId("ve"),
     sceneId: project.visualizer.sceneId,
@@ -241,6 +270,7 @@ export function insertVisualizerEvent(project: Project, timeMs: number): {
       updatedAt: new Date().toISOString(),
     },
     event,
+    inserted: true,
   };
 }
 
@@ -256,15 +286,96 @@ export function updateVisualizerEvent(
   const next: VisualizerEvent = {
     ...current,
     sceneId: patch.sceneId ?? current.sceneId,
-    startMs: Math.max(0, patch.startMs ?? current.startMs),
-    durationMs: Math.max(0, patch.durationMs ?? current.durationMs),
+    startMs: Math.max(0, roundVisMs(patch.startMs ?? current.startMs)),
+    durationMs: Math.max(1, roundVisMs(patch.durationMs ?? current.durationMs)),
   };
+  if (
+    next.sceneId === current.sceneId &&
+    next.startMs === current.startMs &&
+    next.durationMs === current.durationMs
+  ) {
+    return project;
+  }
   const copy = [...events];
   copy[index] = next;
   return {
     ...project,
     visualizer: { ...project.visualizer, events: copy },
     updatedAt: new Date().toISOString(),
+  };
+}
+
+export function moveVisualizerEvent(project: Project, eventId: string, startMs: number): Project {
+  const event = visualizerEventsOf(project).find((e) => e.id === eventId);
+  if (!event) return project;
+  return updateVisualizerEvent(project, eventId, {
+    startMs,
+    durationMs: event.durationMs,
+  });
+}
+
+export function stretchVisualizerEvent(
+  project: Project,
+  eventId: string,
+  edge: "in" | "out",
+  nextEdgeMs: number,
+): Project {
+  const event = visualizerEventsOf(project).find((e) => e.id === eventId);
+  if (!event) return project;
+  const min = minVisEventDurationMs();
+  const end = visEventEndMs(event);
+  if (edge === "in") {
+    let start = Math.max(0, roundVisMs(nextEdgeMs));
+    if (end - start < min) start = Math.max(0, roundVisMs(end - min));
+    return updateVisualizerEvent(project, eventId, {
+      startMs: start,
+      durationMs: Math.max(min, end - start),
+    });
+  }
+  let out = Math.max(0, roundVisMs(nextEdgeMs));
+  const start = Math.max(0, roundVisMs(event.startMs));
+  if (out - start < min) out = start + min;
+  return updateVisualizerEvent(project, eventId, { startMs: start, durationMs: Math.max(min, out - start) });
+}
+
+export function deleteVisualizerEvent(project: Project, eventId: string): Project {
+  const events = visualizerEventsOf(project);
+  if (!events.some((e) => e.id === eventId)) return project;
+  return {
+    ...project,
+    visualizer: {
+      ...project.visualizer,
+      events: events.filter((e) => e.id !== eventId),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function visEventClipboardOf(event: VisualizerEvent): VisEventClipboard {
+  return { sceneId: event.sceneId, durationMs: Math.max(1, roundVisMs(event.durationMs)) };
+}
+
+export function pasteVisualizerEvent(
+  project: Project,
+  snap: VisEventClipboard,
+  timeMs: number,
+): { project: Project; event: VisualizerEvent } {
+  const event: VisualizerEvent = {
+    id: createId("ve"),
+    sceneId: snap.sceneId,
+    startMs: Math.max(0, roundVisMs(timeMs)),
+    durationMs: Math.max(minVisEventDurationMs(), roundVisMs(snap.durationMs)),
+  };
+  return {
+    project: {
+      ...project,
+      visualizer: {
+        ...project.visualizer,
+        events: [...visualizerEventsOf(project), event],
+      },
+      updatedAt: new Date().toISOString(),
+    },
+    event,
   };
 }
 
