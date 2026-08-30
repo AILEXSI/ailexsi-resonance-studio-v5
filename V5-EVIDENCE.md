@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:49 UTC. Range lift + extract on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:56 UTC. Per-clip linear fades on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-CtDAR3fN.css 16.46 kB
-- dist/assets/index-DWVs-rSg.js 680.13 kB
+- dist/assets/index-BsE7NJk-.css 16.72 kB
+- dist/assets/index-hJOYkcs2.js 683.14 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **208 passed / 31 files**. Start 06:48:30 UTC. Duration 6.14s.
+exit 0. vitest 3.2.7. **220 passed / 32 files**. Start 06:55:28 UTC. Duration 6.22s.
 
-New this follow-up: liftRange / extractRange (split at IN/OUT, lift middles, extract ripples later clips per track by out−in). `;` / `'` keys. Invalid IN/OUT no-op. Undo restores. Video independent of audio. Prior suites remain green.
+New this follow-up: `gainAtClipTime` / fade factor (t=0 fadeIn 1000 → 0; t=1000 → 1), overlap scale, mix envelope helper, `setClipFades` + undo, legacy JSON missing fades → 0, inspector Fade in/out fields, job copies fades. Prior suites remain green (208 → 220; +1 file).
 
 ## Visualizer
 
@@ -154,6 +154,8 @@ Status: TEST-VERIFIED
 Live JKL shuttle in a browser: NOT VERIFIED (not required this VM).
 No video frame seen and no audio heard this run.
 
+Preview audio now multiplies `gainAtClipTime` (fade × clip gain) into `mixLinearGain` (track fader / master / mute-solo still win). Preview video sets element opacity from the same factor (clamped 0..1). Live fade hear/see: NOT VERIFIED.
+
 ## Project file Save / Open
 
 Status: TEST-VERIFIED (store + panel). Live pickers clicked this run: RUNTIME-VERIFIED (dialogs opened, then cancelled — no file written).
@@ -200,6 +202,7 @@ Status: TEST-VERIFIED
 
 Memory store hydrate + serialize strip blob URLs: pass.
 Visualizer field round-trips; missing `visualizer` deserializes to `{ enabled: true, muted: false, sceneId: "resonance-wave" }`.
+Legacy clip JSON without `fadeInMs` / `fadeOutMs` loads as 0 / 0 (`tests/core/fades.test.ts` + persist deserialize).
 `createIndexedDbBlobStore` exercised with an in-process IDB shim (`tests/helpers/fake-indexeddb.ts`). That is not a browser IndexedDB and not a page reload.
 
 IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
@@ -208,7 +211,7 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 Status: TEST-VERIFIED (0 / 1 / 2+). Live fields: NOT VERIFIED.
 
-0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields. 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
 
 ## Export
 
@@ -226,7 +229,7 @@ Also unit-green:
 - synthetic mux has ftyp `isom`/`avc1` (not a runtime user export)
 - job copies visualizer scene; encode features stay synthetic 120 BPM
 
-audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven.
+audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video draw multiplies `globalAlpha` by the same factor. Visualizer paint is not faded. Live export of fades: NOT VERIFIED.
 
 No `artifacts/v5-user-export.mp4` in this workspace this run.
 
@@ -280,7 +283,8 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Known limitations (plain)
 
-- Audio export NOT IMPLEMENTED (no AAC track proven).
+- Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
+- Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
 - IndexedDB across a real page reload NOT VERIFIED.
 - Start-V5.cmd Windows double-click NOT VERIFIED.
 - Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle and earlier Projekt/mixer clicks were pointer-tested. Overlay / h-split / arrange-scroll live this run: NOT VERIFIED. Recents after a completed save: NOT VERIFIED.
@@ -292,7 +296,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setClipFades` (and prior `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -364,6 +368,25 @@ Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
 `{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip only — no group slip this slice. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
 
+## Clip fades
+
+Status: TEST-VERIFIED (math + persist + inspector + command). Live preview/export hear/see: NOT VERIFIED.
+
+`Clip.fadeInMs` / `fadeOutMs` default 0. Sanitize missing fields → 0. Each clamped to `[0, durationMs]`. If fadeIn + fadeOut > duration, both scale so they meet in the middle (no overlap).
+
+`gainAtClipTime(clip, localMs)` = linear fade factor (0..1) × `clip.gain`. Linear: 0→1 over fadeIn, 1 in the middle, 1→0 over fadeOut. Shared by:
+- preview audio (`mixLinearGain` of that value × track × master; mute/solo still win)
+- export `mixJobAudio` (`scheduleGainEnvelope` on the OfflineAudioContext gain node; peak is already-mixed clip/track/master)
+- video paint (preview `<video>` opacity; export `ctx.globalAlpha` around video draws only)
+
+Visualizer is not a clip; `paintVisualizer` / VIS canvas are not faded.
+
+Inspector (exactly one clip): Fade in / Fade out (ms), same number+timecode style as duration. `{ type: "setClipFades", clipId, fadeInMs, fadeOutMs }` is one history entry. Undo restores.
+
+Timeline: `.clip-fade-in` / `.clip-fade-out` gradient ramps when fade > 0. `pointer-events: none`. Trim/roll handles unchanged. No fade drag handles this slice.
+
+`tests/core/fades.test.ts` (12): factor 0 at t=0 with fadeIn 1000, 1 at t=1000; middle/out; gain multiply; overlap scale; video alpha clamp; envelope points; setClipFades + undo; legacy JSON; job copies fades.
+
 ## Range lift / extract
 
 Status: TEST-VERIFIED. Live `;` / `'` / I/O + Delete: NOT VERIFIED.
@@ -376,7 +399,11 @@ IN/OUT stay loop/export markers. When both are set and out > in, they also cut:
 
 Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still delete the selection when `selectedClipIds` is non-empty. When selection is empty and the range is valid, Delete = liftRange, Shift+Delete = extractRange. Marker delete still wins if a marker is selected and no clip is.
 
-## Changelog this follow-up (2026-08-30 06:49 UTC)
+## Changelog this follow-up (2026-08-30 06:56 UTC)
+
+- Per-clip linear fade in/out (`fadeInMs` / `fadeOutMs`, `gainAtClipTime`, inspector `setClipFades`, mix + video alpha, timeline ramps). TEST-VERIFIED. Live preview/export: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:49 UTC)
 
 - Range lift (`;`) and extract (`'`). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -469,7 +496,7 @@ Missing or inverted IN/OUT: no-op (no history). Clip Delete/Backspace still dele
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up is recorded in git. Prior clipboard/slip tip: `379bc62`.
+Tip after this follow-up: `14327c4` (fades). Prior range tip: `7e0efc8`. Prior clipboard/slip tip: `379bc62`.
 
 ## Not added
 
