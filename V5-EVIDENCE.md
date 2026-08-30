@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:01 UTC. Track pan on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:06 UTC. Slide edit on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CbhRT8ol.css 16.89 kB
-- dist/assets/index-LqvqYu-0.js 685.27 kB
+- dist/assets/index-BzebPAep.js 687.42 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **223 passed / 32 files**. Start 07:00:55 UTC. Duration 6.30s.
+exit 0. vitest 3.2.7. **228 passed / 32 files**. Start 07:05:55 UTC. Duration 6.18s.
 
-New this follow-up: equal-power pan at −1/0/+1, `setTrackPan` + persist, legacy missing pan → 0, job copies track pan, mixer `mix-pan-V1`…`A2` present (not Master). Prior suites remain green (220 → 223).
+New this follow-up: `slideClip` +N/−N span invariant, neighbor source windows, hard-stop at 50ms, no-neighbor/gap no-op, `applyCommand` slide + undo, Shift+Alt+,/. keys. Prior suites remain green (223 → 228).
 
 ## Visualizer
 
@@ -100,7 +100,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (28 in `timeline.test.ts`): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle, ripple-trim in+out vs lift-trim, roll +200 / 50ms reject, group move/delete/ripple-delete.
+Existing units still green (35 in `timeline.test.ts`): prior plus slide +N/−N, span invariant, 50ms hard-stop, no-neighbor/gap no-op. Also move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim, mute, loop, ripple-delete, solo, ripple-trim, roll, group move/delete.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -140,7 +140,7 @@ Status: TEST-VERIFIED (labels + dispatch). Menu open in a live UI: NOT VERIFIED.
 
 Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destructive). Bare X still clears IN/OUT. Letter shortcuts ignore ctrl/meta except the explicit chords.
 
-`tests/app/keys.test.ts` (12): prior plus `;` lift range / `'` extract range; empty Delete + valid I/O = liftRange, Shift+Delete = extractRange. Clip Delete still lifts when a clip is selected. Alt+, / Alt+. slip ±1 frame.
+`tests/app/keys.test.ts` (13): prior plus Shift+Alt+, / Shift+Alt+. slide ±1 frame (does not slip source). `;` lift range / `'` extract range; empty Delete + valid I/O = liftRange. Alt+, / Alt+. still slip.
 
 `tests/timeline/clip-menu.test.tsx` (4): prior plus Lift range / `;` and Extract range / `'`. Overlay lists those rows.
 
@@ -284,6 +284,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Known limitations (plain)
 
+- Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
 - Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
 - Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
@@ -298,7 +299,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setTrackPan` (and prior `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `slideClip` (and prior `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -370,6 +371,18 @@ Status: TEST-VERIFIED. Live Alt+drag: NOT VERIFIED.
 
 `{ type: "slip", clipId, deltaMs }` via `applyCommand`. Timeline start and duration stay put; sourceIn and sourceOut slide together. Clamp: sourceIn ≥ 0, sourceOut ≤ asset duration. Duration does not change. Alt+drag on a clip body (not trim handles) slips that clip only — no group slip this slice. Alt+, / Alt+. = ±1 `FRAME_MS` on the primary selected clip. Undo restores.
 
+## Slide
+
+Status: TEST-VERIFIED. Live Ctrl+Alt+drag / Shift+Alt+,: NOT VERIFIED.
+
+The fourth edit-point tool. Classic slide: selected clip keeps duration and source in/out and moves on the timeline. Previous abutting clip (same track, gap ≤ 1ms) absorbs the left delta (duration / source out). Next abutting clip absorbs the right delta (startMs / source in). The three-clip span length stays constant. Other tracks unchanged.
+
+`slideClip(project, clipId, deltaMs)` sits next to `slipClip`. Delta is clamped so neither neighbor duration goes below `SPLIT_EDGE_GUARD_MS` (50) and source in/out stay inside media. Missing neighbor or gap > 1ms → unchanged project + error (cannot slide into a hole or overlap a non-abutting clip).
+
+Gesture: **Ctrl+Alt+drag** (Ctrl or Meta + Alt) on the clip body, not edges. Does not steal Alt+drag slip, Shift+edge ripple, abutting-edge roll, or Ctrl+click toggle-select. Keys: **Shift+Alt+, / Shift+Alt+.** = ±1 `FRAME_MS`. `{ type: "slideClip", clipId, deltaMs }` via `applyCommand`. One history entry. Undo restores.
+
+No fade handles, marquee, automation, or time-stretch.
+
 ## Clip fades
 
 Status: TEST-VERIFIED (math + persist + inspector + command). Live preview/export hear/see: NOT VERIFIED.
@@ -417,7 +430,11 @@ Video tracks store pan. `audioClipsForMix` is still audio-kind only, so V1/V2 st
 
 Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `stopPropagation` on click and pointerdown. `{ type: "setTrackPan", trackId, pan }` via `applyCommand` (no history, same as fader).
 
-## Changelog this follow-up (2026-08-30 07:01 UTC)
+## Changelog this follow-up (2026-08-30 07:06 UTC)
+
+- Slide edit (`slideClip`, Ctrl+Alt+drag, Shift+Alt+,/.). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:01 UTC)
 
 - Track pan (`Track.pan`, equal-power, mixer control, `setTrackPan`, mix + preview). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -518,7 +535,7 @@ Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `340fe7b` (track pan). Assigned start: `a215c63`. Prior fades: `14327c4`.
+Tip after this follow-up: `7a1a86d` (slide; impl `45234de`). Assigned start: `7e1ac4c`. Prior pan: `340fe7b`.
 
 ## Not added
 
