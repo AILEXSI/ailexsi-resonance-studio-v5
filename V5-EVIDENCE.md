@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:46 UTC. P25 AAC mux wiring on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:52 UTC. P27 flush Preview + 120px split floor on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -38,8 +38,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 159 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-DUZadCLz.css 19.38 kB
-- dist/assets/index-uf4IHMLL.js 718.15 kB
+- dist/assets/index-DyGOxxme.css 19.41 kB
+- dist/assets/index-xC66rUIk.js 718.15 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -56,9 +56,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **355 passed / 50 files**. Start 08:46:36 UTC. Duration 8.61s.
+exit 0. vitest 3.2.7. **355 passed / 50 files**. Start 08:52:16 UTC. Duration 8.53s.
 
-New this follow-up: `audioInputForMux` + synthetic AAC fixture → mux writes `soun`/`mp4a`/`esds` and the AAC payload in mdat. Video-only mux still has no audio trak. jsdom has no `AudioEncoder` (`probeAac()` null). Prior P24 chrome units stay green (351 → 355).
+New this follow-up: `PREVIEW_MIN_PX` 120, `ARRANGE_MIN_PX` 200, default split 0.52. Toolbar is one row (ScreenNav on the File button row). Split-dom / layout-prefs follow the 120px floor. Prior P25 mux units stay green.
 
 ## Visualizer
 
@@ -329,13 +329,13 @@ Status: TEST-VERIFIED
 
 `src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Cross-track move reuses `{ type: "moveClips", trackId }` (no second `setClipTrack`). Adds `setTransition` (type / duration / audioMode / audioDuration through existing history). Prior: `unlinkClips`, `slideClip` optional `clipIds`, `selectClips` / `setClipRate` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`. Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
-## Chrome / Preview height (P24)
+## Chrome / Preview height (P27)
 
-Status: RUNTIME-VERIFIED (live click) + TEST-VERIFIED (nav in toolbar).
+Status: TEST-VERIFIED (120px floor + File-row ScreenNav). Live splitter drag this follow-up: NOT VERIFIED until Chromium pass.
 
-Root cause of the owner screenshot: `.app` is `grid-template-rows: auto 1fr auto`. ScreenNav was the second child, so it ate the `1fr` row (empty canvas + floating `[ARRANGE]`/`[CUTTER]`). Preview sat in leftover implicit rows as a ribbon.
+P24 put ScreenNav under New/Open as a File-group column and set `PREVIEW_MIN_PX` 360. That blocked dragging the yellow splitter up (Arrange/Cutter could not grow) and left a dark band under the first toolbar row.
 
-Fix: `ScreenNav` mounts under New/Open in the toolbar File group. `.app` areas are `chrome` / `stage` / `status`. `.workspace` min-height 360px. `PREVIEW_MIN_PX` 360. Default split 0.62. Active tab: gold + white border. Same `setScreen` / TAB. No second Preview.
+P27: toolbar is **one compact row**. `[ARRANGE]`/`[CUTTER]` sit on the File button row. `.workspace` min-height **120**. `PREVIEW_MIN_PX` **120**. `ARRANGE_MIN_PX` **200**. Default split **0.52**. Same `splitRatio` on Arrange and Cutter (one stage). `.app` areas stay `chrome` / `stage` / `status`. Active tab: gold + white border.
 
 ## Cutter / transitions
 
@@ -753,7 +753,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P25 mux evidence (this commit). Feature `c7b017d` / `5ca519e`. P24 layout `1be297d`. P23 `moveClips` `134eb7d`.
+Tip after this follow-up: P27 evidence (this commit). Layout `7f619a2` / `b306ccb`. P25 mux `c3487e8`. P24 `1be297d`.
 
 ## Not added
 
