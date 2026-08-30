@@ -232,7 +232,7 @@ export async function exportWithWebCodecs(
 
   hooks.onProgress?.({ percent: 4, stage: "Mixing audio" });
   let aacProbe: AacProbe | null = null;
-  let mixed: MixPcm | null = null;
+  let mixed: AudioBuffer | null = null;
   try {
     aacProbe = await withTimeout(probeAac(), 4000, null);
   } catch {
