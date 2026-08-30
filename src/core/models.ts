@@ -128,6 +128,16 @@ export function clipRateOf(clip: { rate?: number }): number {
   return clampClipRate(clip.rate ?? 1);
 }
 
+/** Timeline delta → source delta. Rate 1 is identity. */
+export function timelineDeltaToSource(clip: { rate?: number }, deltaTimelineMs: number): number {
+  return clipRateOf(clip) * deltaTimelineMs;
+}
+
+/** Source delta → timeline delta. Rate 1 is identity. */
+export function sourceDeltaToTimeline(clip: { rate?: number }, deltaSourceMs: number): number {
+  return deltaSourceMs / clipRateOf(clip);
+}
+
 export function sourceSpanMs(clip: { sourceInMs: number; sourceOutMs: number }): number {
   return Math.max(1, clip.sourceOutMs - clip.sourceInMs);
 }

@@ -7,7 +7,10 @@ import {
   clipById,
   clipEndMs,
   kindOfTrack,
+  sourceDeltaToTimeline,
   sourceSpanMs,
+  sourceTimeAt,
+  timelineDeltaToSource,
   timelineDurationForRate,
   TRACK_IDS,
   type Clip,
@@ -104,9 +107,10 @@ export function trimClip(
   }
 
   let next: Clip;
+  const minSourceSpan = timelineDeltaToSource(clip, SPLIT_EDGE_GUARD_MS);
   if (edge === "in") {
     const newStart = edgeMs;
-    const newSourceIn = clip.sourceInMs + (newStart - clip.startMs);
+    const newSourceIn = clip.sourceInMs + timelineDeltaToSource(clip, newStart - clip.startMs);
     const newDuration = clipEndMs(clip) - newStart;
     if (newSourceIn < 0) {
       return { project, error: "sourceIn cannot go below 0" };
@@ -114,7 +118,7 @@ export function trimClip(
     if (newDuration < SPLIT_EDGE_GUARD_MS) {
       return { project, error: "Trim would leave less than 50ms" };
     }
-    if (newSourceIn > clip.sourceOutMs - SPLIT_EDGE_GUARD_MS) {
+    if (newSourceIn > clip.sourceOutMs - minSourceSpan) {
       return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
     }
     next = applyNormalizedFades({
@@ -125,8 +129,11 @@ export function trimClip(
     });
   } else {
     const newDuration = edgeMs - clip.startMs;
-    const newSourceOut = clip.sourceInMs + newDuration;
+    const newSourceOut = clip.sourceOutMs + timelineDeltaToSource(clip, newDuration - clip.durationMs);
     if (newDuration < SPLIT_EDGE_GUARD_MS) {
+      return { project, error: "Trim would leave less than 50ms" };
+    }
+    if (newSourceOut < clip.sourceInMs + minSourceSpan) {
       return { project, error: "Trim would leave less than 50ms" };
     }
     if (asset && newSourceOut > asset.durationMs) {
@@ -297,17 +304,19 @@ export function rollEdit(
     return { project, error: "Roll would leave less than 50ms" };
   }
 
-  const leftSourceOut = left.sourceInMs + leftDur;
-  const rightSourceIn = right.sourceInMs + (cut - right.startMs);
+  const leftSourceOut =
+    left.sourceOutMs + timelineDeltaToSource(left, leftDur - left.durationMs);
+  const rightSourceIn =
+    right.sourceInMs + timelineDeltaToSource(right, cut - right.startMs);
   const leftAsset = project.assets.find((a) => a.id === left.assetId);
   const rightAsset = project.assets.find((a) => a.id === right.assetId);
   if (rightSourceIn < 0) {
     return { project, error: "sourceIn cannot go below 0" };
   }
-  if (rightSourceIn > right.sourceOutMs - SPLIT_EDGE_GUARD_MS) {
+  if (rightSourceIn > right.sourceOutMs - timelineDeltaToSource(right, SPLIT_EDGE_GUARD_MS)) {
     return { project, error: "sourceIn cannot exceed sourceOut - 50ms" };
   }
-  if (leftSourceOut < left.sourceInMs + SPLIT_EDGE_GUARD_MS) {
+  if (leftSourceOut < left.sourceInMs + timelineDeltaToSource(left, SPLIT_EDGE_GUARD_MS)) {
     return { project, error: "Trim would leave less than 50ms" };
   }
   if (leftAsset && leftSourceOut > leftAsset.durationMs) {
@@ -355,17 +364,18 @@ export function splitClipAt(
     return { project, error: "Split too close to clip edge" };
   }
 
+  const cutSource = sourceTimeAt(clip, timeMs);
   const left: Clip = applyNormalizedFades({
     ...clip,
     durationMs: offset,
-    sourceOutMs: clip.sourceInMs + offset,
+    sourceOutMs: cutSource,
   });
   const right: Clip = applyNormalizedFades({
     ...clip,
     id: createId("clip"),
     startMs: timeMs,
     durationMs: clip.durationMs - offset,
-    sourceInMs: clip.sourceInMs + offset,
+    sourceInMs: cutSource,
     sourceOutMs: clip.sourceOutMs,
   });
 
@@ -795,7 +805,7 @@ export function slideClip(
 
   const leftAsset = project.assets.find((a) => a.id === left.assetId);
   const maxGrowLeft = leftAsset
-    ? Math.max(0, leftAsset.durationMs - left.sourceOutMs)
+    ? Math.max(0, sourceDeltaToTimeline(left, leftAsset.durationMs - left.sourceOutMs))
     : Number.POSITIVE_INFINITY;
   const maxPos = Math.max(
     0,
@@ -803,7 +813,7 @@ export function slideClip(
   );
   const maxNeg = Math.max(
     0,
-    Math.min(left.durationMs - SPLIT_EDGE_GUARD_MS, right.sourceInMs),
+    Math.min(left.durationMs - SPLIT_EDGE_GUARD_MS, sourceDeltaToTimeline(right, right.sourceInMs)),
   );
   const delta = Math.max(-maxNeg, Math.min(maxPos, deltaMs));
   if (delta === 0) return { project, error: "Cannot slide further" };
@@ -811,7 +821,7 @@ export function slideClip(
   const nextLeft = applyNormalizedFades({
     ...left,
     durationMs: left.durationMs + delta,
-    sourceOutMs: left.sourceOutMs + delta,
+    sourceOutMs: left.sourceOutMs + timelineDeltaToSource(left, delta),
   });
   const nextMid: Clip = {
     ...mid,
@@ -821,7 +831,7 @@ export function slideClip(
     ...right,
     startMs: right.startMs + delta,
     durationMs: right.durationMs - delta,
-    sourceInMs: right.sourceInMs + delta,
+    sourceInMs: right.sourceInMs + timelineDeltaToSource(right, delta),
   });
 
   return {
@@ -853,7 +863,8 @@ export function slipClip(
   const maxOut = asset?.durationMs ?? Number.POSITIVE_INFINITY;
   const span = sourceSpanMs(clip);
   const maxIn = maxOut - span;
-  const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + deltaMs), Math.max(0, maxIn));
+  const sourceDelta = timelineDeltaToSource(clip, deltaMs);
+  const sourceInMs = Math.min(Math.max(0, clip.sourceInMs + sourceDelta), Math.max(0, maxIn));
   if (sourceInMs === clip.sourceInMs) return { project };
   const next: Clip = {
     ...clip,
@@ -908,11 +919,11 @@ export function updateClip(
     const maxOut = asset?.durationMs ?? next.sourceOutMs;
     next.sourceInMs = Math.max(0, next.sourceInMs);
     next.sourceOutMs = Math.max(next.sourceInMs + 1, Math.min(maxOut, next.sourceOutMs));
-    next.durationMs = next.sourceOutMs - next.sourceInMs;
+    next.durationMs = Math.max(1, sourceDeltaToTimeline(next, next.sourceOutMs - next.sourceInMs));
   }
   if (patch.durationMs != null) {
     next.durationMs = Math.max(1, patch.durationMs);
-    next.sourceOutMs = next.sourceInMs + next.durationMs;
+    next.sourceOutMs = next.sourceInMs + timelineDeltaToSource(next, next.durationMs);
   }
   next.startMs = clampStartMs(next.startMs);
   next.gain = Math.max(0, Math.min(4, next.gain));

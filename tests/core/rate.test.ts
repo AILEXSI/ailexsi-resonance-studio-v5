@@ -5,12 +5,24 @@ import { jobFromProject } from "../../src/core/exporter/job";
 import { sourceTimeSec } from "../../src/core/exporter/frame-source";
 import {
   clipRateOf,
+  sourceDeltaToTimeline,
   sourceTimeAt,
+  timelineDeltaToSource,
   timelineDurationForRate,
 } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
-import { placeAsset, setClipRate } from "../../src/core/timeline";
+import {
+  placeAsset,
+  rippleTrimClip,
+  rollEdit,
+  setClipRate,
+  slideClip,
+  slipClip,
+  splitClipAt,
+  trimClip,
+  updateClip,
+} from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
 function rateSession(): Session {
@@ -177,5 +189,286 @@ describe("setClipRate command + persist + clocks", () => {
     expect(exp.rate).toBe(2);
     expect(sourceTimeSec(exp, 0, 30)).toBeCloseTo(500 / 30 / 1000, 5);
     expect(sourceTimeSec(exp, 250, 30)).toBeCloseTo((250 * 2 + 500 / 30) / 1000, 5);
+  });
+});
+
+function ratedClip(rate: 2 | 0.5) {
+  const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+  const c =
+    rate === 2
+      ? clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          rate: 2,
+        })
+      : clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 2000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          rate: 0.5,
+        });
+  return projectWith([c], [a]);
+}
+
+describe("rate-aware source mapping on edits", () => {
+  it("timelineDeltaToSource and reverse stay identity at rate 1", () => {
+    const c = clip({ id: "c", assetId: "a", trackId: "A1" });
+    expect(timelineDeltaToSource(c, 200)).toBe(200);
+    expect(sourceDeltaToTimeline(c, 200)).toBe(200);
+    expect(timelineDeltaToSource({ rate: 2 }, 200)).toBe(400);
+    expect(sourceDeltaToTimeline({ rate: 2 }, 400)).toBe(200);
+    expect(timelineDeltaToSource({ rate: 0.5 }, 200)).toBe(100);
+    expect(sourceDeltaToTimeline({ rate: 0.5 }, 100)).toBe(200);
+  });
+
+  it("out-trim at rate 2 and 0.5 maps Δtimeline × rate onto sourceOut", () => {
+    const fast = trimClip(ratedClip(2), "c1", "out", 800);
+    expect(fast.error).toBeUndefined();
+    expect(fast.project.clips[0]!.durationMs).toBe(800);
+    expect(fast.project.clips[0]!.sourceInMs).toBe(0);
+    expect(fast.project.clips[0]!.sourceOutMs).toBe(1600);
+    expect(fast.project.clips[0]!.rate).toBe(2);
+
+    const slow = trimClip(ratedClip(0.5), "c1", "out", 1800);
+    expect(slow.error).toBeUndefined();
+    expect(slow.project.clips[0]!.durationMs).toBe(1800);
+    expect(slow.project.clips[0]!.sourceOutMs).toBe(900);
+    expect(slow.project.clips[0]!.rate).toBe(0.5);
+  });
+
+  it("in-trim at rate 2 and 0.5 maps Δtimeline × rate onto sourceIn", () => {
+    const fast = trimClip(ratedClip(2), "c1", "in", 200);
+    expect(fast.error).toBeUndefined();
+    expect(fast.project.clips[0]!.startMs).toBe(200);
+    expect(fast.project.clips[0]!.durationMs).toBe(800);
+    expect(fast.project.clips[0]!.sourceInMs).toBe(400);
+    expect(fast.project.clips[0]!.sourceOutMs).toBe(2000);
+    expect(fast.project.clips[0]!.rate).toBe(2);
+
+    const slow = trimClip(ratedClip(0.5), "c1", "in", 200);
+    expect(slow.error).toBeUndefined();
+    expect(slow.project.clips[0]!.startMs).toBe(200);
+    expect(slow.project.clips[0]!.durationMs).toBe(1800);
+    expect(slow.project.clips[0]!.sourceInMs).toBe(100);
+    expect(slow.project.clips[0]!.sourceOutMs).toBe(1000);
+    expect(slow.project.clips[0]!.rate).toBe(0.5);
+  });
+
+  it("inspector duration writes sourceOut = sourceIn + duration × rate", () => {
+    const fast = updateClip(ratedClip(2), "c1", { durationMs: 800 });
+    expect(fast.error).toBeUndefined();
+    expect(fast.project.clips[0]!.durationMs).toBe(800);
+    expect(fast.project.clips[0]!.sourceOutMs).toBe(1600);
+    expect(fast.project.clips[0]!.rate).toBe(2);
+
+    const slow = updateClip(ratedClip(0.5), "c1", { durationMs: 1800 });
+    expect(slow.project.clips[0]!.durationMs).toBe(1800);
+    expect(slow.project.clips[0]!.sourceOutMs).toBe(900);
+
+    const sourceIn = updateClip(ratedClip(2), "c1", { sourceInMs: 400 });
+    expect(sourceIn.project.clips[0]!.sourceInMs).toBe(400);
+    expect(sourceIn.project.clips[0]!.sourceOutMs).toBe(2000);
+    expect(sourceIn.project.clips[0]!.durationMs).toBe(800);
+
+    const sourceOut = updateClip(ratedClip(0.5), "c1", { sourceOutMs: 800 });
+    expect(sourceOut.project.clips[0]!.sourceOutMs).toBe(800);
+    expect(sourceOut.project.clips[0]!.durationMs).toBe(1600);
+  });
+
+  it("split at rate 2 and 0.5 cuts at sourceTimeAt and keeps rate on both halves", () => {
+    const fast = splitClipAt(ratedClip(2), "c1", 500);
+    expect(fast.error).toBeUndefined();
+    const [fl, fr] = fast.project.clips;
+    expect(sourceTimeAt(ratedClip(2).clips[0]!, 500)).toBe(1000);
+    expect(fl!.durationMs).toBe(500);
+    expect(fl!.sourceOutMs).toBe(1000);
+    expect(fl!.rate).toBe(2);
+    expect(fr!.startMs).toBe(500);
+    expect(fr!.sourceInMs).toBe(1000);
+    expect(fr!.sourceOutMs).toBe(2000);
+    expect(fr!.rate).toBe(2);
+
+    const slow = splitClipAt(ratedClip(0.5), "c1", 1000);
+    const [sl, sr] = slow.project.clips;
+    expect(sourceTimeAt(ratedClip(0.5).clips[0]!, 1000)).toBe(500);
+    expect(sl!.sourceOutMs).toBe(500);
+    expect(sl!.rate).toBe(0.5);
+    expect(sr!.sourceInMs).toBe(500);
+    expect(sr!.rate).toBe(0.5);
+  });
+
+  it("ripple-trim at rate 2 maps source on the rated clip; rate-1 neighbor stays 1:1", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          rate: 2,
+        }),
+        clip({
+          id: "c2",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          rate: 1,
+        }),
+      ],
+      [a],
+    );
+    const rippled = rippleTrimClip(p, "c1", "out", 800);
+    expect(rippled.error).toBeUndefined();
+    const left = rippled.project.clips.find((c) => c.id === "c1")!;
+    const right = rippled.project.clips.find((c) => c.id === "c2")!;
+    expect(left.durationMs).toBe(800);
+    expect(left.sourceOutMs).toBe(1600);
+    expect(left.rate).toBe(2);
+    expect(right.startMs).toBe(800);
+    expect(right.sourceInMs).toBe(0);
+    expect(right.sourceOutMs).toBe(1000);
+    expect(right.rate).toBe(1);
+  });
+
+  it("roll at rate 2 on the left and rate 1 on the right maps each clip by its own rate", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "c1",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          rate: 2,
+        }),
+        clip({
+          id: "c2",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          rate: 1,
+        }),
+      ],
+      [a],
+    );
+    const rolled = rollEdit(p, "c1", "c2", 1200);
+    expect(rolled.error).toBeUndefined();
+    const left = rolled.project.clips.find((c) => c.id === "c1")!;
+    const right = rolled.project.clips.find((c) => c.id === "c2")!;
+    expect(left.durationMs).toBe(1200);
+    expect(left.sourceOutMs).toBe(2400);
+    expect(left.rate).toBe(2);
+    expect(right.startMs).toBe(1200);
+    expect(right.durationMs).toBe(800);
+    expect(right.sourceInMs).toBe(200);
+    expect(right.sourceOutMs).toBe(1000);
+    expect(right.rate).toBe(1);
+  });
+
+  it("slip converts a timeline/nudge delta through rate so rate 2 consumes 2× source", () => {
+    const slipped = slipClip(ratedClip(2), "c1", 100);
+    expect(slipped.project.clips[0]!.startMs).toBe(0);
+    expect(slipped.project.clips[0]!.durationMs).toBe(1000);
+    expect(slipped.project.clips[0]!.sourceInMs).toBe(200);
+    expect(slipped.project.clips[0]!.sourceOutMs).toBe(2200);
+    expect(slipped.project.clips[0]!.rate).toBe(2);
+
+    const unity = slipClip(
+      projectWith(
+        [
+          clip({
+            id: "c1",
+            assetId: "aa",
+            trackId: "A1",
+            startMs: 0,
+            durationMs: 1000,
+            sourceInMs: 0,
+            sourceOutMs: 1000,
+          }),
+        ],
+        [asset({ id: "aa", kind: "audio", durationMs: 4000 })],
+      ),
+      "c1",
+      100,
+    );
+    expect(unity.project.clips[0]!.sourceInMs).toBe(100);
+    expect(unity.project.clips[0]!.sourceOutMs).toBe(1100);
+  });
+
+  it("slide maps neighbor source windows through each clip's rate; middle source stays", () => {
+    const a = asset({ id: "aa", kind: "audio", durationMs: 4000 });
+    const p = projectWith(
+      [
+        clip({
+          id: "L",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 0,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 2000,
+          rate: 2,
+        }),
+        clip({
+          id: "M",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 1000,
+          durationMs: 1000,
+          sourceInMs: 100,
+          sourceOutMs: 1100,
+          rate: 1,
+        }),
+        clip({
+          id: "R",
+          assetId: "aa",
+          trackId: "A1",
+          startMs: 2000,
+          durationMs: 1000,
+          sourceInMs: 0,
+          sourceOutMs: 1000,
+          rate: 1,
+        }),
+      ],
+      [a],
+    );
+    const slid = slideClip(p, "M", 200);
+    expect(slid.error).toBeUndefined();
+    const L = slid.project.clips.find((c) => c.id === "L")!;
+    const M = slid.project.clips.find((c) => c.id === "M")!;
+    const R = slid.project.clips.find((c) => c.id === "R")!;
+    expect(L.durationMs).toBe(1200);
+    expect(L.sourceOutMs).toBe(2400);
+    expect(L.rate).toBe(2);
+    expect(M.startMs).toBe(1200);
+    expect(M.durationMs).toBe(1000);
+    expect(M.sourceInMs).toBe(100);
+    expect(M.sourceOutMs).toBe(1100);
+    expect(R.startMs).toBe(2200);
+    expect(R.durationMs).toBe(800);
+    expect(R.sourceInMs).toBe(200);
+    expect(R.rate).toBe(1);
   });
 });
