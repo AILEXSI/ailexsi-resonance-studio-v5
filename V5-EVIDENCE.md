@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 08:39 UTC. P24 toolbar Arrange/Cutter + tall Preview on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 08:46 UTC. P25 AAC mux wiring on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -38,8 +38,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 159 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BEM_ySnN.css 19.27 kB
-- dist/assets/index-BonLAofA.js 718.05 kB
+- dist/assets/index-DUZadCLz.css 19.38 kB
+- dist/assets/index-uf4IHMLL.js 718.15 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -56,9 +56,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **351 passed / 49 files**. Start 08:39:07 UTC. Duration 8.48s.
+exit 0. vitest 3.2.7. **355 passed / 50 files**. Start 08:46:36 UTC. Duration 8.61s.
 
-New this follow-up: ScreenNav lives inside `[data-testid=toolbar]` (not a `.app` 1fr sibling); click still `setScreen`; TAB/Shift+TAB + form-focus no-op stay. Preview min-height 360px + default split 0.62. P23 `moveClips` V1↔V2 / V2↔V1 / A1↔A2 / kind no-op / VIS no-op / undo trackId / drag onto other video lane (existing command). Prior P22 Cutter units stay green (337 → 351).
+New this follow-up: `audioInputForMux` + synthetic AAC fixture → mux writes `soun`/`mp4a`/`esds` and the AAC payload in mdat. Video-only mux still has no audio trak. jsdom has no `AudioEncoder` (`probeAac()` null). Prior P24 chrome units stay green (351 → 355).
 
 ## Visualizer
 
@@ -246,9 +246,9 @@ Also unit-green:
 - synthetic mux has ftyp `isom`/`avc1` (not a runtime user export)
 - job copies visualizer scene; encode features stay synthetic 120 BPM
 
-audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain, then sets `playbackRate` from `Clip.rate` and plays the source-window length. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video `sourceTimeSec` is sourceIn + localMs × rate. Visualizer paint is not faded. Live export of fades/rate: NOT VERIFIED.
+audio mux wiring: TEST-VERIFIED (synthetic AAC fixture, not a live encode). `exportWithWebCodecs` still calls `probeAac` → `mixJobAudio` → `encodeAac` → `audioInputForMux` → `muxAvcToMp4({ audio })`. `tests/export/aac-mux.test.ts` (4): video-only has no `soun`/`mp4a`; empty encode → no audio input; fixture ASC + one AAC frame → `mp4HasAudioTrack`, brands include `mp41`, mdat ends with the fixture. Live `AudioEncoder` / a real A1 mix: NOT VERIFIED (jsdom `probeAac()` is null). Do **not** claim AAC implemented as a heard export.
 
-`audioClipsForMix` includes present V1/V2 clips (not audio-kind only) unless that V clip has a living linked A clip (A carries the sound). `mixJobAudio` still skips a decode that throws or has no channels (video-only file). Mute/solo already empty the job track. V-track volume/pan/fades/rate use the same path as A. Live V-audio in an exported file: NOT VERIFIED. AAC still NOT IMPLEMENTED.
+`mixJobAudio` still schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of clip/track/master gain, then sets `playbackRate` from `Clip.rate`. Envelope units stay in `clipGainEnvelope` / `gainAtClipTime`. `audioClipsForMix` includes present V1/V2 clips unless a living linked A mate carries the sound. Mute/solo empty the job track. No ffmpeg. No second encoder.
 
 No `artifacts/v5-user-export.mp4` in this workspace this run.
 
@@ -310,7 +310,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 - Live fade-handle drag NOT VERIFIED (hit + pixel map + DOM units only).
 - Live marquee drag NOT VERIFIED (geometry + jsdom pointer units only).
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
-- Audio export NOT IMPLEMENTED (no AAC track proven). Do not claim AAC implemented.
+- Audio mux wiring TEST-VERIFIED (synthetic fixture). Live AAC encode NOT VERIFIED. Do not claim AAC implemented.
 - IndexedDB across a real page reload NOT VERIFIED.
 - Start-V5.cmd Windows double-click NOT VERIFIED.
 - Full Import→Edit→Preview→Persist→Export click-path NOT VERIFIED. VIS scene cycle and earlier Projekt/mixer clicks were pointer-tested. Overlay / h-split / arrange-scroll live this run: NOT VERIFIED. Recents after a completed save: NOT VERIFIED.
@@ -349,7 +349,7 @@ Resolve: selected video clip(s) that overlap in time on **two video tracks** (an
 
 ONE compositor: `compositeVideoAt` in `src/core/transition.ts`. Preview re-exports it as `previewComposite`; export as `exportComposite`. Unit: `previewComposite === exportComposite`. Cut = B after start; crossfade = lerp alpha; fadeBlack/White = A → plate → B. Outside the window, later `TRACK_IDS` video track stays on top. Preview binds the existing **one** `<video>` to the highest-alpha layer (plus a plate `div`, not a second decode graph). Export `videoClipAt` / frame paint call the same function and multiply clip-fade alpha by layer alpha. Do not assert live pixels.
 
-Audio: `audioMode` does not write `clip.gain` / `fadeInMs` / `fadeOutMs`. `cut` = existing overlap mix. `crossfade` = extra equal-power over `audioDurationMs` from `startMs`. `keepA`/`keepB` mute the other source (and living linked mate) in the **video** window. Extra `GainNode` after the existing fade envelope in `mixJobAudio`. AAC still NOT IMPLEMENTED.
+Audio: `audioMode` does not write `clip.gain` / `fadeInMs` / `fadeOutMs`. `cut` = existing overlap mix. `crossfade` = extra equal-power over `audioDurationMs` from `startMs`. `keepA`/`keepB` mute the other source (and living linked mate) in the **video** window. Extra `GainNode` after the existing fade envelope in `mixJobAudio`. AAC mux wiring TEST-VERIFIED (fixture). Live AAC encode NOT VERIFIED.
 
 Screens: `productionScreens = ["arrange","cutter"]`. TAB forward, Shift+TAB back. Click `[ARRANGE]` / `[CUTTER]` (`<button>`, `data-testid=screen-nav-arrange|cutter`) calls the same `setScreen` TAB uses. Active tab `data-active=true` / `.on`. `isFormFocus` leaves native TAB. Screen is React view state only — does not reload, reset project/selection/playhead/zoom, or clone the session.
 
@@ -753,7 +753,7 @@ Edits that follow a living mate: split (S) at the same timeline time (lefts keep
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: P24 evidence (this commit). Layout feature `c82e8ab` (+ grid-area harden). P23 `moveClips` `134eb7d`. Assigned P22 start: `5a6be5c`.
+Tip after this follow-up: P25 mux evidence (this commit). Feature `c7b017d` / `5ca519e`. P24 layout `1be297d`. P23 `moveClips` `134eb7d`.
 
 ## Not added
 
