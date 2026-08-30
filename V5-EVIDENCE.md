@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 07:06 UTC. Slide edit on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 07:11 UTC. Clip playback rate on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -37,7 +37,7 @@ npx vite build
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
 - dist/assets/index-CbhRT8ol.css 16.89 kB
-- dist/assets/index-BzebPAep.js 687.42 kB
+- dist/assets/index-P4YyXKnS.js 688.99 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **228 passed / 32 files**. Start 07:05:55 UTC. Duration 6.18s.
+exit 0. vitest 3.2.7. **235 passed / 33 files**. Start 07:10:48 UTC. Duration 6.53s.
 
-New this follow-up: `slideClip` +N/−N span invariant, neighbor source windows, hard-stop at 50ms, no-neighbor/gap no-op, `applyCommand` slide + undo, Shift+Alt+,/. keys. Prior suites remain green (223 → 228).
+New this follow-up: `Clip.rate` default 1, duration = sourceSpan/rate at 0.5/1/2, overlap reject, `setClipRate` + undo, legacy missing rate → 1, `sourceTimeAt` / export clock × rate, inspector Rate field. Prior suites remain green (228 → 235; +1 file).
 
 ## Visualizer
 
@@ -156,6 +156,8 @@ No video frame seen and no audio heard this run.
 
 Preview audio now multiplies `gainAtClipTime` (fade × clip gain) into `mixLinearGain` (track fader / master / mute-solo still win). Preview video sets element opacity from the same factor (clamped 0..1). Live fade hear/see: NOT VERIFIED.
 
+Preview video/audio set `playbackRate` from `Clip.rate`. `sourceTimeAt` is sourceIn + clip-localMs × rate. Live rate hear/see: NOT VERIFIED.
+
 ## Project file Save / Open
 
 Status: TEST-VERIFIED (store + panel). Live pickers clicked this run: RUNTIME-VERIFIED (dialogs opened, then cancelled — no file written).
@@ -203,6 +205,7 @@ Status: TEST-VERIFIED
 Memory store hydrate + serialize strip blob URLs: pass.
 Visualizer field round-trips; missing `visualizer` deserializes to `{ enabled: true, muted: false, sceneId: "resonance-wave" }`.
 Legacy clip JSON without `fadeInMs` / `fadeOutMs` loads as 0 / 0 (`tests/core/fades.test.ts` + persist deserialize).
+Legacy clip JSON without `rate` loads as 1.
 Legacy track JSON without `pan` loads as 0.
 `createIndexedDbBlobStore` exercised with an in-process IDB shim (`tests/helpers/fake-indexeddb.ts`). That is not a browser IndexedDB and not a page reload.
 
@@ -212,7 +215,7 @@ IndexedDB page-reload: NOT VERIFIED (no browser reload this run).
 
 Status: TEST-VERIFIED (0 / 1 / 2+). Live fields: NOT VERIFIED.
 
-0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
+0 selected → “No clip selected.” (track/project empty as before). 1 selected → clip fields including Gain, Rate, Fade in (ms), Fade out (ms). 2+ selected → count only (`"3 clips"`), no multi-inspector. `tests/inspector/inspector.test.tsx` (3).
 
 ## Export
 
@@ -230,7 +233,7 @@ Also unit-green:
 - synthetic mux has ftyp `isom`/`avc1` (not a runtime user export)
 - job copies visualizer scene; encode features stay synthetic 120 BPM
 
-audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video draw multiplies `globalAlpha` by the same factor. Visualizer paint is not faded. Live export of fades: NOT VERIFIED.
+audio export: NOT IMPLEMENTED. AAC mixer/encoder functions exist in `src/core/exporter/audio.ts` but this run did not mux AAC and did not produce an MP4 with an audio track. Do not treat that code as proven. `mixJobAudio` now schedules a linear fade envelope from `fadeInMs`/`fadeOutMs` on top of the already-baked clip/track/master gain, then sets `playbackRate` from `Clip.rate` and plays the source-window length. That envelope is unit-tested via `clipGainEnvelope` / `gainAtClipTime`, not by rendering OfflineAudioContext in this VM. Export-frame video `sourceTimeSec` is sourceIn + localMs × rate. Visualizer paint is not faded. Live export of fades/rate: NOT VERIFIED.
 
 No `artifacts/v5-user-export.mp4` in this workspace this run.
 
@@ -284,6 +287,8 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 ## Known limitations (plain)
 
+- Live clip rate (preview/export hear/see) NOT VERIFIED.
+- Trim / ripple / roll / slide still assume rate 1 for source-delta (not rebuilt this slice). Inspector duration edit still writes sourceOut = sourceIn + duration at rate 1.
 - Live slide (Ctrl+Alt+drag / Shift+Alt+,/.) NOT VERIFIED.
 - Live preview/export of track pan NOT VERIFIED (helper + graph wiring are unit-tested only). Preview pan needs the Web Audio tap (`StereoPannerNode`); HTML element `.volume` cannot pan.
 - Live preview/export of clip fades NOT VERIFIED (math + mix schedule + opacity wiring are unit-tested only).
@@ -299,7 +304,7 @@ empty export FAIL; bad type ImportError; split near edge reject; move past 0 cla
 
 Status: TEST-VERIFIED
 
-`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `slideClip` (and prior `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
+`src/app/commands.ts` `applyCommand(session, command)` is the named mutation entry. Adds `setClipRate` (and prior `slideClip` / `setTrackPan` / `setClipFades` / `liftRange` / `extractRange`). Copy/cut/paste take the full selection. Timeline math stays in `src/core/timeline.ts`. Same session+command → same clips/tracks/shuttleRate. Not an AI feature. Live toolbar-through-command click: NOT VERIFIED.
 
 ## Ripple delete
 
@@ -430,7 +435,27 @@ Video tracks store pan. `audioClipsForMix` is still audio-kind only, so V1/V2 st
 
 Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `stopPropagation` on click and pointerdown. `{ type: "setTrackPan", trackId, pan }` via `applyCommand` (no history, same as fader).
 
-## Changelog this follow-up (2026-08-30 07:06 UTC)
+## Clip rate
+
+Status: TEST-VERIFIED (math + persist + command + inspector + clocks). Live hear/see: NOT VERIFIED.
+
+`Clip.rate` default 1. Legacy JSON missing → 1. Clamp 0.25 … 4. Classic NLE speed: source in/out stay. `durationMs = (sourceOutMs − sourceInMs) / rate`. Rate 2 → half timeline length. Rate 0.5 → double. Start stays; the clip grows/shrinks to the right. Fades stay in timeline ms and re-normalize if they would exceed the new duration.
+
+If the new duration would overlap the next same-track clip, reject (unchanged project + error). No auto-ripple. A shrink that leaves a gap is OK.
+
+Inspector (one clip): Rate number field. `{ type: "setClipRate", clipId, rate }` via `applyCommand`. One history entry.
+
+Preview: `<video>` / `<audio>` `playbackRate`. `sourceTimeAt` = sourceIn + clip-local × rate. Export mix: `AudioBufferSourceNode.playbackRate` + source-window duration. Export video: `sourceTimeSec` uses the same clock. Mute/solo/fader/gain/fades/pan still apply.
+
+No elastic audio, pitch-preserve, or time-stretch UI. Trim / roll / slide still treat timeline delta as source delta at rate 1 (genuine limit). Slip preserves the source span (not timeline duration) so a rated clip can still slip.
+
+`tests/core/rate.test.ts` (7).
+
+## Changelog this follow-up (2026-08-30 07:11 UTC)
+
+- Clip playback rate (`Clip.rate`, `setClipRate`, preview/export clocks). TEST-VERIFIED. Live: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 07:06 UTC)
 
 - Slide edit (`slideClip`, Ctrl+Alt+drag, Shift+Alt+,/.). TEST-VERIFIED. Live: NOT VERIFIED.
 
@@ -535,7 +560,7 @@ Mixer: horizontal range above the fader on V1 V2 A1 A2, label C / L100 / R100. `
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up: `7a1a86d` (slide; impl `45234de`). Assigned start: `7e1ac4c`. Prior pan: `340fe7b`.
+Tip after this follow-up: `8250c53` (rate). Assigned start: `41d9653`. Prior slide: `45234de`.
 
 ## Not added
 
