@@ -8,6 +8,7 @@ import {
   type Session,
 } from "../../src/app/session";
 import { createMemoryBlobStore } from "../../src/core/persistence";
+import { FRAME_MS } from "../../src/core/models";
 import { playheadInView, visibleDurationMs } from "../../src/core/zoom";
 import { asset, clip, projectWith } from "../helpers";
 
@@ -60,6 +61,30 @@ describe("playhead follow (P46)", () => {
     expect(stayed.project.playheadMs).toBe(40_000);
     expect(stayed.project.scrollMs).toBe(0);
     expect(playheadInView(40_000, 0, 200, LANE)).toBe(false);
+  });
+
+  it("frame-step snaps toward nearby edges, not back onto itself (P88)", () => {
+    const start = zoomedSession();
+    start.project = {
+      ...start.project,
+      playheadMs: 1930,
+      snap: true,
+      markers: [{ id: "m1", timeMs: 2000, label: "M" }],
+    };
+    const snapped = applyCommand(start, { type: "nudgePlayhead", deltaMs: FRAME_MS });
+    expect(snapped.project.playheadMs).toBe(2000);
+
+    const off = applyCommand(
+      { ...start, project: { ...start.project, snap: false } },
+      { type: "nudgePlayhead", deltaMs: FRAME_MS },
+    );
+    expect(off.project.playheadMs).toBeCloseTo(1930 + FRAME_MS, 5);
+
+    const leave = applyCommand(snapped, { type: "nudgePlayhead", deltaMs: FRAME_MS });
+    expect(leave.project.playheadMs).toBeCloseTo(2000 + FRAME_MS, 5);
+
+    const exact = applyPlayhead(start, 1966);
+    expect(exact.project.playheadMs).toBe(1966);
   });
 
   it("viewport report is view-state only", () => {

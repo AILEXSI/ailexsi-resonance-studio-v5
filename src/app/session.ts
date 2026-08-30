@@ -75,6 +75,7 @@ import {
   setInPoint,
   setOutPoint,
   setPlayhead,
+  snapPlayheadSeek,
   snapTime,
   splitAtPlayhead,
   toggleLoop,
@@ -1191,6 +1192,18 @@ export function applyPlayhead(session: Session, timeMs: number): Session {
   );
   if (scrollMs === project.scrollMs) return { ...session, project };
   return { ...session, project: { ...project, scrollMs } };
+}
+
+/** Frame-step the needle. Snap toward nearby edits; do not stick to the current playhead. */
+export function applyNudgePlayhead(session: Session, deltaMs: number): Session {
+  const intended = session.project.playheadMs + deltaMs;
+  let nextMs = intended;
+  if (session.project.snap && deltaMs !== 0) {
+    const snapped = snapPlayheadSeek(session.project, intended);
+    const toward = deltaMs > 0 ? snapped > session.project.playheadMs : snapped < session.project.playheadMs;
+    if (toward) nextMs = snapped;
+  }
+  return applyPlayhead(session, nextMs);
 }
 
 export function applyTimelineViewport(

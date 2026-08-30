@@ -15,6 +15,7 @@ import {
   applyRenameProject,
   applyMoveClips,
   applyNudge,
+  applyNudgePlayhead,
   applyOut,
   applyPaste,
   applyPause,
@@ -172,7 +173,7 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
     case "nudgeClip":
       return applyNudge(session, command.deltaMs);
     case "nudgePlayhead":
-      return applyPlayhead(session, session.project.playheadMs + command.deltaMs);
+      return applyNudgePlayhead(session, command.deltaMs);
     case "gotoNextEdit":
       return applyGotoNextEdit(session);
     case "gotoPrevEdit":
