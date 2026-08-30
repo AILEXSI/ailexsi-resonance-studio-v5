@@ -69,6 +69,7 @@ describe("project dirty toolbar (P71)", () => {
     document.body.appendChild(host);
     root = createRoot(host);
     const noop = () => {};
+    let reverted = 0;
     const render = (dirty: boolean) => {
       act(() => {
         root!.render(
@@ -87,6 +88,9 @@ describe("project dirty toolbar (P71)", () => {
             onRedo={noop}
             onSplit={noop}
             onToggleSnap={noop}
+            onRevert={() => {
+              reverted += 1;
+            }}
           />,
         );
       });
@@ -94,9 +98,14 @@ describe("project dirty toolbar (P71)", () => {
     render(false);
     expect(host.querySelector('[data-testid="project-name"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="project-dirty"]')).toBeNull();
+    expect(host.querySelector('[data-testid="revert-project"]')).toBeNull();
     render(true);
     const mark = host.querySelector('[data-testid="project-dirty"]');
     expect(mark?.textContent).toBe("*");
     expect(mark?.getAttribute("aria-label")).toBe("Unsaved changes");
+    act(() => {
+      (host!.querySelector('[data-testid="revert-project"]') as HTMLButtonElement).click();
+    });
+    expect(reverted).toBe(1);
   });
 });
