@@ -8,6 +8,7 @@ import {
   contextFromProject,
   listStackedEditPairs,
   resolveEditPair,
+  resolvePictureSource,
   transitionAudioGain,
   editPairAt,
   editPairAtProbe,
@@ -210,6 +211,25 @@ describe("setFrontVideoTrack command", () => {
     expect(next.history.past.length).toBe(start.history.past.length + 1);
     const undone = applyCommand(next, { type: "undo" });
     expect(undone.project.frontVideoTrackId).toBe("V2");
+  });
+});
+
+describe("disabled clips are not edit pairs (P106)", () => {
+  it("listStackedEditPairs and editPairAt skip a disabled overlap mate", () => {
+    const project = stackedV1OverV2();
+    expect(listStackedEditPairs(project)).toHaveLength(1);
+    expect(editPairAt(project, 1500)?.sourceA.id).toBe("v1");
+    const off = {
+      ...project,
+      clips: project.clips.map((c) => (c.id === "v1" ? { ...c, enabled: false } : c)),
+    };
+    expect(listStackedEditPairs(off)).toEqual([]);
+    expect(editPairAt(off, 1500)).toBeUndefined();
+    expect(resolveEditPair(off, ["v1", "v2"])).toBeUndefined();
+    expect(resolvePictureSource(contextFromProject(off), 1500)).toMatchObject({
+      kind: "V2",
+      clipId: "v2",
+    });
   });
 });
 

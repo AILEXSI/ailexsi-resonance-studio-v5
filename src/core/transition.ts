@@ -4,6 +4,7 @@ import {
   TRACK_IDS,
   clipById,
   clipEndMs,
+  clipIsEnabled,
   isTrackAudible,
   kindOfTrack,
   type Clip,
@@ -168,7 +169,7 @@ export function resolveEditPair(
   const selected = selectedIds
     .map((id) => clipById(project, id))
     .filter((c): c is Clip => c != null)
-    .filter((c) => kindOfTrack(c.trackId) === "video");
+    .filter((c) => clipIsEnabled(c) && kindOfTrack(c.trackId) === "video");
 
   const tryPair = (x: Clip, y: Clip): EditPair | undefined => {
     if (x.trackId === y.trackId) return undefined;
@@ -193,6 +194,7 @@ export function resolveEditPair(
     const one = selected[0]!;
     for (const other of project.clips) {
       if (other.id === one.id) continue;
+      if (!clipIsEnabled(other)) continue;
       if (kindOfTrack(other.trackId) !== "video") continue;
       const pair = tryPair(one, other);
       if (pair) return pair;
@@ -215,7 +217,7 @@ export interface StackedOverlapMark {
 
 /** Every stacked video overlap (any two video tracks). Implicit = cut. */
 export function listStackedEditPairs(project: Project): StackedOverlapMark[] {
-  const videos = project.clips.filter((c) => kindOfTrack(c.trackId) === "video");
+  const videos = project.clips.filter((c) => clipIsEnabled(c) && kindOfTrack(c.trackId) === "video");
   const out: StackedOverlapMark[] = [];
   const seen = new Set<string>();
   for (let i = 0; i < videos.length; i++) {
