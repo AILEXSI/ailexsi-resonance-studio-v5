@@ -1,6 +1,6 @@
 # V5 Evidence
 
-Stand: 2026-08-30 06:18 UTC. Command dispatch + ripple + solo + JKL + nudge on PR #1. Commands below are from this follow-up run unless noted.
+Stand: 2026-08-30 06:27 UTC. Ripple trim + roll + lane-header solo on PR #1. Commands below are from this follow-up run unless noted.
 Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
@@ -36,8 +36,8 @@ npx vite build
 
 exit 0. vite 7.3.6, 150 modules. Outputs:
 - dist/index.html 0.41 kB
-- dist/assets/index-BznfVux6.css 16.33 kB
-- dist/assets/index-HbEWASl1.js 670.07 kB
+- dist/assets/index-CtDAR3fN.css 16.46 kB
+- dist/assets/index-BGSApQ1F.js 673.53 kB
 Rollup warned the JS chunk is >500 kB. That is a size warning, not a failed build.
 
 ## Automated tests
@@ -54,9 +54,9 @@ exit 0 (this follow-up).
 npx vitest run
 ```
 
-exit 0. vitest 3.2.7. **177 passed / 30 files**. Start 06:17:42 UTC. Duration 5.78s.
+exit 0. vitest 3.2.7. **183 passed / 30 files**. Start 06:27:24 UTC. Duration 5.67s.
 
-New this follow-up: `applyCommand` determinism (same session+command → same clips/tracks/rate); ripple-delete + undo; solo audible rule + persist; JKL rate table + key dispatch; comma/period nudge; mixer S on V1–A2 not Master. Prior suites remain green.
+New this follow-up: ripple-trim (out to 800 pulls later A1; lift-trim does not); roll +200 with undo; 50ms guards; lane-header S on V1–A2; `liftTrim` / `rippleTrim` / `rollEdit` on `applyCommand`. Prior suites remain green.
 
 ## Visualizer
 
@@ -100,7 +100,7 @@ No live multi-file picker this follow-up.
 
 Status: TEST-VERIFIED (edit units + zoom-fit). UI drag / Fit click: NOT VERIFIED.
 
-Existing units still green (20): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle.
+Existing units still green (24): move/clamp, kind reject, V1→V2, split + 50ms edge guard, snap, undo/redo, IN>OUT, trim in/out/source bounds, mute, loop IN/OUT/moveInOut, ripple-delete same-track shift, solo toggle, ripple-trim vs lift-trim, roll +200 / 50ms reject.
 
 Zoom (`tests/timeline/zoom.test.ts`):
 - ~300s clip fitted into a 1000px lane → zoom < 10 px/s and clip width ≤ usable lane
@@ -142,7 +142,7 @@ Split is **S**, not V. Paste is Ctrl+V. Cut is Ctrl+X. Copy is Ctrl+C (non-destr
 
 `tests/app/keys.test.ts` (10): prior 7 plus Shift+Delete ripple (Delete still lifts); J/K/L shuttle rates; comma/period nudge (±1 / Shift ±10) while arrows still step the playhead.
 
-`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Mixer S; toolbar + transport Split show S.
+`tests/timeline/clip-menu.test.tsx` (3): clip-menu DOM contains S, Ctrl+X, Ctrl+C, Ctrl+V, Delete, Ripple delete / Shift+Delete; overlay lists J/K/L, comma/period, Lane / Mixer S, Shift+edge-drag ripple trim, abutting edge-drag roll; toolbar + transport Split show S.
 
 `?` overlay opened this run: RUNTIME-VERIFIED (labels visible). Live ripple/nudge/JKL on clips: NOT VERIFIED.
 
@@ -318,7 +318,31 @@ Status: TEST-VERIFIED
 
 `,` / `.` move the selected clip ±1 `FRAME_MS`. Shift+, / Shift+. = 10 frames. Start clamps at 0. Track/kind is unchanged (kind-change still rejected by `moveClip`). ArrowLeft/Right still step the playhead.
 
-## Changelog this follow-up (2026-08-30 06:18 UTC)
+## Ripple trim
+
+Status: TEST-VERIFIED. Live Shift+edge-drag: NOT VERIFIED.
+
+Normal edge-drag stays lift trim (`trimClip`). Shift+edge-drag is `rippleTrim` via `applyCommand`: after the trim, later clips on the same track (start ≥ original end) shift by the duration delta. Other tracks unchanged. 50ms edge guard still applies. Undo restores the trimmed clip and shifted neighbors.
+
+## Roll edit
+
+Status: TEST-VERIFIED. Live abutting-edge drag: NOT VERIFIED.
+
+When two clips on the same track abut (end of A == start of B within 1ms), edge-drag rolls: A's out and B's in move together, cut time changes, A+B span stays constant, no gap. Source in/out follow like trim. Reject under 50ms or past asset bounds. Abutting handles use a gold `col-resize` cursor. Shift+drag on that edge is still ripple trim.
+
+## Lane solo
+
+Status: TEST-VERIFIED (DOM). Live lane S click: NOT VERIFIED.
+
+Timeline track headers (V1–A2) have S next to M, wired to `{ type: "toggleSolo" }` — same command as mixer S. No Master solo.
+
+## Changelog this follow-up (2026-08-30 06:27 UTC)
+
+- Ripple trim (Shift+edge-drag). TEST-VERIFIED. Live drag: NOT VERIFIED.
+- Roll edit on abutting edges. TEST-VERIFIED. Live drag: NOT VERIFIED.
+- Timeline lane-header S. TEST-VERIFIED (DOM). Live click: NOT VERIFIED.
+
+## Changelog prior (2026-08-30 06:18 UTC)
 
 - Named `applyCommand` / `EditorCommand`. TEST-VERIFIED.
 - Ripple delete (Shift+Delete). TEST-VERIFIED. Live: NOT VERIFIED.
@@ -390,7 +414,7 @@ Status: TEST-VERIFIED
 
 ## Commits on this branch (tip)
 
-Tip after this follow-up is recorded in git. Prior zoom tip: `4efb67c`.
+Tip after this follow-up is recorded in git. Prior command-dispatch tip: `14a117f`.
 
 ## Not added
 
