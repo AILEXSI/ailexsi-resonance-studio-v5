@@ -1,12 +1,58 @@
 # AILEXSI Resonance Studio V5
 
-Clean-room browser NLE. V4 is reference-only and was not copied into this tree.
-Product is the Vite app on http://127.0.0.1:1421 (strictPort, host 127.0.0.1).
-Windows: double-click `Start-V5.cmd` to start V5 as a Chrome/Edge app window on that URL.
-src-tauri leftover unused.
-Scripts listed in package.json: dev, build, test, fixtures.
-Implemented: audio/video import with visible fail; V1 V2 A1 A2; timeline move/trim/split/snap/undo/IN-OUT/clear/loop/markers/copy-paste/mute; preview; inspector fields; resonance.json; IndexedDB; WebCodecs H.264 MP4 or FAIL.
-WebM is never treated as export success.
-VIS overlay lane cycles 6 Canvas-2D scenes ported from AILEXSI Visualz (@ailexsi/visualz 0.1.0-blueprint, https://github.com/AILEXSI/ailexsi-visualz @ b67410c) — not V4, not MilkDrop/Butterchurn: pulse-orb, spectrum-bars, particle-field, resonance-wave (default), tunnel-spiral, lita-bloom.
-Limits: MP4 video-only; missing media encodes slate; no ffmpeg.wasm, MediaRecorder-as-success, Vault, LLM, beats, images.
-See V5-EVIDENCE.md for commands and statuses from the last verification run. Docs alone are not verification. COMPLETE: NO. Not for sale.
+Stand: 2026-09-02. Version 5.0.0.
+
+## Wo die Wahrheit liegt
+
+- Ordner: `C:\\Users\\marti\\ResonanceStudio-V5`
+- Branch lokal: `pr-1`
+- Gleicher Stand auf GitHub: Branch `cursor/visualz-scenes-7f5e`
+- Spitze (2026-08-30 Code): `b6b5d69`
+
+`main` war hinterher (alter Stand `b4d2d81`). Nicht auf `main` weiterbauen, bis dieser Branch dort drin ist.
+
+Kurzfassung: siehe `CURRENT.md`.
+
+## Was das ist
+
+Lokaler Video- und Audio-Schnitt auf http://127.0.0.1:1421.
+Standalone = Chrome oder Edge als App-Fenster (`--app=http://127.0.0.1:1421`), keine gebaute Tauri-Exe.
+`src-tauri` liegt nur rum. Kein Verkaufsprodukt.
+
+## Start (Windows)
+
+Doppelklick `Start-V5.cmd`
+
+oder:
+
+```
+cd C:\\Users\\marti\\ResonanceStudio-V5
+npm run dev
+```
+
+Dann App-Fenster: Chrome `--app=http://127.0.0.1:1421`
+
+Tab und App-Fenster sind dieselbe App.
+Button **Zuletzt geladen** erscheint nur, wenn dieses Fenster schon eine Projektdatei kennt.
+
+## Geprueft am Rechner (2026-09-02)
+
+- Spuren V1 V2 A1 A2, VIS, Arrange/Cutter, Mixer
+- Export MP4 muxed: H.264 1280x720 + AAC Stereo (`Untitled_Resonance.mp4`, ffprobe `avc1` + `mp4a`)
+- Viele Visualizer-Szenen (2D + 3D-Optik), inkl. crystal-storm und Cues im Song
+- WebM zaehlt nicht als Erfolg
+
+## Alt und falsch (Bot-Texte)
+
+- nur 2 Visualizer-Modi Bars/Orb
+- MP4 nur Bild, keine AAC-Spur
+- GrokBuild-Slice gegen `main` / `b4d2d81` als Produkt
+
+## Fuer Bots
+
+Basis: `cursor/visualz-scenes-7f5e` @ `b6b5d69` (oder neuer Commit auf diesem Branch).
+Szenen und Cues nicht auf Bars/Orb zurueckschneiden.
+Naechster Slice: Features aus echtem A1/A2-Mix auf diesem Branch.
+Kein Force-Push.
+
+COMPLETE: NO. Not for sale.
