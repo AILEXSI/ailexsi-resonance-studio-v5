@@ -364,7 +364,7 @@ export function resolvePictureSource(ctx: CompositeContext, timeMs: number): Res
   if (source === "vis") return visIfEvent() ?? { source, kind: "black" };
   if (source === "V1" || source === "V2") return videoOn(source) ?? { source, kind: "black" };
 
-  return visIfEvent() ?? videoOn(front) ?? videoOn(other) ?? legacyVis() ?? { source: "auto", kind: "black" };
+  return videoOn(front) ?? videoOn(other) ?? visIfEvent() ?? legacyVis() ?? { source: "auto", kind: "black" };
 }
 
 export function editPairAt(project: Project, timeMs: number): EditPair | undefined {
