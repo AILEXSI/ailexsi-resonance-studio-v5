@@ -1,11 +1,28 @@
-import { encodeAac, mixJobAudio, probeAac, withTimeout } from "./audio";
+import { encodeAac, mixJobAudio, probeAac, withTimeout, type AacProbe } from "./audio";
 import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./frame-source";
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
-import { mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
+import { clearStillCache, paintStillUrl } from "../still";
+import { audioInputForMux, mp4HasAudioTrack, muxAvcToMp4, type AvcSample } from "./mp4";
 import type { ExportClip, ExportHooks, ExportJob, ExportResult } from "./types";
-import { featuresAt, renderVisualizerScene } from "../visualizer";
+import { videoAlphaAtClipTime } from "../fades";
+import {
+  compositeVideoAt,
+  contextFromExportClips,
+  layerAlpha,
+  resolvePictureSource,
+} from "../transition";
+import { exportVisOf } from "./job";
+
+export { compositeVideoAt as exportComposite } from "../transition";
+import {
+  visFeaturesForExport,
+  type MixPcm,
+  renderVisualizerScene,
+  visualizerEventAt,
+  visualizerEventsOf,
+} from "../visualizer";
 
 const AVC_CODEC = "avc1.42001f";
 
@@ -21,14 +38,19 @@ export function webCodecsUnavailableMessage(): string {
   return "FAIL: WebCodecs unavailable. H.264 MP4 export requires VideoEncoder and VideoFrame. WebM is not a fallback.";
 }
 
-function fail(job: ExportJob, error: string): ExportResult {
+function fail(job: ExportJob, error: string, aborted = false): ExportResult {
   return {
     success: false,
+    aborted,
     error,
     fileName: job.fileName,
     durationMs: job.durationMs,
     fileSizeBytes: 0,
   };
+}
+
+function aborted(job: ExportJob): ExportResult {
+  return fail(job, "Export aborted", true);
 }
 
 function even(n: number): number {
@@ -40,10 +62,66 @@ function clearCanvas(ctx: CanvasRenderingContext2D, width: number, height: numbe
   ctx.fillRect(0, 0, width, height);
 }
 
-function paintVisualizer(ctx: CanvasRenderingContext2D, job: ExportJob, timeMs: number, dt: number): void {
-  if (!job.visualizer.enabled || job.visualizer.muted) return;
-  const features = featuresAt(timeMs, job.durationMs);
-  renderVisualizerScene(ctx, job.width, job.height, job.visualizer.sceneId, features, dt);
+function exportPictureCtx(job: ExportJob) {
+  const clips = job.tracks.filter((t) => t.kind === "video").flatMap((t) => t.clips);
+  const front = job.frontVideoTrackId === "V1" ? "V1" : "V2";
+  return contextFromExportClips(clips, job.transitions ?? [], front, exportVisOf(job));
+}
+
+function jobComposite(job: ExportJob, timeMs: number) {
+  return compositeVideoAt(exportPictureCtx(job), timeMs);
+}
+
+function paintTransitionPlate(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  job: ExportJob,
+  timeMs: number,
+): void {
+  const plate = jobComposite(job, timeMs).plate;
+  if (!plate || plate.alpha <= 0) return;
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * plate.alpha;
+  ctx.fillStyle = plate.color;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalAlpha = prev;
+}
+
+function beginExportFrame(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  job: ExportJob,
+  timeMs: number,
+): void {
+  clearCanvas(ctx, width, height);
+  paintTransitionPlate(ctx, width, height, job, timeMs);
+}
+
+function exportPaintAlpha(job: ExportJob, clip: ExportClip, timeMs: number): number {
+  return exportClipVideoAlpha(clip, timeMs) * layerAlpha(jobComposite(job, timeMs), clip.id);
+}
+
+function paintVisualizer(
+  ctx: CanvasRenderingContext2D,
+  job: ExportJob,
+  timeMs: number,
+  dt: number,
+  mix?: MixPcm | null,
+): void {
+  if (resolvePictureSource(exportPictureCtx(job), timeMs).kind !== "vis") return;
+  const covering = visualizerEventAt(job.visualizer, timeMs);
+  const sceneId = covering
+    ? covering.sceneId
+    : visualizerEventsOf(job.visualizer).length === 0
+      ? job.visualizer.sceneId
+      : undefined;
+  if (!sceneId) return;
+  const features = visFeaturesForExport(timeMs, job.durationMs, mix, {
+    timelineOriginMs: job.startMs,
+  });
+  renderVisualizerScene(ctx, job.width, job.height, sceneId, features, dt);
 }
 
 type FrameRun = {
@@ -68,19 +146,60 @@ function groupFrameRuns(job: ExportJob, total: number, fps: number): FrameRun[] 
   return runs;
 }
 
+function exportClipLocalMs(clip: ExportClip, timeMs: number): number {
+  return timeMs - clip.startMs;
+}
+
+function exportClipVideoAlpha(clip: ExportClip, timeMs: number): number {
+  return videoAlphaAtClipTime(
+    {
+      durationMs: Math.max(0, clip.endMs - clip.startMs),
+      gain: clip.videoGain ?? clip.gain,
+      fadeInMs: clip.fadeInMs,
+      fadeOutMs: clip.fadeOutMs,
+      fadeInFrom: clip.fadeInFrom,
+      fadeOutTo: clip.fadeOutTo,
+    },
+    exportClipLocalMs(clip, timeMs),
+  );
+}
+
+function withVideoClipAlpha(
+  ctx: CanvasRenderingContext2D,
+  job: ExportJob,
+  clip: ExportClip,
+  timeMs: number,
+  draw: () => void,
+): void {
+  const prev = ctx.globalAlpha;
+  ctx.globalAlpha = prev * exportPaintAlpha(job, clip, timeMs);
+  try {
+    draw();
+  } finally {
+    ctx.globalAlpha = prev;
+  }
+}
+
 async function paintHtmlVideo(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   url: string,
   sourceSec: number,
+  alpha = 1,
 ): Promise<boolean> {
   try {
     const video = await loadVideo(url);
     await seekVideo(video, sourceSec);
     if (video.videoWidth < 2) return false;
-    drawContain(ctx, canvas, video.videoWidth, video.videoHeight, (dx, dy, dw, dh) => {
-      ctx.drawImage(video, dx, dy, dw, dh);
-    });
+    const prev = ctx.globalAlpha;
+    ctx.globalAlpha = prev * Math.max(0, Math.min(1, alpha));
+    try {
+      drawContain(ctx, canvas, video.videoWidth, video.videoHeight, (dx, dy, dw, dh) => {
+        ctx.drawImage(video, dx, dy, dw, dh);
+      });
+    } finally {
+      ctx.globalAlpha = prev;
+    }
     return true;
   } catch {
     return false;
@@ -114,6 +233,23 @@ export async function exportWithWebCodecs(
   canvas.height = height;
   const ctx = canvas.getContext("2d", { alpha: false, desynchronized: false });
   if (!ctx) return fail(job, "FAIL: 2D canvas unavailable");
+
+  hooks.onProgress?.({ percent: 4, stage: "Mixing audio" });
+  let aacProbe: AacProbe | null = null;
+  let mixed: AudioBuffer | null = null;
+  try {
+    aacProbe = await withTimeout(probeAac(), 4000, null);
+  } catch {
+    aacProbe = null;
+  }
+  const mixLayout = aacProbe ?? { sampleRate: 44100, channels: 2, bitrate: 128_000 };
+  if (job.visualizer.enabled && !job.visualizer.muted) {
+    try {
+      mixed = await withTimeout(mixJobAudio(job, mixLayout, hooks.signal), 12000, null);
+    } catch {
+      mixed = null;
+    }
+  }
 
   hooks.onProgress?.({ percent: 6, stage: "Encoding H.264" });
 
@@ -175,6 +311,8 @@ export async function exportWithWebCodecs(
   };
 
   const encodeCanvas = async (i: number) => {
+    const timeMs = (i / job.fps) * 1000;
+    paintVisualizer(ctx, job, timeMs, dt, mixed);
     await waitForQueue();
     const frame = new VideoFrame(canvas, {
       timestamp: i * frameDurUs,
@@ -186,8 +324,8 @@ export async function exportWithWebCodecs(
 
   const paintFallback = (i: number) => {
     const timeMs = (i / job.fps) * 1000;
-    clearCanvas(ctx, width, height);
-    paintVisualizer(ctx, job, timeMs, dt);
+    beginExportFrame(ctx, width, height, job, timeMs);
+    paintVisualizer(ctx, job, timeMs, dt, mixed);
   };
 
   try {
@@ -215,8 +353,28 @@ export async function exportWithWebCodecs(
       );
 
       let painted = 0;
+      if (clip.still) {
+        for (let k = 0; k < run.count; k++) {
+          if (hooks.signal?.aborted) throw new Error("Export aborted");
+          const i = run.startIndex + k;
+          hooks.onProgress?.({
+            percent: Math.round((i / frameCount) * 80) + 8,
+            stage: "Encoding H.264",
+            currentTimeMs: (i / job.fps) * 1000,
+          });
+          const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
+          if (await paintStillUrl(ctx, canvas, clip.sourceUrl, exportPaintAlpha(job, clip, timeMs))) {
+            painted += 1;
+          } else {
+            paintFallback(i);
+          }
+          await encodeCanvas(i);
+        }
+        if (painted === 0) throw new Error(`missing:${clip.label}`);
+        continue;
+      }
       const decoded = await withTimeout(getDecoder(clip.sourceUrl), 20000, null);
-      console.info("[export] decoder", Boolean(decoded), clip.label);
       if (decoded) {
         let k = 0;
         try {
@@ -229,12 +387,23 @@ export async function exportWithWebCodecs(
               stage: "Encoding H.264",
               currentTimeMs: (i / job.fps) * 1000,
             });
-            clearCanvas(ctx, width, height);
+            const timeMs = (i / job.fps) * 1000;
+            beginExportFrame(ctx, width, height, job, timeMs);
             if (sample) {
-              sample.drawWithFit(ctx, { fit: "contain" });
+              withVideoClipAlpha(ctx, job, clip, timeMs, () => {
+                sample.drawWithFit(ctx, { fit: "contain" });
+              });
               sample.close();
               painted += 1;
-            } else if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k] ?? 0)) {
+            } else if (
+              await paintHtmlVideo(
+                ctx,
+                canvas,
+                clip.sourceUrl,
+                timestamps[k] ?? 0,
+                exportPaintAlpha(job, clip, timeMs),
+              )
+            ) {
               painted += 1;
             } else {
               paintFallback(i);
@@ -249,8 +418,18 @@ export async function exportWithWebCodecs(
         while (k < run.count) {
           if (hooks.signal?.aborted) throw new Error("Export aborted");
           const i = run.startIndex + k;
-          clearCanvas(ctx, width, height);
-          if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k]!)) painted += 1;
+          const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
+          if (
+            await paintHtmlVideo(
+              ctx,
+              canvas,
+              clip.sourceUrl,
+              timestamps[k]!,
+              exportPaintAlpha(job, clip, timeMs),
+            )
+          )
+            painted += 1;
           else paintFallback(i);
           await encodeCanvas(i);
           k += 1;
@@ -264,8 +443,18 @@ export async function exportWithWebCodecs(
             stage: "Encoding H.264",
             currentTimeMs: (i / job.fps) * 1000,
           });
-          clearCanvas(ctx, width, height);
-          if (await paintHtmlVideo(ctx, canvas, clip.sourceUrl, timestamps[k]!)) painted += 1;
+          const timeMs = (i / job.fps) * 1000;
+          beginExportFrame(ctx, width, height, job, timeMs);
+          if (
+            await paintHtmlVideo(
+              ctx,
+              canvas,
+              clip.sourceUrl,
+              timestamps[k]!,
+              exportPaintAlpha(job, clip, timeMs),
+            )
+          )
+            painted += 1;
           else paintFallback(i);
           await encodeCanvas(i);
         }
@@ -286,14 +475,18 @@ export async function exportWithWebCodecs(
     }
     clearFrameSources();
     clearMediaCache();
+    clearStillCache();
     const msg = e instanceof Error ? e.message : String(e);
+    if (hooks.signal?.aborted || /abort/i.test(msg)) return aborted(job);
     const prefixed = msg.startsWith("FAIL:") || msg.startsWith("missing:") ? msg : `FAIL: ${msg}`;
     return fail(job, prefixed.startsWith("missing:") ? `FAIL: ${prefixed}` : prefixed);
   }
 
   clearFrameSources();
   clearMediaCache();
+  clearStillCache();
 
+  if (hooks.signal?.aborted) return aborted(job);
   if (!description) return fail(job, "FAIL: encoder did not emit AVC description");
   if (samples.length === 0) return fail(job, "FAIL: encoder produced no samples");
 
@@ -303,24 +496,22 @@ export async function exportWithWebCodecs(
   try {
     const aacProbe = await withTimeout(probeAac(), 4000, null);
     if (aacProbe) {
-      const mixed = await withTimeout(mixJobAudio(job, aacProbe, hooks.signal), 12000, null);
+      if (!mixed) {
+        mixed = await withTimeout(mixJobAudio(job, aacProbe, hooks.signal), 12000, null);
+      }
       if (mixed) {
         const encoded = await withTimeout(encodeAac(mixed, aacProbe, hooks), 12000, null);
-        if (encoded) {
-          audioTrack = {
-            sampleRate: aacProbe.sampleRate,
-            channels: aacProbe.channels,
-            description: encoded.description,
-            samples: encoded.samples,
-          };
-          audioKind = "aac";
-        }
+        audioTrack = audioInputForMux(encoded, aacProbe);
+        if (audioTrack) audioKind = "aac";
       }
     }
-  } catch {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (hooks.signal?.aborted || /abort/i.test(msg)) return aborted(job);
     audioKind = "none";
   }
 
+  if (hooks.signal?.aborted) return aborted(job);
   hooks.onProgress?.({ percent: 95, stage: "Muxing MP4" });
   let bytes: Uint8Array;
   try {

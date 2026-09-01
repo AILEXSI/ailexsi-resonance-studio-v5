@@ -10,6 +10,7 @@ import {
   UrlSource,
   VideoSampleSink,
 } from "mediabunny";
+import { clipRateOf } from "../models";
 import type { ExportClip } from "./types";
 import { isPlayableSource } from "./media";
 
@@ -24,7 +25,7 @@ const decoderCache = new Map<string, Promise<OpenedDecoder | null>>();
 export function sourceTimeSec(clip: ExportClip, timelineMs: number, fps: number): number {
   const srcIn = clip.sourceInMs ?? 0;
   const offset = Math.max(0, timelineMs - clip.startMs);
-  let srcMs = srcIn + offset + 500 / Math.max(1, fps);
+  let srcMs = srcIn + offset * clipRateOf(clip) + 500 / Math.max(1, fps);
   if (clip.sourceOutMs != null && clip.sourceOutMs > srcIn) {
     srcMs = Math.min(srcMs, clip.sourceOutMs - 1);
   }

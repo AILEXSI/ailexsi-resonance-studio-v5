@@ -1,5 +1,9 @@
 import { createId } from "./ids";
+import { normalizeClipFades } from "./fades";
+import { sanitizeTransitions } from "./transition";
+import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import {
+  clampClipRate,
   defaultTracks,
   defaultVisualizer,
   isTrackId,
@@ -9,13 +13,18 @@ import {
   type MediaKind,
   type Project,
   type Track,
+  type VisualizerCue,
+  type VisualizerEvent,
   type VisualizerState,
 } from "./models";
+import { roundVisMs } from "./visualizer";
 
 export const PROJECT_SCHEMA_VERSION = 5;
 export const PROJECT_FILE_SUFFIX = ".resonance.json";
 
-export function createEmptyProject(name = "Untitled Resonance"): Project {
+export const DEFAULT_PROJECT_NAME = "Untitled Resonance";
+
+export function createEmptyProject(name = DEFAULT_PROJECT_NAME): Project {
   const now = new Date().toISOString();
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
@@ -27,6 +36,7 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     tracks: defaultTracks(),
     clips: [],
     markers: [],
+    transitions: [],
     playheadMs: 0,
     inPointMs: null,
     outPointMs: null,
@@ -35,6 +45,8 @@ export function createEmptyProject(name = "Untitled Resonance"): Project {
     zoomPxPerSec: 80,
     scrollMs: 0,
     visualizer: defaultVisualizer(),
+    frontVideoTrackId: "V2",
+    masterVolume: 1,
   };
 }
 
@@ -42,8 +54,20 @@ export function touch(project: Project, patch: Partial<Project> = {}): Project {
   return { ...project, ...patch, updatedAt: new Date().toISOString() };
 }
 
+/** Same `Project.name` field that serialize/deserialize already require. */
+export function renameProject(project: Project, name: string): Project {
+  const next = name.trim() || DEFAULT_PROJECT_NAME;
+  if (next === project.name) return project;
+  return { ...project, name: next, updatedAt: new Date().toISOString() };
+}
+
+export function windowTitleFor(name: string): string {
+  const n = name.trim() || DEFAULT_PROJECT_NAME;
+  return `${n} — Resonance Studio`;
+}
+
 function isMediaKind(value: unknown): value is MediaKind {
-  return value === "video" || value === "audio";
+  return value === "video" || value === "audio" || value === "image";
 }
 
 function sanitizeAsset(raw: unknown): MediaAsset | null {
@@ -71,6 +95,7 @@ function sanitizeAsset(raw: unknown): MediaAsset | null {
     missing: looksMissing,
     width: typeof a.width === "number" ? a.width : undefined,
     height: typeof a.height === "number" ? a.height : undefined,
+    hasAudio: typeof a.hasAudio === "boolean" ? a.hasAudio : undefined,
   };
 }
 
@@ -83,6 +108,11 @@ function sanitizeClip(raw: unknown): Clip | null {
   const durationMs = Math.max(1, Number(c.durationMs) || 0);
   const sourceInMs = Math.max(0, Number(c.sourceInMs) || 0);
   const sourceOutMs = Math.max(sourceInMs + 1, Number(c.sourceOutMs) || sourceInMs + durationMs);
+  const fades = normalizeClipFades(
+    c.fadeInMs == null ? 0 : Number(c.fadeInMs),
+    c.fadeOutMs == null ? 0 : Number(c.fadeOutMs),
+    durationMs,
+  );
   return {
     id: c.id,
     assetId: c.assetId,
@@ -92,6 +122,12 @@ function sanitizeClip(raw: unknown): Clip | null {
     sourceInMs,
     sourceOutMs,
     gain: Math.max(0, Number(c.gain) || 1),
+    fadeInMs: fades.fadeInMs,
+    fadeOutMs: fades.fadeOutMs,
+    rate: c.rate == null ? 1 : clampClipRate(Number(c.rate)),
+    linkId: typeof c.linkId === "string" && c.linkId.length > 0 ? c.linkId : undefined,
+    enabled: c.enabled === false ? false : undefined,
+    locked: c.locked === true ? true : undefined,
   };
 }
 
@@ -102,18 +138,63 @@ function sanitizeTracks(raw: unknown): Track[] {
     const found = raw.find((t) => t && typeof t === "object" && (t as Track).id === track.id) as
       | Track
       | undefined;
-    return found ? { ...track, muted: Boolean(found.muted) } : track;
+    if (!found) return track;
+    const vol = Number((found as Track).volume);
+    const pan = Number((found as Track).pan);
+    return {
+      ...track,
+      muted: Boolean(found.muted),
+      solo: found.solo === true,
+      volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
+      pan: Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0,
+    };
   });
+}
+
+function sanitizeVisualizerEvent(raw: unknown): VisualizerEvent | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  if (typeof rec.id !== "string" || rec.id.length === 0) return null;
+  if (typeof rec.sceneId !== "string" || !isVisualizerSceneId(rec.sceneId)) return null;
+  if (typeof rec.startMs !== "number" || !Number.isFinite(rec.startMs)) return null;
+  if (typeof rec.durationMs !== "number" || !Number.isFinite(rec.durationMs)) return null;
+  return {
+    id: rec.id,
+    sceneId: rec.sceneId,
+    startMs: Math.max(0, roundVisMs(rec.startMs)),
+    durationMs: Math.max(1, roundVisMs(rec.durationMs)),
+  };
+}
+
+function sanitizeVisualizerCue(raw: unknown): VisualizerCue | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  if (typeof rec.sceneId !== "string" || !isVisualizerSceneId(rec.sceneId)) return null;
+  if (typeof rec.startMs !== "number" || !Number.isFinite(rec.startMs)) return null;
+  return {
+    startMs: Math.max(0, roundVisMs(rec.startMs)),
+    sceneId: rec.sceneId,
+  };
 }
 
 function sanitizeVisualizer(raw: unknown): VisualizerState {
   const fallback = defaultVisualizer();
   if (!raw || typeof raw !== "object") return fallback;
   const v = raw as Record<string, unknown>;
+  const events = Array.isArray(v.events)
+    ? v.events.map((item) => sanitizeVisualizerEvent(item)).filter((item): item is VisualizerEvent => item !== null)
+    : [];
+  const cues = Array.isArray(v.cues)
+    ? v.cues.map((item) => sanitizeVisualizerCue(item)).filter((item): item is VisualizerCue => item !== null)
+    : [];
   return {
     enabled: v.enabled !== false,
     muted: v.muted === true,
     sceneId: isVisualizerSceneId(v.sceneId) ? v.sceneId : fallback.sceneId,
+    startMs: Math.max(0, roundVisMs(Number(v.startMs) || 0)),
+    durationMs: Math.max(0, roundVisMs(Number(v.durationMs) || 0)),
+    events,
+    cues,
   };
 }
 
@@ -174,6 +255,7 @@ export function deserializeProject(text: string): Project {
     assets,
     tracks: sanitizeTracks(raw.tracks),
     clips,
+    transitions: sanitizeTransitions(raw.transitions),
     markers: Array.isArray(raw.markers)
       ? raw.markers
           .filter((m) => m && typeof m === "object")
@@ -191,9 +273,14 @@ export function deserializeProject(text: string): Project {
     outPointMs: raw.outPointMs == null ? null : Math.max(0, Number(raw.outPointMs)),
     loop: Boolean(raw.loop),
     snap: raw.snap !== false,
-    zoomPxPerSec: Math.max(10, Number(raw.zoomPxPerSec) || 80),
+    zoomPxPerSec: Math.max(0.05, Math.min(ZOOM_MAX_PX_PER_SEC, Number(raw.zoomPxPerSec) || 80)),
     scrollMs: Math.max(0, Number(raw.scrollMs) || 0),
     visualizer: sanitizeVisualizer(raw.visualizer),
+    frontVideoTrackId: raw.frontVideoTrackId === "V1" ? "V1" : "V2",
+    masterVolume: (() => {
+      const v = Number(raw.masterVolume);
+      return Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 1;
+    })(),
   };
 }
 

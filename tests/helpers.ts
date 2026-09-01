@@ -4,7 +4,9 @@ import type { Clip, MediaAsset, Project } from "../src/core/models";
 export function asset(partial: Partial<MediaAsset> & Pick<MediaAsset, "id" | "kind">): MediaAsset {
   return {
     name: partial.name ?? partial.id,
-    mimeType: partial.mimeType ?? (partial.kind === "video" ? "video/mp4" : "audio/wav"),
+    mimeType:
+      partial.mimeType ??
+      (partial.kind === "video" ? "video/mp4" : partial.kind === "image" ? "image/png" : "audio/wav"),
     durationMs: partial.durationMs ?? 2000,
     blobId: partial.blobId ?? partial.id,
     objectUrl: partial.objectUrl,
@@ -23,6 +25,9 @@ export function clip(partial: Partial<Clip> & Pick<Clip, "id" | "assetId" | "tra
     sourceInMs: partial.sourceInMs ?? 0,
     sourceOutMs: partial.sourceOutMs ?? durationMs,
     gain: partial.gain ?? 1,
+    fadeInMs: partial.fadeInMs ?? 0,
+    fadeOutMs: partial.fadeOutMs ?? 0,
+    rate: partial.rate ?? 1,
     ...partial,
   };
 }

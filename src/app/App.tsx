@@ -1,84 +1,288 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FRAME_MS, assetById, clipById, type TrackId } from "../core/models";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { assetById, clipById, type TrackId } from "../core/models";
+import { MEDIA_FILE_ACCEPT, preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
-import { collectSnapTargets, moveClip, moveInOut, setInPoint, setOutPoint, snapTime, trimClip } from "../core/timeline";
-import { downloadText, projectFilename } from "../core/project";
+import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapPlayheadSeek, snapTime } from "../core/timeline";
+import { downloadText, projectFilename, windowTitleFor } from "../core/project";
+import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import {
+  browserPickerHost,
+  emptyProjectFileMemory,
+  hasFileSystemAccess,
+  lastLoadedStatus,
+  loadStatusFallback,
+  pickRelinkMediaFile,
+  readFileText,
+  relinkAcceptAttr,
+  rememberFileHandle,
+  runChooseFolder,
+  runOpen,
+  runOpenRecent,
+  runSave,
+  runSaveAs,
+  tryReadGrantedFile,
+  type ProjectFileMemory,
+  type RecentProject,
+} from "../core/project-file";
+import {
+  abortExportDialog,
+  applyExportProgress,
+  closeExportDialog,
+  closedExportDialog,
   downloadMp4,
+  downloadWav,
+  exportMixWav,
   exportTimeline,
+  failExportDialog,
+  isExportSuccess,
   jobFromProject,
+  openExportDialog,
+  readyExportDialog,
+  runExportWithDestination,
+  succeedExportDialog,
+  wavFileName,
   ExportPlanError,
 } from "../core/exporter";
+import { wavExportPickerOptions } from "../core/project-file";
 import { MediaBrowser } from "../ui/media-browser/MediaBrowser";
 import { Preview } from "../ui/preview/Preview";
 import { Inspector } from "../ui/inspector/Inspector";
 import { Transport } from "../ui/transport/Transport";
 import { Timeline } from "../ui/timeline/Timeline";
+import { Mixer, type MixPeaks } from "../ui/mixer/Mixer";
+import { ProjectFilePanel } from "../ui/project-file/ProjectFilePanel";
 import { Toolbar } from "../ui/toolbar/Toolbar";
 import { ShortcutsOverlay } from "../ui/shortcuts/ShortcutsOverlay";
+import { ExportDialog } from "../ui/export/ExportDialog";
 import {
-  applyClearInOut,
-  applyCopy,
-  applyDelete,
-  applyIn,
+  applyFit,
   applyInAt,
-  applyMarker,
-  applyOut,
   applyOutAt,
-  applyPaste,
   applyPlaceAsset,
   applyPlayhead,
-  applyRedo,
   applyScroll,
   applySelect,
-  applySplit,
+  applySelectMarker,
+  selectionOf,
+  applyDeleteMarker,
+  applyMoveMarker,
   applyToggleLoop,
-  applyToggleMute,
+  applyMasterVolume,
+  applyTrackVolume,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
+  applySelectVis,
+  applySetVisualizer,
+  applyToggleFollow,
   applyToggleSnap,
-  applyUndo,
+  applyTimelineViewport,
   applyUpdateClip,
   applyZoom,
   createSession,
   hydrateSession,
   importFiles,
-  newProject,
+  ingestRelinkFile,
+  beforeUnloadIfDirty,
+  confirmNewProject,
+  confirmOpenProject,
+  confirmRevertToLastSave,
+  isProjectDirty,
+  markProjectClean,
+  withClipSelection,
   openSerialized,
   projectJson,
   type Session,
 } from "./session";
+import { applyCommand, type EditorCommand } from "./commands";
+import { dispatchEditorKey } from "./keys";
+import {
+  cycleProductionScreen,
+  editorFormFocus,
+  tracksForScreen,
+  type ProductionScreen,
+} from "./screens";
+import { relinkSelectionForAsset, relinkSelectionOf } from "../core/relink";
+import { Cutter } from "../ui/cutter/Cutter";
+import {
+  ARRANGE_MIN_PX,
+  INSPECTOR_MIN_PX,
+  PREVIEW_H_MIN_PX,
+  PREVIEW_MIN_PX,
+  applyHSplitPointer,
+  applySplitPointer,
+  browserLayoutStorage,
+  loadHSplitRatio,
+  loadLaneHeights,
+  loadLaneLabelPx,
+  loadMixerCollapsed,
+  loadSplitRatio,
+  saveHSplitRatio,
+  saveLaneHeights,
+  saveLaneLabelPx,
+  saveMixerCollapsed,
+  saveSplitRatio,
+  type LaneHeightGroup,
+  type LaneHeights,
+} from "../core/layout-prefs";
 
 export function App() {
   const [session, setSession] = useState<Session>(() => createSession());
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const saveProjectRef = useRef<() => void>(() => {});
+  const saveProjectAsRef = useRef<() => void>(() => {});
   const dragBaseRef = useRef<Session | null>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportDialog, setExportDialog] = useState(closedExportDialog);
+  const exportAbortRef = useRef<AbortController | null>(null);
+  const exportBusyRef = useRef(false);
+  const [mixPeaks, setMixPeaks] = useState<MixPeaks>({
+    V1: 0,
+    V2: 0,
+    A1: 0,
+    A2: 0,
+    master: 0,
+  });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const shortcutsOpenRef = useRef(false);
+  shortcutsOpenRef.current = shortcutsOpen;
+  const layoutStore = browserLayoutStorage();
+  const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
+  const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(layoutStore));
+  const splitRatioRef = useRef(splitRatio);
+  splitRatioRef.current = splitRatio;
+  const [hSplitRatio, setHSplitRatio] = useState(() => loadHSplitRatio(layoutStore));
+  const hSplitRatioRef = useRef(hSplitRatio);
+  hSplitRatioRef.current = hSplitRatio;
+  const [laneLabelPx, setLaneLabelPx] = useState(() => loadLaneLabelPx(layoutStore));
+  const [laneHeights, setLaneHeights] = useState<LaneHeights>(() => loadLaneHeights(layoutStore));
+  const [screen, setScreen] = useState<ProductionScreen>("arrange");
+  const [projectPanelOpen, setProjectPanelOpen] = useState(false);
+  const projectPanelOpenRef = useRef(false);
+  projectPanelOpenRef.current = projectPanelOpen;
+  const stageRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const relinkInputRef = useRef<HTMLInputElement>(null);
+  const splitDragRef = useRef(false);
+  const hSplitDragRef = useRef(false);
+  const [projectFile, setProjectFile] = useState<ProjectFileMemory>(emptyProjectFileMemory);
+  const projectFileRef = useRef(projectFile);
+  projectFileRef.current = projectFile;
+  const projectFileStore = useRef(createIndexedDbProjectFileStore()).current;
+  const pickerHost = browserPickerHost();
+  const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
 
   useEffect(() => {
-    void hydrateSession(sessionRef.current).then(setSession);
-    // hydrate once on boot for an empty project is a no-op
+    document.title = windowTitleFor(session.project.name);
+  }, [session.project.name]);
+
+  useEffect(() => {
+    void (async () => {
+      const hydrated = await hydrateSession(sessionRef.current);
+      const memory = await projectFileStore.load();
+      setProjectFile(memory);
+      const last = await tryReadGrantedFile(memory);
+      if (last?.kind === "ready") {
+        try {
+          const opened = openSerialized(hydrated, last.text);
+          const next = await hydrateSession(opened);
+          setSession({ ...next, status: `Geladen: ${last.fileName}` });
+          return;
+        } catch {
+          setSession({ ...hydrated, status: lastLoadedStatus(last.fileName) });
+          return;
+        }
+      }
+      if (last?.kind === "needsOpen") {
+        setSession({ ...hydrated, status: lastLoadedStatus(last.fileName) });
+        return;
+      }
+      setSession(hydrated);
+    })();
+    // hydrate once on boot
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const play = useCallback(() => {
-    setSession((s) => ({ ...s, playing: true, status: "Playing" }));
+  const runCommand = useCallback((command: EditorCommand) => {
+    setSession((s) => applyCommand(s, command));
   }, []);
-  const pause = useCallback(() => {
-    setSession((s) => ({ ...s, playing: false, status: "Paused" }));
-  }, []);
-  const stop = useCallback(() => {
-    setSession((s) =>
-      applyPlayhead({ ...s, playing: false, status: "Stopped" }, s.project.inPointMs ?? 0),
+
+  const onTimelineViewport = useCallback(
+    (widthPx: number) => {
+      setSession((s) => applyTimelineViewport(s, widthPx, laneLabelPx));
+    },
+    [laneLabelPx],
+  );
+
+  const relinkClipIdsRef = useRef<string[] | null>(null);
+
+  const finishRelink = useCallback(async (file: File) => {
+    const s = sessionRef.current;
+    const clipIds = relinkClipIdsRef.current ?? selectionOf(s);
+    const sel = relinkSelectionOf(s.project, clipIds);
+    if (!sel) return;
+    const ingested = await ingestRelinkFile(s, file, sel.kind);
+    if ("error" in ingested) {
+      setSession({ ...s, error: ingested.error, status: "Relink failed" });
+      return;
+    }
+    setSession(
+      applyCommand(ingested.session, {
+        type: "relinkClips",
+        clipIds: sel.clipIds,
+        assetId: ingested.assetId,
+      }),
     );
   }, []);
 
+  const runRelink = useCallback(async (clipIds?: readonly string[]) => {
+    const s = sessionRef.current;
+    const ids = clipIds?.length ? [...clipIds] : selectionOf(s);
+    const sel = relinkSelectionOf(s.project, ids);
+    if (!sel) return;
+    relinkClipIdsRef.current = sel.clipIds;
+    if (clipIds?.length) {
+      setSession(withClipSelection(s, sel.clipIds));
+    }
+    const picked = await pickRelinkMediaFile({
+      host: pickerHost,
+      memory: projectFileRef.current,
+      kind: sel.kind,
+    });
+    if (picked.kind === "cancelled") return;
+    if (picked.kind === "picked") {
+      await finishRelink(picked.file);
+      return;
+    }
+    const input = relinkInputRef.current;
+    if (!input) return;
+    input.accept = relinkAcceptAttr(sel.kind);
+    input.value = "";
+    input.click();
+  }, [finishRelink, pickerHost]);
+
+  const runRelinkAsset = useCallback(
+    (assetId: string) => {
+      const sel = relinkSelectionForAsset(sessionRef.current.project, assetId);
+      if (!sel) return;
+      void runRelink(sel.clipIds);
+    },
+    [runRelink],
+  );
+  const play = useCallback(() => {
+    runCommand({ type: "play" });
+  }, [runCommand]);
+  const pause = useCallback(() => {
+    runCommand({ type: "pause" });
+  }, [runCommand]);
+  const stop = useCallback(() => {
+    runCommand({ type: "stop" });
+  }, [runCommand]);
+
   useEffect(() => {
-    if (!session.playing) {
+    if (!session.playing && session.shuttleRate === 0) {
       lastTs.current = null;
       return;
     }
@@ -88,10 +292,11 @@ export function App() {
       lastTs.current = now;
       const delta = now - prev;
       setSession((s) => {
-        if (!s.playing) return s;
-        const stepped = advancePlayhead(s.project, delta);
+        const rate = s.shuttleRate;
+        if (rate === 0 && !s.playing) return s;
+        const stepped = advancePlayhead(s.project, delta * (rate === 0 ? 1 : rate));
         if (stepped.stopped) {
-          return { ...applyPlayhead(s, stepped.playheadMs), playing: false, status: "Stopped" };
+          return applyCommand(applyPlayhead(s, stepped.playheadMs), { type: "pause" });
         }
         return applyPlayhead(s, stepped.playheadMs);
       });
@@ -99,92 +304,214 @@ export function App() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [session.playing]);
+  }, [session.playing, session.shuttleRate]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      const s = sessionRef.current;
-      if (e.key === "?") {
+      if (e.key === "Escape" && projectPanelOpenRef.current) {
         e.preventDefault();
+        setProjectPanelOpen(false);
+        return;
+      }
+      if (e.key === "Escape" && shortcutsOpenRef.current) {
+        e.preventDefault();
+        setShortcutsOpen(false);
+        return;
+      }
+      const formFocus = editorFormFocus(e.target);
+      const chord = (e.ctrlKey || e.metaKey) && e.key.length === 1 && e.key.toLowerCase() === "s";
+      if (formFocus && e.key !== "Tab" && !chord) return;
+      const s = sessionRef.current;
+      const action = dispatchEditorKey(s, s.playing, {
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        formFocus,
+      });
+      if (action.type === "none") return;
+      if ("preventDefault" in action && action.preventDefault) e.preventDefault();
+      if (action.type === "toggleShortcuts") {
         setShortcutsOpen((open) => !open);
         return;
       }
-      if (e.code === "Space") {
-        e.preventDefault();
-        if (s.playing) pause();
-        else play();
+      if (action.type === "cycleScreen") {
+        setScreen((cur) => cycleProductionScreen(cur, action.dir));
         return;
       }
-      if (e.key === "v" || e.key === "V") {
-        setSession(applySplit(s));
+      if (action.type === "save") {
+        saveProjectRef.current();
         return;
       }
-      if (e.key === "m" || e.key === "M") {
-        setSession(applyMarker(s));
+      if (action.type === "saveAs") {
+        saveProjectAsRef.current();
         return;
       }
-      if (e.key === "x" || e.key === "X" || ((e.key === "i" || e.key === "I") && e.shiftKey)) {
-        e.preventDefault();
-        setSession(applyClearInOut(s));
-        return;
-      }
-      if (e.key === "i" || e.key === "I") {
-        setSession(applyIn(s));
-        return;
-      }
-      if (e.key === "o" || e.key === "O") {
-        setSession(applyOut(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        setSession(applyUndo(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        setSession(applyRedo(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        e.preventDefault();
-        setSession(applyCopy(s));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        e.preventDefault();
-        setSession(applyPaste(s));
-        return;
-      }
-      if (e.key === "Delete" || e.key === "Backspace") {
-        setSession(applyDelete(s));
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        setSession(applyPlayhead(s, s.project.playheadMs - FRAME_MS));
-        return;
-      }
-      if (e.key === "ArrowRight") {
-        setSession(applyPlayhead(s, s.project.playheadMs + FRAME_MS));
-      }
+      setSession(action.session);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pause, play]);
+  }, []);
 
-  const saveProject = () => {
-    downloadText(projectFilename(session.project), projectJson(session));
-    setSession((s) => ({ ...s, status: "Saved .resonance.json" }));
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      beforeUnloadIfDirty(sessionRef.current, e);
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  const applyOpenedText = async (text: string, status: string): Promise<boolean> => {
+    if (!confirmOpenProject(sessionRef.current)) return false;
+    const opened = openSerialized(sessionRef.current, text);
+    const hydrated = await hydrateSession(opened);
+    setSession({ ...hydrated, status, error: null });
+    return true;
+  };
+
+  const persistSave = (
+    runner: typeof runSave | typeof runSaveAs,
+  ) => {
+    void (async () => {
+      const snapshot = sessionRef.current;
+      try {
+        const result = await runner({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          filename: projectFilename(snapshot.project),
+          json: projectJson(snapshot),
+          fallbackDownload: downloadText,
+        });
+        if (result.cancelled) return;
+        setProjectFile(result.memory);
+        if (!result.usedFallback) setProjectPanelOpen(false);
+        setSession((s) => {
+          const sameStack =
+            s.history.past.length === snapshot.history.past.length &&
+            s.history.future.length === snapshot.history.future.length;
+          const next = sameStack ? markProjectClean(s) : s;
+          return { ...next, status: result.status, error: null };
+        });
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Save failed",
+        }));
+      }
+    })();
+  };
+
+  const saveProject = () => persistSave(runSave);
+  const saveProjectAs = () => persistSave(runSaveAs);
+  saveProjectRef.current = saveProject;
+  saveProjectAsRef.current = saveProjectAs;
+
+  const chooseFolder = () => {
+    void (async () => {
+      try {
+        const result = await runChooseFolder({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+        });
+        if (result.cancelled) return;
+        setProjectFile(result.memory);
+        setSession((s) => ({ ...s, status: result.status, error: null }));
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Folder pick failed",
+        }));
+      }
+    })();
+  };
+
+  const openWithPicker = () => {
+    void (async () => {
+      try {
+        const result = await runOpen({
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+        });
+        if (result.kind === "cancelled") return;
+        if (result.kind === "fallback") {
+          document.querySelector<HTMLInputElement>("[data-testid=open-input]")?.click();
+          return;
+        }
+        if (!(await applyOpenedText(result.text, result.status))) return;
+        setProjectFile(result.memory);
+        setProjectPanelOpen(false);
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Open failed",
+        }));
+      }
+    })();
+  };
+
+  const openLast = () => {
+    void (async () => {
+      const last = await tryReadGrantedFile(projectFileRef.current);
+      if (last?.kind === "ready") {
+        if (!(await applyOpenedText(last.text, `Geladen: ${last.fileName}`))) return;
+        setProjectPanelOpen(false);
+        return;
+      }
+      const handle = projectFileRef.current.fileHandle;
+      if (handle?.requestPermission) {
+        const perm = await handle.requestPermission({ mode: "read" });
+        if (perm === "granted" && handle.getFile) {
+          const file = await handle.getFile();
+          const memory = await rememberFileHandle(projectFileStore, handle, projectFileRef.current);
+          const text = await readFileText(file);
+          if (!(await applyOpenedText(text, `Geladen: ${file.name}`))) return;
+          setProjectFile(memory);
+          setProjectPanelOpen(false);
+          return;
+        }
+      }
+      openWithPicker();
+    })();
+  };
+
+  const openRecent = (recent: RecentProject) => {
+    void (async () => {
+      try {
+        const result = await runOpenRecent({
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          recent,
+        });
+        if (result.kind === "opened") {
+          if (!(await applyOpenedText(result.text, result.status))) return;
+          setProjectFile(result.memory);
+          setProjectPanelOpen(false);
+          return;
+        }
+        openWithPicker();
+      } catch (e) {
+        setSession((s) => ({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Open failed",
+        }));
+      }
+    })();
   };
 
   const openProject = async (file: File) => {
-    const text = await file.text();
     try {
-      const opened = openSerialized(session, text);
-      const hydrated = await hydrateSession(opened);
-      setSession(hydrated);
+      const text = await readFileText(file);
+      if (!(await applyOpenedText(text, loadStatusFallback(file.name)))) return;
+      setProjectPanelOpen(false);
     } catch (e) {
       setSession((s) => ({
         ...s,
@@ -194,45 +521,156 @@ export function App() {
     }
   };
 
-  const runExport = async () => {
-    setExporting(true);
-    try {
-      const job = jobFromProject(session.project);
-      const result = await exportTimeline(job, {
-        onProgress: (p) =>
-          setSession((s) => ({ ...s, status: `Export ${p.percent}% ${p.stage}` })),
-      });
-      if (!result.success || !result.blob) {
-        setSession((s) => ({
-          ...s,
-          error: result.error ?? "Export failed",
-          status: "Export failed",
-        }));
-        return;
-      }
-      downloadMp4(result);
-      setSession((s) => ({
-        ...s,
-        error: null,
-        status: `Exported ${result.fileName} (${result.fileSizeBytes} bytes)`,
-      }));
-    } catch (e) {
-      const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
-      setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
-    } finally {
-      setExporting(false);
-    }
+  const cancelExport = () => {
+    exportAbortRef.current?.abort();
+    setExportDialog((d) => (d.phase === "running" ? closeExportDialog() : abortExportDialog(d)));
+    setExporting(false);
+    setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
   };
 
-  const onMoveLive = (clipId: string, startMs: number, trackId?: TrackId) => {
+  const dismissExport = () => {
+    if (exportDialog.phase === "running") {
+      cancelExport();
+      return;
+    }
+    setExportDialog(closeExportDialog());
+  };
+
+  const runExport = () => {
+    if (exporting || exportBusyRef.current) return;
+    if (exportDialog.phase === "ready") return;
+    const safe = (session.project.name || "resonance").replace(/[^\w\-]+/g, "_");
+    setExportDialog(
+      readyExportDialog({
+        fileName: safe.endsWith(".mp4") ? safe : `${safe}.mp4`,
+        width: exportDialog.width || 1280,
+        height: exportDialog.height || 720,
+        fps: exportDialog.fps || 30,
+      }),
+    );
+  };
+
+  const runExportWav = () => {
+    startExport("wav");
+  };
+
+  const startExport = (kind: "mp4" | "wav") => {
+    if (exporting || exportBusyRef.current) return;
+    const size = {
+      width: exportDialog.width || 1280,
+      height: exportDialog.height || 720,
+      fps: exportDialog.fps || 30,
+    };
+    let planned;
+    try {
+      planned = jobFromProject(session.project, kind === "wav" ? {} : size);
+      if (kind === "wav") planned = { ...planned, fileName: wavFileName(planned.fileName) };
+    } catch (e) {
+      const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
+      const fallbackName = kind === "wav" ? "export.wav" : "export.mp4";
+      const base =
+        exportDialog.phase === "ready"
+          ? exportDialog
+          : openExportDialog({ fileName: fallbackName, ...size });
+      setExportDialog(failExportDialog(base, `FAIL: ${msg}`));
+      setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
+      return;
+    }
+    exportBusyRef.current = true;
+    void (async () => {
+      const ac = new AbortController();
+      try {
+        const outcome = await runExportWithDestination({
+          job: planned,
+          host: pickerHost,
+          store: projectFileStore,
+          memory: projectFileRef.current,
+          encode: kind === "wav" ? exportMixWav : exportTimeline,
+          downloadMp4: kind === "wav" ? downloadWav : downloadMp4,
+          pickerOptions: kind === "wav" ? wavExportPickerOptions : undefined,
+          signal: ac.signal,
+          onBeforeEncode: (job) => {
+            exportAbortRef.current = ac;
+            setExportDialog(openExportDialog(job));
+            setExporting(true);
+          },
+          onProgress: (p) => {
+            setExportDialog((d) => applyExportProgress(d, p));
+            setSession((s) => ({ ...s, status: `Export ${p.percent}% ${p.stage}` }));
+          },
+        });
+        if (outcome.kind === "cancelled") return;
+        setProjectFile(outcome.memory);
+        if (ac.signal.aborted || outcome.result.aborted) {
+          setExportDialog(closeExportDialog());
+          setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
+          return;
+        }
+        if (!isExportSuccess(outcome.result)) {
+          setExportDialog((d) => failExportDialog(d, outcome.result.error ?? "Export failed"));
+          setSession((s) => ({
+            ...s,
+            error: outcome.result.error ?? "Export failed",
+            status: "Export failed",
+          }));
+          return;
+        }
+        setExportDialog((d) => succeedExportDialog(d, outcome.job.fileName));
+        setSession((s) => ({
+          ...s,
+          error: null,
+          status: outcome.status,
+        }));
+      } catch (e) {
+        if (ac.signal.aborted) {
+          setExportDialog(closeExportDialog());
+          setSession((s) => ({ ...s, status: "Export cancelled", error: null }));
+          return;
+        }
+        const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
+        setExportDialog((d) => failExportDialog(d, `FAIL: ${msg}`));
+        setSession((s) => ({ ...s, error: `FAIL: ${msg}`, status: "Export failed" }));
+      } finally {
+        setExporting(false);
+        exportBusyRef.current = false;
+        if (exportAbortRef.current === ac) exportAbortRef.current = null;
+      }
+    })();
+  };
+
+  const onMoveLive = (clipId: string, startMs: number, trackId?: TrackId, clipIds?: string[]) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
-      const snapped = s.project.snap
-        ? snapTime(startMs, collectSnapTargets(s.project, clipId)).timeMs
-        : startMs;
-      const result = moveClip(s.project, clipId, snapped, trackId);
-      if (result.error) return { ...s, error: result.error };
-      return { ...s, project: result.project, selectedClipId: clipId };
+      const base = dragBaseRef.current;
+      const ids =
+        clipIds?.length
+          ? clipIds
+          : selectionOf(base).includes(clipId)
+            ? selectionOf(base)
+            : [clipId];
+      const leader = clipById(base.project, clipId);
+      if (!leader) return s;
+      let nextStart = startMs;
+      if (base.project.snap) {
+        nextStart = snapTime(startMs, collectSnapTargets(base.project, ids)).timeMs;
+      }
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        {
+          type: "moveClips",
+          clipIds: ids,
+          deltaMs: nextStart - leader.startMs,
+          trackId: ids.length === 1 ? trackId : undefined,
+        },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: ids[0] ?? clipId,
+        selectedClipIds: ids,
+        error: preview.error,
+        status: preview.status,
+      };
     });
   };
 
@@ -243,18 +681,175 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Moved clip",
+      status: selectionOf(s).length > 1 ? "Moved clips" : "Moved clip",
       error: null,
     }));
   };
 
-  const onTrimLive = (clipId: string, edge: "in" | "out", nextEdgeMs: number) => {
+  const onVisEventMoveLive = (eventId: string, startMs: number) => {
     setSession((s) => {
       if (!dragBaseRef.current) dragBaseRef.current = s;
-      const result = trimClip(s.project, clipId, edge, nextEdgeMs);
-      if (result.error) return { ...s, error: result.error };
-      return { ...s, project: result.project, selectedClipId: clipId, error: null };
+      const base = dragBaseRef.current;
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        { type: "moveVisEvent", eventId, startMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedVis: true,
+        selectedVisEventId: eventId,
+        selectedClipId: null,
+        selectedClipIds: [],
+        status: preview.status,
+        error: preview.error,
+      };
     });
+  };
+
+  const onVisEventMoveCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Moved VIS event",
+      error: null,
+    }));
+  };
+
+  const onVisEventStretchLive = (eventId: string, edge: "in" | "out", nextEdgeMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const base = dragBaseRef.current;
+      const preview = applyCommand(
+        { ...base, history: { past: [], future: [] } },
+        { type: "stretchVisEvent", eventId, edge, nextEdgeMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedVis: true,
+        selectedVisEventId: eventId,
+        selectedClipId: null,
+        selectedClipIds: [],
+        status: preview.status,
+        error: preview.error,
+      };
+    });
+  };
+
+  const onVisEventStretchCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Stretched VIS event",
+      error: null,
+    }));
+  };
+
+  const onMarkerMoveLive = (markerId: string, timeMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      return applyMoveMarker(s, markerId, timeMs);
+    });
+  };
+
+  const onMarkerMoveCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Moved marker",
+      error: null,
+    }));
+  };
+
+  const onTrimLive = (
+    clipId: string,
+    edge: "in" | "out",
+    nextEdgeMs: number,
+    mode: "lift" | "ripple" | "roll" = "lift",
+  ) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const type =
+        mode === "ripple" ? "rippleTrim" : mode === "roll" ? "rollEdit" : "liftTrim";
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type, clipId, edge, nextEdgeMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipId,
+        selectedClipIds: [clipId],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onSlipLive = (clipId: string, deltaMs: number, clipIds?: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type: "slip", clipId, deltaMs, clipIds },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onSlipCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: selectionOf(s).length > 1 ? "Slipped clips" : "Slipped clip",
+      error: null,
+    }));
+  };
+
+  const onSlideLive = (clipId: string, deltaMs: number, clipIds?: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type: "slideClip", clipId, deltaMs, clipIds },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onSlideCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: selectionOf(s).length > 1 ? "Slid clips" : "Slid clip",
+      error: null,
+    }));
   };
 
   const onTrimCommit = () => {
@@ -264,7 +859,106 @@ export function App() {
     setSession((s) => ({
       ...s,
       history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
-      status: "Trimmed clip",
+      error: null,
+    }));
+  };
+
+  const onFadesLive = (clipId: string, fadeInMs: number, fadeOutMs: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        { ...dragBaseRef.current, history: { past: [], future: [] } },
+        { type: "setClipFades", clipId, fadeInMs, fadeOutMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipId,
+        selectedClipIds: [clipId],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onFadesCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Clip fades",
+      error: null,
+    }));
+  };
+
+  const onTransitionDurationLive = (durationMs: number, clipIds: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        {
+          ...dragBaseRef.current,
+          history: { past: [], future: [] },
+          selectedClipIds: [...clipIds],
+          selectedClipId: clipIds[0] ?? null,
+        },
+        { type: "setTransition", durationMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipIds[0] ?? s.selectedClipId,
+        selectedClipIds: [...clipIds],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onTransitionAudioDurationLive = (audioDurationMs: number, clipIds: readonly string[]) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const preview = applyCommand(
+        {
+          ...dragBaseRef.current,
+          history: { past: [], future: [] },
+          selectedClipIds: [...clipIds],
+          selectedClipId: clipIds[0] ?? null,
+        },
+        { type: "setTransitionAudioDuration", audioDurationMs },
+      );
+      return {
+        ...s,
+        project: preview.project,
+        selectedClipId: clipIds[0] ?? s.selectedClipId,
+        selectedClipIds: [...clipIds],
+        error: preview.error,
+        status: preview.status,
+      };
+    });
+  };
+
+  const onTransitionDurationCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Set transition",
+      error: null,
+    }));
+  };
+
+  const onTransitionAudioDurationCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Audio duration",
       error: null,
     }));
   };
@@ -305,6 +999,105 @@ export function App() {
     });
   };
 
+  const toggleMixerCollapsed = () => {
+    setMixerCollapsed((prev) => {
+      const next = !prev;
+      saveMixerCollapsed(layoutStore, next);
+      return next;
+    });
+  };
+
+  const onLaneLabelPx = (px: number) => {
+    setLaneLabelPx(px);
+    saveLaneLabelPx(layoutStore, px);
+  };
+
+  const onLaneHeight = (group: LaneHeightGroup, px: number) => {
+    setLaneHeights((prev) => {
+      const next = { ...prev, [group]: px };
+      saveLaneHeights(layoutStore, next);
+      return next;
+    });
+  };
+
+  const applySplitFromEvent = (clientY: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const next = applySplitPointer({
+      clientY,
+      stageTop: rect.top,
+      stageHeight: rect.height,
+    });
+    setSplitRatio(next.ratio);
+  };
+
+  const onSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    splitDragRef.current = true;
+    applySplitFromEvent(e.clientY);
+    const move = (ev: PointerEvent) => {
+      if (!splitDragRef.current) return;
+      applySplitFromEvent(ev.clientY);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (!splitDragRef.current) return;
+      splitDragRef.current = false;
+      saveSplitRatio(layoutStore, splitRatioRef.current);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const applyHSplitFromEvent = (clientX: number) => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const rect = workspace.getBoundingClientRect();
+    const next = applyHSplitPointer({
+      clientX,
+      workspaceLeft: rect.left,
+      workspaceWidth: rect.width,
+    });
+    setHSplitRatio(next.ratio);
+  };
+
+  const onHSplitPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    hSplitDragRef.current = true;
+    applyHSplitFromEvent(e.clientX);
+    const move = (ev: PointerEvent) => {
+      if (!hSplitDragRef.current) return;
+      applyHSplitFromEvent(ev.clientX);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (!hSplitDragRef.current) return;
+      hSplitDragRef.current = false;
+      saveHSplitRatio(layoutStore, hSplitRatioRef.current);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const openProjectPanel = () => setProjectPanelOpen(true);
+  const closeProjectPanel = () => setProjectPanelOpen(false);
+
+  const onToolbarSave = () => {
+    openProjectPanel();
+  };
+  const onToolbarOpen = () => {
+    openProjectPanel();
+  };
+  const onToolbarOpenLast = () => {
+    openProjectPanel();
+    openLast();
+  };
+
   const onLoopCommit = () => {
     const base = dragBaseRef.current;
     dragBaseRef.current = null;
@@ -322,83 +1115,298 @@ export function App() {
       <Toolbar
         snap={session.project.snap}
         exporting={exporting}
-        onNew={() => setSession(newProject(session))}
-        onSave={saveProject}
+        screen={screen}
+        onSelectScreen={setScreen}
+        onNew={() => setSession(confirmNewProject(session))}
+        onSave={onToolbarSave}
+        onOpen={onToolbarOpen}
+        onOpenLast={onToolbarOpenLast}
+        lastFileName={projectFile.lastFileName}
+        fileSystemAccess={fsa}
         onOpenFile={(file) => void openProject(file)}
         onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
-        onExport={() => void runExport()}
-        onUndo={() => setSession(applyUndo(session))}
-        onRedo={() => setSession(applyRedo(session))}
-        onSplit={() => setSession(applySplit(session))}
+        onMedia={openProjectPanel}
+        onExport={runExport}
+        onExportWav={runExportWav}
+        onUndo={() => runCommand({ type: "undo" })}
+        onRedo={() => runCommand({ type: "redo" })}
+        onSplit={() => runCommand({ type: "split" })}
         onToggleSnap={() => setSession(applyToggleSnap(session))}
+        onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
+        projectName={session.project.name}
+        projectDirty={isProjectDirty(session)}
+        onRevert={() => setSession(confirmRevertToLastSave(session))}
+        onRenameProject={(name) => runCommand({ type: "renameProject", name })}
+      />
+      <input
+        type="file"
+        accept={MEDIA_FILE_ACCEPT}
+        multiple
+        hidden
+        data-testid="import-input"
+        onChange={(e) => {
+          if (e.target.files) void importFiles(session, e.target.files).then(setSession);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={relinkInputRef}
+        type="file"
+        hidden
+        data-testid="relink-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void finishRelink(file);
+        }}
       />
 
-      <div className="workspace">
-        <MediaBrowser
-          project={session.project}
-          targetTrackId={session.targetTrackId}
-          selectedAssetId={selectedAssetId}
-          onSelectAsset={setSelectedAssetId}
-          onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
-          onImport={(files) => {
-            void importFiles(session, files).then(setSession);
-          }}
-          onPlace={(assetId) => {
-            const asset = session.project.assets.find((a) => a.id === assetId);
-            if (!asset) return;
-            const trackId: TrackId =
-              asset.kind === "video"
-                ? session.targetTrackId === "V2"
-                  ? "V2"
-                  : "V1"
-                : session.targetTrackId === "A2"
-                  ? "A2"
-                  : "A1";
-            setSession((s) => applyPlaceAsset(s, assetId, trackId));
-          }}
-        />
-        <Preview project={session.project} playing={session.playing} />
-        <Inspector
-          project={session.project}
-          selectedClipId={session.selectedClipId}
-          onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
-        />
+      {projectPanelOpen ? (
+        <div className="project-overlay pass-through" data-testid="project-overlay">
+          <div
+            className="project-overlay-backdrop"
+            data-testid="project-overlay-backdrop"
+            aria-hidden="true"
+          />
+          <div className="project-overlay-drawer" role="dialog" aria-label="Projekt" aria-modal="false">
+            <button
+              type="button"
+              className="project-overlay-close"
+              data-testid="project-overlay-close"
+              onClick={closeProjectPanel}
+            >
+              Close
+            </button>
+            <ProjectFilePanel
+              memory={projectFile}
+              fileSystemAccess={fsa}
+              onSave={saveProject}
+              onSaveAs={saveProjectAs}
+              onOpen={openWithPicker}
+              onChooseFolder={chooseFolder}
+              onOpenRecent={openRecent}
+            />
+            <MediaBrowser
+              project={session.project}
+              targetTrackId={session.targetTrackId}
+              selectedAssetId={selectedAssetId}
+              onSelectAsset={setSelectedAssetId}
+              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+              onImport={(files) => {
+                void importFiles(session, files).then(setSession);
+              }}
+              onPlace={(assetId) => {
+                const asset = session.project.assets.find((a) => a.id === assetId);
+                if (!asset) return;
+                const trackId = preferredTrackForAsset(asset.kind, session.targetTrackId);
+                setSession((s) => applyPlaceAsset(s, assetId, trackId));
+              }}
+              onRelinkAsset={runRelinkAsset}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="stage" data-testid="stage" ref={stageRef}>
+      <div
+        className="workspace"
+        data-testid="preview-pane"
+        data-preview-ratio={splitRatio}
+        data-h-split-ratio={hSplitRatio}
+        ref={workspaceRef}
+        style={{ flex: `${splitRatio} 1 ${PREVIEW_MIN_PX}px` }}
+      >
+        <div
+          className="workspace-preview"
+          data-testid="workspace-preview"
+          style={{ flex: `${hSplitRatio} 1 ${PREVIEW_H_MIN_PX}px` }}
+        >
+          <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
+        </div>
+        <div
+          className="layout-split-v"
+          data-testid="layout-split-h"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Preview und Inspector teilen"
+          title="Preview / Inspector"
+          style={{ cursor: "ew-resize" }}
+          onPointerDown={onHSplitPointerDown}
+        >
+          <span className="layout-split-v-grip" data-testid="layout-split-h-grip" aria-hidden="true" />
+        </div>
+        <div
+          className="workspace-inspector"
+          data-testid="workspace-inspector"
+          style={{ flex: `${1 - hSplitRatio} 1 ${INSPECTOR_MIN_PX}px` }}
+        >
+          <Inspector
+            project={session.project}
+            selectedClipId={session.selectedClipId}
+            selectedClipIds={session.selectedClipIds}
+            selectedMarkerId={session.selectedMarkerId}
+            selectedVis={session.selectedVis}
+            selectedVisEventId={session.selectedVisEventId}
+            onChange={(clipId, patch) => setSession(applyUpdateClip(session, clipId, patch))}
+            onSetEnabled={(enabled) => runCommand({ type: "setClipsEnabled", enabled })}
+            onSetLocked={(locked) => runCommand({ type: "setClipsLocked", locked })}
+            onFades={(clipId, fadeInMs, fadeOutMs) =>
+              setSession(applyCommand(session, { type: "setClipFades", clipId, fadeInMs, fadeOutMs }))
+            }
+            onRate={(clipId, rate) =>
+              setSession(applyCommand(session, { type: "setClipRate", clipId, rate }))
+            }
+            onUnlink={(clipId) => setSession(applyCommand(session, { type: "unlinkClips", clipId }))}
+            onRelink={() => void runRelink()}
+            onRenameMarker={(markerId, label) =>
+              setSession(applyCommand(session, { type: "renameMarker", markerId, label }))
+            }
+            onTransition={(cmd) => setSession(applyCommand(session, cmd))}
+            onVisualizer={(patch) => setSession(applySetVisualizer(session, patch))}
+          />
+        </div>
       </div>
 
+      <div
+        className="layout-split"
+        data-testid="layout-split"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Preview und Arrange teilen"
+        title="Preview höher / niedriger"
+        style={{ cursor: "ns-resize" }}
+        onPointerDown={onSplitPointerDown}
+      >
+        <span className="layout-split-grip" data-testid="layout-split-grip" aria-hidden="true" />
+      </div>
+
+      <div
+        className="lower-stage"
+        data-testid="lower-stage"
+        style={{ flex: `${1 - splitRatio} 1 ${ARRANGE_MIN_PX}px` }}
+      >
       <Transport
         project={session.project}
         playing={session.playing}
         onPlay={play}
         onPause={pause}
         onStop={stop}
-        onStep={(delta) => setSession(applyPlayhead(session, session.project.playheadMs + delta))}
+        onStep={(delta) => runCommand({ type: "nudgePlayhead", deltaMs: delta })}
         onToggleLoop={() => setSession(applyToggleLoop(session))}
-        onIn={() => setSession(applyIn(session))}
-        onOut={() => setSession(applyOut(session))}
-        onClear={() => setSession(applyClearInOut(session))}
-        onMarker={() => setSession(applyMarker(session))}
-        onSplit={() => setSession(applySplit(session))}
+        followPlayhead={session.followPlayhead}
+        onToggleFollow={() => setSession(applyToggleFollow(session))}
+        onIn={() => runCommand({ type: "markIn" })}
+        onOut={() => runCommand({ type: "markOut" })}
+        onClear={() => runCommand({ type: "clearInOut" })}
+        onMarker={() => runCommand({ type: "addMarker" })}
+        onSplit={() => runCommand({ type: "split" })}
+        onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
       />
 
+      {screen === "cutter" ? (
+        <Cutter
+          project={session.project}
+          selectedClipId={session.selectedClipId}
+          selectedClipIds={session.selectedClipIds}
+          apply={runCommand}
+          onPlayhead={(ms) => setSession((s) => applyPlayhead(s, ms))}
+          laneLabelPx={laneLabelPx}
+        />
+      ) : null}
+      <div
+        className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
+        data-testid="arrange-row"
+        style={{ overflow: "hidden" }}
+      >
       <Timeline
+        visibleTrackIds={tracksForScreen(screen)}
         project={session.project}
         selectedClipId={session.selectedClipId}
-        onSelect={(id) => setSession(applySelect(session, id))}
-        onPlayhead={(ms) => setSession(applyPlayhead(session, ms))}
+        selectedClipIds={session.selectedClipIds}
+        selectedMarkerId={session.selectedMarkerId}
+        onSelect={(id, opts) =>
+          setSession((s) =>
+            applyCommand(s, { type: "select", clipId: id, toggle: opts?.toggle, range: opts?.range }),
+          )
+        }
+        onSelectClips={(ids, opts) =>
+          setSession((s) => applyCommand(s, { type: "selectClips", clipIds: ids, union: opts?.union }))
+        }
+        onSelectMarker={(id) => setSession(applySelectMarker(session, id))}
+        onMarkerMoveLive={onMarkerMoveLive}
+        onMarkerMoveCommit={onMarkerMoveCommit}
+        onDeleteMarker={(id) => setSession(applyDeleteMarker(session, id))}
+        onPlayhead={(ms) => setSession((s) => applyPlayhead(s, ms))}
         onMoveLive={onMoveLive}
         onMoveCommit={onMoveCommit}
         onTrimLive={onTrimLive}
         onTrimCommit={onTrimCommit}
-        onToggleMute={(id) => setSession(applyToggleMute(session, id))}
+        onSlipLive={onSlipLive}
+        onSlipCommit={onSlipCommit}
+        onSlideLive={onSlideLive}
+        onSlideCommit={onSlideCommit}
+        onFadesLive={onFadesLive}
+        onFadesCommit={onFadesCommit}
+        onTransitionDurationLive={onTransitionDurationLive}
+        onTransitionDurationCommit={onTransitionDurationCommit}
+        onTransitionAudioDurationLive={onTransitionAudioDurationLive}
+        onTransitionAudioDurationCommit={onTransitionAudioDurationCommit}
+        onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
+        onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         onToggleVisualizerMute={() => setSession(applyToggleVisualizerMute(session))}
         onCycleVisualizerScene={() => setSession(applyCycleVisualizerScene(session))}
+        onSelectVis={() => setSession(applySelectVis(session))}
+        onSelectVisEvent={(eventId) =>
+          setSession((s) => applyCommand(s, { type: "selectVisEvent", eventId }))
+        }
+        onInsertVisEvent={() => setSession((s) => applyCommand(s, { type: "insertVisEvent" }))}
+        onVisEventMoveLive={onVisEventMoveLive}
+        onVisEventMoveCommit={onVisEventMoveCommit}
+        onVisEventStretchLive={onVisEventStretchLive}
+        onVisEventStretchCommit={onVisEventStretchCommit}
+        onSetFrontVideoTrack={(trackId) =>
+          setSession((s) => applyCommand(s, { type: "setFrontVideoTrack", trackId }))
+        }
+        selectedVisEventId={session.selectedVisEventId}
+        selectedVisEventIds={session.selectedVisEventIds}
+        onSelectAll={() => runCommand({ type: "selectAll" })}
+        onSelectAllOnTrack={() => runCommand({ type: "selectAllOnTrack" })}
+        onSetClipsEnabled={(enabled) => runCommand({ type: "setClipsEnabled", enabled })}
+        onSetClipsLocked={(locked) => runCommand({ type: "setClipsLocked", locked })}
         onSplitHere={(clipId, timeMs) => {
-          setSession((s) => applySplit(applyPlayhead(applySelect(s, clipId), timeMs)));
+          setSession((s) =>
+            applyCommand(applyPlayhead(applySelect(s, clipId), snapPlayheadSeek(s.project, timeMs)), {
+              type: "split",
+            }),
+          );
         }}
-        onCopy={() => setSession(applyCopy(session))}
-        onPaste={() => setSession(applyPaste(session))}
-        onDelete={() => setSession(applyDelete(session))}
-        onZoom={(z) => setSession(applyZoom(session, z))}
+        onCut={() => runCommand({ type: "cut" })}
+        onCopy={() => runCommand({ type: "copy" })}
+        onPaste={() => runCommand({ type: "paste" })}
+        onDuplicate={() => runCommand({ type: "duplicate" })}
+        onDelete={() => runCommand({ type: "liftDelete" })}
+        onRippleDelete={() => runCommand({ type: "rippleDelete" })}
+        onLiftRange={() => runCommand({ type: "liftRange" })}
+        onExtractRange={() => runCommand({ type: "extractRange" })}
+        onRelink={(clipIds) => void runRelink(clipIds)}
+        onCloseGap={() => runCommand({ type: "closeGap" })}
+        onRippleTrimToPlayhead={(edge, timeMs) => {
+          setSession((s) => {
+            const parked =
+              timeMs != null ? applyPlayhead(s, snapPlayheadSeek(s.project, timeMs)) : s;
+            return applyCommand(parked, { type: "rippleTrimToPlayhead", edge });
+          });
+        }}
+        onZoom={(z, widthPx) => setSession(applyZoom(session, z, widthPx, laneLabelPx))}
+        onFit={(widthPx) => setSession(applyFit(session, widthPx, laneLabelPx))}
+        onViewport={onTimelineViewport}
+        laneLabelPx={laneLabelPx}
+        laneHeights={laneHeights}
+        onLaneLabelPx={onLaneLabelPx}
+        onLaneHeight={onLaneHeight}
+        onPlaceAsset={(assetId, trackId, startMs) => {
+          setSession((s) => applyPlaceAsset(s, assetId, trackId, startMs));
+        }}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}
@@ -406,13 +1414,39 @@ export function App() {
         onLoopMoveLive={onLoopMoveLive}
         onLoopCommit={onLoopCommit}
       />
+      <Mixer
+        project={session.project}
+        selectedTrackId={session.targetTrackId}
+        peaks={mixPeaks}
+        collapsed={mixerCollapsed}
+        onToggleCollapsed={toggleMixerCollapsed}
+        onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+        onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
+        onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}
+        onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
+        onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
+        onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
+      />
+      </div>
+      </div>
+      </div>
 
-      <ShortcutsOverlay open={shortcutsOpen} />
+      <ExportDialog
+        state={exportDialog}
+        onCancel={cancelExport}
+        onClose={dismissExport}
+        onChange={setExportDialog}
+        onStart={() => startExport("mp4")}
+      />
+
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <footer className="status" data-testid="status">
         <span>{session.status}</span>
         {session.error ? <span className="err">{session.error}</span> : null}
         {(() => {
+          const ids = selectionOf(session);
+          if (ids.length >= 2) return <span>{ids.length} clips</span>;
           const selected = clipById(session.project, session.selectedClipId ?? "");
           if (!selected) return null;
           const asset = assetById(session.project, selected.assetId);

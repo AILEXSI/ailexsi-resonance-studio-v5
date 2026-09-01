@@ -1,7 +1,39 @@
-import { audioClipsForMix } from "./job";
+import { scheduleGainEnvelope } from "../fades";
+import { clampClipRate } from "../models";
+import { scheduleTransitionAudioGain } from "../transition";
+import { clampPan, equalPowerPan } from "../volume";
+import { audioClipsForMix, mixWindowsForClip, presentLinkedAudioMates } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
 import type { AacSample } from "./mp4";
 import type { ExportHooks, ExportJob } from "./types";
+import type { TrackId } from "../models";
+
+function trackPanOfJob(job: ExportJob, trackId: TrackId): number {
+  return clampPan(job.tracks.find((t) => t.id === trackId)?.pan ?? 0);
+}
+
+/** Pan last: gain envelope (clip/fade/fader/master) already on `input`. */
+function connectTrackPan(ctx: OfflineAudioContext, input: AudioNode, pan: number): void {
+  const p = clampPan(pan);
+  if (typeof ctx.createStereoPanner === "function") {
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = p;
+    input.connect(panner);
+    panner.connect(ctx.destination);
+    return;
+  }
+  const { left, right } = equalPowerPan(p);
+  const merger = ctx.createChannelMerger(2);
+  const gL = ctx.createGain();
+  const gR = ctx.createGain();
+  gL.gain.value = left;
+  gR.gain.value = right;
+  input.connect(gL);
+  input.connect(gR);
+  gL.connect(merger, 0, 0);
+  gR.connect(merger, 0, 1);
+  merger.connect(ctx.destination);
+}
 
 export type AacProbe = {
   sampleRate: number;
@@ -53,6 +85,13 @@ export async function probeAac(): Promise<AacProbe | null> {
   return null;
 }
 
+/** Video-only / empty decode: no channels or no frames → skip, do not fail the mix. */
+export function decodedBufferIsAudible(
+  buf: Pick<AudioBuffer, "numberOfChannels" | "length">,
+): boolean {
+  return buf.numberOfChannels > 0 && buf.length > 0;
+}
+
 export async function mixJobAudio(
   job: ExportJob,
   probe: AacProbe,
@@ -67,16 +106,62 @@ export async function mixJobAudio(
     if (signal?.aborted) throw new Error("Export aborted");
     try {
       const decoded = await decodeAudio(clip.sourceUrl);
+      if (!decodedBufferIsAudible(decoded)) continue;
       const src = ctx.createBufferSource();
       src.buffer = decoded;
       const gain = ctx.createGain();
-      gain.gain.value = Number.isFinite(clip.gain) ? Math.max(0, clip.gain) : 1;
+      const peak = Number.isFinite(clip.gain) ? Math.max(0, clip.gain) : 1;
+      const durationMs = Math.max(1, clip.endMs - clip.startMs);
+      const mates = clip.skipMix ? presentLinkedAudioMates(job, clip) : [];
+      const windows = clip.skipMix && mates.length > 0 ? mixWindowsForClip(clip, mates) : [
+        { startMs: clip.startMs, endMs: clip.endMs },
+      ];
+      if (windows.length === 0) continue;
+      scheduleGainEnvelope(
+        gain.gain,
+        clip.startMs,
+        durationMs,
+        clip.fadeInMs ?? 0,
+        clip.fadeOutMs ?? 0,
+        peak,
+        { startFactor: clip.fadeInFrom, endFactor: clip.fadeOutTo },
+      );
       src.connect(gain);
-      gain.connect(ctx.destination);
-      const startSec = Math.max(0, clip.startMs / 1000);
-      const offsetSec = Math.max(0, clip.sourceInMs / 1000);
-      const durSec = Math.max(0.01, (clip.endMs - clip.startMs) / 1000);
-      src.start(startSec, offsetSec, durSec);
+      const transitions = job.transitions ?? [];
+      if (transitions.length > 0) {
+        const transGain = ctx.createGain();
+        const peers = job.tracks.flatMap((t) => t.clips);
+        scheduleTransitionAudioGain(
+          transGain.gain,
+          transitions,
+          clip.id,
+          clip.startMs,
+          clip.endMs,
+          undefined,
+          peers,
+        );
+        gain.connect(transGain);
+        connectTrackPan(ctx, transGain, trackPanOfJob(job, clip.trackId));
+      } else {
+        connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
+      }
+      const rate = clampClipRate(clip.rate ?? 1);
+      src.playbackRate.value = rate;
+      const first = windows[0]!;
+      const startOne = (w: { startMs: number; endMs: number }, node: AudioBufferSourceNode) => {
+        const localMs = Math.max(0, w.startMs - clip.startMs);
+        const offsetSec = Math.max(0, (clip.sourceInMs + localMs * rate) / 1000);
+        const sourceDurSec = Math.max(0.01, ((w.endMs - w.startMs) * rate) / 1000);
+        node.start(Math.max(0, w.startMs / 1000), offsetSec, sourceDurSec);
+      };
+      startOne(first, src);
+      for (let i = 1; i < windows.length; i++) {
+        const extra = ctx.createBufferSource();
+        extra.buffer = decoded;
+        extra.playbackRate.value = rate;
+        extra.connect(gain);
+        startOne(windows[i]!, extra);
+      }
       added += 1;
     } catch {
       /* skip unreadable audio; video-only is still success */
