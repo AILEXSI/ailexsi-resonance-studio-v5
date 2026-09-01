@@ -42,8 +42,21 @@ function sessionOf(project = stacked(), selected: string[] = ["v1", "v2"]): Sess
 }
 
 describe("transition source AUTO", () => {
-  it("VIS covers t → vis", () => {
+  it("VIS event + covering video → video wins (VIS only fills gaps)", () => {
     const project = stacked();
+    project.visualizer = {
+      ...project.visualizer,
+      events: [{ id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 }],
+    };
+    const picture = resolvePictureSource(contextFromProject(project), 500);
+    expect(picture).toMatchObject({ source: "auto", kind: "V2", clipId: "v2" });
+    expect(shouldShowVisualizer(project, 500)).toBe(false);
+    expect(formatResolvedSource(picture)).toBe("AUTO→V2");
+  });
+
+  it("VIS event + no video → vis", () => {
+    const project = stacked();
+    project.clips = [];
     project.visualizer = {
       ...project.visualizer,
       events: [{ id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 }],

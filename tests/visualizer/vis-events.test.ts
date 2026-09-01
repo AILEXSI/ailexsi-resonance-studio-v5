@@ -70,8 +70,8 @@ describe("VIS events", () => {
     project.visualizer = {
       ...project.visualizer,
       events: [
-        { id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 },
-        { id: "ve2", sceneId: "spectrum-bars", startMs: 1000, durationMs: 1000 },
+        { id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 }),
+        { id: "ve2", sceneId: "spectrum-bars", startMs: 1000, durationMs: 1000 }),
       ],
     };
     expect(visualizerSceneAt(project, 999)).toBe("pulse-orb");
@@ -103,7 +103,7 @@ describe("VIS events", () => {
     expect(shouldShowVisualizer(loaded, 2000)).toBe(false);
   });
 
-  it("event covering t shows VIS as overlay even when video exists", () => {
+  it("VIS event does not hide covering video; only fills gaps", () => {
     const p = projectWith([
       clip({ id: "v1", assetId: "a", trackId: "V1", startMs: 0, durationMs: 2000 }),
     ]);
@@ -112,8 +112,9 @@ describe("VIS events", () => {
       ...p.visualizer,
       events: [{ id: "ve1", sceneId: "lita-bloom", startMs: 0, durationMs: 500 }],
     };
-    expect(shouldShowVisualizer(p, 100)).toBe(true);
+    expect(shouldShowVisualizer(p, 100)).toBe(false);
     expect(shouldShowVisualizer(p, 800)).toBe(false);
+    expect(shouldShowVisualizer(p, 2500)).toBe(true);
     expect(visualizerSceneAt(p, 100)).toBe("lita-bloom");
   });
 
