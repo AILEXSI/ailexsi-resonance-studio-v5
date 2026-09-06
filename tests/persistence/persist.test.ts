@@ -34,6 +34,53 @@ describe("project persist + reload", () => {
     expect(loaded.assets[0]!.blobId).toBe("a1");
   });
 
+  it("keeps sourcePath on serialize and still strips objectUrl", () => {
+    const p = projectWith(
+      [],
+      [
+        asset({
+          id: "clip",
+          kind: "video",
+          objectUrl: "blob:http://localhost/clip",
+          sourcePath: "C:\\Users\\marti\\clip.mp4",
+          missing: false,
+        }),
+      ],
+    );
+    const json = serializeProject(p);
+    expect(json).not.toContain("blob:");
+    expect(json).not.toContain("objectUrl");
+    expect(json).toContain("sourcePath");
+    expect(json).toContain("C:\\\\Users\\\\marti\\\\clip.mp4");
+    const loaded = deserializeProject(json);
+    expect(loaded.assets[0]!.objectUrl).toBeUndefined();
+    expect(loaded.assets[0]!.missing).toBe(true);
+    expect(loaded.assets[0]!.sourcePath).toBe("C:\\Users\\marti\\clip.mp4");
+  });
+
+  it("hydrates from sourcePath only when a reader is provided and the blob is missing", async () => {
+    const store = createMemoryBlobStore();
+    const media = asset({
+      id: "disk",
+      kind: "audio",
+      blobId: "disk-blob",
+      missing: true,
+      sourcePath: "C:\\Users\\marti\\bed.wav",
+    });
+    const project = projectWith([], [media]);
+    const withoutReader = await hydrateProject(project, store);
+    expect(withoutReader.assets[0]!.missing).toBe(true);
+    expect(withoutReader.assets[0]!.objectUrl).toBeUndefined();
+
+    const withReader = await hydrateProject(project, store, async (path) => {
+      expect(path).toBe("C:\\Users\\marti\\bed.wav");
+      return new Blob([new Uint8Array([4, 5, 6])], { type: "audio/wav" });
+    });
+    expect(withReader.assets[0]!.missing).toBe(false);
+    expect(withReader.assets[0]!.objectUrl).toBeDefined();
+    expect(withReader.assets[0]!.sourcePath).toBe("C:\\Users\\marti\\bed.wav");
+  });
+
   it("hydrates blobs from the store and marks missing otherwise", async () => {
     const store = createMemoryBlobStore();
     const media = asset({ id: "keep", kind: "audio", durationMs: 900, missing: true });

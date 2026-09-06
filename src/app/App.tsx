@@ -5,6 +5,16 @@ import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapPlayheadSeek, snapTime } from "../core/timeline";
 import { downloadText, projectFilename, windowTitleFor } from "../core/project";
 import { createIndexedDbProjectFileStore } from "../core/project-file-store";
+import { lastProjectMissingStatus } from "../core/last-project";
+import { isTauriRuntime } from "../core/tauri-runtime";
+import {
+  autostartLastProject,
+  createPluginTauriProjectFs,
+  tauriOpenProject,
+  tauriSaveProject,
+  tryReadSourcePathBlob,
+  type TauriProjectFs,
+} from "../core/tauri-project-io";
 import {
   browserPickerHost,
   emptyProjectFileMemory,
@@ -173,6 +183,14 @@ export function App() {
   const pickerHost = browserPickerHost();
   const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
+  const lastPathRef = useRef<string | null>(null);
+  const tauriFsRef = useRef<Promise<TauriProjectFs> | null>(null);
+  const tauriFs = () => {
+    if (!tauriFsRef.current) tauriFsRef.current = createPluginTauriProjectFs();
+    return tauriFsRef.current;
+  };
+  const hydrateRuntime = (s: typeof session) =>
+    isTauriRuntime() ? hydrateSession(s, tryReadSourcePathBlob) : hydrateSession(s);
 
   useEffect(() => {
     document.title = windowTitleFor(session.project.name);
@@ -180,14 +198,40 @@ export function App() {
 
   useEffect(() => {
     void (async () => {
-      const hydrated = await hydrateSession(sessionRef.current);
+      const hydrated = await hydrateRuntime(sessionRef.current);
+      if (isTauriRuntime()) {
+        try {
+          const boot = await autostartLastProject(await tauriFs());
+          if (boot.kind === "loaded") {
+            try {
+              const opened = openSerialized(hydrated, boot.text);
+              const next = await hydrateRuntime(opened);
+              lastPathRef.current = boot.ref.path;
+              setProjectFile({ ...emptyProjectFileMemory(), lastFileName: boot.ref.name });
+              setSession({ ...next, status: `Geladen: ${boot.ref.name}` });
+              return;
+            } catch {
+              setSession({ ...hydrated, status: lastProjectMissingStatus(boot.ref.name) });
+              return;
+            }
+          }
+          if (boot.kind === "missing") {
+            setSession({ ...hydrated, status: boot.status });
+            return;
+          }
+        } catch {
+          /* keep hydrated empty project */
+        }
+        setSession(hydrated);
+        return;
+      }
       const memory = await projectFileStore.load();
       setProjectFile(memory);
       const last = await tryReadGrantedFile(memory);
       if (last?.kind === "ready") {
         try {
           const opened = openSerialized(hydrated, last.text);
-          const next = await hydrateSession(opened);
+          const next = await hydrateRuntime(opened);
           setSession({ ...next, status: `Geladen: ${last.fileName}` });
           return;
         } catch {
@@ -366,7 +410,7 @@ export function App() {
   const applyOpenedText = async (text: string, status: string): Promise<boolean> => {
     if (!confirmOpenProject(sessionRef.current)) return false;
     const opened = openSerialized(sessionRef.current, text);
-    const hydrated = await hydrateSession(opened);
+    const hydrated = await hydrateRuntime(opened);
     setSession({ ...hydrated, status, error: null });
     return true;
   };
@@ -377,6 +421,26 @@ export function App() {
     void (async () => {
       const snapshot = sessionRef.current;
       try {
+        if (isTauriRuntime()) {
+          const result = await tauriSaveProject(await tauriFs(), {
+            json: projectJson(snapshot),
+            filename: projectFilename(snapshot.project),
+            lastPath: lastPathRef.current,
+            forcePicker: runner === runSaveAs,
+          });
+          if ("cancelled" in result) return;
+          lastPathRef.current = result.path;
+          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+          setProjectPanelOpen(false);
+          setSession((s) => {
+            const sameStack =
+              s.history.past.length === snapshot.history.past.length &&
+              s.history.future.length === snapshot.history.future.length;
+            const next = sameStack ? markProjectClean(s) : s;
+            return { ...next, status: result.status, error: null };
+          });
+          return;
+        }
         const result = await runner({
           host: pickerHost,
           store: projectFileStore,
@@ -434,6 +498,15 @@ export function App() {
   const openWithPicker = () => {
     void (async () => {
       try {
+        if (isTauriRuntime()) {
+          const result = await tauriOpenProject(await tauriFs());
+          if ("cancelled" in result) return;
+          if (!(await applyOpenedText(result.text, result.status))) return;
+          lastPathRef.current = result.path;
+          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+          setProjectPanelOpen(false);
+          return;
+        }
         const result = await runOpen({
           host: pickerHost,
           store: projectFileStore,
@@ -459,6 +532,22 @@ export function App() {
 
   const openLast = () => {
     void (async () => {
+      if (isTauriRuntime()) {
+        const boot = await autostartLastProject(await tauriFs());
+        if (boot.kind === "loaded") {
+          if (!(await applyOpenedText(boot.text, `Geladen: ${boot.ref.name}`))) return;
+          lastPathRef.current = boot.ref.path;
+          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: boot.ref.name });
+          setProjectPanelOpen(false);
+          return;
+        }
+        if (boot.kind === "missing") {
+          setSession((s) => ({ ...s, status: boot.status, error: null }));
+          return;
+        }
+        openWithPicker();
+        return;
+      }
       const last = await tryReadGrantedFile(projectFileRef.current);
       if (last?.kind === "ready") {
         if (!(await applyOpenedText(last.text, `Geladen: ${last.fileName}`))) return;

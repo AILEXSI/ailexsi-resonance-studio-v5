@@ -4,6 +4,8 @@ dist-ssr
 *.local
 .DS_Store
 /src-tauri/target
+target/
+/AILEXSI Resonance Studio V5.exe
 
 artifacts/
 fixtures/user-provided.mp4

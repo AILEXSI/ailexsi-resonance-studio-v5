@@ -6,16 +6,24 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "web:dev": "vite --host 127.0.0.1 --port 1421 --strictPort",
+    "web:build": "vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fixtures": "node scripts/generate-fixtures.mjs"
+    "fixtures": "node scripts/generate-fixtures.mjs",
+    "tauri": "tauri",
+    "tauri:exe": "tauri build && powershell -ExecutionPolicy Bypass -File scripts/copy-exe.ps1"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-fs": "^2.4.0",
     "mediabunny": "^1.55.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "2.11.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",

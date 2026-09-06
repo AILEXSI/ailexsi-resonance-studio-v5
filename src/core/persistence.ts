@@ -134,34 +134,49 @@ export async function persistAssetBlob(
   });
 }
 
+export type SourcePathReader = (path: string) => Promise<Blob | null>;
+
+function objectUrlOf(blob: Blob): string | undefined {
+  return typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+    ? URL.createObjectURL(blob)
+    : undefined;
+}
+
 export async function hydrateProject(
   project: Project,
   store: BlobStore,
+  readSource?: SourcePathReader,
 ): Promise<Project> {
   const assets: MediaAsset[] = [];
   for (const asset of project.assets) {
     try {
       const row = await store.get(asset.blobId);
       if (row?.blob) {
-        const objectUrl =
-          typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
-            ? URL.createObjectURL(row.blob)
-            : undefined;
         assets.push({
           ...asset,
           name: row.name || asset.name,
           mimeType: row.mimeType || asset.mimeType,
-          objectUrl,
+          objectUrl: objectUrlOf(row.blob),
           missing: false,
         });
-      } else {
+        continue;
+      }
+      const fromDisk =
+        asset.sourcePath && readSource ? await readSource(asset.sourcePath) : null;
+      if (fromDisk) {
         assets.push({
           ...asset,
-          objectUrl: undefined,
-          missing: true,
-          name: asset.name.replace(/^missing:/, ""),
+          objectUrl: objectUrlOf(fromDisk),
+          missing: false,
         });
+        continue;
       }
+      assets.push({
+        ...asset,
+        objectUrl: undefined,
+        missing: true,
+        name: asset.name.replace(/^missing:/, ""),
+      });
     } catch {
       assets.push({
         ...asset,

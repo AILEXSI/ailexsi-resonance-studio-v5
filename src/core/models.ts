@@ -105,6 +105,8 @@ export interface MediaAsset {
   blobId: string;
   /** Session-only object URL. Not a durable identity. */
   objectUrl?: string;
+  /** Optional disk path (exe). Absent = IDB-only hydrate. */
+  sourcePath?: string;
   missing: boolean;
   width?: number;
   height?: number;

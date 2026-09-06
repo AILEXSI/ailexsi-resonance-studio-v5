@@ -92,6 +92,7 @@ function sanitizeAsset(raw: unknown): MediaAsset | null {
     durationMs: Number(a.durationMs) || 0,
     blobId,
     objectUrl: looksMissing ? undefined : objectUrl,
+    sourcePath: typeof a.sourcePath === "string" && a.sourcePath.length > 0 ? a.sourcePath : undefined,
     missing: looksMissing,
     width: typeof a.width === "number" ? a.width : undefined,
     height: typeof a.height === "number" ? a.height : undefined,
@@ -205,7 +206,7 @@ export class ProjectFormatError extends Error {
   }
 }
 
-/** Strip session-only blob URLs. They are not durable ids. */
+/** Strip session-only blob URLs. Keep sourcePath. They are not durable ids. */
 export function serializeProject(project: Project): string {
   const durable: Project = {
     ...project,
@@ -214,6 +215,7 @@ export function serializeProject(project: Project): string {
       objectUrl: undefined,
       missing: true,
       name: asset.name,
+      sourcePath: asset.sourcePath,
     })),
     updatedAt: new Date().toISOString(),
   };

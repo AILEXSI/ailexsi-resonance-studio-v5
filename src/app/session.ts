@@ -40,6 +40,7 @@ import { relinkClipsOnProject, relinkSelectionOf } from "../core/relink";
 import {
   createIndexedDbBlobStore,
   hydrateProject,
+  type SourcePathReader,
   persistAssetBlob,
   type BlobStore,
 } from "../core/persistence";
@@ -1697,8 +1698,8 @@ export function openSerialized(session: Session, text: string): Session {
   };
 }
 
-export async function hydrateSession(session: Session): Promise<Session> {
-  const project = await hydrateProject(session.project, session.store);
+export async function hydrateSession(session: Session, readSource?: SourcePathReader): Promise<Session> {
+  const project = await hydrateProject(session.project, session.store, readSource);
   const missing = project.assets.filter((a) => a.missing);
   return {
     ...session,
