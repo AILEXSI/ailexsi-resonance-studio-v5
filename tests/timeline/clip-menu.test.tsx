@@ -187,10 +187,7 @@ describe("clip-menu shortcut labels", () => {
           <Toolbar
             snap
             exporting={false}
-            onNew={noopBtn}
-            onSave={noopBtn}
-            onOpen={noopBtn}
-            onOpenFile={(_file: File) => {}}
+            onToggleFile={noopBtn}
             onImport={noopBtn}
             onExport={noopBtn}
             onUndo={noopBtn}

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createSession, importFiles } from "../../src/app/session";
-import { classifyFile, importMediaFile, ImportError, missingAssetFromImport } from "../../src/core/media";
+import {
+  classifyFile,
+  diskPathOfFile,
+  importMediaFile,
+  ImportError,
+  missingAssetFromImport,
+} from "../../src/core/media";
 import { relinkSelectionForAsset } from "../../src/core/relink";
 import { clipEndMs } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
@@ -8,9 +14,11 @@ import { createEmptyProject } from "../../src/core/project";
 import { lastClipEndMsOnTrack, placeAsset } from "../../src/core/timeline";
 import { asset, clip, projectWith } from "../helpers";
 
-function fakeFile(name: string, type: string, size = 128): File {
+function fakeFile(name: string, type: string, size = 128, path?: string): File {
   const bytes = new Uint8Array(size);
-  return new File([bytes], name, { type });
+  const file = new File([bytes], name, { type });
+  if (path) Object.defineProperty(file, "path", { value: path });
+  return file;
 }
 
 describe("media import", () => {
@@ -380,6 +388,21 @@ describe("probe-fail recovery (P61)", () => {
     expect(session.project.assets).toHaveLength(0);
     expect(session.project.clips).toHaveLength(0);
     expect(session.status).toBe("Import failed");
+  });
+});
+
+describe("exe sourcePath on import", () => {
+  it("stores File.path as sourcePath and leaves Chrome files without a path", async () => {
+    const chrome = fakeFile("bed.wav", "audio/wav");
+    expect(diskPathOfFile(chrome)).toBeUndefined();
+    const chromeAsset = await importMediaFile(chrome, async () => ({ durationMs: 800 }));
+    expect(chromeAsset.sourcePath).toBeUndefined();
+
+    const exe = fakeFile("clip.mp4", "video/mp4", 256, "C:\\Users\\marti\\clip.mp4");
+    expect(diskPathOfFile(exe)).toBe("C:\\Users\\marti\\clip.mp4");
+    const exeAsset = await importMediaFile(exe, async () => ({ durationMs: 1200 }));
+    expect(exeAsset.sourcePath).toBe("C:\\Users\\marti\\clip.mp4");
+    expect(missingAssetFromImport(exe).sourcePath).toBe("C:\\Users\\marti\\clip.mp4");
   });
 });
 

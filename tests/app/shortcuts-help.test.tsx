@@ -31,10 +31,7 @@ describe("shortcuts help (P75)", () => {
             <Toolbar
               snap
               exporting={false}
-              onNew={noop}
-              onSave={noop}
-              onOpen={noop}
-              onOpenFile={noop}
+              onToggleFile={noop}
               onImport={noop}
               onExport={noop}
               onUndo={noop}

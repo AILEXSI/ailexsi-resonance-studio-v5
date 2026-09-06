@@ -7,9 +7,14 @@ import {
 interface Props {
   memory: ProjectFileMemory;
   fileSystemAccess: boolean;
+  projectDirty?: boolean;
+  onNew: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
+  onOpenFile?: (file: File) => void;
+  onOpenLast?: () => void;
+  onRevert?: () => void;
   onChooseFolder: () => void;
   onOpenRecent: (recent: RecentProject) => void;
 }
@@ -17,9 +22,14 @@ interface Props {
 export function ProjectFilePanel({
   memory,
   fileSystemAccess,
+  projectDirty = false,
+  onNew,
   onSave,
   onSaveAs,
   onOpen,
+  onOpenFile,
+  onOpenLast,
+  onRevert,
   onChooseFolder,
   onOpenRecent,
 }: Props) {
@@ -49,15 +59,44 @@ export function ProjectFilePanel({
         <p className="project-file-hint muted">Noch kein Projektordner.</p>
       )}
       <div className="project-file-actions">
-        <button type="button" data-testid="project-save" onClick={onSave}>
+        <button type="button" data-testid="project-new" onClick={onNew}>
+          New
+        </button>
+        <button type="button" data-testid="save-project" onClick={onSave}>
           Speichern
         </button>
         <button type="button" data-testid="project-save-as" onClick={onSaveAs}>
           Speichern unter
         </button>
-        <button type="button" data-testid="project-open" onClick={onOpen}>
+        <button type="button" data-testid="open-fsa" data-open-project onClick={onOpen}>
           Öffnen
         </button>
+        <input
+          type="file"
+          accept=".json,application/json"
+          hidden
+          data-testid="open-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onOpenFile?.(file);
+            e.target.value = "";
+          }}
+        />
+        {memory.lastFileName ? (
+          <button
+            type="button"
+            data-testid="open-last"
+            title={memory.lastFileName}
+            onClick={onOpenLast ?? onOpen}
+          >
+            Zuletzt
+          </button>
+        ) : null}
+        {projectDirty && onRevert ? (
+          <button type="button" data-testid="revert-project" onClick={onRevert}>
+            Revert
+          </button>
+        ) : null}
         <button
           type="button"
           data-testid="project-choose-folder"

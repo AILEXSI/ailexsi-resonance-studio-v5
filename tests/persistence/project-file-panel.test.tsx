@@ -44,9 +44,12 @@ describe("project file panel", () => {
         <ProjectFilePanel
           memory={memory}
           fileSystemAccess
+          projectDirty
+          onNew={() => {}}
           onSave={() => {}}
           onSaveAs={() => {}}
           onOpen={() => {}}
+          onRevert={() => {}}
           onChooseFolder={() => {}}
           onOpenRecent={(recent) => {
             opened.push(recent.lastFileName);
@@ -65,8 +68,13 @@ describe("project file panel", () => {
     );
     const text = panel!.textContent ?? "";
     expect(text).toContain("Projekt");
+    expect(text).toContain("New");
     expect(text).toContain("Speichern");
     expect(text).toContain("Öffnen");
+    expect(host.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="save-project"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="open-input"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="revert-project"]')).toBeTruthy();
     expect(statusHasFakePath(text)).toBe(false);
     expect(text).not.toMatch(/C:\\Users/);
     expect(text).not.toMatch(/\/Users\//);

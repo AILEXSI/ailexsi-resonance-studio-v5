@@ -9,6 +9,8 @@ import {
 } from "../../src/core/last-project";
 import {
   autostartLastProject,
+  mediaExtensionsForKind,
+  sourcePathsOfAssets,
   tauriOpenProject,
   tauriSaveProject,
   type TauriProjectFs,
@@ -204,6 +206,22 @@ describe("tauri save/open last-path", () => {
       path: "C:\\Users\\marti\\Open.resonance.json",
       name: "Open.resonance.json",
     });
+  });
+});
+
+describe("sourcePath helpers", () => {
+  it("collects non-empty sourcePath values and keeps media extension lists tight", () => {
+    expect(
+      sourcePathsOfAssets([
+        { sourcePath: "C:\\Users\\marti\\a.mp4" },
+        { sourcePath: "  " },
+        {},
+        { sourcePath: "C:\\Users\\marti\\b.wav" },
+      ]),
+    ).toEqual(["C:\\Users\\marti\\a.mp4", "C:\\Users\\marti\\b.wav"]);
+    expect(mediaExtensionsForKind("video")).toContain("mp4");
+    expect(mediaExtensionsForKind("audio")).toContain("wav");
+    expect(mediaExtensionsForKind("image")).toContain("png");
   });
 });
 

@@ -122,3 +122,80 @@ export async function tryReadSourcePathBlob(path: string): Promise<Blob | null> 
     return null;
   }
 }
+
+const MEDIA_EXTENSIONS = [
+  "mp4",
+  "mov",
+  "webm",
+  "mkv",
+  "m4v",
+  "wav",
+  "mp3",
+  "m4a",
+  "aac",
+  "flac",
+  "ogg",
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+];
+
+export function mediaExtensionsForKind(kind?: "video" | "audio" | "image"): string[] {
+  if (kind === "video") return ["mp4", "mov", "webm", "mkv", "m4v"];
+  if (kind === "audio") return ["wav", "mp3", "m4a", "aac", "flac", "ogg"];
+  if (kind === "image") return ["png", "jpg", "jpeg", "webp", "gif"];
+  return MEDIA_EXTENSIONS;
+}
+
+function fileWithDiskPath(bytes: Uint8Array, path: string): File {
+  const name = fileNameFromPath(path) || "media";
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const file = new File([copy], name);
+  Object.defineProperty(file, "path", { value: path, configurable: true });
+  return file;
+}
+
+/** Dialog pick in the exe. Attaches the real disk path onto each File. */
+export async function pickTauriMediaFiles(opts: {
+  multiple?: boolean;
+  kind?: "video" | "audio" | "image";
+} = {}): Promise<File[] | null> {
+  const dialog = await import("@tauri-apps/plugin-dialog");
+  const fs = await import("@tauri-apps/plugin-fs");
+  const picked = await dialog.open({
+    multiple: opts.multiple === true,
+    directory: false,
+    filters: [{ name: "Media", extensions: mediaExtensionsForKind(opts.kind) }],
+  });
+  if (!picked) return null;
+  const paths = (Array.isArray(picked) ? picked : [picked]).filter(
+    (p): p is string => typeof p === "string" && p.length > 0,
+  );
+  const files: File[] = [];
+  for (const path of paths) {
+    const bytes = await fs.readFile(path);
+    files.push(fileWithDiskPath(bytes, path));
+  }
+  return files;
+}
+
+export function sourcePathsOfAssets(assets: ReadonlyArray<{ sourcePath?: string }>): string[] {
+  return assets
+    .map((a) => (typeof a.sourcePath === "string" ? a.sourcePath.trim() : ""))
+    .filter(Boolean);
+}
+
+/** Grant plugin-fs access to remembered media paths. Not C:\\ wholesale. */
+export async function allowMediaSourcePaths(paths: readonly string[]): Promise<void> {
+  const clean = [...new Set(paths.filter((p) => typeof p === "string" && p.trim().length > 0))];
+  if (clean.length === 0) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("allow_media_paths", { paths: clean });
+  } catch {
+    /* hydrate may mark missing + Relink */
+  }
+}

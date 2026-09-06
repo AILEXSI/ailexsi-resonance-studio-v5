@@ -8,8 +8,11 @@ import { createIndexedDbProjectFileStore } from "../core/project-file-store";
 import { lastProjectMissingStatus } from "../core/last-project";
 import { isTauriRuntime } from "../core/tauri-runtime";
 import {
+  allowMediaSourcePaths,
   autostartLastProject,
   createPluginTauriProjectFs,
+  pickTauriMediaFiles,
+  sourcePathsOfAssets,
   tauriOpenProject,
   tauriSaveProject,
   tryReadSourcePathBlob,
@@ -205,6 +208,7 @@ export function App() {
           if (boot.kind === "loaded") {
             try {
               const opened = openSerialized(hydrated, boot.text);
+              await allowMediaSourcePaths(sourcePathsOfAssets(opened.project.assets));
               const next = await hydrateRuntime(opened);
               lastPathRef.current = boot.ref.path;
               setProjectFile({ ...emptyProjectFileMemory(), lastFileName: boot.ref.name });
@@ -289,6 +293,19 @@ export function App() {
     relinkClipIdsRef.current = sel.clipIds;
     if (clipIds?.length) {
       setSession(withClipSelection(s, sel.clipIds));
+    }
+    if (isTauriRuntime()) {
+      try {
+        const files = await pickTauriMediaFiles({ kind: sel.kind });
+        if (files?.[0]) await finishRelink(files[0]);
+      } catch (e) {
+        setSession({
+          ...s,
+          error: e instanceof Error ? e.message : String(e),
+          status: "Relink failed",
+        });
+      }
+      return;
     }
     const picked = await pickRelinkMediaFile({
       host: pickerHost,
@@ -410,6 +427,7 @@ export function App() {
   const applyOpenedText = async (text: string, status: string): Promise<boolean> => {
     if (!confirmOpenProject(sessionRef.current)) return false;
     const opened = openSerialized(sessionRef.current, text);
+    await allowMediaSourcePaths(sourcePathsOfAssets(opened.project.assets));
     const hydrated = await hydrateRuntime(opened);
     setSession({ ...hydrated, status, error: null });
     return true;
@@ -1175,16 +1193,25 @@ export function App() {
 
   const openProjectPanel = () => setProjectPanelOpen(true);
   const closeProjectPanel = () => setProjectPanelOpen(false);
+  const toggleProjectPanel = () => setProjectPanelOpen((open) => !open);
 
-  const onToolbarSave = () => {
-    openProjectPanel();
-  };
-  const onToolbarOpen = () => {
-    openProjectPanel();
-  };
-  const onToolbarOpenLast = () => {
-    openProjectPanel();
-    openLast();
+  const startImport = () => {
+    void (async () => {
+      if (isTauriRuntime()) {
+        try {
+          const files = await pickTauriMediaFiles({ multiple: true });
+          if (files?.length) setSession(await importFiles(sessionRef.current, files));
+        } catch (e) {
+          setSession((s) => ({
+            ...s,
+            error: e instanceof Error ? e.message : String(e),
+            status: "Import failed",
+          }));
+        }
+        return;
+      }
+      document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click();
+    })();
   };
 
   const onLoopCommit = () => {
@@ -1206,14 +1233,9 @@ export function App() {
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
-        onNew={() => setSession(confirmNewProject(session))}
-        onSave={onToolbarSave}
-        onOpen={onToolbarOpen}
-        onOpenLast={onToolbarOpenLast}
-        lastFileName={projectFile.lastFileName}
-        fileSystemAccess={fsa}
-        onOpenFile={(file) => void openProject(file)}
-        onImport={() => document.querySelector<HTMLInputElement>("[data-testid=import-input]")?.click()}
+        onToggleFile={toggleProjectPanel}
+        filePanelOpen={projectPanelOpen}
+        onImport={startImport}
         onMedia={openProjectPanel}
         onExport={runExport}
         onExportWav={runExportWav}
@@ -1224,7 +1246,6 @@ export function App() {
         onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
-        onRevert={() => setSession(confirmRevertToLastSave(session))}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
       />
       <input
@@ -1269,9 +1290,14 @@ export function App() {
             <ProjectFilePanel
               memory={projectFile}
               fileSystemAccess={fsa}
+              projectDirty={isProjectDirty(session)}
+              onNew={() => setSession(confirmNewProject(sessionRef.current))}
               onSave={saveProject}
               onSaveAs={saveProjectAs}
               onOpen={openWithPicker}
+              onOpenFile={(file) => void openProject(file)}
+              onOpenLast={openLast}
+              onRevert={() => setSession(confirmRevertToLastSave(sessionRef.current))}
               onChooseFolder={chooseFolder}
               onOpenRecent={openRecent}
             />
