@@ -1,19 +1,21 @@
 # Aktueller Stand
 
-Datum: 2026-09-06
+Ein Blick. Kein Wunschzettel.
 
-| Frage | Antwort |
+| Feld | Stand |
 | --- | --- |
-| Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
-| Branch lokal | `pr-1` |
-| Branch GitHub | `cursor/visualz-scenes-7f5e` |
-| `main` | alt (`b4d2d81`), nicht bauen |
+| Datum | 2026-09-06 |
+| Ordner | `C:\Users\marti\ResonanceStudio-V5` |
 | Version | 5.0.0 |
-| Start | Exe im Repo-Root nach `npm run tauri:exe` (`AILEXSI Resonance Studio V5.exe`) |
-| File | Ein Button öffnet/schließt das Projekt-Panel; New/Open/Save nur im Panel |
-| Persistenz | `last-project.json` (path, kein FileHandle); Import/Relink in der Exe setzt `sourcePath` |
-| Standalone = Tauri-Exe? | Ja, nach `npm run tauri:exe` (Human baut lokal). |
-| Export | MP4 mit Bild und Ton (H.264 + AAC), am Rechner geprueft |
-| Visualizer | viele Modi + Cues, nicht nur Bars/Orb |
-| Zwei UIs? | Nein. Tab und App-Fenster = gleiche App, ggf. anderes Projekt im Fenster |
-| Naechster Slice | Features aus der Musik (nicht Metronom), auf diesem Branch |
+| Branch | `cursor/visualz-scenes-7f5e` @ `e4af02e` |
+| main nach Merge | dieser Stand (`e4af02e`) — **PR #3 noch offen, nicht gemerged** |
+| Start Dev | `npm run tauri:dev` **oder** `npm run web:dev` / `npm run dev` auf `127.0.0.1:1421` |
+| Start Standalone | `npm run tauri:exe` kopiert nach Repo-Root `AILEXSI Resonance Studio V5.exe`; liegt auch unter `src-tauri\target\release\` |
+| Toolbar | File \| Import \| Export \| Export WAV \| Screens \| Edit — **Media-Button weg** |
+| File | Ein Button → ProjectFilePanel (Projekt + Media-Browser). New/Save/Open/Zuletzt/Revert nur im Panel |
+| Import | lokaler Media-Dialog (Toolbar) |
+| AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
+| Export | H.264 MP4; AAC wenn Probe+Mix+Encode klappen, sonst `audio=none` + Grund; WebM zählt nie als Erfolg |
+| Visualizer | viele Canvas-Modi (2D + projiziertes 3D); Features aus dem Mix, wenn Buffer da ist |
+| Persistenz | `last-project.json` in AppData (Pfad-String); Save/Open in der Exe per Tauri-Dialog; Chrome FSA nur wenn nicht Tauri. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
+| Nächster Slice | Icons committen, damit Builds `icon.ico` nicht neu erzeugen; Solo-Exe-Preview beim Human OK; mergen wenn Human sagt |
