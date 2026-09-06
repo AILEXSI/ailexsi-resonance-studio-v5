@@ -1191,7 +1191,6 @@ export function App() {
     window.addEventListener("pointerup", up);
   };
 
-  const openProjectPanel = () => setProjectPanelOpen(true);
   const closeProjectPanel = () => setProjectPanelOpen(false);
   const toggleProjectPanel = () => setProjectPanelOpen((open) => !open);
 
@@ -1236,7 +1235,6 @@ export function App() {
         onToggleFile={toggleProjectPanel}
         filePanelOpen={projectPanelOpen}
         onImport={startImport}
-        onMedia={openProjectPanel}
         onExport={runExport}
         onExportWav={runExportWav}
         onUndo={() => runCommand({ type: "undo" })}

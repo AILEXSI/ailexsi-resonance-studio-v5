@@ -30,7 +30,6 @@ describe("toolbar File button", () => {
           exporting={false}
           onToggleFile={noop}
           onImport={noop}
-          onMedia={noop}
           onExport={noop}
           onExportWav={noop}
           onUndo={noop}
@@ -46,7 +45,7 @@ describe("toolbar File button", () => {
     const labels = [...(group?.querySelectorAll("button") ?? [])].map((b) => b.textContent?.replace(/\s+/g, " ").trim());
     expect(labels).toContain("File");
     expect(labels).toContain("Import");
-    expect(labels).toContain("Media");
+    expect(labels).not.toContain("Media");
     expect(labels).toContain("Export");
     expect(labels).toContain("Export WAV");
     expect(labels).not.toContain("New");
@@ -60,6 +59,7 @@ describe("toolbar File button", () => {
     expect(group?.querySelector('[data-testid="save-project"]')).toBeNull();
     expect(group?.querySelector('[data-testid="open-input"]')).toBeNull();
     expect(group?.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(group?.querySelector('[data-testid="open-media"]')).toBeNull();
     expect(host.querySelector(".version")?.textContent).toBe("5.0.0");
   });
 

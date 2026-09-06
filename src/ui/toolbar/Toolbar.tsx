@@ -10,7 +10,6 @@ interface Props {
   onToggleFile?: () => void;
   filePanelOpen?: boolean;
   onImport: () => void;
-  onMedia?: () => void;
   onExport: () => void;
   onExportWav?: () => void;
   onUndo: () => void;
@@ -31,7 +30,6 @@ export function Toolbar({
   onToggleFile,
   filePanelOpen = false,
   onImport,
-  onMedia,
   onExport,
   onExportWav,
   onUndo,
@@ -58,9 +56,6 @@ export function Toolbar({
         <div className="toolbar-file-row">
         <button type="button" onClick={onImport}>
           Import
-        </button>
-        <button type="button" data-testid="open-media" onClick={onMedia}>
-          Media
         </button>
         <button
           type="button"
