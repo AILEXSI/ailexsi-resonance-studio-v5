@@ -7,8 +7,8 @@ Ein Blick. Kein Wunschzettel.
 | Datum | 2026-09-06 |
 | Ordner | `C:\Users\marti\ResonanceStudio-V5` |
 | Version | 5.0.0 |
-| Branch | `cursor/visualz-scenes-7f5e` @ `b173085` |
-| main nach Merge | dieser Stand (`b173085`) — **PR #3 noch offen, nicht gemerged** |
+| Branch | `cursor/visualz-scenes-7f5e` @ `53d9d37` |
+| main nach Merge | dieser Stand (`53d9d37`) — **PR #3 noch offen, nicht gemerged** |
 | Start Dev | `npm run tauri:dev` **oder** `npm run web:dev` / `npm run dev` auf `127.0.0.1:1421` |
 | Start Standalone | `npm run tauri:exe` kopiert nach Repo-Root `AILEXSI Resonance Studio V5.exe`; liegt auch unter `src-tauri\target\release\` |
 | Toolbar | File \| Import \| Export \| Export WAV \| Screens \| Edit — **Media-Button weg** |
