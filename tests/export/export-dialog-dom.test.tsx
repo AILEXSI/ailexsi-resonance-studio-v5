@@ -129,10 +129,7 @@ describe("export dialog DOM", () => {
           snap
           exporting
           projectName="Chorus Cut"
-          onNew={noop}
-          onSave={noop}
-          onOpen={noop}
-          onOpenFile={noop}
+          onToggleFile={noop}
           onImport={noop}
           onExport={noop}
           onUndo={noop}

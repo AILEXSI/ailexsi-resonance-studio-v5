@@ -7,15 +7,9 @@ interface Props {
   exporting: boolean;
   screen?: ProductionScreen;
   onSelectScreen?: (screen: ProductionScreen) => void;
-  onNew: () => void;
-  onSave: () => void;
-  onOpen: () => void;
-  onOpenFile: (file: File) => void;
-  onOpenLast?: () => void;
-  lastFileName?: string | null;
-  fileSystemAccess?: boolean;
+  onToggleFile?: () => void;
+  filePanelOpen?: boolean;
   onImport: () => void;
-  onMedia?: () => void;
   onExport: () => void;
   onExportWav?: () => void;
   onUndo: () => void;
@@ -26,7 +20,6 @@ interface Props {
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
   onToggleShortcuts?: () => void;
-  onRevert?: () => void;
 }
 
 export function Toolbar({
@@ -34,15 +27,9 @@ export function Toolbar({
   exporting,
   screen = "arrange",
   onSelectScreen,
-  onNew,
-  onSave,
-  onOpen,
-  onOpenFile,
-  onOpenLast,
-  lastFileName,
-  fileSystemAccess,
+  onToggleFile,
+  filePanelOpen = false,
   onImport,
-  onMedia,
   onExport,
   onExportWav,
   onUndo,
@@ -53,72 +40,22 @@ export function Toolbar({
   onRenameProject,
   projectDirty = false,
   onToggleShortcuts,
-  onRevert,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
       <div className="toolbar-group" data-group="file">
-        <span className="toolbar-label">File</span>
+        <button
+          type="button"
+          data-testid="toolbar-file"
+          aria-pressed={filePanelOpen}
+          aria-expanded={filePanelOpen}
+          onClick={() => onToggleFile?.()}
+        >
+          File
+        </button>
         <div className="toolbar-file-row">
-        <button type="button" onClick={onNew}>
-          New
-        </button>
-        {fileSystemAccess ? (
-          <>
-            <button type="button" data-testid="open-fsa" data-open-project onClick={onOpen}>
-              Open
-            </button>
-            <input
-              type="file"
-              accept=".json,application/json"
-              hidden
-              data-testid="open-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onOpenFile(file);
-                e.target.value = "";
-              }}
-            />
-          </>
-        ) : (
-          <label className="file-btn" data-testid="open-fallback" data-open-project onClick={onOpen}>
-            Open
-            <input
-              type="file"
-              accept=".json,application/json"
-              hidden
-              data-testid="open-input"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onOpenFile(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
-        )}
-        {lastFileName ? (
-          <button
-            type="button"
-            data-testid="open-last"
-            title={lastFileName}
-            onClick={onOpenLast ?? onOpen}
-          >
-            Zuletzt geladen
-          </button>
-        ) : null}
-        <button type="button" data-testid="save-project" onClick={onSave}>
-          Save
-        </button>
-        {projectDirty && onRevert ? (
-          <button type="button" data-testid="revert-project" onClick={onRevert}>
-            Revert
-          </button>
-        ) : null}
         <button type="button" onClick={onImport}>
           Import
-        </button>
-        <button type="button" data-testid="open-media" onClick={onMedia ?? onSave}>
-          Media
         </button>
         <button
           type="button"

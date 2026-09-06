@@ -35,6 +35,14 @@ export const MEDIA_ASSET_DRAG_TYPE = "application/x-resonance-asset-id";
 export const MEDIA_FILE_ACCEPT =
   "audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*";
 
+/** Tauri / WebView2 File.path. Chrome File has no disk path. */
+export function diskPathOfFile(file: File): string | undefined {
+  const raw = (file as File & { path?: unknown }).path;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function classifyFile(file: File): MediaKind {
   const name = file.name.toLowerCase();
   // Known audio containers win over a lying MIME (application/mp4 / video/mp4 on .m4a).
@@ -143,6 +151,7 @@ export function missingAssetFromImport(file: File): MediaAsset {
     durationMs: kind === "image" ? DEFAULT_IMAGE_DURATION_MS : PROBE_FAIL_PLACEHOLDER_MS,
     blobId: id,
     objectUrl: undefined,
+    sourcePath: diskPathOfFile(file),
     missing: true,
   };
 }
@@ -171,6 +180,7 @@ export async function importMediaFile(
     durationMs,
     blobId: id,
     objectUrl,
+    sourcePath: diskPathOfFile(file),
     missing: false,
     width: meta.width,
     height: meta.height,

@@ -26,7 +26,7 @@ describe("Projekt overlay", () => {
     });
   }
 
-  it("is closed by default; Save/Media/Open open it; Esc and Close dismiss; Arrange stays reachable", async () => {
+  it("is closed by default; File toggles it; Esc and Close dismiss; Arrange stays reachable", async () => {
     await mount();
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
     expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeNull();
@@ -34,7 +34,7 @@ describe("Projekt overlay", () => {
     expect(host!.querySelector(".workspace-left")).toBeNull();
 
     await act(async () => {
-      (host!.querySelector("[data-open-project]") as HTMLElement).click();
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
@@ -43,26 +43,26 @@ describe("Projekt overlay", () => {
     );
 
     await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
+
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
 
     await act(async () => {
-      (host!.querySelector('[data-testid="open-media"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="media-browser"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="timeline"]')).toBeTruthy();
-
-    await act(async () => {
-      (host!.querySelector('[data-testid="project-overlay-close"]') as HTMLButtonElement).click();
-    });
-    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
-
-    await act(async () => {
-      (host!.querySelector('[data-testid="save-project"]') as HTMLButtonElement).click();
-    });
-    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
 
     await act(async () => {
       (host!.querySelector('[data-testid="project-overlay-close"]') as HTMLButtonElement).click();

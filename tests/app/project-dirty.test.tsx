@@ -78,19 +78,13 @@ describe("project dirty toolbar (P71)", () => {
             exporting={false}
             projectName="Chorus Cut"
             projectDirty={dirty}
-            onNew={noop}
-            onSave={noop}
-            onOpen={noop}
-            onOpenFile={noop}
+            onToggleFile={noop}
             onImport={noop}
             onExport={noop}
             onUndo={noop}
             onRedo={noop}
             onSplit={noop}
             onToggleSnap={noop}
-            onRevert={() => {
-              reverted += 1;
-            }}
           />,
         );
       });
@@ -103,9 +97,7 @@ describe("project dirty toolbar (P71)", () => {
     const mark = host.querySelector('[data-testid="project-dirty"]');
     expect(mark?.textContent).toBe("*");
     expect(mark?.getAttribute("aria-label")).toBe("Unsaved changes");
-    act(() => {
-      (host!.querySelector('[data-testid="revert-project"]') as HTMLButtonElement).click();
-    });
-    expect(reverted).toBe(1);
+    expect(host.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(reverted).toBe(0);
   });
 });
