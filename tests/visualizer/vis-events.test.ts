@@ -70,8 +70,8 @@ describe("VIS events", () => {
     project.visualizer = {
       ...project.visualizer,
       events: [
-        { id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 }),
-        { id: "ve2", sceneId: "spectrum-bars", startMs: 1000, durationMs: 1000 }),
+        { id: "ve1", sceneId: "pulse-orb", startMs: 0, durationMs: 1000 },
+        { id: "ve2", sceneId: "spectrum-bars", startMs: 1000, durationMs: 1000 },
       ],
     };
     expect(visualizerSceneAt(project, 999)).toBe("pulse-orb");
@@ -114,8 +114,18 @@ describe("VIS events", () => {
     };
     expect(shouldShowVisualizer(p, 100)).toBe(false);
     expect(shouldShowVisualizer(p, 800)).toBe(false);
-    expect(shouldShowVisualizer(p, 2500)).toBe(true);
+    // Gap after the clip: no covering VIS event → black (AUTO). Do not invent overlay.
+    expect(shouldShowVisualizer(p, 2500)).toBe(false);
     expect(visualizerSceneAt(p, 100)).toBe("lita-bloom");
+    p.visualizer = {
+      ...p.visualizer,
+      events: [
+        { id: "ve1", sceneId: "lita-bloom", startMs: 0, durationMs: 500 },
+        { id: "ve2", sceneId: "pulse-orb", startMs: 2000, durationMs: 1000 },
+      ],
+    };
+    expect(shouldShowVisualizer(p, 100)).toBe(false);
+    expect(shouldShowVisualizer(p, 2500)).toBe(true);
   });
 
   it("insert duration stretches to the next event", () => {
