@@ -50,5 +50,5 @@ Zusätzlich: `src-tauri\target\release\`.
 
 Basis: Branch `cursor/visualz-scenes-7f5e`, Version 5.0.0.
 Nicht mergen, nicht auf `main` force-pushen, AUTO-Zeile nicht ändern.
-Nächster Slice: Icons committen (`icon.ico` nicht bei jedem Build neu); mergen nur wenn Human sagt.
+Nächster Slice: Solo-Exe-Preview beim Human; mergen nur wenn Human sagt. `icon.ico` liegt im Repo.
 Last-path, sourcePath, File-Button, Media-weg: **fertig**, nicht als „next“ listen.

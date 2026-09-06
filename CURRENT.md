@@ -18,4 +18,4 @@ Ein Blick. Kein Wunschzettel.
 | Export | H.264 MP4; AAC wenn Probe+Mix+Encode klappen, sonst `audio=none` + Grund; WebM zählt nie als Erfolg |
 | Visualizer | viele Canvas-Modi (2D + projiziertes 3D); Features aus dem Mix, wenn Buffer da ist |
 | Persistenz | `last-project.json` in AppData (Pfad-String); Save/Open in der Exe per Tauri-Dialog; Chrome FSA nur wenn nicht Tauri. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
-| Nächster Slice | Icons committen, damit Builds `icon.ico` nicht neu erzeugen; Solo-Exe-Preview beim Human OK; mergen wenn Human sagt |
+| Nächster Slice | Solo-Exe-Preview beim Human OK; mergen wenn Human sagt |
