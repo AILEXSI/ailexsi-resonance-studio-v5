@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-06. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Branch: `cursor/visualz-scenes-7f5e`. `main` hat diesen Stand **noch nicht** (PR #3 offen). Nicht auf `main` weiterbauen, bis Human mergen lässt.
+Quelle der Wahrheit: Branch `main` @ Merge PR #3 (`e14d7af`). Weiterbauen auf `main`.
 
 ## Start
 
@@ -27,7 +27,7 @@ npm run tauri:exe
 ```
 
 Kopiert die Release-Exe nach Repo-Root: `AILEXSI Resonance Studio V5.exe`.
-Zusätzlich: `src-tauri\target\release\`.
+Zusätzlich: `src-tauri\\target\\release\\`.
 
 ## Toolbar
 
@@ -48,7 +48,7 @@ Zusätzlich: `src-tauri\target\release\`.
 
 ## Fuer Bots
 
-Basis: Branch `cursor/visualz-scenes-7f5e`, Version 5.0.0.
-Nicht mergen, nicht auf `main` force-pushen, AUTO-Zeile nicht ändern.
-Nächster Slice: Solo-Exe-Preview beim Human; mergen nur wenn Human sagt. `icon.ico` liegt im Repo.
-Last-path, sourcePath, File-Button, Media-weg: **fertig**, nicht als „next“ listen.
+Basis: `main` nach PR #3, Version 5.0.0.
+Kein Force-Push auf `main`. AUTO-Zeile nicht ändern.
+Last-path, sourcePath, File-Button, Media-weg, icon.ico: **fertig**.
+Nächster Slice: Exe zu/auf nach Relink+Save (keine missing-Parade), dann nächste Produktkante.
