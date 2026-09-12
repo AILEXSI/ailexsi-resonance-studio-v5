@@ -29,15 +29,9 @@ describe("shortcuts help (P75)", () => {
         root!.render(
           <>
             <Toolbar
-              snap
               exporting={false}
-              onToggleFile={noop}
               onImport={noop}
               onExport={noop}
-              onUndo={noop}
-              onRedo={noop}
-              onSplit={noop}
-              onToggleSnap={noop}
               onToggleShortcuts={() => {
                 open = !open;
                 render();

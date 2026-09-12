@@ -5,7 +5,13 @@ import { App } from "../../src/app/App";
 import { Toolbar } from "../../src/ui/toolbar/Toolbar";
 import "../../src/styles.css";
 
-describe("toolbar File button", () => {
+function topLevelMenuWords(host: HTMLElement): string[] {
+  return [...host.querySelectorAll<HTMLButtonElement>(".menubar > .menu-word, .menubar .menu-root > .menu-word")].map(
+    (b) => b.textContent?.replace(/\s+/g, " ").trim() ?? "",
+  );
+}
+
+describe("toolbar menu (four words)", () => {
   let host: HTMLDivElement | undefined;
   let root: Root | undefined;
 
@@ -18,7 +24,7 @@ describe("toolbar File button", () => {
     root = undefined;
   });
 
-  it("File is one button; New/Open/Save are not in the file group", () => {
+  it("top bar is Datei | Einfügen | Export | Help — no Export WAV / Undo / Redo / Split / Snap", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -26,67 +32,142 @@ describe("toolbar File button", () => {
     act(() => {
       root!.render(
         <Toolbar
-          snap
           exporting={false}
-          onToggleFile={noop}
           onImport={noop}
           onExport={noop}
           onExportWav={noop}
-          onUndo={noop}
-          onRedo={noop}
-          onSplit={noop}
-          onToggleSnap={noop}
         />,
       );
     });
-    const group = host.querySelector("[data-group=file]");
-    expect(group).toBeTruthy();
-    expect(group?.querySelector('[data-testid="toolbar-file"]')?.textContent?.trim()).toBe("File");
-    const labels = [...(group?.querySelectorAll("button") ?? [])].map((b) => b.textContent?.replace(/\s+/g, " ").trim());
-    expect(labels).toContain("File");
-    expect(labels).toContain("Import");
-    expect(labels).not.toContain("Media");
-    expect(labels).toContain("Export");
-    expect(labels).toContain("Export WAV");
-    expect(labels).not.toContain("New");
-    expect(labels).not.toContain("Open");
-    expect(labels).not.toContain("Save");
-    expect(labels).not.toContain("Speichern");
-    expect(labels).not.toContain("Öffnen");
-    expect(labels).not.toContain("Zuletzt");
-    expect(labels).not.toContain("Revert");
-    expect(group?.querySelector('[data-testid="open-fsa"]')).toBeNull();
-    expect(group?.querySelector('[data-testid="save-project"]')).toBeNull();
-    expect(group?.querySelector('[data-testid="open-input"]')).toBeNull();
-    expect(group?.querySelector('[data-testid="revert-project"]')).toBeNull();
-    expect(group?.querySelector('[data-testid="open-media"]')).toBeNull();
+    expect(topLevelMenuWords(host)).toEqual(["Datei", "Einfügen", "Export", "Help"]);
+    const barText = host.querySelector("[data-testid=menubar]")?.textContent ?? "";
+    expect(barText).toMatch(/Datei\s*\|\s*Einfügen\s*\|\s*Export\s*\|\s*Help/);
+    const top = [...host.querySelectorAll<HTMLButtonElement>(".menubar button")].filter(
+      (b) => !b.closest(".menu-panel"),
+    );
+    const topLabels = top.map((b) => b.textContent?.replace(/\s+/g, " ").trim());
+    expect(topLabels).not.toContain("File");
+    expect(topLabels).not.toContain("Import");
+    expect(topLabels).not.toContain("Export WAV");
+    expect(topLabels).not.toContain("Undo");
+    expect(topLabels).not.toContain("Redo");
+    expect(topLabels).not.toContain("Split");
+    expect(topLabels).not.toContain("Snap");
+    expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
     expect(host.querySelector(".version")?.textContent).toBe("5.0.0");
   });
 
-  it("File toggles the project panel; Import stays in the toolbar", async () => {
+  it("Datei dropdown has Neu, Öffnen, Speichern, Speichern unter, Beenden", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const seen: string[] = [];
+    act(() => {
+      root!.render(
+        <Toolbar
+          exporting={false}
+          onNew={() => seen.push("new")}
+          onOpen={() => seen.push("open")}
+          onSave={() => seen.push("save")}
+          onSaveAs={() => seen.push("saveAs")}
+          onQuit={() => seen.push("quit")}
+          onImport={() => seen.push("import")}
+          onExport={() => seen.push("export")}
+        />,
+      );
+    });
+    act(() => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    const menu = host.querySelector('[data-testid="toolbar-file-menu"]');
+    expect(menu).toBeTruthy();
+    const items = [...(menu?.querySelectorAll("button") ?? [])].map((b) => b.textContent?.trim());
+    expect(items).toEqual(["Neu", "Öffnen", "Speichern", "Speichern unter", "Beenden"]);
+    act(() => {
+      (host!.querySelector('[data-testid="menu-save"]') as HTMLButtonElement).click();
+    });
+    expect(seen).toEqual(["save"]);
+    expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
+  });
+
+  it("Einfügen is Import; Export dropdown opens existing MP4 / WAV actions", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const seen: string[] = [];
+    act(() => {
+      root!.render(
+        <Toolbar
+          exporting={false}
+          onImport={() => seen.push("import")}
+          onExport={() => seen.push("mp4")}
+          onExportWav={() => seen.push("wav")}
+        />,
+      );
+    });
+    act(() => {
+      (host!.querySelector('[data-testid="toolbar-import"]') as HTMLButtonElement).click();
+    });
+    expect(seen).toEqual(["import"]);
+
+    act(() => {
+      (host!.querySelector('[data-testid="export-btn"]') as HTMLButtonElement).click();
+    });
+    const exportMenu = host.querySelector('[data-testid="export-btn-menu"]');
+    expect(exportMenu?.querySelector('[data-testid="export-mp4-item"]')?.textContent?.trim()).toBe(
+      "Video (MP4)…",
+    );
+    expect(exportMenu?.querySelector('[data-testid="export-wav-btn"]')?.textContent?.trim()).toBe(
+      "Audio (WAV)…",
+    );
+    act(() => {
+      (host!.querySelector('[data-testid="export-mp4-item"]') as HTMLButtonElement).click();
+    });
+    expect(seen).toEqual(["import", "mp4"]);
+
+    act(() => {
+      (host!.querySelector('[data-testid="export-btn"]') as HTMLButtonElement).click();
+    });
+    act(() => {
+      (host!.querySelector('[data-testid="export-wav-btn"]') as HTMLButtonElement).click();
+    });
+    expect(seen).toEqual(["import", "mp4", "wav"]);
+  });
+
+  it("App wires Datei actions; Datei does not open the project overlay", async () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     await act(async () => {
       root!.render(<App />);
     });
-    const group = host.querySelector("[data-group=file]");
-    expect(group?.querySelector('[data-testid="toolbar-file"]')).toBeTruthy();
-    const groupText = group?.textContent ?? "";
-    expect(groupText).toMatch(/Import/);
-    expect(groupText).not.toMatch(/\bNew\b/);
-    expect(groupText).not.toMatch(/\bOpen\b/);
-    expect(groupText).not.toMatch(/\bSave\b/);
+    expect(topLevelMenuWords(host)).toEqual(["Datei", "Einfügen", "Export", "Help"]);
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
 
     await act(async () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
-    const panel = host.querySelector('[data-testid="project-file-panel"]');
-    expect(panel).toBeTruthy();
-    expect(panel?.querySelector('[data-testid="project-new"]')?.textContent?.trim()).toBe("New");
-    expect(panel?.querySelector('[data-testid="save-project"]')).toBeTruthy();
-    expect(panel?.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
-    expect(panel?.querySelector('[data-testid="open-input"]')).toBeTruthy();
-    expect(group?.contains(panel)).toBe(false);
+    expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
+    expect(host.querySelector('[data-testid="menu-new"]')?.textContent?.trim()).toBe("Neu");
+    expect(host.querySelector('[data-testid="menu-open"]')?.textContent?.trim()).toBe("Öffnen");
+    expect(host.querySelector('[data-testid="menu-save"]')?.textContent?.trim()).toBe("Speichern");
+    expect(host.querySelector('[data-testid="menu-save-as"]')?.textContent?.trim()).toBe("Speichern unter");
+    expect(host.querySelector('[data-testid="menu-quit"]')?.textContent?.trim()).toBe("Beenden");
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="menu-quit"]') as HTMLButtonElement).click();
+    });
+    expect(host.querySelector('[data-testid="status"]')?.textContent).toMatch(/Beenden/);
+
+    const transport = host.querySelector("[data-testid=transport]");
+    expect(transport?.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
+    expect(transport?.querySelector('[data-testid="transport-undo"]')).toBeTruthy();
+    expect(transport?.querySelector('[data-testid="transport-redo"]')).toBeTruthy();
+    const transportTextButtons = [...(transport?.querySelectorAll("button") ?? [])].map((b) =>
+      b.textContent?.replace(/\s+/g, " ").trim(),
+    );
+    expect(transportTextButtons).not.toContain("Undo");
+    expect(transportTextButtons).not.toContain("Redo");
   });
 });

@@ -128,24 +128,72 @@ input[type="range"] { accent-color: var(--accent-2); }
 .status { grid-area: status; }
 
 .toolbar { justify-content: flex-start; align-items: center; gap: 12px; flex-wrap: nowrap; }
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+.menu-root { position: relative; }
+.menu-word,
+.menubar > .menu-word {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 8px;
+}
+.menu-word:hover:not(:disabled),
+.menu-word[aria-expanded="true"] {
+  background: var(--panel-2);
+  border-color: var(--line);
+}
+.menu-sep {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  padding: 0 4px;
+  user-select: none;
+}
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  min-width: 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.menu-panel button {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  min-height: 28px;
+  padding: 6px 10px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 4px;
+}
+.menu-panel button:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--line);
+}
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 6px;
   padding-right: 12px;
   border-right: 1px solid var(--line);
-}
-.toolbar-group[data-group="file"] {
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 6px;
-}
-.toolbar-file-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: nowrap;
 }
 .toolbar-label {
   font-size: 10px;
@@ -492,6 +540,14 @@ body.media-asset-dragging .project-overlay-drawer {
 .transport [data-testid="timecode"]:focus {
   border-color: var(--line);
   outline: none;
+}
+.transport-icon {
+  width: 28px;
+  min-width: 28px;
+  padding: 4px 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
 }
 .transport-marks {
   display: inline-flex;

@@ -1192,7 +1192,6 @@ export function App() {
   };
 
   const closeProjectPanel = () => setProjectPanelOpen(false);
-  const toggleProjectPanel = () => setProjectPanelOpen((open) => !open);
 
   const startImport = () => {
     void (async () => {
@@ -1228,19 +1227,17 @@ export function App() {
   return (
     <div className="app" data-testid="app">
       <Toolbar
-        snap={session.project.snap}
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
-        onToggleFile={toggleProjectPanel}
-        filePanelOpen={projectPanelOpen}
+        onNew={() => setSession(confirmNewProject(sessionRef.current))}
+        onOpen={openWithPicker}
+        onSave={saveProject}
+        onSaveAs={saveProjectAs}
+        onQuit={() => setSession((s) => ({ ...s, status: "Beenden", error: null }))}
         onImport={startImport}
         onExport={runExport}
         onExportWav={runExportWav}
-        onUndo={() => runCommand({ type: "undo" })}
-        onRedo={() => runCommand({ type: "redo" })}
-        onSplit={() => runCommand({ type: "split" })}
-        onToggleSnap={() => setSession(applyToggleSnap(session))}
         onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
@@ -1413,6 +1410,10 @@ export function App() {
         onClear={() => runCommand({ type: "clearInOut" })}
         onMarker={() => runCommand({ type: "addMarker" })}
         onSplit={() => runCommand({ type: "split" })}
+        snap={session.project.snap}
+        onToggleSnap={() => setSession(applyToggleSnap(session))}
+        onUndo={() => runCommand({ type: "undo" })}
+        onRedo={() => runCommand({ type: "redo" })}
         onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
       />
 

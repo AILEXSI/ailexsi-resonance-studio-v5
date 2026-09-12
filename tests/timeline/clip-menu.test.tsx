@@ -176,7 +176,7 @@ describe("clip-menu shortcut labels", () => {
     expect(text).not.toContain("Split is V");
   });
 
-  it("toolbar and transport Split document S", () => {
+  it("transport Split documents S; toolbar has no Split button", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -184,17 +184,7 @@ describe("clip-menu shortcut labels", () => {
     act(() => {
       root!.render(
         <>
-          <Toolbar
-            snap
-            exporting={false}
-            onToggleFile={noopBtn}
-            onImport={noopBtn}
-            onExport={noopBtn}
-            onUndo={noopBtn}
-            onRedo={noopBtn}
-            onSplit={noopBtn}
-            onToggleSnap={noopBtn}
-          />
+          <Toolbar exporting={false} onImport={noopBtn} onExport={noopBtn} />
           <Transport
             project={createEmptyProject()}
             playing={false}
@@ -212,10 +202,14 @@ describe("clip-menu shortcut labels", () => {
         </>,
       );
     });
+    const toolbarSplits = [...(host.querySelector("[data-testid=toolbar]")?.querySelectorAll("button") ?? [])].filter(
+      (b) => (b.textContent ?? "").includes("Split"),
+    );
+    expect(toolbarSplits).toHaveLength(0);
     const splits = [...host.querySelectorAll("button")].filter((b) =>
       (b.textContent ?? "").includes("Split"),
     );
-    expect(splits.length).toBeGreaterThanOrEqual(2);
+    expect(splits.length).toBe(1);
     for (const btn of splits) {
       expect(btn.getAttribute("title")).toBe("Split (S)");
       expect(btn.querySelector("kbd")?.textContent).toBe("S");
