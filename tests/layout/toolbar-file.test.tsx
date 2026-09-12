@@ -197,4 +197,62 @@ describe("toolbar menu (four words)", () => {
     delete w.showSaveFilePicker;
     delete w.showOpenFilePicker;
   });
+
+  it("Speichern unter always invokes the save-as picker; Speichern may overwrite", async () => {
+    const saved: string[] = [];
+    const w = window as unknown as {
+      showSaveFilePicker?: (opts: { suggestedName?: string }) => Promise<{
+        name: string;
+        queryPermission: () => Promise<"granted">;
+        createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }>;
+      }>;
+      showOpenFilePicker?: () => Promise<Array<{ name: string; getFile: () => Promise<File> }>>;
+    };
+    w.showSaveFilePicker = async (opts) => {
+      saved.push(opts.suggestedName ?? "save");
+      return {
+        name: saved.length === 1 ? "cut.resonance.json" : "renamed.resonance.json",
+        queryPermission: async () => "granted",
+        createWritable: async () => ({
+          write: async () => {},
+          close: async () => {},
+        }),
+      };
+    };
+    w.showOpenFilePicker = async () => [];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(<App />);
+    });
+
+    const openOverlay = async () => {
+      if (host!.querySelector('[data-testid="project-file-panel"]')) return;
+      await act(async () => {
+        (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+      });
+    };
+
+    await openOverlay();
+    await act(async () => {
+      (host!.querySelector('[data-testid="save-project"]') as HTMLButtonElement).click();
+    });
+    expect(saved).toHaveLength(1);
+
+    await openOverlay();
+    await act(async () => {
+      (host!.querySelector('[data-testid="save-project"]') as HTMLButtonElement).click();
+    });
+    expect(saved).toHaveLength(1);
+
+    await openOverlay();
+    await act(async () => {
+      (host!.querySelector('[data-testid="project-save-as"]') as HTMLButtonElement).click();
+    });
+    expect(saved).toHaveLength(2);
+
+    delete w.showSaveFilePicker;
+    delete w.showOpenFilePicker;
+  });
 });

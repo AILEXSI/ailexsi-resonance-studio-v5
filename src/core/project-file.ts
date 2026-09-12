@@ -405,6 +405,45 @@ export async function tryReadGrantedFile(
   }
 }
 
+async function writeSavedHandle(opts: {
+  host: PickerHost;
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+  filename: string;
+  json: string;
+  fallbackDownload: (filename: string, text: string) => void;
+  handle: FileHandleLike;
+}): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
+  if (!opts.handle.createWritable) {
+    opts.fallbackDownload(opts.handle.name || opts.filename, opts.json);
+    return {
+      status: saveStatusFallback(opts.handle.name || opts.filename),
+      memory: opts.memory,
+      usedFallback: true,
+    };
+  }
+  const writable = await opts.handle.createWritable();
+  await writable.write(opts.json);
+  await writable.close();
+  const memory = await rememberFileHandle(opts.store, opts.handle, opts.memory);
+  return { status: saveStatusFsa(opts.handle.name), memory, usedFallback: false };
+}
+
+async function pickSaveHandle(
+  host: PickerHost,
+  filename: string,
+  memory: ProjectFileMemory,
+): Promise<{ handle?: FileHandleLike; cancelled?: boolean }> {
+  if (!host.showSaveFilePicker) return {};
+  try {
+    return { handle: await host.showSaveFilePicker(savePickerOptions(filename, memory)) };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "AbortError") return { cancelled: true };
+    throw e;
+  }
+}
+
 export async function runSave(opts: {
   host: PickerHost;
   store: ProjectFileStore;
@@ -425,32 +464,19 @@ export async function runSave(opts: {
   let handle = opts.memory.fileHandle;
   const canWrite = handle ? await queryGranted(handle, "readwrite") : false;
   if (!handle || !canWrite || typeof handle.createWritable !== "function") {
-    try {
-      handle = await opts.host.showSaveFilePicker(savePickerOptions(opts.filename, opts.memory));
-    } catch (e) {
-      const name = e instanceof Error ? e.name : "";
-      if (name === "AbortError") {
-        return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
-      }
-      throw e;
+    const picked = await pickSaveHandle(opts.host, opts.filename, opts.memory);
+    if (picked.cancelled) {
+      return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
     }
+    if (!picked.handle) {
+      return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
+    }
+    handle = picked.handle;
   }
-  if (!handle.createWritable) {
-    opts.fallbackDownload(handle.name || opts.filename, opts.json);
-    return {
-      status: saveStatusFallback(handle.name || opts.filename),
-      memory: opts.memory,
-      usedFallback: true,
-    };
-  }
-  const writable = await handle.createWritable();
-  await writable.write(opts.json);
-  await writable.close();
-  const memory = await rememberFileHandle(opts.store, handle, opts.memory);
-  return { status: saveStatusFsa(handle.name), memory, usedFallback: false };
+  return writeSavedHandle({ ...opts, handle });
 }
 
-/** Always open the save picker (Speichern unter). startIn is the last folder. */
+/** Always open the save picker (Speichern unter). Never reuse the last file handle. */
 export async function runSaveAs(opts: {
   host: PickerHost;
   store: ProjectFileStore;
@@ -459,10 +485,19 @@ export async function runSaveAs(opts: {
   json: string;
   fallbackDownload: (filename: string, text: string) => void;
 }): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
-  return runSave({
-    ...opts,
-    memory: { ...normalizeProjectFileMemory(opts.memory), fileHandle: null },
-  });
+  if (typeof opts.host.showSaveFilePicker !== "function") {
+    opts.fallbackDownload(opts.filename, opts.json);
+    return {
+      status: saveStatusFallback(opts.filename),
+      memory: { ...opts.memory, lastFileName: opts.filename },
+      usedFallback: true,
+    };
+  }
+  const picked = await pickSaveHandle(opts.host, opts.filename, opts.memory);
+  if (picked.cancelled || !picked.handle) {
+    return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
+  }
+  return writeSavedHandle({ ...opts, handle: picked.handle });
 }
 
 export async function runChooseFolder(opts: {

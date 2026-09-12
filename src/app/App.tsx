@@ -433,9 +433,7 @@ export function App() {
     return true;
   };
 
-  const persistSave = (
-    runner: typeof runSave | typeof runSaveAs,
-  ) => {
+  const persistSave = (mode: "save" | "saveAs") => {
     const snapshot = sessionRef.current;
     const applySaved = (result: {
       status: string;
@@ -472,7 +470,7 @@ export function App() {
             json: projectJson(snapshot),
             filename: projectFilename(snapshot.project),
             lastPath: lastPathRef.current,
-            forcePicker: runner === runSaveAs,
+            forcePicker: mode === "saveAs",
           });
           if ("cancelled" in result) return;
           applySaved({ status: result.status, path: result.path, name: result.name });
@@ -482,19 +480,21 @@ export function App() {
       })();
       return;
     }
-    // Start the existing FSA runner in this turn so showSaveFilePicker keeps the click gesture.
-    void runner({
+    // Start the FSA runner in this turn so showSaveFilePicker keeps the click gesture.
+    // Speichern unter always uses runSaveAs — never the overwrite path.
+    const payload = {
       host: pickerHost,
       store: projectFileStore,
       memory: projectFileRef.current,
       filename: projectFilename(snapshot.project),
       json: projectJson(snapshot),
       fallbackDownload: downloadText,
-    }).then(applySaved).catch(fail);
+    };
+    void (mode === "saveAs" ? runSaveAs(payload) : runSave(payload)).then(applySaved).catch(fail);
   };
 
-  const saveProject = () => persistSave(runSave);
-  const saveProjectAs = () => persistSave(runSaveAs);
+  const saveProject = () => persistSave("save");
+  const saveProjectAs = () => persistSave("saveAs");
   saveProjectRef.current = saveProject;
   saveProjectAsRef.current = saveProjectAs;
 
