@@ -480,10 +480,10 @@ export function App() {
       })();
       return;
     }
-    // Start the FSA runner in this turn so showSaveFilePicker keeps the click gesture.
-    // Speichern unter always uses runSaveAs — never the overwrite path.
+    // Resolve window.showSaveFilePicker on this click (not a render-time snapshot).
+    // First await inside runSaveAs is the picker so the user gesture stays valid.
     const payload = {
-      host: pickerHost,
+      host: browserPickerHost(),
       store: projectFileStore,
       memory: projectFileRef.current,
       filename: projectFilename(snapshot.project),
