@@ -547,10 +547,10 @@ describe("applyCommand determinism", () => {
   });
 
   it("cut removes the selected group; one undo restores them", () => {
-    const selected = applyCommand(twoClipSession(), { type: "select", clipId: "c3", toggle: true });
+    const selected = applyCommand(twoClipSession(), { type: "select", clipId: "c2", toggle: true });
     const start = twoClipSession();
     const cut = applyCommand(selected, { type: "cut" });
-    expect(cut.project.clips.map((c) => c.id)).toEqual(["c2"]);
+    expect(cut.project.clips.map((c) => c.id)).toEqual(["c3"]);
     expect(cut.clipboard).toHaveLength(2);
     expect(cut.selectedClipId).toBeNull();
     expect(cut.status).toBe("Cut clips");

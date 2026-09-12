@@ -55,6 +55,11 @@ describe("toolbar menu (four words)", () => {
     expect(topLabels).not.toContain("Snap");
     expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
     expect(host.querySelector(".version")?.textContent).toBe("5.0.0");
+    const datei = host.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement;
+    const chip = getComputedStyle(datei);
+    expect(chip.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(chip.borderStyle).not.toBe("none");
+    expect(datei.classList.contains("menu-word")).toBe(true);
   });
 
   it("Datei dropdown has Neu, Öffnen, Speichern, Speichern unter, Beenden", () => {
@@ -169,5 +174,61 @@ describe("toolbar menu (four words)", () => {
     );
     expect(transportTextButtons).not.toContain("Undo");
     expect(transportTextButtons).not.toContain("Redo");
+  });
+
+  it("Datei Speichern / Öffnen call the existing FSA pickers", async () => {
+    const saved: string[] = [];
+    const opened: string[] = [];
+    const w = window as unknown as {
+      showSaveFilePicker?: (opts: { suggestedName?: string }) => Promise<{
+        name: string;
+        createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }>;
+      }>;
+      showOpenFilePicker?: () => Promise<
+        Array<{ name: string; getFile: () => Promise<File> }>
+      >;
+    };
+    w.showSaveFilePicker = async (opts) => {
+      saved.push(opts.suggestedName ?? "save");
+      return {
+        name: "cut.resonance.json",
+        createWritable: async () => ({
+          write: async () => {},
+          close: async () => {},
+        }),
+      };
+    };
+    w.showOpenFilePicker = async () => {
+      opened.push("open");
+      return [
+        {
+          name: "cut.resonance.json",
+          getFile: async () => new File([`{"name":"cut"}`], "cut.resonance.json", { type: "application/json" }),
+        },
+      ];
+    };
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(<App />);
+    });
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (host!.querySelector('[data-testid="menu-save"]') as HTMLButtonElement).click();
+    });
+    expect(saved.length).toBe(1);
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (host!.querySelector('[data-testid="menu-open"]') as HTMLButtonElement).click();
+    });
+    expect(opened).toEqual(["open"]);
+    delete w.showSaveFilePicker;
+    delete w.showOpenFilePicker;
   });
 });

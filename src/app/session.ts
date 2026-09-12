@@ -603,12 +603,28 @@ export function applyRoll(
   return withHistory(session, result.project, "Rolled edit");
 }
 
+/** Last selected clip’s track, else mixer/bin `targetTrackId`. */
+function activeEditTrackId(session: Session): TrackId {
+  const primary = session.selectedClipId
+    ? clipById(session.project, session.selectedClipId)
+    : undefined;
+  return primary?.trackId ?? session.targetTrackId;
+}
+
 export function applySplit(session: Session): Session {
+  if (visEventFocused(session)) {
+    return { ...session, status: "Split", error: null };
+  }
+  const trackId = activeEditTrackId(session);
   const ids = selectionOf(session);
-  const result =
-    ids.length >= 2
-      ? splitAtPlayhead(session.project, undefined, ids)
-      : splitAtPlayhead(session.project);
+  const allow = session.project.clips
+    .filter((c) => {
+      if (c.trackId !== trackId) return false;
+      if (ids.length >= 2 && !ids.includes(c.id)) return false;
+      return true;
+    })
+    .map((c) => c.id);
+  const result = splitAtPlayhead(session.project, undefined, allow, { includeLinkedMate: false });
   if (result.error) return { ...session, error: result.error, status: "Split rejected" };
   return withHistory(session, result.project, "Split at playhead");
 }
@@ -754,7 +770,7 @@ export function applyCopy(session: Session): Session {
   };
 }
 
-/** Copy then lift-delete the selection. One history entry. */
+/** Copy then lift-delete the selection on the active track only. One history entry. */
 export function applyCut(session: Session): Session {
   const vis = selectedVisEvent(session);
   if (vis) {
@@ -766,17 +782,32 @@ export function applyCut(session: Session): Session {
       selectedVis: true,
     };
   }
-  const ids = selectionOf(session);
-  const copied = applyCopy(session);
-  if (copied.error || copied.clipboard.length === 0) {
-    return { ...session, error: copied.error ?? "No clip selected to cut" };
+  if (visEventFocused(session)) {
+    return { ...session, error: "No clip selected to cut" };
   }
-  const next = deleteClips(session.project, ids);
+  const trackId = activeEditTrackId(session);
+  const ids = selectionOf(session).filter((id) => clipById(session.project, id)?.trackId === trackId);
+  const clips = ids
+    .map((id) => clipById(session.project, id))
+    .filter((c): c is Clip => c != null && !clipIsLocked(c));
+  if (clips.length === 0) return { ...session, error: "No clip selected to cut" };
+  const copied: Session = {
+    ...session,
+    clipboard: clips.map((c) => ({ ...c })),
+    lastClipboardKind: "clip",
+    status: clips.length > 1 ? "Copied clips" : "Copied clip",
+    error: null,
+  };
+  const next = deleteClips(
+    session.project,
+    clips.map((c) => c.id),
+    { includeLinkedMate: false },
+  );
   return withClipSelection(
     withHistory(
       { ...copied, project: session.project },
       next,
-      ids.length > 1 ? "Cut clips" : "Cut clip",
+      clips.length > 1 ? "Cut clips" : "Cut clip",
     ),
     [],
   );

@@ -436,10 +436,38 @@ export function App() {
   const persistSave = (
     runner: typeof runSave | typeof runSaveAs,
   ) => {
-    void (async () => {
-      const snapshot = sessionRef.current;
-      try {
-        if (isTauriRuntime()) {
+    const snapshot = sessionRef.current;
+    const applySaved = (result: {
+      status: string;
+      memory?: ProjectFileMemory;
+      usedFallback?: boolean;
+      cancelled?: boolean;
+      path?: string;
+      name?: string;
+    }) => {
+      if (result.cancelled) return;
+      if (result.path) lastPathRef.current = result.path;
+      if (result.memory) setProjectFile(result.memory);
+      else if (result.name) setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+      if (!result.usedFallback) setProjectPanelOpen(false);
+      setSession((s) => {
+        const sameStack =
+          s.history.past.length === snapshot.history.past.length &&
+          s.history.future.length === snapshot.history.future.length;
+        const next = sameStack ? markProjectClean(s) : s;
+        return { ...next, status: result.status, error: null };
+      });
+    };
+    const fail = (e: unknown) => {
+      setSession((s) => ({
+        ...s,
+        error: e instanceof Error ? e.message : String(e),
+        status: "Save failed",
+      }));
+    };
+    if (isTauriRuntime()) {
+      void (async () => {
+        try {
           const result = await tauriSaveProject(await tauriFs(), {
             json: projectJson(snapshot),
             filename: projectFilename(snapshot.project),
@@ -447,44 +475,22 @@ export function App() {
             forcePicker: runner === runSaveAs,
           });
           if ("cancelled" in result) return;
-          lastPathRef.current = result.path;
-          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
-          setProjectPanelOpen(false);
-          setSession((s) => {
-            const sameStack =
-              s.history.past.length === snapshot.history.past.length &&
-              s.history.future.length === snapshot.history.future.length;
-            const next = sameStack ? markProjectClean(s) : s;
-            return { ...next, status: result.status, error: null };
-          });
-          return;
+          applySaved({ status: result.status, path: result.path, name: result.name });
+        } catch (e) {
+          fail(e);
         }
-        const result = await runner({
-          host: pickerHost,
-          store: projectFileStore,
-          memory: projectFileRef.current,
-          filename: projectFilename(snapshot.project),
-          json: projectJson(snapshot),
-          fallbackDownload: downloadText,
-        });
-        if (result.cancelled) return;
-        setProjectFile(result.memory);
-        if (!result.usedFallback) setProjectPanelOpen(false);
-        setSession((s) => {
-          const sameStack =
-            s.history.past.length === snapshot.history.past.length &&
-            s.history.future.length === snapshot.history.future.length;
-          const next = sameStack ? markProjectClean(s) : s;
-          return { ...next, status: result.status, error: null };
-        });
-      } catch (e) {
-        setSession((s) => ({
-          ...s,
-          error: e instanceof Error ? e.message : String(e),
-          status: "Save failed",
-        }));
-      }
-    })();
+      })();
+      return;
+    }
+    // Start the existing FSA runner in this turn so showSaveFilePicker keeps the click gesture.
+    void runner({
+      host: pickerHost,
+      store: projectFileStore,
+      memory: projectFileRef.current,
+      filename: projectFilename(snapshot.project),
+      json: projectJson(snapshot),
+      fallbackDownload: downloadText,
+    }).then(applySaved).catch(fail);
   };
 
   const saveProject = () => persistSave(runSave);
@@ -1242,6 +1248,17 @@ export function App() {
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
+      />
+      <input
+        type="file"
+        accept=".json,application/json"
+        hidden
+        data-testid="open-input"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void openProject(file);
+        }}
       />
       <input
         type="file"

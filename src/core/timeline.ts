@@ -489,8 +489,14 @@ function dropClipsAndOrphanLinks(project: Project, dropIds: ReadonlySet<string>)
   };
 }
 
-export function deleteClips(project: Project, clipIds: readonly string[]): Project {
-  const drop = new Set(expandDeletableClipIds(project, clipIds));
+export function deleteClips(
+  project: Project,
+  clipIds: readonly string[],
+  opts?: { includeLinkedMate?: boolean },
+): Project {
+  const drop = new Set(
+    opts?.includeLinkedMate === false ? clipIds.filter(Boolean) : expandDeletableClipIds(project, clipIds),
+  );
   if (drop.size === 0) return project;
   return dropClipsAndOrphanLinks(project, drop);
 }
@@ -668,15 +674,17 @@ export function splitClipAt(
   clipId: string,
   timeMs: number,
   edgeGuardMs = SPLIT_EDGE_GUARD_MS,
+  opts?: { includeLinkedMate?: boolean },
 ): { project: Project; leftId?: string; rightId?: string; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
   if (clipIsLocked(clip)) return { project, error: "Clip is locked" };
   const first = splitOneClip(clip, timeMs, edgeGuardMs);
   if ("error" in first) return { project, error: first.error };
+  const forceSolo = opts?.includeLinkedMate === false;
   const mate = livingLinkedMate(project, clipId);
-  const liveMate = editableLinkedMate(project, clipId);
-  const skipParkedMate = Boolean(mate && !liveMate);
+  const liveMate = forceSolo ? undefined : editableLinkedMate(project, clipId);
+  const skipParkedMate = forceSolo || Boolean(mate && !liveMate);
   let mateParts: { left: Clip; right: Clip } | undefined;
   if (liveMate) {
     const second = splitOneClip(liveMate, timeMs, edgeGuardMs);
@@ -693,7 +701,7 @@ export function splitClipAt(
   const mateLeft = mateParts?.left;
   const mateRight =
     mateParts && rightLink ? { ...mateParts.right, linkId: rightLink } : mateParts?.right;
-  const parkedMateId = skipParkedMate ? mate!.id : undefined;
+  const parkedMateId = skipParkedMate ? mate?.id : undefined;
 
   return {
     project: {
@@ -715,6 +723,7 @@ export function splitAtPlayhead(
   project: Project,
   edgeGuardMs = SPLIT_EDGE_GUARD_MS,
   onlyClipIds?: readonly string[],
+  opts?: { includeLinkedMate?: boolean },
 ): { project: Project; error?: string } {
   const allow = onlyClipIds ? new Set(onlyClipIds) : null;
   const hits = project.clips.filter(
@@ -734,7 +743,7 @@ export function splitAtPlayhead(
   let lastError: string | undefined;
   let splitAny = false;
   for (const clip of hits) {
-    const result = splitClipAt(next, clip.id, next.playheadMs, edgeGuardMs);
+    const result = splitClipAt(next, clip.id, next.playheadMs, edgeGuardMs, opts);
     if (result.error) lastError = result.error;
     else {
       next = result.project;

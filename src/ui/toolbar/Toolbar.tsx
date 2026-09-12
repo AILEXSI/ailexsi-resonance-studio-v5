@@ -43,7 +43,7 @@ function Menu({
     <div className="menu-root" data-menu={menuId}>
       <button
         type="button"
-        className="menu-word"
+        className={open ? "menu-word active" : "menu-word"}
         data-testid={testId}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -100,9 +100,10 @@ export function Toolbar({
 
   const close = () => setOpenMenu(null);
   const toggle = (id: Exclude<OpenMenu, null>) => setOpenMenu((cur) => (cur === id ? null : id));
+  /** Existing save/open handlers first so Chrome keeps the click for showSaveFilePicker. */
   const run = (fn?: () => void) => {
-    close();
     fn?.();
+    close();
   };
 
   return (
