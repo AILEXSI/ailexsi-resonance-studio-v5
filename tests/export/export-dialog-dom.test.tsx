@@ -126,18 +126,25 @@ describe("export dialog DOM", () => {
     act(() => {
       root!.render(
         <Toolbar
+          snap
           exporting
           projectName="Chorus Cut"
+          onToggleFile={noop}
           onImport={noop}
           onExport={noop}
-          onExportWav={noop}
+          onUndo={noop}
+          onRedo={noop}
+          onSplit={noop}
+          onToggleSnap={noop}
         />,
       );
     });
     const btn = host.querySelector('[data-testid="export-btn"]') as HTMLButtonElement;
     expect(btn.textContent?.trim()).toBe("Export");
     expect(btn.disabled).toBe(true);
-    expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
+    const wav = host.querySelector('[data-testid="export-wav-btn"]') as HTMLButtonElement;
+    expect(wav.textContent?.trim()).toBe("Export WAV");
+    expect(wav.disabled).toBe(true);
     const title = host.querySelector('[data-testid="project-name"]') as HTMLInputElement;
     expect(title.value).toBe("Chorus Cut");
   });

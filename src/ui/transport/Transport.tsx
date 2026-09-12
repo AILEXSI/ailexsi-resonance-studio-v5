@@ -18,39 +18,11 @@ interface Props {
   onMarker: () => void;
   onSplit: () => void;
   onSeek?: (ms: number) => void;
-  snap?: boolean;
-  onToggleSnap?: () => void;
-  onUndo?: () => void;
-  onRedo?: () => void;
 }
 
 export function Transport(props: Props) {
   return (
     <div className="transport" data-testid="transport">
-      {props.onUndo ? (
-        <button
-          type="button"
-          className="transport-icon"
-          data-testid="transport-undo"
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
-          onClick={props.onUndo}
-        >
-          ↩
-        </button>
-      ) : null}
-      {props.onRedo ? (
-        <button
-          type="button"
-          className="transport-icon"
-          data-testid="transport-redo"
-          title="Redo (Ctrl+Y)"
-          aria-label="Redo"
-          onClick={props.onRedo}
-        >
-          ↪
-        </button>
-      ) : null}
       <button type="button" onClick={props.onPlay} disabled={props.playing}>
         Play
       </button>
@@ -96,17 +68,6 @@ export function Transport(props: Props) {
         Split
         <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
       </button>
-      {props.onToggleSnap ? (
-        <button
-          type="button"
-          className={props.snap ? "active" : ""}
-          data-testid="transport-snap"
-          aria-pressed={props.snap === true}
-          onClick={props.onToggleSnap}
-        >
-          Snap
-        </button>
-      ) : null}
       <TimecodeField playheadMs={props.project.playheadMs} onSeek={props.onSeek} />
       <span className="transport-marks">
         <button

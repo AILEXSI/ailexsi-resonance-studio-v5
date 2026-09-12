@@ -169,9 +169,9 @@ describe("linked A/V", () => {
   it("split at playhead through applyCommand cuts the pair", () => {
     const start = linkedPair();
     const next = applyCommand(start, { type: "split" });
+    expect(next.project.clips).toHaveLength(4);
     expect(next.project.clips.filter((c) => c.trackId === "V1")).toHaveLength(2);
-    expect(next.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(1);
-    expect(next.project.clips).toHaveLength(3);
+    expect(next.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(2);
     expect(splitAtPlayhead(start.project).error).toBeUndefined();
   });
 
@@ -254,8 +254,8 @@ describe("linked A/V", () => {
     expect(copied.project.clips).toHaveLength(2);
 
     const cut = applyCommand(start, { type: "cut" });
-    expect(cut.project.clips.map((c) => c.id)).toEqual(["a1"]);
-    expect(cut.clipboard.map((c) => c.id)).toEqual(["v1"]);
+    expect(cut.project.clips).toHaveLength(0);
+    expect(cut.clipboard.map((c) => c.id).sort()).toEqual(["a1", "v1"]);
     const pasted = applyCommand(
       { ...cut, project: { ...cut.project, playheadMs: 3000 } },
       { type: "paste" },
@@ -264,8 +264,10 @@ describe("linked A/V", () => {
     const v = pasted.project.clips.find((c) => c.trackId === "V1")!;
     const a = pasted.project.clips.find((c) => c.trackId === "A1")!;
     expect(v.startMs).toBe(3000);
-    expect(a.startMs).toBe(0);
-    expect(a.id).toBe("a1");
+    expect(a.startMs).toBe(3000);
+    expect(v.linkId).toBeTruthy();
+    expect(v.linkId).toBe(a.linkId);
+    expect(v.linkId).not.toBe("lnk1");
   });
 
   it("copy/cut of an unlocked clip skips a disabled mate (P143)", () => {

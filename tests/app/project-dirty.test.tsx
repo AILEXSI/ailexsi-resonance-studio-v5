@@ -74,11 +74,17 @@ describe("project dirty toolbar (P71)", () => {
       act(() => {
         root!.render(
           <Toolbar
+            snap
             exporting={false}
             projectName="Chorus Cut"
             projectDirty={dirty}
+            onToggleFile={noop}
             onImport={noop}
             onExport={noop}
+            onUndo={noop}
+            onRedo={noop}
+            onSplit={noop}
+            onToggleSnap={noop}
           />,
         );
       });

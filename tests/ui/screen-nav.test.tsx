@@ -35,8 +35,7 @@ describe("ScreenNav click + TAB", () => {
     expect(toolbar?.contains(nav)).toBe(true);
     expect(host.querySelector("[data-testid=stage]")?.contains(nav)).toBe(false);
     expect(host.querySelector(".app > .screen-nav")).toBeNull();
-    expect(toolbar?.contains(nav)).toBe(true);
-    expect(toolbar?.querySelector("[data-testid=menubar]")?.contains(nav)).toBe(false);
+    expect(toolbar?.querySelector(".toolbar-file-row")?.contains(nav)).toBe(true);
     expect(host.querySelector("[data-testid=cutter]")).toBeNull();
     expect(host.querySelector("[data-testid=timeline]")).toBeTruthy();
     expect(host.querySelector("[data-testid=preview]")).toBeTruthy();

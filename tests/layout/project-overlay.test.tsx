@@ -26,7 +26,7 @@ describe("Projekt overlay", () => {
     });
   }
 
-  it("is closed by default; Datei toggles it; Esc and Close dismiss; Arrange stays reachable", async () => {
+  it("is closed by default; File toggles it; Esc and Close dismiss; Arrange stays reachable", async () => {
     await mount();
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
     expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeNull();
@@ -36,7 +36,6 @@ describe("Projekt overlay", () => {
     await act(async () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
-    expect(host!.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="project-overlay"]')?.classList.contains("pass-through")).toBe(

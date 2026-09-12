@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import type { ProductionScreen } from "../../app/screens";
 import { ScreenNav } from "../screens/ScreenNav";
+import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 
 interface Props {
+  snap: boolean;
   exporting: boolean;
   screen?: ProductionScreen;
   onSelectScreen?: (screen: ProductionScreen) => void;
@@ -11,65 +12,18 @@ interface Props {
   onImport: () => void;
   onExport: () => void;
   onExportWav?: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onSplit: () => void;
+  onToggleSnap: () => void;
   projectName?: string;
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
   onToggleShortcuts?: () => void;
 }
 
-function ExportMenu({
-  open,
-  disabled,
-  onToggle,
-  onExport,
-  onExportWav,
-}: {
-  open: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
-  onExport: () => void;
-  onExportWav?: () => void;
-}) {
-  return (
-    <div className="menu-root" data-menu="export">
-      <button
-        type="button"
-        className={open ? "menu-word active" : "menu-word"}
-        data-testid="export-btn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={onToggle}
-      >
-        Export
-      </button>
-      {open ? (
-        <div className="menu-panel" role="menu" data-testid="export-btn-menu">
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="export-mp4-item"
-            disabled={disabled}
-            onClick={onExport}
-          >
-            Video (MP4)…
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="export-wav-btn"
-            disabled={disabled}
-            onClick={onExportWav}
-          >
-            Audio (WAV)…
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function Toolbar({
+  snap,
   exporting,
   screen = "arrange",
   onSelectScreen,
@@ -78,79 +32,76 @@ export function Toolbar({
   onImport,
   onExport,
   onExportWav,
+  onUndo,
+  onRedo,
+  onSplit,
+  onToggleSnap,
   projectName = "Untitled Resonance",
   onRenameProject,
   projectDirty = false,
   onToggleShortcuts,
 }: Props) {
-  const [exportOpen, setExportOpen] = useState(false);
-  const barRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    if (!exportOpen) return;
-    const onDoc = (e: PointerEvent) => {
-      if (barRef.current?.contains(e.target as Node)) return;
-      setExportOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExportOpen(false);
-    };
-    document.addEventListener("pointerdown", onDoc);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDoc);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [exportOpen]);
-
-  const runExport = (fn?: () => void) => {
-    fn?.();
-    setExportOpen(false);
-  };
-
   return (
-    <header className="toolbar" data-testid="toolbar" ref={barRef}>
-      <nav className="menubar" data-testid="menubar" aria-label="Menü">
+    <header className="toolbar" data-testid="toolbar">
+      <div className="toolbar-group" data-group="file">
         <button
           type="button"
-          className={filePanelOpen ? "menu-word active" : "menu-word"}
           data-testid="toolbar-file"
           aria-pressed={filePanelOpen}
           aria-expanded={filePanelOpen}
           onClick={() => onToggleFile?.()}
         >
-          Datei
+          File
         </button>
-        <span className="menu-sep" aria-hidden="true">
-          |
-        </span>
-        <button type="button" className="menu-word" data-testid="toolbar-import" onClick={onImport}>
-          Einfügen
+        <div className="toolbar-file-row">
+        <button type="button" onClick={onImport}>
+          Import
         </button>
-        <span className="menu-sep" aria-hidden="true">
-          |
-        </span>
-        <ExportMenu
-          open={exportOpen}
-          disabled={exporting}
-          onToggle={() => setExportOpen((open) => !open)}
-          onExport={() => runExport(onExport)}
-          onExportWav={() => runExport(onExportWav)}
-        />
-        <span className="menu-sep" aria-hidden="true">
-          |
-        </span>
         <button
           type="button"
-          className="menu-word"
+          className="primary"
+          data-testid="export-btn"
+          onClick={onExport}
+          disabled={exporting}
+        >
+          Export
+        </button>
+        <button
+          type="button"
+          data-testid="export-wav-btn"
+          onClick={onExportWav}
+          disabled={exporting}
+        >
+          Export WAV
+        </button>
+        <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
+        </div>
+      </div>
+      <div className="toolbar-group" data-group="edit">
+        <span className="toolbar-label">Edit</span>
+        <button type="button" onClick={onUndo}>
+          Undo
+        </button>
+        <button type="button" onClick={onRedo}>
+          Redo
+        </button>
+        <button type="button" title={`Split (${CLIP_MENU_SHORTCUTS.split})`} onClick={onSplit}>
+          Split
+          <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
+        </button>
+        <button type="button" className={snap ? "active" : ""} onClick={onToggleSnap}>
+          Snap
+        </button>
+        <button
+          type="button"
           data-testid="shortcuts-help"
           title="Shortcuts (?)"
           onClick={() => onToggleShortcuts?.()}
         >
           Help
+          <kbd className="btn-kbd">?</kbd>
         </button>
-      </nav>
-      <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
+      </div>
       <div className="toolbar-brand">
         <input
           className="project-name"

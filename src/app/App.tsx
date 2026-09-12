@@ -1234,6 +1234,7 @@ export function App() {
   return (
     <div className="app" data-testid="app">
       <Toolbar
+        snap={session.project.snap}
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
@@ -1242,21 +1243,14 @@ export function App() {
         onImport={startImport}
         onExport={runExport}
         onExportWav={runExportWav}
+        onUndo={() => runCommand({ type: "undo" })}
+        onRedo={() => runCommand({ type: "redo" })}
+        onSplit={() => runCommand({ type: "split" })}
+        onToggleSnap={() => setSession(applyToggleSnap(session))}
         onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
-      />
-      <input
-        type="file"
-        accept=".json,application/json"
-        hidden
-        data-testid="open-input"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) void openProject(file);
-        }}
       />
       <input
         type="file"
@@ -1425,10 +1419,6 @@ export function App() {
         onClear={() => runCommand({ type: "clearInOut" })}
         onMarker={() => runCommand({ type: "addMarker" })}
         onSplit={() => runCommand({ type: "split" })}
-        snap={session.project.snap}
-        onToggleSnap={() => setSession(applyToggleSnap(session))}
-        onUndo={() => runCommand({ type: "undo" })}
-        onRedo={() => runCommand({ type: "redo" })}
         onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
       />
 
