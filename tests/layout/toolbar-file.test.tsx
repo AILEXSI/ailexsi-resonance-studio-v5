@@ -54,6 +54,8 @@ describe("toolbar menu (four words)", () => {
     expect(topLabels).not.toContain("Split");
     expect(topLabels).not.toContain("Snap");
     expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
+    expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
+    expect(host.querySelector('[data-testid="menu-new"]')).toBeNull();
     expect(host.querySelector(".version")?.textContent).toBe("5.0.0");
     const datei = host.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement;
     const chip = getComputedStyle(datei);
@@ -62,37 +64,38 @@ describe("toolbar menu (four words)", () => {
     expect(datei.classList.contains("menu-word")).toBe(true);
   });
 
-  it("Datei dropdown has Neu, Öffnen, Speichern, Speichern unter, Beenden", () => {
+  it("Datei chip toggles the project overlay; no Datei dropdown", async () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    const seen: string[] = [];
-    act(() => {
-      root!.render(
-        <Toolbar
-          exporting={false}
-          onNew={() => seen.push("new")}
-          onOpen={() => seen.push("open")}
-          onSave={() => seen.push("save")}
-          onSaveAs={() => seen.push("saveAs")}
-          onQuit={() => seen.push("quit")}
-          onImport={() => seen.push("import")}
-          onExport={() => seen.push("export")}
-        />,
-      );
+    await act(async () => {
+      root!.render(<App />);
     });
-    act(() => {
+    expect(topLevelMenuWords(host)).toEqual(["Datei", "Einfügen", "Export", "Help"]);
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
+    expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
+
+    await act(async () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
-    const menu = host.querySelector('[data-testid="toolbar-file-menu"]');
-    expect(menu).toBeTruthy();
-    const items = [...(menu?.querySelectorAll("button") ?? [])].map((b) => b.textContent?.trim());
-    expect(items).toEqual(["Neu", "Öffnen", "Speichern", "Speichern unter", "Beenden"]);
-    act(() => {
-      (host!.querySelector('[data-testid="menu-save"]') as HTMLButtonElement).click();
-    });
-    expect(seen).toEqual(["save"]);
     expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
+    expect(host.querySelector('[data-testid="menu-new"]')).toBeNull();
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="save-project"]')?.textContent?.trim()).toBe("Speichern");
+    expect(host.querySelector('[data-testid="project-save-as"]')?.textContent?.trim()).toBe("Speichern unter");
+    expect(host.querySelector('[data-testid="open-fsa"]')?.textContent?.trim()).toBe("Öffnen");
+    expect(host.querySelector('[data-testid="media-browser"]')).toBeTruthy();
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
+
+    const transport = host.querySelector("[data-testid=transport]");
+    expect(transport?.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
+    expect(transport?.querySelector('[data-testid="transport-undo"]')).toBeTruthy();
+    expect(transport?.querySelector('[data-testid="transport-redo"]')).toBeTruthy();
   });
 
   it("Einfügen is Import; Export dropdown opens existing MP4 / WAV actions", () => {
@@ -139,44 +142,7 @@ describe("toolbar menu (four words)", () => {
     expect(seen).toEqual(["import", "mp4", "wav"]);
   });
 
-  it("App wires Datei actions; Datei does not open the project overlay", async () => {
-    host = document.createElement("div");
-    document.body.appendChild(host);
-    root = createRoot(host);
-    await act(async () => {
-      root!.render(<App />);
-    });
-    expect(topLevelMenuWords(host)).toEqual(["Datei", "Einfügen", "Export", "Help"]);
-    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
-
-    await act(async () => {
-      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
-    });
-    expect(host.querySelector('[data-testid="toolbar-file-menu"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="project-overlay"]')).toBeNull();
-    expect(host.querySelector('[data-testid="menu-new"]')?.textContent?.trim()).toBe("Neu");
-    expect(host.querySelector('[data-testid="menu-open"]')?.textContent?.trim()).toBe("Öffnen");
-    expect(host.querySelector('[data-testid="menu-save"]')?.textContent?.trim()).toBe("Speichern");
-    expect(host.querySelector('[data-testid="menu-save-as"]')?.textContent?.trim()).toBe("Speichern unter");
-    expect(host.querySelector('[data-testid="menu-quit"]')?.textContent?.trim()).toBe("Beenden");
-
-    await act(async () => {
-      (host!.querySelector('[data-testid="menu-quit"]') as HTMLButtonElement).click();
-    });
-    expect(host.querySelector('[data-testid="status"]')?.textContent).toMatch(/Beenden/);
-
-    const transport = host.querySelector("[data-testid=transport]");
-    expect(transport?.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
-    expect(transport?.querySelector('[data-testid="transport-undo"]')).toBeTruthy();
-    expect(transport?.querySelector('[data-testid="transport-redo"]')).toBeTruthy();
-    const transportTextButtons = [...(transport?.querySelectorAll("button") ?? [])].map((b) =>
-      b.textContent?.replace(/\s+/g, " ").trim(),
-    );
-    expect(transportTextButtons).not.toContain("Undo");
-    expect(transportTextButtons).not.toContain("Redo");
-  });
-
-  it("Datei Speichern / Öffnen call the existing FSA pickers", async () => {
+  it("overlay Speichern / Öffnen call the existing FSA pickers", async () => {
     const saved: string[] = [];
     const opened: string[] = [];
     const w = window as unknown as {
@@ -217,7 +183,7 @@ describe("toolbar menu (four words)", () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
     await act(async () => {
-      (host!.querySelector('[data-testid="menu-save"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="save-project"]') as HTMLButtonElement).click();
     });
     expect(saved.length).toBe(1);
 
@@ -225,7 +191,7 @@ describe("toolbar menu (four words)", () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
     await act(async () => {
-      (host!.querySelector('[data-testid="menu-open"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="open-fsa"]') as HTMLButtonElement).click();
     });
     expect(opened).toEqual(["open"]);
     delete w.showSaveFilePicker;

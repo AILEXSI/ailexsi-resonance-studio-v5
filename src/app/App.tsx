@@ -1198,6 +1198,7 @@ export function App() {
   };
 
   const closeProjectPanel = () => setProjectPanelOpen(false);
+  const toggleProjectPanel = () => setProjectPanelOpen((open) => !open);
 
   const startImport = () => {
     void (async () => {
@@ -1236,11 +1237,8 @@ export function App() {
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
-        onNew={() => setSession(confirmNewProject(sessionRef.current))}
-        onOpen={openWithPicker}
-        onSave={saveProject}
-        onSaveAs={saveProjectAs}
-        onQuit={() => setSession((s) => ({ ...s, status: "Beenden", error: null }))}
+        onToggleFile={toggleProjectPanel}
+        filePanelOpen={projectPanelOpen}
         onImport={startImport}
         onExport={runExport}
         onExportWav={runExportWav}

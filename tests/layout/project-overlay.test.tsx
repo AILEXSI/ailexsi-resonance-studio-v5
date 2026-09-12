@@ -26,21 +26,48 @@ describe("Projekt overlay", () => {
     });
   }
 
-  it("stays closed; Datei opens the file menu, not the overlay; Arrange stays reachable", async () => {
+  it("is closed by default; Datei toggles it; Esc and Close dismiss; Arrange stays reachable", async () => {
     await mount();
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
     expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeNull();
     expect(host!.querySelector('[data-testid="workspace-preview"]')).toBeTruthy();
     expect(host!.querySelector(".workspace-left")).toBeNull();
-    expect(host!.querySelector('[data-testid="timeline"]')).toBeTruthy();
 
     await act(async () => {
       (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
     });
-    expect(host!.querySelector('[data-testid="toolbar-file-menu"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="toolbar-file-menu"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="project-overlay"]')?.classList.contains("pass-through")).toBe(
+      true,
+    );
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
-    expect(host!.querySelector('[data-testid="project-file-panel"]')).toBeNull();
-    expect(host!.querySelector('[data-testid="menu-new"]')?.textContent?.trim()).toBe("Neu");
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="toolbar-file"]') as HTMLButtonElement).click();
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="media-browser"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="timeline"]')).toBeTruthy();
+
+    await act(async () => {
+      (host!.querySelector('[data-testid="project-overlay-close"]') as HTMLButtonElement).click();
+    });
+    expect(host!.querySelector('[data-testid="project-overlay"]')).toBeNull();
   });
 });

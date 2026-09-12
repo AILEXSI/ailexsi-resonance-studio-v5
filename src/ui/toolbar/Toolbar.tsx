@@ -1,18 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ProductionScreen } from "../../app/screens";
 import { ScreenNav } from "../screens/ScreenNav";
-
-type OpenMenu = "datei" | "export" | null;
 
 interface Props {
   exporting: boolean;
   screen?: ProductionScreen;
   onSelectScreen?: (screen: ProductionScreen) => void;
-  onNew?: () => void;
-  onOpen?: () => void;
-  onSave?: () => void;
-  onSaveAs?: () => void;
-  onQuit?: () => void;
+  onToggleFile?: () => void;
+  filePanelOpen?: boolean;
   onImport: () => void;
   onExport: () => void;
   onExportWav?: () => void;
@@ -22,39 +17,52 @@ interface Props {
   onToggleShortcuts?: () => void;
 }
 
-function Menu({
-  menuId,
-  label,
-  testId,
+function ExportMenu({
   open,
   disabled,
   onToggle,
-  children,
+  onExport,
+  onExportWav,
 }: {
-  menuId: Exclude<OpenMenu, null>;
-  label: string;
-  testId: string;
   open: boolean;
   disabled?: boolean;
   onToggle: () => void;
-  children: ReactNode;
+  onExport: () => void;
+  onExportWav?: () => void;
 }) {
   return (
-    <div className="menu-root" data-menu={menuId}>
+    <div className="menu-root" data-menu="export">
       <button
         type="button"
         className={open ? "menu-word active" : "menu-word"}
-        data-testid={testId}
+        data-testid="export-btn"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
         onClick={onToggle}
       >
-        {label}
+        Export
       </button>
       {open ? (
-        <div className="menu-panel" role="menu" data-testid={`${testId}-menu`}>
-          {children}
+        <div className="menu-panel" role="menu" data-testid="export-btn-menu">
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="export-mp4-item"
+            disabled={disabled}
+            onClick={onExport}
+          >
+            Video (MP4)…
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            data-testid="export-wav-btn"
+            disabled={disabled}
+            onClick={onExportWav}
+          >
+            Audio (WAV)…
+          </button>
         </div>
       ) : null}
     </div>
@@ -65,11 +73,8 @@ export function Toolbar({
   exporting,
   screen = "arrange",
   onSelectScreen,
-  onNew,
-  onOpen,
-  onSave,
-  onSaveAs,
-  onQuit,
+  onToggleFile,
+  filePanelOpen = false,
   onImport,
   onExport,
   onExportWav,
@@ -78,17 +83,17 @@ export function Toolbar({
   projectDirty = false,
   onToggleShortcuts,
 }: Props) {
-  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const barRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (!openMenu) return;
+    if (!exportOpen) return;
     const onDoc = (e: PointerEvent) => {
       if (barRef.current?.contains(e.target as Node)) return;
-      setOpenMenu(null);
+      setExportOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenMenu(null);
+      if (e.key === "Escape") setExportOpen(false);
     };
     document.addEventListener("pointerdown", onDoc);
     window.addEventListener("keydown", onKey);
@@ -96,42 +101,26 @@ export function Toolbar({
       document.removeEventListener("pointerdown", onDoc);
       window.removeEventListener("keydown", onKey);
     };
-  }, [openMenu]);
+  }, [exportOpen]);
 
-  const close = () => setOpenMenu(null);
-  const toggle = (id: Exclude<OpenMenu, null>) => setOpenMenu((cur) => (cur === id ? null : id));
-  /** Existing save/open handlers first so Chrome keeps the click for showSaveFilePicker. */
-  const run = (fn?: () => void) => {
+  const runExport = (fn?: () => void) => {
     fn?.();
-    close();
+    setExportOpen(false);
   };
 
   return (
     <header className="toolbar" data-testid="toolbar" ref={barRef}>
       <nav className="menubar" data-testid="menubar" aria-label="Menü">
-        <Menu
-          menuId="datei"
-          label="Datei"
-          testId="toolbar-file"
-          open={openMenu === "datei"}
-          onToggle={() => toggle("datei")}
+        <button
+          type="button"
+          className={filePanelOpen ? "menu-word active" : "menu-word"}
+          data-testid="toolbar-file"
+          aria-pressed={filePanelOpen}
+          aria-expanded={filePanelOpen}
+          onClick={() => onToggleFile?.()}
         >
-          <button type="button" role="menuitem" data-testid="menu-new" onClick={() => run(onNew)}>
-            Neu
-          </button>
-          <button type="button" role="menuitem" data-testid="menu-open" onClick={() => run(onOpen)}>
-            Öffnen
-          </button>
-          <button type="button" role="menuitem" data-testid="menu-save" onClick={() => run(onSave)}>
-            Speichern
-          </button>
-          <button type="button" role="menuitem" data-testid="menu-save-as" onClick={() => run(onSaveAs)}>
-            Speichern unter
-          </button>
-          <button type="button" role="menuitem" data-testid="menu-quit" onClick={() => run(onQuit)}>
-            Beenden
-          </button>
-        </Menu>
+          Datei
+        </button>
         <span className="menu-sep" aria-hidden="true">
           |
         </span>
@@ -141,33 +130,13 @@ export function Toolbar({
         <span className="menu-sep" aria-hidden="true">
           |
         </span>
-        <Menu
-          menuId="export"
-          label="Export"
-          testId="export-btn"
-          open={openMenu === "export"}
+        <ExportMenu
+          open={exportOpen}
           disabled={exporting}
-          onToggle={() => toggle("export")}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="export-mp4-item"
-            disabled={exporting}
-            onClick={() => run(onExport)}
-          >
-            Video (MP4)…
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            data-testid="export-wav-btn"
-            disabled={exporting}
-            onClick={() => run(onExportWav)}
-          >
-            Audio (WAV)…
-          </button>
-        </Menu>
+          onToggle={() => setExportOpen((open) => !open)}
+          onExport={() => runExport(onExport)}
+          onExportWav={() => runExport(onExportWav)}
+        />
         <span className="menu-sep" aria-hidden="true">
           |
         </span>
