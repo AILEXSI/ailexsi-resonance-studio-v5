@@ -21,14 +21,12 @@ import {
 import {
   browserPickerHost,
   emptyProjectFileMemory,
-  hasFileSystemAccess,
   lastLoadedStatus,
   loadStatusFallback,
   pickRelinkMediaFile,
   readFileText,
   relinkAcceptAttr,
   rememberFileHandle,
-  runChooseFolder,
   runOpen,
   runOpenRecent,
   runSave,
@@ -98,7 +96,6 @@ import {
   beforeUnloadIfDirty,
   confirmNewProject,
   confirmOpenProject,
-  confirmRevertToLastSave,
   isProjectDirty,
   markProjectClean,
   withClipSelection,
@@ -184,7 +181,6 @@ export function App() {
   projectFileRef.current = projectFile;
   const projectFileStore = useRef(createIndexedDbProjectFileStore()).current;
   const pickerHost = browserPickerHost();
-  const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
   const lastPathRef = useRef<string | null>(null);
   const tauriFsRef = useRef<Promise<TauriProjectFs> | null>(null);
@@ -497,27 +493,6 @@ export function App() {
   const saveProjectAs = () => persistSave("saveAs");
   saveProjectRef.current = saveProject;
   saveProjectAsRef.current = saveProjectAs;
-
-  const chooseFolder = () => {
-    void (async () => {
-      try {
-        const result = await runChooseFolder({
-          host: pickerHost,
-          store: projectFileStore,
-          memory: projectFileRef.current,
-        });
-        if (result.cancelled) return;
-        setProjectFile(result.memory);
-        setSession((s) => ({ ...s, status: result.status, error: null }));
-      } catch (e) {
-        setSession((s) => ({
-          ...s,
-          error: e instanceof Error ? e.message : String(e),
-          status: "Folder pick failed",
-        }));
-      }
-    })();
-  };
 
   const openWithPicker = () => {
     void (async () => {
@@ -1293,16 +1268,12 @@ export function App() {
             </button>
             <ProjectFilePanel
               memory={projectFile}
-              fileSystemAccess={fsa}
-              projectDirty={isProjectDirty(session)}
               onNew={() => setSession(confirmNewProject(sessionRef.current))}
               onSave={saveProject}
               onSaveAs={saveProjectAs}
               onOpen={openWithPicker}
               onOpenFile={(file) => void openProject(file)}
               onOpenLast={openLast}
-              onRevert={() => setSession(confirmRevertToLastSave(sessionRef.current))}
-              onChooseFolder={chooseFolder}
               onOpenRecent={openRecent}
             />
             <MediaBrowser
@@ -1311,9 +1282,6 @@ export function App() {
               selectedAssetId={selectedAssetId}
               onSelectAsset={setSelectedAssetId}
               onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
-              onImport={(files) => {
-                void importFiles(session, files).then(setSession);
-              }}
               onPlace={(assetId) => {
                 const asset = session.project.assets.find((a) => a.id === assetId);
                 if (!asset) return;

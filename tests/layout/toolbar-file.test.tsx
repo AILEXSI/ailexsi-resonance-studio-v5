@@ -87,6 +87,11 @@ describe("toolbar File button", () => {
     expect(panel?.querySelector('[data-testid="save-project"]')).toBeTruthy();
     expect(panel?.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
     expect(panel?.querySelector('[data-testid="open-input"]')).toBeTruthy();
+    expect(panel?.querySelector('[data-testid="project-save-as"]')).toBeTruthy();
+    expect(panel?.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(panel?.querySelector('[data-testid="project-choose-folder"]')).toBeNull();
+    expect(host.querySelector('[data-testid="import-input-panel"]')).toBeNull();
+    expect(host.querySelector('[data-testid="import-input"]')).toBeTruthy();
     expect(group?.contains(panel)).toBe(false);
   });
 });
