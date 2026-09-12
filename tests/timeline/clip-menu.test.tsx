@@ -185,15 +185,10 @@ describe("clip-menu shortcut labels", () => {
       root!.render(
         <>
           <Toolbar
-            snap
             exporting={false}
             onToggleFile={noopBtn}
             onImport={noopBtn}
             onExport={noopBtn}
-            onUndo={noopBtn}
-            onRedo={noopBtn}
-            onSplit={noopBtn}
-            onToggleSnap={noopBtn}
           />
           <Transport
             project={createEmptyProject()}

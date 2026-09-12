@@ -1,9 +1,7 @@
 import type { ProductionScreen } from "../../app/screens";
 import { ScreenNav } from "../screens/ScreenNav";
-import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 
 interface Props {
-  snap: boolean;
   exporting: boolean;
   screen?: ProductionScreen;
   onSelectScreen?: (screen: ProductionScreen) => void;
@@ -12,10 +10,6 @@ interface Props {
   onImport: () => void;
   onExport: () => void;
   onExportWav?: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onSplit: () => void;
-  onToggleSnap: () => void;
   projectName?: string;
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
@@ -23,7 +17,6 @@ interface Props {
 }
 
 export function Toolbar({
-  snap,
   exporting,
   screen = "arrange",
   onSelectScreen,
@@ -32,10 +25,6 @@ export function Toolbar({
   onImport,
   onExport,
   onExportWav,
-  onUndo,
-  onRedo,
-  onSplit,
-  onToggleSnap,
   projectName = "Untitled Resonance",
   onRenameProject,
   projectDirty = false,
@@ -75,23 +64,6 @@ export function Toolbar({
           Export WAV
         </button>
         <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
-        </div>
-      </div>
-      <div className="toolbar-group" data-group="edit">
-        <span className="toolbar-label">Edit</span>
-        <button type="button" onClick={onUndo}>
-          Undo
-        </button>
-        <button type="button" onClick={onRedo}>
-          Redo
-        </button>
-        <button type="button" title={`Split (${CLIP_MENU_SHORTCUTS.split})`} onClick={onSplit}>
-          Split
-          <kbd className="btn-kbd">{CLIP_MENU_SHORTCUTS.split}</kbd>
-        </button>
-        <button type="button" className={snap ? "active" : ""} onClick={onToggleSnap}>
-          Snap
-        </button>
         <button
           type="button"
           data-testid="shortcuts-help"
@@ -101,6 +73,7 @@ export function Toolbar({
           Help
           <kbd className="btn-kbd">?</kbd>
         </button>
+        </div>
       </div>
       <div className="toolbar-brand">
         <input

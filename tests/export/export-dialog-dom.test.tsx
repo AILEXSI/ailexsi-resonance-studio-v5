@@ -126,16 +126,11 @@ describe("export dialog DOM", () => {
     act(() => {
       root!.render(
         <Toolbar
-          snap
           exporting
           projectName="Chorus Cut"
           onToggleFile={noop}
           onImport={noop}
           onExport={noop}
-          onUndo={noop}
-          onRedo={noop}
-          onSplit={noop}
-          onToggleSnap={noop}
         />,
       );
     });
