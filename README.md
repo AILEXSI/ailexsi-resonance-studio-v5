@@ -128,7 +128,7 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 
 ## Fuer Bots
 
-Lineage: accepted EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). `origin/main` @ `9ceb9bd` (stamp of `0cdcadf`; PR #9 merge `c0392f0`). Version 5.0.0.
+Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). This docs stamp is not an EXE SHA. `origin/main` @ `9ceb9bd` (stamp of `0cdcadf`; PR #9 merge `c0392f0`). Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (HUMAN-PROVEN earlier). VIS-Lane-Klick seekt wie V/A. Speichern unter picker + `.vN`.
 A Follow: HUMAN-PROVEN — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
