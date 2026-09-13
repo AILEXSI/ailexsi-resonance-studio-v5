@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `314deff` — README-Stamp nach PR #3 (`e14d7af`). Nicht forcieren. |
-| Branch | `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `186c73f` (`186c73f751deb0c62bb94e72b66176468bcd8803`) |
+| Branch | `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `347ac3d` (`347ac3d64dcec88a1849d503b1c2564fdbefccb8`) |
 | Base | WAV/Help-Chrome PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7` / Stamp `a094404`). Menu-polish PR #4 darunter. Spätere PR-#5-Commits (愛-Icons, Follow-Pin `ec0275a`) sind **nicht** in diesem Tree. |
 | Live-UI | Chrome Human-approved Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. VIS-S-Cut **Human-verified** auf diesem Branch. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Diese PR fasst Icons nicht an. |
@@ -22,6 +22,7 @@ Ein Blick. Kein Wunschzettel.
 | Help overlay | Scrollbares 2-Spalten-Sheet (`?` / Help). `max-height` Viewport (`dvh`/`vh`), sticky Header, innerer Scroll — passt ins maximierte Fenster. |
 | S / Split | Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / A1 / A2. Multi-Select OK. Linked Mates auf anderen Tracks werden **nicht** mitgeschnitten. |
 | VIS S-cut | **Human-verified.** S teilt VIS-Events / Cues / Window am Playhead, wenn VIS fokussiert ist (Header oder Event). V1–A2-Clips bleiben ganz. |
+| VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill, z.B. Tunnel) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. Header/Event-Select blockiert den Seek nicht. Event-Drag unverändert. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | viele Canvas-Modi (2D + projiziertes 3D); Features aus dem Mix, wenn Buffer da ist |

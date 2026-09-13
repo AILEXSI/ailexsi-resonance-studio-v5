@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `186c73f`. Chrome-Base ist PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7`) plus Menu-polish PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `347ac3d`. Chrome-Base ist PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7`) plus Menu-polish PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -75,6 +75,8 @@ Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / A1 / A2:
 
 **VIS** (Human-verified): Wenn VIS fokussiert ist (Header oder Event), teilt S die VIS-Events / Cues / das Window am Playhead. V1–A2-Clips bleiben ganz.
 
+Klick in die VIS-Lane (leerer Body oder Event-Fill, z.B. Tunnel) springt den Playhead — gleicher Snap-Seek wie Klick in V1/V2/A. Header- oder Event-Select blockiert das nicht. Event-Ziehen bleibt Move, nicht Seek.
+
 ## Follow playhead
 
 **Pending / unknown** auf diesem Branch. Der 1/3-Pin aus späteren PR-#5-Commits (`ec0275a`) ist hier **nicht** gemerged. Nicht als fixed dokumentieren. Follow-Toggle existiert; Scroll ist Edge-Paging.
@@ -90,8 +92,8 @@ Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / A1 / A2:
 
 ## Fuer Bots
 
-Basis: PR #6 auf `cursor/help-scroll-active-track-split-fdc6` @ `186c73f`, Chrome-Base PR #5 @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
+Basis: PR #6 auf `cursor/help-scroll-active-track-split-fdc6` @ `347ac3d`, Chrome-Base PR #5 @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
-Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified).
+Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A.
 Follow-Playhead-Pin: pending/unknown auf diesem Branch.
 Nächster Slice: Follow erst dokumentieren, wenn er auf dieser Linie liegt. Dann Exe zu/auf nach Relink+Save (keine missing-Parade).
