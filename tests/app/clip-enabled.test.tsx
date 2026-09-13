@@ -123,7 +123,7 @@ describe("clip enable / disable (P45)", () => {
     expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(1);
   });
 
-  it("S splits the covering enabled clip, not a disabled clip under the playhead (P102)", () => {
+  it("S on a disabled selected clip does not cut other tracks (P102)", () => {
     const start = stackedSession();
     start.project.playheadMs = 500;
     start.project.frontVideoTrackId = "V1";
@@ -132,8 +132,28 @@ describe("clip enable / disable (P45)", () => {
     const split = applyCommand(disabled, { type: "split" });
     expect(split.project.clips.filter((c) => c.assetId === "va").map((c) => c.id)).toEqual(["v1"]);
     expect(split.project.clips.find((c) => c.id === "v1")?.enabled).toBe(false);
+    expect(split.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
+    expect(split.project.clips.filter((c) => c.assetId === "vb")).toHaveLength(1);
+    expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(1);
+    expect(split.status).toBe("Split rejected");
+  });
+
+  it("S on the covering enabled track still skips a disabled clip on another lane (P102)", () => {
+    const start = stackedSession();
+    start.project.playheadMs = 500;
+    start.project.frontVideoTrackId = "V1";
+    const disabled = applyCommand(start, { type: "setClipsEnabled", enabled: false });
+    const onV2 = {
+      ...disabled,
+      selectedClipId: "v2",
+      selectedClipIds: ["v2"],
+      targetTrackId: "V2" as const,
+      selectedTrackIds: ["V2" as const],
+    };
+    const split = applyCommand(onV2, { type: "split" });
+    expect(split.project.clips.find((c) => c.id === "v1")!.durationMs).toBe(2000);
     expect(split.project.clips.filter((c) => c.assetId === "vb")).toHaveLength(2);
-    expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(2);
+    expect(split.project.clips.filter((c) => c.assetId === "aa")).toHaveLength(1);
     const halves = split.project.clips.filter((c) => c.assetId === "vb").sort((a, b) => a.startMs - b.startMs);
     expect(halves[0]!.durationMs).toBe(500);
     expect(halves[1]!.startMs).toBe(500);

@@ -82,6 +82,7 @@ import {
   applyTrackVolume,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
+  applySelectTracks,
   applySelectVis,
   applySetVisualizer,
   applyToggleFollow,
@@ -1270,7 +1271,7 @@ export function App() {
               targetTrackId={session.targetTrackId}
               selectedAssetId={selectedAssetId}
               onSelectAsset={setSelectedAssetId}
-              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id, selectedTrackIds: [id] }))}
               onPlace={(assetId) => {
                 const asset = session.project.assets.find((a) => a.id === assetId);
                 if (!asset) return;
@@ -1405,6 +1406,9 @@ export function App() {
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
         selectedMarkerId={session.selectedMarkerId}
+        selectedVis={session.selectedVis}
+        selectedTrackIds={session.selectedTrackIds}
+        onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
         onSelect={(id, opts) =>
           setSession((s) =>
             applyCommand(s, { type: "select", clipId: id, toggle: opts?.toggle, range: opts?.range }),
@@ -1498,10 +1502,11 @@ export function App() {
       <Mixer
         project={session.project}
         selectedTrackId={session.targetTrackId}
+        selectedTrackIds={session.selectedTrackIds}
         peaks={mixPeaks}
         collapsed={mixerCollapsed}
         onToggleCollapsed={toggleMixerCollapsed}
-        onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+        onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
         onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}

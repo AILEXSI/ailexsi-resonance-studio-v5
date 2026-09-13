@@ -15,7 +15,13 @@ export function ShortcutsOverlay({ open, onClose }: Props) {
         if (e.target === e.currentTarget) onClose?.();
       }}
     >
-      <div className="shortcuts-card" role="dialog" aria-label="Shortcuts" aria-modal="false">
+      <div
+        className="shortcuts-card"
+        role="dialog"
+        aria-label="Shortcuts"
+        aria-modal="false"
+        data-testid="shortcuts-sheet"
+      >
         <header className="shortcuts-card-head">
           <div>
             <h2>Shortcuts</h2>
@@ -31,7 +37,7 @@ export function ShortcutsOverlay({ open, onClose }: Props) {
             ×
           </button>
         </header>
-        <dl>
+        <dl className="shortcuts-list" data-testid="shortcuts-list">
           {SHORTCUT_ROWS.map((row) => (
             <div key={row.key}>
               <dt>

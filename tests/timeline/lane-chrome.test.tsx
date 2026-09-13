@@ -33,6 +33,8 @@ describe("lane header chrome", () => {
       onLaneLabelPx?: (px: number) => void;
       onLaneHeight?: (group: "vis" | "video" | "audio", px: number) => void;
       mutedV1?: boolean;
+      selectedTrackIds?: TrackId[];
+      onSelectTrack?: (id: TrackId, opts?: { toggle?: boolean }) => void;
     } = {},
   ) {
     const project = projectWith(
@@ -57,6 +59,8 @@ describe("lane header chrome", () => {
           onTrimLive={() => {}}
           onTrimCommit={noop}
           onToggleMute={(_id: TrackId) => {}}
+          selectedTrackIds={extras.selectedTrackIds}
+          onSelectTrack={extras.onSelectTrack}
           onToggleVisualizerMute={noop}
           onCycleVisualizerScene={noop}
           onSplitHere={() => {}}
@@ -115,5 +119,20 @@ describe("lane header chrome", () => {
     const body = host!.querySelector("[data-testid=lane-V1-body]") as HTMLElement;
     expect(body.className).not.toContain("audio-lane");
     expect(lane.className).not.toContain("audio-lane");
+  });
+
+  it("lane header click selects a track; Ctrl+click toggles", () => {
+    const picks: Array<{ id: TrackId; toggle?: boolean }> = [];
+    mount({
+      selectedTrackIds: ["V1"],
+      onSelectTrack: (id, opts) => picks.push({ id, toggle: opts?.toggle }),
+    });
+    expect(host!.querySelector("[data-testid=lane-V1]")!.className).toContain("track-selected");
+    act(() => {
+      (host!.querySelector("[data-testid=lane-label-A1]") as HTMLElement).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true }),
+      );
+    });
+    expect(picks).toEqual([{ id: "A1", toggle: true }]);
   });
 });

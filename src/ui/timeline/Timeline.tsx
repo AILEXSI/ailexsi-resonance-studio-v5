@@ -60,6 +60,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   selectedMarkerId?: string | null;
+  selectedVis?: boolean;
   selectedVisEventId?: string | null;
   selectedVisEventIds?: string[];
   onSelect: (clipId: string | null, opts?: { toggle?: boolean; range?: boolean }) => void;
@@ -90,6 +91,8 @@ interface Props {
   onSelectClips?: (clipIds: readonly string[], opts?: { union?: boolean }) => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
+  selectedTrackIds?: readonly TrackId[];
+  onSelectTrack?: (trackId: TrackId, opts?: { toggle?: boolean }) => void;
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
   onSelectVis?: () => void;
@@ -171,6 +174,7 @@ export function Timeline({
   selectedClipId,
   selectedClipIds,
   selectedMarkerId = null,
+  selectedVis = false,
   selectedVisEventId = null,
   selectedVisEventIds,
   onSelect,
@@ -196,6 +200,8 @@ export function Timeline({
   onSelectClips,
   onToggleMute,
   onToggleSolo,
+  selectedTrackIds,
+  onSelectTrack,
   onToggleVisualizerMute,
   onCycleVisualizerScene,
   onSelectVis,
@@ -1057,11 +1063,18 @@ export function Timeline({
       </div>
       <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "auto" }}>
       <div
-        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
+        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}`}
         data-testid="lane-VIS"
         style={{ height: heights.vis }}
       >
-        <div className="lane-label">
+        <div
+          className="lane-label"
+          data-testid="lane-label-VIS"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            onSelectVis?.();
+          }}
+        >
           {laneLabelSplitter}
           <span>VIS</span>
           <div className="vis-lane-btns">
@@ -1202,12 +1215,19 @@ export function Timeline({
         const kind = kindOfTrack(id);
         return (
           <div
-            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`}
+            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}`}
             key={id}
             data-testid={`lane-${id}`}
             style={{ height: heights[group] }}
           >
-            <div className="lane-label">
+            <div
+              className="lane-label"
+              data-testid={`lane-label-${id}`}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest("button")) return;
+                onSelectTrack?.(id, { toggle: e.ctrlKey || e.metaKey });
+              }}
+            >
               {laneLabelSplitter}
               {id === "V1" || id === "V2" ? (
                 <button

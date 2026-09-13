@@ -70,4 +70,46 @@ describe("arrange + mixer layout", () => {
     expect(host.querySelector('[data-testid="mix-fader-master"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="mix-db-A1"]')?.textContent).toMatch(/dB/);
   });
+
+  it("Ctrl+click keeps more than one mixer track selected", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const selected: string[] = ["A1"];
+    const render = () => {
+      act(() => {
+        root!.render(
+          <Mixer
+            project={createEmptyProject()}
+            selectedTrackId={(selected[selected.length - 1] ?? "A1") as "A1" | "A2" | "V1" | "V2"}
+            selectedTrackIds={selected as Array<"A1" | "A2" | "V1" | "V2">}
+            peaks={silentPeaks}
+            onSelectTrack={(id, opts) => {
+              if (opts?.toggle) {
+                const i = selected.indexOf(id);
+                if (i >= 0) selected.splice(i, 1);
+                else selected.push(id);
+              } else {
+                selected.splice(0, selected.length, id);
+              }
+              render();
+            }}
+            onVolume={() => {}}
+            onMasterVolume={() => {}}
+            onToggleMute={() => {}}
+            onToggleSolo={() => {}}
+          />,
+        );
+      });
+    };
+    render();
+    act(() => {
+      (host!.querySelector('[data-testid="mix-V1"]') as HTMLElement).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true }),
+      );
+    });
+    expect(host.querySelector('[data-testid="mix-A1"]')?.className).toMatch(/selected/);
+    expect(host.querySelector('[data-testid="mix-V1"]')?.className).toMatch(/selected/);
+    expect(host.querySelector('[data-testid="mix-A2"]')?.className).not.toMatch(/selected/);
+  });
 });

@@ -5,6 +5,7 @@ import { createEmptyProject } from "../../src/core/project";
 import { SHORTCUT_ROWS } from "../../src/ui/shortcuts/labels";
 import { ShortcutsOverlay } from "../../src/ui/shortcuts/ShortcutsOverlay";
 import { Transport } from "../../src/ui/transport/Transport";
+import "../../src/styles.css";
 
 describe("shortcuts help (P75)", () => {
   let host: HTMLDivElement | undefined;
@@ -98,5 +99,32 @@ describe("shortcuts help (P75)", () => {
       (host!.querySelector('[data-testid="shortcuts"]') as HTMLDivElement).click();
     });
     expect(host.querySelector('[data-testid="shortcuts"]')).toBeNull();
+  });
+
+  it("sheet stays inside the viewport and keeps every row including the last ones", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(<ShortcutsOverlay open />);
+    });
+    const card = host.querySelector('[data-testid="shortcuts-sheet"]') as HTMLElement | null;
+    const list = host.querySelector('[data-testid="shortcuts-list"]') as HTMLElement | null;
+    expect(card).toBeTruthy();
+    expect(list).toBeTruthy();
+    const cardStyle = getComputedStyle(card!);
+    const listStyle = getComputedStyle(list!);
+    expect(cardStyle.maxHeight).not.toBe("none");
+    expect(cardStyle.overflow).toBe("hidden");
+    expect(listStyle.overflowY).toBe("auto");
+    const text = card!.textContent ?? "";
+    expect(text).toContain("Shift+edge-drag");
+    expect(text).toContain("Abutting edge-drag");
+    expect(text).toContain("Alt+drag clip");
+    expect(text).toContain("Toggle this sheet");
+    expect(text).toContain("active/selected track");
+    expect(SHORTCUT_ROWS.at(-1)?.key).toBe("?");
+    expect(text).toContain(SHORTCUT_ROWS.at(-1)!.action);
+    expect(list!.children.length).toBe(SHORTCUT_ROWS.length);
   });
 });
