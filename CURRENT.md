@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `314deff` — README-Stamp nach PR #3 (`e14d7af`). Nicht forcieren. |
-| Branch | `cursor/vis-silence-gate-d1d3` (stacked on PR #8 `cursor/transport-follow-audio-loop-44f8` @ `05ffa9c`) |
+| Branch | `cursor/vis-silence-gate-d1d3` @ `3d4e7dc` (stacked on PR #8 `cursor/transport-follow-audio-loop-44f8` @ `05ffa9c`) |
 | Base | PR #8 transport/Follow/Loop (`05ffa9c`). Darunter PR #7 compact-headers, PR #6 Help/S-track. |
 | Live-UI | Chrome Human-approved Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. VIS-S-Cut **Human-verified** auf diesem Branch. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Diese PR fasst Icons nicht an. |
