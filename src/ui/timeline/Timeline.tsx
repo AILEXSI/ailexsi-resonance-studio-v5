@@ -28,6 +28,7 @@ import {
   clampLaneHeightPx,
   clampLaneLabelPx,
   heightGroupOfLane,
+  laneHeaderPacksInline,
   type LaneHeightGroup,
   type LaneHeights,
 } from "../../core/layout-prefs";
@@ -1218,16 +1219,19 @@ export function Timeline({
         const soloed = track?.solo === true;
         const group = heightGroupOfLane(id);
         const kind = kindOfTrack(id);
+        const headerInline = laneHeaderPacksInline(heights[group]);
         return (
           <div
-            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}`}
+            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}${headerInline ? " lane-header-compact" : ""}`}
             key={id}
             data-testid={`lane-${id}`}
+            data-header-pack={headerInline ? "inline" : "stack"}
             style={{ height: heights[group] }}
           >
             <div
               className="lane-label"
               data-testid={`lane-label-${id}`}
+              data-header-pack={headerInline ? "inline" : "stack"}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest("button")) return;
                 onSelectTrack?.(id, { toggle: e.ctrlKey || e.metaKey });

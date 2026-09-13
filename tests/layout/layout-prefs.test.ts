@@ -16,6 +16,7 @@ import {
   DEFAULT_LANE_LABEL_PX,
   LANE_HEIGHT_MAX_PX,
   LANE_HEIGHT_MIN_PX,
+  LANE_HEADER_STACK_MIN_PX,
   LANE_HEIGHTS_KEY,
   LANE_LABEL_MAX_PX,
   LANE_LABEL_MIN_PX,
@@ -25,6 +26,7 @@ import {
   clampLaneLabelPx,
   clampSplitRatio,
   loadHSplitRatio,
+  laneHeaderPacksInline,
   loadLaneHeights,
   loadLaneLabelPx,
   loadMixerCollapsed,
@@ -133,5 +135,15 @@ describe("layout prefs", () => {
     saveLaneHeights(store, { vis: 40, video: 80, audio: 200 });
     expect(JSON.parse(store.map.get(LANE_HEIGHTS_KEY)!)).toEqual({ vis: 40, video: 80, audio: 120 });
     expect(loadLaneHeights(store)).toEqual({ vis: 40, video: 80, audio: 120 });
+  });
+
+  it("packs V/A headers inline below the stacked name + M/S threshold", () => {
+    expect(LANE_HEADER_STACK_MIN_PX).toBeGreaterThan(LANE_HEIGHT_MIN_PX);
+    expect(LANE_HEADER_STACK_MIN_PX).toBeLessThanOrEqual(DEFAULT_LANE_HEIGHT_PX);
+    expect(laneHeaderPacksInline(LANE_HEIGHT_MIN_PX)).toBe(true);
+    expect(laneHeaderPacksInline(LANE_HEADER_STACK_MIN_PX - 1)).toBe(true);
+    expect(laneHeaderPacksInline(LANE_HEADER_STACK_MIN_PX)).toBe(false);
+    expect(laneHeaderPacksInline(DEFAULT_LANE_HEIGHT_PX)).toBe(false);
+    expect(laneHeaderPacksInline(Number.NaN)).toBe(false);
   });
 });

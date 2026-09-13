@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import { asset, clip, projectWith } from "../helpers";
 import type { TrackId } from "../../src/core/models";
+import {
+  DEFAULT_LANE_HEIGHT_PX,
+  LANE_HEIGHT_MIN_PX,
+  type LaneHeights,
+} from "../../src/core/layout-prefs";
 import "../../src/styles.css";
 
 const noop = () => {};
@@ -35,6 +40,9 @@ describe("lane header chrome", () => {
       mutedV1?: boolean;
       selectedTrackIds?: TrackId[];
       onSelectTrack?: (id: TrackId, opts?: { toggle?: boolean }) => void;
+      laneHeights?: LaneHeights;
+      onToggleMute?: (id: TrackId) => void;
+      onToggleSolo?: (id: TrackId) => void;
     } = {},
   ) {
     const project = projectWith(
@@ -58,7 +66,8 @@ describe("lane header chrome", () => {
           onMoveCommit={noop}
           onTrimLive={() => {}}
           onTrimCommit={noop}
-          onToggleMute={(_id: TrackId) => {}}
+          onToggleMute={extras.onToggleMute ?? ((_id: TrackId) => {})}
+          onToggleSolo={extras.onToggleSolo ?? ((_id: TrackId) => {})}
           selectedTrackIds={extras.selectedTrackIds}
           onSelectTrack={extras.onSelectTrack}
           onToggleVisualizerMute={noop}
@@ -77,6 +86,7 @@ describe("lane header chrome", () => {
           onLoopMoveLive={noopMs}
           onLoopCommit={noop}
           laneLabelPx={extras.laneLabelPx ?? 96}
+          laneHeights={extras.laneHeights}
           onLaneLabelPx={extras.onLaneLabelPx}
           onLaneHeight={extras.onLaneHeight}
         />,
@@ -90,6 +100,9 @@ describe("lane header chrome", () => {
     expect(host!.querySelector("[data-testid=lane-height-VIS]")).toBeTruthy();
     expect(host!.querySelector("[data-testid=lane-height-V1]")).toBeTruthy();
     expect(host!.querySelector(".lane-label")).toBeTruthy();
+    for (const id of ["V1", "V2", "A1", "A2"] as const) {
+      expect(host!.querySelector(`[data-testid=lane-${id}]`)!.getAttribute("data-header-pack")).toBe("stack");
+    }
   });
 
   it("dragging the label splitter writes a clamped width", () => {
@@ -134,5 +147,49 @@ describe("lane header chrome", () => {
       );
     });
     expect(picks).toEqual([{ id: "A1", toggle: true }]);
+  });
+
+  it("keeps stacked V/A headers at default height and packs M/S inline when short", () => {
+    const muted: TrackId[] = [];
+    const soloed: TrackId[] = [];
+    mount({
+      laneHeights: {
+        vis: DEFAULT_LANE_HEIGHT_PX,
+        video: LANE_HEIGHT_MIN_PX,
+        audio: DEFAULT_LANE_HEIGHT_PX,
+      },
+      onToggleMute: (id) => muted.push(id),
+      onToggleSolo: (id) => soloed.push(id),
+    });
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V2]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-label-V1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.className).toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A2]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.className).not.toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.className).not.toContain("lane-header-compact");
+
+    act(() => {
+      (host!.querySelector("[data-testid=mute-V1]") as HTMLButtonElement).click();
+      (host!.querySelector("[data-testid=solo-V2]") as HTMLButtonElement).click();
+    });
+    expect(muted).toEqual(["V1"]);
+    expect(soloed).toEqual(["V2"]);
+  });
+
+  it("packs A1/A2 M/S inline at the shortest audio height", () => {
+    mount({
+      laneHeights: {
+        vis: DEFAULT_LANE_HEIGHT_PX,
+        video: DEFAULT_LANE_HEIGHT_PX,
+        audio: LANE_HEIGHT_MIN_PX,
+      },
+    });
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-A2]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=mute-A1]")).toBeTruthy();
+    expect(host!.querySelector("[data-testid=solo-A2]")).toBeTruthy();
   });
 });

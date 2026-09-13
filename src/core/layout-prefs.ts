@@ -12,6 +12,8 @@ export const LANE_LABEL_MAX_PX = 160;
 export const DEFAULT_LANE_HEIGHT_PX = 52;
 export const LANE_HEIGHT_MIN_PX = 36;
 export const LANE_HEIGHT_MAX_PX = 120;
+/** Stacked name + M/S needs ~44px (14px label, 4px gap, ~20px buttons). */
+export const LANE_HEADER_STACK_MIN_PX = 46;
 
 export type LaneHeightGroup = "vis" | "video" | "audio";
 export interface LaneHeights {
@@ -214,6 +216,11 @@ export function heightGroupOfLane(id: "VIS" | "V1" | "V2" | "A1" | "A2"): LaneHe
   if (id === "VIS") return "vis";
   if (id === "V1" || id === "V2") return "video";
   return "audio";
+}
+
+/** When a V/A header is shorter than the stacked name + M/S block, pack them in one row. */
+export function laneHeaderPacksInline(heightPx: number): boolean {
+  return Number.isFinite(heightPx) && heightPx < LANE_HEADER_STACK_MIN_PX;
 }
 
 export function browserLayoutStorage(): StorageLike | null {
