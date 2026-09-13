@@ -21,6 +21,7 @@ export function ShortcutsOverlay({ open, onClose }: Props) {
         aria-label="Shortcuts"
         aria-modal="false"
         data-testid="shortcuts-sheet"
+        data-fit-viewport="true"
       >
         <header className="shortcuts-card-head">
           <div>
@@ -37,7 +38,7 @@ export function ShortcutsOverlay({ open, onClose }: Props) {
             ×
           </button>
         </header>
-        <dl className="shortcuts-list" data-testid="shortcuts-list">
+        <dl className="shortcuts-list" data-testid="shortcuts-list" data-scroll="inner">
           {SHORTCUT_ROWS.map((row) => (
             <div key={row.key}>
               <dt>

@@ -112,11 +112,10 @@ describe("shortcuts help (P75)", () => {
     const list = host.querySelector('[data-testid="shortcuts-list"]') as HTMLElement | null;
     expect(card).toBeTruthy();
     expect(list).toBeTruthy();
-    const cardStyle = getComputedStyle(card!);
-    const listStyle = getComputedStyle(list!);
-    expect(cardStyle.maxHeight).not.toBe("none");
-    expect(cardStyle.overflow).toBe("hidden");
-    expect(listStyle.overflowY).toBe("auto");
+    expect(card!.getAttribute("data-fit-viewport")).toBe("true");
+    expect(list!.getAttribute("data-scroll")).toBe("inner");
+    expect(card!.className).toContain("shortcuts-card");
+    expect(list!.className).toContain("shortcuts-list");
     const text = card!.textContent ?? "";
     expect(text).toContain("Shift+edge-drag");
     expect(text).toContain("Abutting edge-drag");
