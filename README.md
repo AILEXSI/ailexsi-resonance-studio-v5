@@ -57,7 +57,8 @@ Help (`?`) sitzt auf der Play-Zeile, nicht in der Top bar.
 
 - **Kein** Ordner wählen. **Kein** Revert. **Keine** MEDIA-Durchsuchen-Zeile.
 - Media-Bin im Overlay (Suche/Filter/Place/Relink) lädt keine Dateien — das macht **Import**.
-- **Speichern unter:** Chrome `showSaveFilePicker` (Ordner + Name). Tauri/Exe: nativer Save-Dialog (Ordner + Name, immer Picker). Firefox ohne FSA: Download.
+- **Speichern:** Chrome FSA überschreibt den gemerkten Handle. Tauri/Exe schreibt `lastPath` ohne Picker; ohne Pfad öffnet den nativen Save-Dialog.
+- **Speichern unter:** Chrome `showSaveFilePicker` (Ordner + Name). Tauri/Exe: nativer Save-Dialog (immer Picker). Firefox ohne FSA: Download. Nach Speichern/Öffnen in der Exe zeigt das File-Panel Dateiname + gemerkten Ordner (`folderRemembered`), nicht „Kein Ordner gemerkt“.
 
 ## Help overlay
 

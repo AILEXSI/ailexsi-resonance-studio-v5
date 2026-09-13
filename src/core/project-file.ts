@@ -1,3 +1,4 @@
+import { fileNameFromPath, normalizeLastProjectPath, parentFolderNameFromPath } from "./last-project";
 import type { MediaKind } from "./models";
 
 /** Well-known startIn. First run uses documents — never invent a C:\ path. */
@@ -38,6 +39,8 @@ export interface ProjectFileMemory {
   fileHandle: FileHandleLike | null;
   directoryHandle: DirectoryHandleLike | null;
   lastFileName: string | null;
+  /** Tauri/exe disk path. Chrome FSA leaves this null. */
+  lastPath?: string | null;
   recents: RecentProject[];
 }
 
@@ -122,7 +125,7 @@ const RELINK_IMAGE_TYPES = [
 ];
 
 export function emptyProjectFileMemory(): ProjectFileMemory {
-  return { fileHandle: null, directoryHandle: null, lastFileName: null, recents: [] };
+  return { fileHandle: null, directoryHandle: null, lastFileName: null, lastPath: null, recents: [] };
 }
 
 export function normalizeProjectFileMemory(
@@ -136,11 +139,24 @@ export function normalizeProjectFileMemory(
         )
         .slice(0, MAX_RECENT_PROJECTS)
     : [];
+  const lastPath = typeof raw.lastPath === "string" ? normalizeLastProjectPath(raw.lastPath) : "";
   return {
     fileHandle: raw.fileHandle ?? null,
     directoryHandle: raw.directoryHandle ?? null,
     lastFileName: raw.lastFileName ?? null,
+    lastPath: lastPath || null,
     recents,
+  };
+}
+
+/** After Tauri Speichern / Speichern unter / Öffnen — no FSA handles. */
+export function rememberTauriProjectPath(path: string, name?: string): ProjectFileMemory {
+  const lastPath = normalizeLastProjectPath(path);
+  const lastFileName = name?.trim() || fileNameFromPath(lastPath) || null;
+  return {
+    ...emptyProjectFileMemory(),
+    lastFileName,
+    lastPath: lastPath || null,
   };
 }
 
@@ -155,12 +171,15 @@ export function projectPanelView(memory: ProjectFileMemory): {
   folderLabel: string;
   folderRemembered: boolean;
 } {
-  const fileName = memory.lastFileName ?? memory.fileHandle?.name ?? null;
+  const lastPath = typeof memory.lastPath === "string" ? normalizeLastProjectPath(memory.lastPath) : "";
+  const fileName =
+    memory.lastFileName ?? memory.fileHandle?.name ?? (lastPath ? fileNameFromPath(lastPath) : null);
   const dirName =
     typeof memory.directoryHandle?.name === "string" && memory.directoryHandle.name.length > 0
       ? memory.directoryHandle.name
       : null;
-  const folderRemembered = Boolean(memory.directoryHandle || memory.fileHandle);
+  const pathFolder = lastPath ? parentFolderNameFromPath(lastPath) : "";
+  const folderRemembered = Boolean(memory.directoryHandle || memory.fileHandle || lastPath);
   if (dirName) {
     return {
       fileName: fileName ?? "Noch nicht gespeichert",
@@ -168,17 +187,24 @@ export function projectPanelView(memory: ProjectFileMemory): {
       folderRemembered: true,
     };
   }
+  if (pathFolder) {
+    return {
+      fileName: fileName ?? "Noch nicht gespeichert",
+      folderLabel: pathFolder,
+      folderRemembered: true,
+    };
+  }
   if (folderRemembered && fileName) {
     return {
       fileName,
-      folderLabel: `${fileName} — Ordner gemerkt`,
+      folderLabel: lastPath ? `${fileName} — Pfad gemerkt` : `${fileName} — Ordner gemerkt`,
       folderRemembered: true,
     };
   }
   if (folderRemembered) {
     return {
       fileName: fileName ?? "Noch nicht gespeichert",
-      folderLabel: "Ordner gemerkt",
+      folderLabel: lastPath ? "Pfad gemerkt" : "Ordner gemerkt",
       folderRemembered: true,
     };
   }
@@ -375,6 +401,7 @@ export async function rememberFileHandle(
     fileHandle,
     directoryHandle,
     lastFileName,
+    lastPath: null,
     recents: upsertRecent(previous.recents ?? [], recent),
   };
   await store.save(memory);

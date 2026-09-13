@@ -20,7 +20,7 @@ Ein Blick. Kein Wunschzettel.
 | Loop | **HUMAN-VERIFIED.** Loop OFF spielt über OUT weiter (OUT = Marker, kein Stop). Loop ON wrappt OUT→IN. |
 | Compact headers | Kurze Lanes (`< 46px`): VIS `VIS [M] [Scene]`, V/A `V1 [M] [S]` in einer Zeile. Default ~52px bleibt gestapelt. |
 | File overlay | New / Speichern / Speichern unter / Öffnen / Zuletzt — **kein** Ordner wählen, **kein** Revert, **keine** MEDIA-Durchsuchen-Zeile. Import bleibt der Toolbar-Button. Media-Bin (Suche/Filter/Place) kann im Overlay sitzen, lädt aber keine Dateien. |
-| Speichern unter | Chrome: `showSaveFilePicker` (Ordner + Name). Tauri/Exe: nativer Save-Dialog (Ordner + Name, immer Picker). Firefox: kein FSA → Download. |
+| Speichern unter | Chrome: `showSaveFilePicker` (Ordner + Name). Tauri/Exe: **Speichern** schreibt den gemerkten `lastPath` ohne Picker; ohne Pfad öffnet Speichern den nativen Save-Dialog. **Speichern unter** immer Picker. Panel zeigt Dateiname + Elternordner (oder `Pfad gemerkt`), `folderRemembered` sobald `lastPath` da ist. Firefox: kein FSA → Download. |
 | Help overlay | Scrollbares 2-Spalten-Sheet (`?` / Help). `max-height` Viewport (`dvh`/`vh`), sticky Header, innerer Scroll — passt ins maximierte Fenster. |
 | S / Split | Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / audio collection. Multi-Select OK. Linked Mates auf anderen Tracks werden **nicht** mitgeschnitten. |
 | VIS S-cut | **Human-verified.** S teilt VIS-Events / Cues / Window am Playhead, wenn VIS fokussiert ist (Header oder Event). V/A clips remain whole. |
@@ -30,7 +30,7 @@ Ein Blick. Kein Wunschzettel.
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-VERIFIED.** Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy (Visualz-Step). Default projects still A1-first. Silence gate (`rms < 0.02 && bass < 0.03`): Playhead in audio/Mix-Lücke oder echter Stille → energy/onset/beatPulse ~0, kein Pulse in Audio-Lücken. Kein `featuresAt` 120-BPM-Metronom, solange das Projekt einen Audio-Pfad hat. Beat = audio-derived onset/energy sync — **kein** DAW Beat-Grid-Lock. |
-| Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
+| Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad (kein FSA-Handle nötig). Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
 | Nächster Slice | Production Pass **F** (Track/Chapter Groups UI collapse) — **PLANNED / NOT IMPLEMENTED**. E is TEST-VERIFIED only; Live NOT VERIFIED. STOP — no F+ in this slice. |
 | Production Pass | **D + E TEST-VERIFIED / IMPLEMENTED** (code). **F–N PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
