@@ -36,6 +36,8 @@ describe("mixer volume curve", () => {
   it("mute zeros the mix even if faders are up", () => {
     expect(mixLinearGain(1, 1, 1, true)).toBe(0);
     expect(mixLinearGain(1, 1, 1, false)).toBeCloseTo(1, 8);
+    expect(mixLinearGain(1, 1, 1, false, 0.5)).toBeCloseTo(0.5, 8);
+    expect(mixLinearGain(1, 1, 1, false, 1)).toBeCloseTo(1, 8);
   });
 });
 

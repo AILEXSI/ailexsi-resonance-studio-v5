@@ -57,10 +57,14 @@ export function mixLinearGain(
   trackVolume: number,
   masterVolume: number,
   muted: boolean,
+  automationValue = 1,
 ): number {
   if (muted) return 0;
   return clampLinearVolume(
-    Math.max(0, clipGain) * Math.max(0, trackVolume) * Math.max(0, masterVolume),
+    Math.max(0, clipGain) *
+      Math.max(0, trackVolume) *
+      Math.max(0, Number.isFinite(automationValue) ? automationValue : 1) *
+      Math.max(0, masterVolume),
   );
 }
 

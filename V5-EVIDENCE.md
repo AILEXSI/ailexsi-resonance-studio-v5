@@ -30,13 +30,17 @@ HUMAN-PROVEN (do not downgrade):
 
 **F Track/Chapter Groups** (operator EXE, PR #17 feature tip `c4391cb` — this docs stamp is not the F EXE SHA): **HUMAN-PROVEN**. Collapse UI only; create / assign / collapse / rename confirmed. Membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. See `CURRENT.md` F Evidence Report.
 
-G–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
+**G Volume Automation:** **IMPLEMENTED / AUTOMATED-TESTED** on `cursor/volume-automation-e329` (stacked on F tip `9afed5e`). Not HUMAN-PROVEN. No Windows EXE in this Linux pass. See `CURRENT.md` G Evidence Report.
+
+H–N + zettel: **PLANNED / NOT IMPLEMENTED** — Write Automation **W**; Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable); Relink filename assist (picker should prefer expected filename). Not next slice except H. See `CURRENT.md` Future UI.
 
 `origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
 
 Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed / 94 files**; vite build 5.0.0.
 
-F branch (this pass): tsc exit 0; vitest **841 passed / 96 files**; vite build 5.0.0, 194 modules.
+F branch: tsc exit 0; vitest **841 passed / 96 files**; vite build 5.0.0, 194 modules.
+
+G branch (this pass): tsc exit 0; vitest **862 passed / 98 files**; vite build 5.0.0, 196 modules. Not HUMAN-PROVEN.
 
 ## Contradictions vs the historical log below
 

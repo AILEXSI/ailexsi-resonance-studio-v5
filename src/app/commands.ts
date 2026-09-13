@@ -57,6 +57,11 @@ import {
   applyCreateTrackGroup,
   applyAssignTracksToGroup,
   applyRenameTrackGroup,
+  applyAddVolumeAutomationPoint,
+  applyDeleteVolumeAutomationPoint,
+  applyMoveVolumeAutomationPoint,
+  applySelectVolumeAutomationPoint,
+  applySetVolumeAutomationEnabled,
   applyToggleMute,
   applyToggleSolo,
   applyTrim,
@@ -105,6 +110,18 @@ export type EditorCommand =
   | { type: "createTrackGroup"; name?: string; trackIds?: readonly TrackId[] }
   | { type: "assignTracksToGroup"; trackIds: readonly TrackId[]; groupId: string | null }
   | { type: "renameTrackGroup"; groupId: string; name: string }
+  | { type: "setVolumeAutomationEnabled"; trackId: TrackId; enabled: boolean }
+  | { type: "addVolumeAutomationPoint"; trackId: TrackId; timeMs: number; value: number }
+  | { type: "deleteVolumeAutomationPoint"; trackId: TrackId; timeMs: number }
+  | {
+      type: "moveVolumeAutomationPoint";
+      trackId: TrackId;
+      fromTimeMs: number;
+      timeMs: number;
+      value: number;
+    }
+  | { type: "selectVolumeAutomationPoint"; trackId: TrackId; timeMs: number }
+  | { type: "clearVolumeAutomationPoint" }
   | { type: "liftTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
@@ -211,6 +228,27 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyAssignTracksToGroup(session, command.trackIds, command.groupId);
     case "renameTrackGroup":
       return applyRenameTrackGroup(session, command.groupId, command.name);
+    case "setVolumeAutomationEnabled":
+      return applySetVolumeAutomationEnabled(session, command.trackId, command.enabled);
+    case "addVolumeAutomationPoint":
+      return applyAddVolumeAutomationPoint(session, command.trackId, command.timeMs, command.value);
+    case "deleteVolumeAutomationPoint":
+      return applyDeleteVolumeAutomationPoint(session, command.trackId, command.timeMs);
+    case "moveVolumeAutomationPoint":
+      return applyMoveVolumeAutomationPoint(
+        session,
+        command.trackId,
+        command.fromTimeMs,
+        command.timeMs,
+        command.value,
+      );
+    case "selectVolumeAutomationPoint":
+      return applySelectVolumeAutomationPoint(session, {
+        trackId: command.trackId,
+        timeMs: command.timeMs,
+      });
+    case "clearVolumeAutomationPoint":
+      return applySelectVolumeAutomationPoint(session, null);
     case "liftTrim":
       return applyTrim(session, command.clipId, command.edge, command.nextEdgeMs);
     case "rippleTrim":

@@ -31,6 +31,9 @@ export const INSPECTOR_MIN_PX = 180;
 export const H_SPLITTER_PX = 14;
 export const DEFAULT_H_SPLIT_RATIO = 0.74;
 export const GROUP_COLLAPSED_KEY = "resonance-studio-v5-group-collapsed";
+export const VOLUME_LANE_OPEN_KEY = "resonance-studio-v5-volume-lane-open";
+/** Extra Volume sub-lane height. Clip lanes stay at their existing height. */
+export const VOLUME_LANE_HEIGHT_PX = 48;
 export const MIXER_WIDTH_KEY = "resonance-studio-v5-mixer-width";
 export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;
@@ -111,6 +114,35 @@ export function saveCollapsedGroupIds(
 export function toggleCollapsedGroupId(ids: readonly string[], groupId: string): string[] {
   if (!groupId) return [...ids];
   return ids.includes(groupId) ? ids.filter((id) => id !== groupId) : [...ids, groupId];
+}
+
+export function loadOpenVolumeLaneIds(storage?: StorageLike | null): string[] {
+  try {
+    const raw = storage?.getItem(VOLUME_LANE_OPEN_KEY);
+    if (raw == null || raw === "") return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id): id is string => typeof id === "string" && id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+export function saveOpenVolumeLaneIds(
+  storage: StorageLike | null | undefined,
+  ids: Iterable<string>,
+): void {
+  try {
+    const unique = [...new Set([...ids].filter((id) => typeof id === "string" && id.length > 0))];
+    storage?.setItem(VOLUME_LANE_OPEN_KEY, JSON.stringify(unique));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function toggleOpenVolumeLaneId(ids: readonly string[], trackId: string): string[] {
+  if (!trackId) return [...ids];
+  return ids.includes(trackId) ? ids.filter((id) => id !== trackId) : [...ids, trackId];
 }
 
 export function loadMixerCollapsed(storage?: StorageLike | null): boolean {

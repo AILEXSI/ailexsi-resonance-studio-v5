@@ -3,6 +3,7 @@ import { normalizeClipFades } from "./fades";
 import { sanitizeTransitions } from "./transition";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import { ensureAudioTracksForIds, sanitizeAutomationLanes } from "./audio-tracks";
+import { resolveVolumeAutomation } from "./volume-automation";
 import { sanitizeTrackGroups, syncTrackGroups } from "./track-groups";
 import {
   MAX_AUDIO_TRACKS,
@@ -152,6 +153,7 @@ function mergeTrack(base: Track, found: Record<string, unknown> | undefined): Tr
     pan: Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0,
     order: Number.isFinite(order) ? order : base.order,
     groupId: typeof found.groupId === "string" && found.groupId.length > 0 ? found.groupId : undefined,
+    volumeAutomation: resolveVolumeAutomation(found.volumeAutomation, found.automationLanes),
     automationLanes: sanitizeAutomationLanes(found.automationLanes),
   };
 }

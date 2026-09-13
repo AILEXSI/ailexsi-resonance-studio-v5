@@ -27,6 +27,7 @@ import {
   transitionAudioGain,
 } from "../../core/transition";
 import { mixLinearGain } from "../../core/volume";
+import { automationValueAt, volumeAutomationOf } from "../../core/volume-automation";
 
 export { compositeVideoAt as previewComposite } from "../../core/transition";
 import type { MixPeaks } from "../mixer/Mixer";
@@ -175,6 +176,7 @@ export function Preview({ project, playing, onLevels }: Props) {
           trackVolumeOf(project, trackId),
           project.masterVolume ?? 1,
           !isTrackAudible(project, trackId),
+          automationValueAt(volumeAutomationOf(project.tracks.find((t) => t.id === trackId)), project.playheadMs),
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project);
       const tap = tapRef.current;
       if (tap) {
@@ -239,6 +241,7 @@ export function Preview({ project, playing, onLevels }: Props) {
           trackVolumeOf(project, trackId),
           1,
           false,
+          automationValueAt(volumeAutomationOf(project.tracks.find((t) => t.id === trackId)), project.playheadMs),
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project)
       );
     };

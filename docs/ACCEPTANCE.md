@@ -61,8 +61,9 @@ F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR *
 
 Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- G–N production-pass items
-- zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors (see `CURRENT.md` Future UI — not next slice)
+- **G Volume Automation** is IMPLEMENTED / AUTOMATED-TESTED only — not HUMAN-PROVEN until a MODE B operator EXE pass (checklist in `CURRENT.md` G Evidence Report)
+- H–N production-pass items
+- zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors; Relink filename assist (see `CURRENT.md` Future UI — not next slice)
 
 `origin/main` was not this EXE. Main tip at audit time: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`.
 
@@ -76,6 +77,8 @@ npm test                          → 94 files, 831 passed (vitest 3.2.7)
 npm run build                     → vite 7.3.6, 193 modules, version 5.0.0
 ```
 
-F branch (MODE A, this pass): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194 modules, version 5.0.0.
+F branch (MODE A): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194 modules, version 5.0.0.
+
+G branch (MODE A, this pass): tsc exit 0; vitest **862 passed / 98 files**; vite 7.3.6, 196 modules, version 5.0.0. G is not HUMAN-PROVEN.
 
 Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/core/track-groups.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/layout/track-groups.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.

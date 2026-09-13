@@ -35,6 +35,8 @@ export interface ExportTrack {
   /** −1 L … +1 R. Applied last on this track’s mix contribution. */
   pan: number;
   clips: ExportClip[];
+  /** Export-local volume envelope. Missing / disabled = identity (prior mix). */
+  volumeAutomation?: { enabled: boolean; points: { timeMs: number; value: number }[] };
 }
 
 export interface ExportVisualizer {
