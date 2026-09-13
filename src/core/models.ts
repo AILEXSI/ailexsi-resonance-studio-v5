@@ -235,10 +235,19 @@ export interface Track {
   volume: number;
   /** Stereo pan. −1 = hard L, 0 = center, +1 = hard R. Master has no pan. */
   pan: number;
-  /** Optional chapter/group membership. Field only — no group UI in D. */
+  /**
+   * Optional chapter/group membership (F). Same id as `Project.groups[].id`.
+   * Collapse is UI-only — this field does not change mute/solo/volume/routing.
+   */
   groupId?: string;
   /** Optional automation lanes. Field/stub only — no G/H UI in D. */
   automationLanes?: AutomationLane[];
+}
+
+/** Chapter/track folder. Contains audio tracks via `Track.groupId`. No bus / no DSP. */
+export interface TrackGroup {
+  id: string;
+  name: string;
 }
 
 export interface Marker {
@@ -255,6 +264,11 @@ export interface Project {
   updatedAt: string;
   assets: MediaAsset[];
   tracks: Track[];
+  /**
+   * Chapter/track groups (F). Missing on legacy JSON → `[]`.
+   * Membership stays on `Track.groupId` so stem-import prefixes still load.
+   */
+  groups?: TrackGroup[];
   clips: Clip[];
   markers: Marker[];
   /** Edit-point objects. Missing/empty = hard cuts. Not React state. */

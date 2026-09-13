@@ -30,6 +30,7 @@ export const PREVIEW_H_MIN_PX = 200;
 export const INSPECTOR_MIN_PX = 180;
 export const H_SPLITTER_PX = 14;
 export const DEFAULT_H_SPLIT_RATIO = 0.74;
+export const GROUP_COLLAPSED_KEY = "resonance-studio-v5-group-collapsed";
 export const MIXER_WIDTH_KEY = "resonance-studio-v5-mixer-width";
 export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;
@@ -73,6 +74,43 @@ export function applySplitPointer(opts: {
   const ratio = clampSplitRatio((opts.clientY - opts.stageTop) / available, available);
   const previewPx = Math.round(ratio * available);
   return { ratio, previewPx, arrangePx: available - previewPx };
+}
+
+export function loadCollapsedGroupIds(storage?: StorageLike | null): string[] {
+  try {
+    const raw = storage?.getItem(GROUP_COLLAPSED_KEY);
+    if (raw == null || raw === "") return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((id): id is string => typeof id === "string" && id.length > 0);
+    }
+    if (parsed && typeof parsed === "object") {
+      return Object.entries(parsed as Record<string, unknown>)
+        .filter(([, collapsed]) => collapsed === true)
+        .map(([id]) => id)
+        .filter((id) => id.length > 0);
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCollapsedGroupIds(
+  storage: StorageLike | null | undefined,
+  ids: Iterable<string>,
+): void {
+  try {
+    const unique = [...new Set([...ids].filter((id) => typeof id === "string" && id.length > 0))];
+    storage?.setItem(GROUP_COLLAPSED_KEY, JSON.stringify(unique));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function toggleCollapsedGroupId(ids: readonly string[], groupId: string): string[] {
+  if (!groupId) return [...ids];
+  return ids.includes(groupId) ? ids.filter((id) => id !== groupId) : [...ids, groupId];
 }
 
 export function loadMixerCollapsed(storage?: StorageLike | null): boolean {

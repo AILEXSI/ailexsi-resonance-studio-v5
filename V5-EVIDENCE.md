@@ -28,11 +28,15 @@ HUMAN-PROVEN (do not downgrade):
 - existing playback / timeline remained functional
 - **E Stem Import** (multi-WAV / ZIP, same start, filename labels) — operator correction: HUMAN-PROVEN
 
-F–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
+**F Track/Chapter Groups** (operator EXE, PR #17 feature tip `c4391cb` — this docs stamp is not the F EXE SHA): **HUMAN-PROVEN**. Collapse UI only; create / assign / collapse / rename confirmed. Membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. See `CURRENT.md` F Evidence Report.
+
+G–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
 
 `origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
 
 Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed / 94 files**; vite build 5.0.0.
+
+F branch (this pass): tsc exit 0; vitest **841 passed / 96 files**; vite build 5.0.0, 194 modules.
 
 ## Contradictions vs the historical log below
 

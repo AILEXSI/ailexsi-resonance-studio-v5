@@ -54,6 +54,9 @@ import {
   applyStop,
   applyAddAudioTrack,
   applyRemoveAudioTrack,
+  applyCreateTrackGroup,
+  applyAssignTracksToGroup,
+  applyRenameTrackGroup,
   applyToggleMute,
   applyToggleSolo,
   applyTrim,
@@ -99,6 +102,9 @@ export type EditorCommand =
   | { type: "toggleSolo"; trackId: TrackId }
   | { type: "addAudioTrack" }
   | { type: "removeAudioTrack"; trackId?: TrackId }
+  | { type: "createTrackGroup"; name?: string; trackIds?: readonly TrackId[] }
+  | { type: "assignTracksToGroup"; trackIds: readonly TrackId[]; groupId: string | null }
+  | { type: "renameTrackGroup"; groupId: string; name: string }
   | { type: "liftTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rippleTrim"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
   | { type: "rollEdit"; clipId: string; edge: "in" | "out"; nextEdgeMs: number }
@@ -199,6 +205,12 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyAddAudioTrack(session);
     case "removeAudioTrack":
       return applyRemoveAudioTrack(session, command.trackId);
+    case "createTrackGroup":
+      return applyCreateTrackGroup(session, command.name, command.trackIds);
+    case "assignTracksToGroup":
+      return applyAssignTracksToGroup(session, command.trackIds, command.groupId);
+    case "renameTrackGroup":
+      return applyRenameTrackGroup(session, command.groupId, command.name);
     case "liftTrim":
       return applyTrim(session, command.clipId, command.edge, command.nextEdgeMs);
     case "rippleTrim":

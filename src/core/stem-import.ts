@@ -1,6 +1,7 @@
 import { addAudioTrack } from "./audio-tracks";
 import { trackLabelFromFilename } from "./media-display";
 import { audioTracksOf, type Project, type TrackId } from "./models";
+import { ensureTrackGroup } from "./track-groups";
 
 /** Playhead when the user has parked it; otherwise timeline origin. */
 export function stemStartMs(playheadMs: number): number {
@@ -8,7 +9,7 @@ export function stemStartMs(playheadMs: number): number {
   return Math.round(playheadMs);
 }
 
-/** Shared group tag for a stem batch. Prefix only — no collapse UI (that's F). */
+/** Shared group tag for a stem batch. F maps this into `Project.groups` when present. */
 export function inferStemGroupId(fileNames: readonly string[]): string | undefined {
   const bases = fileNames
     .map((n) => (n.replace(/\\/g, "/").split("/").pop() ?? n).replace(/\.[A-Za-z0-9]{1,8}$/, ""))
@@ -52,7 +53,7 @@ export function nameStemTrack(
   groupId?: string,
 ): Project {
   const name = trackLabelFromFilename(fileName);
-  return {
+  const next: Project = {
     ...project,
     tracks: project.tracks.map((track) => {
       if (track.id !== trackId) return track;
@@ -64,4 +65,5 @@ export function nameStemTrack(
     }),
     updatedAt: new Date().toISOString(),
   };
+  return groupId ? ensureTrackGroup(next, groupId, groupId) : next;
 }

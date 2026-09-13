@@ -41,6 +41,12 @@ import { CLIP_MENU_SHORTCUTS } from "../shortcuts/labels";
 import { AudioClipWave, VideoClipStrip } from "./ClipPreview";
 import { buildRulerTicks } from "../../core/ruler";
 import { isAssetDrag, mediaDropPlace, readAssetDrag } from "../../core/media";
+import {
+  arrangeRows,
+  groupsOf,
+  lastAudioChromeHost,
+  type ArrangeRow,
+} from "../../core/track-groups";
 
 export { RULER_PAD_PX };
 
@@ -152,6 +158,127 @@ interface Props {
   onRemoveAudioTrack?: () => void;
   canAddAudioTrack?: boolean;
   canRemoveAudioTrack?: boolean;
+  collapsedGroupIds?: readonly string[];
+  onToggleGroupCollapsed?: (groupId: string) => void;
+  onCreateTrackGroup?: (trackIds?: TrackId[]) => void;
+  onAssignTracksToGroup?: (trackIds: TrackId[], groupId: string | null) => void;
+  onRenameTrackGroup?: (groupId: string, name: string) => void;
+}
+
+function GroupCollapseIcon({ collapsed }: { collapsed: boolean }) {
+  return (
+    <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+      {collapsed ? (
+        <path d="M4 2 L9 6 L4 10" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      ) : (
+        <path d="M2 4 L6 9 L10 4" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      )}
+    </svg>
+  );
+}
+
+function LaneGroupAssign({
+  trackId,
+  groupId,
+  groups,
+  onAssign,
+  onCreate,
+}: {
+  trackId: TrackId;
+  groupId?: string;
+  groups: { id: string; name: string }[];
+  onAssign: (trackIds: TrackId[], groupId: string | null) => void;
+  onCreate?: (trackIds: TrackId[]) => void;
+}) {
+  return (
+    <select
+      className="lane-group-assign"
+      data-testid={`lane-group-assign-${trackId}`}
+      aria-label="Track group"
+      title="Assign to chapter group"
+      value={groupId ?? ""}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const value = e.target.value;
+        if (value === "__new__") {
+          onCreate?.([trackId]);
+          return;
+        }
+        onAssign([trackId], value === "" ? null : value);
+      }}
+    >
+      <option value="">—</option>
+      {groups.map((group) => (
+        <option key={group.id} value={group.id}>
+          {group.name}
+        </option>
+      ))}
+      <option value="__new__">New group…</option>
+    </select>
+  );
+}
+
+function GroupNameField({
+  groupId,
+  name,
+  onRename,
+}: {
+  groupId: string;
+  name: string;
+  onRename?: (groupId: string, name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  useEffect(() => {
+    if (!editing) setDraft(name);
+  }, [name, editing]);
+  if (!onRename || !editing) {
+    return (
+      <button
+        type="button"
+        className="lane-group-name"
+        data-testid={`lane-group-name-${groupId}`}
+        title="Rename group"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!onRename) return;
+          setDraft(name);
+          setEditing(true);
+        }}
+      >
+        {name}
+      </button>
+    );
+  }
+  return (
+    <input
+      className="lane-group-name-input"
+      data-testid={`lane-group-name-input-${groupId}`}
+      value={draft}
+      autoFocus
+      aria-label="Group name"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        onRename(groupId, draft);
+        setEditing(false);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onRename(groupId, draft);
+          setEditing(false);
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setDraft(name);
+          setEditing(false);
+        }
+      }}
+    />
+  );
 }
 
 function msToX(ms: number, zoom: number, scrollMs: number): number {
@@ -263,6 +390,11 @@ export function Timeline({
   onRemoveAudioTrack,
   canAddAudioTrack = true,
   canRemoveAudioTrack = false,
+  collapsedGroupIds,
+  onToggleGroupCollapsed,
+  onCreateTrackGroup,
+  onAssignTracksToGroup,
+  onRenameTrackGroup,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -1260,10 +1392,108 @@ export function Timeline({
       </div>
       {(() => {
         const visibleIds = visibleTrackIds ?? trackIdsOf(project);
-        const lastVisibleAudio = audioTrackIdsOf(project)
-          .filter((laneId) => visibleIds.includes(laneId))
-          .at(-1);
-        return visibleIds.map((id) => {
+        const rows = arrangeRows(project, {
+          visibleTrackIds: visibleIds,
+          collapsedGroupIds,
+        });
+        const chrome = lastAudioChromeHost(project, rows);
+        const listedGroups = groupsOf(project);
+        const audioChrome = (host: "track" | "group", hostId: string) => {
+          const isHost =
+            chrome?.kind === host &&
+            (chrome.kind === "track" ? chrome.trackId === hostId : chrome.groupId === hostId);
+          return {
+            showAdd: Boolean(isHost && onAddAudioTrack),
+            showRemove: Boolean(isHost && onRemoveAudioTrack && canRemoveAudioTrack),
+            showGroup: Boolean(isHost && onCreateTrackGroup),
+          };
+        };
+        return rows.map((row: ArrangeRow) => {
+        if (row.kind === "group") {
+          const buttons = audioChrome("group", row.group.id);
+          return (
+            <div
+              className={`lane group-lane${row.collapsed ? " collapsed" : ""}`}
+              key={`group:${row.group.id}`}
+              data-testid={`lane-group-${row.group.id}`}
+              data-collapsed={row.collapsed ? "true" : "false"}
+            >
+              <div className="lane-label" data-testid={`lane-group-label-${row.group.id}`}>
+                {laneLabelSplitter}
+                <button
+                  type="button"
+                  className="lane-group-collapse"
+                  data-testid={`lane-group-collapse-${row.group.id}`}
+                  title={row.collapsed ? "Expand group" : "Collapse group"}
+                  aria-expanded={!row.collapsed}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleGroupCollapsed?.(row.group.id);
+                  }}
+                >
+                  <GroupCollapseIcon collapsed={row.collapsed} />
+                </button>
+                <GroupNameField
+                  groupId={row.group.id}
+                  name={row.group.name}
+                  onRename={onRenameTrackGroup}
+                />
+                <span className="lane-group-count" data-testid={`lane-group-count-${row.group.id}`}>
+                  {row.memberIds.length}
+                </span>
+                {buttons.showAdd || buttons.showRemove || buttons.showGroup ? (
+                  <div className="lane-audio-count" data-testid={`lane-audio-count-group-${row.group.id}`}>
+                    {buttons.showGroup ? (
+                      <button
+                        type="button"
+                        className="lane-audio-count-btn"
+                        data-testid="create-track-group"
+                        title="Group selected audio tracks"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCreateTrackGroup?.();
+                        }}
+                      >
+                        Grp
+                      </button>
+                    ) : null}
+                    {buttons.showAdd ? (
+                      <button
+                        type="button"
+                        className="lane-audio-count-btn"
+                        data-testid="add-audio-track"
+                        title="Add audio track"
+                        disabled={canAddAudioTrack === false}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddAudioTrack?.();
+                        }}
+                      >
+                        +
+                      </button>
+                    ) : null}
+                    {buttons.showRemove ? (
+                      <button
+                        type="button"
+                        className="lane-audio-count-btn"
+                        data-testid="remove-audio-track"
+                        title="Remove audio track"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveAudioTrack?.();
+                        }}
+                      >
+                        −
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              <div className="lane-body" data-testid={`lane-group-${row.group.id}-body`} />
+            </div>
+          );
+        }
+        const id = row.trackId;
         const track = trackById(project, id);
         const muted = track?.muted === true;
         const soloed = track?.solo === true;
@@ -1271,9 +1501,10 @@ export function Timeline({
         const kind = track?.kind ?? kindOfTrack(id);
         const label = track?.name || id;
         const headerInline = laneHeaderPacksInline(heights[group]);
-        const isLastAudio = kind === "audio" && id === lastVisibleAudio;
-        const showAudioAdd = Boolean(isLastAudio && onAddAudioTrack);
-        const showAudioRemove = Boolean(isLastAudio && onRemoveAudioTrack && canRemoveAudioTrack);
+        const buttons = audioChrome("track", id);
+        const showAudioAdd = buttons.showAdd;
+        const showAudioRemove = buttons.showRemove;
+        const showCreateGroup = buttons.showGroup;
         return (
           <div
             className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}${headerInline ? " lane-header-compact" : ""}`}
@@ -1287,7 +1518,7 @@ export function Timeline({
               data-testid={`lane-label-${id}`}
               data-header-pack={headerInline ? "inline" : "stack"}
               onClick={(e) => {
-                if ((e.target as HTMLElement).closest("button")) return;
+                if ((e.target as HTMLElement).closest("button, select, input")) return;
                 onSelectTrack?.(id, { toggle: e.ctrlKey || e.metaKey });
               }}
             >
@@ -1308,6 +1539,15 @@ export function Timeline({
               ) : (
                 <span>{label}</span>
               )}
+              {kind === "audio" && onAssignTracksToGroup ? (
+                <LaneGroupAssign
+                  trackId={id}
+                  groupId={track?.groupId}
+                  groups={listedGroups}
+                  onAssign={onAssignTracksToGroup}
+                  onCreate={(trackIds) => onCreateTrackGroup?.(trackIds)}
+                />
+              ) : null}
               <div className="lane-ms">
               <button
                 type="button"
@@ -1334,8 +1574,22 @@ export function Timeline({
                 S
               </button>
               </div>
-              {showAudioAdd || showAudioRemove ? (
+              {showAudioAdd || showAudioRemove || showCreateGroup ? (
                 <div className="lane-audio-count" data-testid={`lane-audio-count-${id}`}>
+                  {showCreateGroup ? (
+                    <button
+                      type="button"
+                      className="lane-audio-count-btn lane-group-create-btn"
+                      data-testid="create-track-group"
+                      title="Group selected audio tracks"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateTrackGroup?.();
+                      }}
+                    >
+                      Grp
+                    </button>
+                  ) : null}
                   {showAudioAdd ? (
                     <button
                       type="button"

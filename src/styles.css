@@ -598,6 +598,86 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .lane.vis-lane { height: var(--lane-height-vis); }
 .lane.audio-lane { height: var(--lane-height-audio); }
+.lane.group-lane {
+  height: 28px;
+  grid-template-columns: var(--lane-label-px) 1fr;
+  background: #141a24;
+}
+.lane.group-lane .lane-label {
+  flex-direction: row;
+  gap: 5px;
+  padding-inline: 4px;
+  font-size: 11px;
+  color: #c4b07a;
+}
+.lane.group-lane .lane-body {
+  background: repeating-linear-gradient(
+    90deg,
+    #141a24,
+    #141a24 8px,
+    #121820 8px,
+    #121820 16px
+  );
+}
+.lane-group-collapse,
+.mix-group-collapse {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border: 1px solid rgba(196, 176, 122, 0.35);
+  border-radius: 3px;
+  background: rgba(16, 20, 27, 0.45);
+  color: #c4b07a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lane-group-name,
+.lane-group-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  padding: 0;
+}
+.lane-group-name {
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lane-group-name-input {
+  outline: 1px solid rgba(196, 176, 122, 0.45);
+  border-radius: 2px;
+}
+.lane-group-count,
+.mix-group-count {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+}
+.lane-group-assign {
+  max-width: 62px;
+  min-width: 0;
+  font-size: 9px;
+  line-height: 1.2;
+  color: #c5cdd8;
+  background: rgba(16, 20, 27, 0.55);
+  border: 1px solid rgba(238, 242, 247, 0.18);
+  border-radius: 3px;
+}
+.lane-group-create-btn {
+  width: auto;
+  min-width: 22px;
+  padding: 0 3px;
+  font-size: 8px;
+  letter-spacing: 0.02em;
+}
 .lane-label {
   position: relative;
   display: flex;
@@ -834,6 +914,7 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .lane.lane-header-compact .lane-ms,
 .lane.lane-header-compact .lane-audio-count,
+.lane.lane-header-compact .lane-group-assign,
 .lane.lane-header-compact .vis-lane-btns {
   flex: 0 0 auto;
 }
@@ -1138,6 +1219,21 @@ body.media-asset-dragging .project-overlay-drawer {
 .mix-strip.video .mix-name { color: #8eb6e0; }
 .mix-strip.audio .mix-name { color: #6ec9a4; }
 .mix-strip.master .mix-name { color: var(--accent); }
+.mix-strip.group {
+  background: #141a24;
+  cursor: default;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.mix-strip.group .mix-name {
+  color: #c4b07a;
+  text-align: center;
+  max-height: 72px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
 .mix-meter {
   width: 8px;
   height: 52px;
