@@ -1,8 +1,13 @@
 import {
+  existingExportNamesFromMemory,
+  nextVersionedFileName,
+} from "./filename-version";
+import {
   exportPickerOptions,
   exportStatusFallback,
   exportStatusFsa,
   pickExportDestination,
+  rememberExportFileName,
   writeExportBlob,
   type ExportDestination,
   type PickerHost,
@@ -42,17 +47,23 @@ export async function runExportWithDestination(opts: {
   signal?: AbortSignal;
   onProgress?: (progress: ExportProgress) => void;
 }): Promise<ExportDestinationOutcome> {
+  // Sync only — first await must stay showSaveFilePicker (user gesture).
+  const suggestedName = nextVersionedFileName(
+    opts.job.fileName,
+    existingExportNamesFromMemory(opts.memory),
+  );
+  const planned = suggestedName === opts.job.fileName ? opts.job : { ...opts.job, fileName: suggestedName };
   const dest: ExportDestination = await pickExportDestination({
     host: opts.host,
     store: opts.store,
     memory: opts.memory,
-    suggestedName: opts.job.fileName,
+    suggestedName: planned.fileName,
     pickerOptions: opts.pickerOptions ?? exportPickerOptions,
   });
   if (dest.kind === "cancelled") return { kind: "cancelled" };
 
   const job =
-    dest.kind === "picked" ? { ...opts.job, fileName: dest.fileName } : opts.job;
+    dest.kind === "picked" ? { ...planned, fileName: dest.fileName } : planned;
   const memory = dest.kind === "picked" ? dest.memory : opts.memory;
 
   opts.onBeforeEncode?.(job);
@@ -92,7 +103,7 @@ export async function runExportWithDestination(opts: {
       result,
       usedDownload: false,
       wroteHandle: true,
-      memory,
+      memory: await rememberExportFileName(opts.store, memory, job.fileName),
       status: exportStatusFsa(job.fileName, result.fileSizeBytes),
     };
   }
@@ -104,7 +115,7 @@ export async function runExportWithDestination(opts: {
     result,
     usedDownload: true,
     wroteHandle: false,
-    memory,
+    memory: await rememberExportFileName(opts.store, memory, job.fileName),
     status: exportStatusFallback(job.fileName, result.fileSizeBytes),
   };
 }

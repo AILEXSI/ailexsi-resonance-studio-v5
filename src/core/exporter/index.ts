@@ -23,6 +23,23 @@ export {
 } from "./dialog";
 export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnlyVideoLabel } from "./job";
 export { runExportWithDestination, type ExportDestinationOutcome } from "./destination";
+export {
+  existingExportNamesFromMemory,
+  formatExportFileName,
+  mediaExportFileName,
+  nextVersionedFileName,
+  parseExportFileName,
+  readyExportNameFromProject,
+  sanitizeMediaExportStem,
+  splitNameAndExt,
+} from "./filename-version";
+export {
+  collectExistingExportNames,
+  listDirectoryFileNames,
+  probeExportSiblingNames,
+  readyExportNameFromProjectAsync,
+  resolveSuggestedExportFileName,
+} from "./export-name";
 export { canUseWebCodecs, webCodecsUnavailableMessage } from "./webcodecs";
 export { validateMp4Ftyp, looksLikeWebm, hexHeader } from "./ftyp";
 export { audioInputForMux, mp4HasAudioTrack } from "./mp4";
