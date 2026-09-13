@@ -85,6 +85,7 @@ import {
   applyToggleLoop,
   applyMasterVolume,
   applyTrackVolume,
+  previewMoveVolumeAutomationPoint,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
   applySelectTracks,
@@ -129,6 +130,7 @@ import {
   applySplitPointer,
   browserLayoutStorage,
   loadCollapsedGroupIds,
+  loadOpenVolumeLaneIds,
   loadHSplitRatio,
   loadLaneHeights,
   loadLaneLabelPx,
@@ -136,6 +138,7 @@ import {
   loadMixerWidth,
   loadSplitRatio,
   saveCollapsedGroupIds,
+  saveOpenVolumeLaneIds,
   saveHSplitRatio,
   saveLaneHeights,
   saveLaneLabelPx,
@@ -143,6 +146,7 @@ import {
   saveMixerWidth,
   saveSplitRatio,
   toggleCollapsedGroupId,
+  toggleOpenVolumeLaneId,
   TIMELINE_MIN_PX,
   type LaneHeightGroup,
   type LaneHeights,
@@ -173,6 +177,7 @@ export function App() {
   const layoutStore = browserLayoutStorage();
   const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
   const [collapsedGroupIds, setCollapsedGroupIds] = useState(() => loadCollapsedGroupIds(layoutStore));
+  const [openVolumeLaneIds, setOpenVolumeLaneIds] = useState(() => loadOpenVolumeLaneIds(layoutStore));
   const [mixerWidthPx, setMixerWidthPx] = useState(() => loadMixerWidth(layoutStore));
   const mixerWidthRef = useRef(mixerWidthPx);
   mixerWidthRef.current = mixerWidthPx;
@@ -1131,6 +1136,44 @@ export function App() {
     });
   };
 
+  const toggleVolumeLane = (trackId: TrackId) => {
+    setOpenVolumeLaneIds((prev) => {
+      const next = toggleOpenVolumeLaneId(prev, trackId);
+      saveOpenVolumeLaneIds(layoutStore, next);
+      return next;
+    });
+  };
+
+  const onVolumePointLive = (trackId: TrackId, fromTimeMs: number, timeMs: number, value: number) => {
+    setSession((s) => {
+      if (!dragBaseRef.current) dragBaseRef.current = s;
+      const base = dragBaseRef.current;
+      const preview = previewMoveVolumeAutomationPoint(base, trackId, fromTimeMs, timeMs, value);
+      if (!preview.point) return s;
+      return {
+        ...s,
+        project: preview.project,
+        selectedVolumeAutomation: { trackId, timeMs: preview.point.timeMs },
+        selectedClipId: null,
+        selectedClipIds: [],
+        status: "Moving volume point",
+        error: null,
+      };
+    });
+  };
+
+  const onVolumePointCommit = () => {
+    const base = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!base) return;
+    setSession((s) => ({
+      ...s,
+      history: { past: [...base.history.past, structuredClone(base.project)], future: [] },
+      status: "Volume point moved",
+      error: null,
+    }));
+  };
+
   const onLaneLabelPx = (px: number) => {
     setLaneLabelPx(px);
     saveLaneLabelPx(layoutStore, px);
@@ -1593,6 +1636,24 @@ export function App() {
           runCommand({ type: "assignTracksToGroup", trackIds, groupId })
         }
         onRenameTrackGroup={(groupId, name) => runCommand({ type: "renameTrackGroup", groupId, name })}
+        openVolumeLaneIds={openVolumeLaneIds}
+        selectedVolumeAutomation={session.selectedVolumeAutomation}
+        onToggleVolumeLane={toggleVolumeLane}
+        onSetVolumeAutomationEnabled={(trackId, enabled) =>
+          runCommand({ type: "setVolumeAutomationEnabled", trackId, enabled })
+        }
+        onSelectVolumeAutomationPoint={(trackId, timeMs) => {
+          if (timeMs == null) runCommand({ type: "clearVolumeAutomationPoint" });
+          else runCommand({ type: "selectVolumeAutomationPoint", trackId, timeMs });
+        }}
+        onAddVolumeAutomationPoint={(trackId, timeMs, value) =>
+          runCommand({ type: "addVolumeAutomationPoint", trackId, timeMs, value })
+        }
+        onDeleteVolumeAutomationPoint={(trackId, timeMs) =>
+          runCommand({ type: "deleteVolumeAutomationPoint", trackId, timeMs })
+        }
+        onVolumeAutomationPointLive={onVolumePointLive}
+        onVolumeAutomationPointCommit={onVolumePointCommit}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}
@@ -1616,6 +1677,7 @@ export function App() {
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
         collapsedGroupIds={collapsedGroupIds}
         onToggleGroupCollapsed={toggleGroupCollapsed}
+        playing={session.playing}
       />
       </div>
       </div>

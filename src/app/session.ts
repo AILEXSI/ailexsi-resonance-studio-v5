@@ -137,6 +137,13 @@ import {
 import type { VisualizerState } from "../core/models";
 import { formatDb, formatPan, linearToDb } from "../core/volume";
 import {
+  addVolumeAutomationPoint,
+  deleteVolumeAutomationPoint,
+  moveVolumeAutomationPoint,
+  setVolumeAutomationEnabled,
+  type VolumeAutomationPoint,
+} from "../core/volume-automation";
+import {
   clampScrollMs,
   clampZoomPxPerSec,
   fitZoomPxPerSec,
@@ -171,6 +178,8 @@ export interface Session {
   targetTrackId: TrackId;
   /** Mixer / lane multi-select. Empty = use `targetTrackId`. Clip selection wins for S. */
   selectedTrackIds: TrackId[];
+  /** Selected volume-automation point (track + time). View state only. */
+  selectedVolumeAutomation?: { trackId: TrackId; timeMs: number } | null;
   status: string;
   error: string | null;
   playing: boolean;
@@ -204,6 +213,7 @@ export function createSession(store?: BlobStore): Session {
     lastClipboardKind: null,
     targetTrackId: "V1",
     selectedTrackIds: ["V1"],
+    selectedVolumeAutomation: null,
     status: "New project",
     error: null,
     playing: false,
@@ -308,6 +318,7 @@ export function withClipSelection(session: Session, ids: string[]): Session {
     selectedVis: false,
     selectedVisEventId: null,
     selectedVisEventIds: [],
+    selectedVolumeAutomation: unique.length > 0 ? null : session.selectedVolumeAutomation,
   };
 }
 
@@ -1337,6 +1348,13 @@ export function applyExtractRange(session: Session): Session {
 }
 
 export function applyDelete(session: Session): Session {
+  if (session.selectedVolumeAutomation) {
+    return applyDeleteVolumeAutomationPoint(
+      session,
+      session.selectedVolumeAutomation.trackId,
+      session.selectedVolumeAutomation.timeMs,
+    );
+  }
   const ids = selectionOf(session);
   if (ids.length > 0) {
     const next = deleteClips(session.project, ids);
@@ -1637,6 +1655,95 @@ export function applyRenameTrackGroup(session: Session, groupId: string, name: s
   const next = renameTrackGroup(session.project, groupId, name);
   if (next === session.project) return session;
   return withHistory(session, next, "Group renamed");
+}
+
+export function applySelectVolumeAutomationPoint(
+  session: Session,
+  sel: { trackId: TrackId; timeMs: number } | null,
+): Session {
+  if (!sel) {
+    return session.selectedVolumeAutomation ? { ...session, selectedVolumeAutomation: null } : session;
+  }
+  return {
+    ...session,
+    selectedVolumeAutomation: sel,
+    selectedClipId: null,
+    selectedClipIds: [],
+    selectedMarkerId: null,
+    selectedVis: false,
+    selectedVisEventId: null,
+    selectedVisEventIds: [],
+    targetTrackId: sel.trackId,
+    selectedTrackIds: [sel.trackId],
+  };
+}
+
+export function applySetVolumeAutomationEnabled(
+  session: Session,
+  trackId: TrackId,
+  enabled: boolean,
+): Session {
+  const next = setVolumeAutomationEnabled(session.project, trackId, enabled);
+  if (next === session.project) return session;
+  return withHistory(session, next, enabled ? "Volume automation on" : "Volume automation off");
+}
+
+export function applyAddVolumeAutomationPoint(
+  session: Session,
+  trackId: TrackId,
+  timeMs: number,
+  value: number,
+): Session {
+  const result = addVolumeAutomationPoint(session.project, trackId, timeMs, value);
+  if (result.project === session.project || !result.point) return session;
+  return {
+    ...withHistory(session, result.project, "Volume point added"),
+    selectedVolumeAutomation: { trackId, timeMs: result.point.timeMs },
+    selectedClipId: null,
+    selectedClipIds: [],
+    targetTrackId: trackId,
+    selectedTrackIds: [trackId],
+  };
+}
+
+export function applyDeleteVolumeAutomationPoint(
+  session: Session,
+  trackId: TrackId,
+  timeMs: number,
+): Session {
+  const next = deleteVolumeAutomationPoint(session.project, trackId, timeMs);
+  if (next === session.project) return session;
+  const selected =
+    session.selectedVolumeAutomation?.trackId === trackId &&
+    session.selectedVolumeAutomation.timeMs === timeMs
+      ? null
+      : session.selectedVolumeAutomation;
+  return { ...withHistory(session, next, "Volume point deleted"), selectedVolumeAutomation: selected };
+}
+
+export function applyMoveVolumeAutomationPoint(
+  session: Session,
+  trackId: TrackId,
+  fromTimeMs: number,
+  timeMs: number,
+  value: number,
+): Session {
+  const result = moveVolumeAutomationPoint(session.project, trackId, fromTimeMs, timeMs, value);
+  if (result.project === session.project || !result.point) return session;
+  return {
+    ...withHistory(session, result.project, "Volume point moved"),
+    selectedVolumeAutomation: { trackId, timeMs: result.point.timeMs },
+  };
+}
+
+export function previewMoveVolumeAutomationPoint(
+  session: Session,
+  trackId: TrackId,
+  fromTimeMs: number,
+  timeMs: number,
+  value: number,
+): { project: Project; point?: VolumeAutomationPoint } {
+  return moveVolumeAutomationPoint(session.project, trackId, fromTimeMs, timeMs, value);
 }
 
 export function applyPlay(session: Session): Session {

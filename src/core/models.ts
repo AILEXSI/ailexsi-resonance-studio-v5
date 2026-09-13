@@ -215,11 +215,17 @@ export function clipIsLocked(clip: { locked?: boolean }): boolean {
   return clip.locked === true;
 }
 
-/** Stub for G/H volume automation. Field only — no UI in D. */
+/** Legacy D stub. G persists `Track.volumeAutomation`; this remains for old JSON. */
 export interface AutomationLane {
   id: string;
   kind: "volume";
   points?: { timeMs: number; value: number }[];
+}
+
+/** G — track-owned volume envelope. Linear values (1 = 0 dB). Missing = identity. */
+export interface VolumeAutomation {
+  enabled: boolean;
+  points: { timeMs: number; value: number }[];
 }
 
 export interface Track {
@@ -240,7 +246,12 @@ export interface Track {
    * Collapse is UI-only — this field does not change mute/solo/volume/routing.
    */
   groupId?: string;
-  /** Optional automation lanes. Field/stub only — no G/H UI in D. */
+  /**
+   * Optional volume envelope (G). Track-owned, not clip-owned.
+   * Missing / disabled / empty points = static volume only (prior behavior).
+   */
+  volumeAutomation?: VolumeAutomation;
+  /** Legacy D stub. Prefer `volumeAutomation`. Kept so old JSON still loads. */
   automationLanes?: AutomationLane[];
 }
 

@@ -1,6 +1,6 @@
 # V5 tests
 
-Vitest under `tests/`. Last full count on the accepted EXE SHA `234a781` (PR #15): **831 passed / 94 files** (vitest 3.2.7). F branch: **841 passed / 96 files**.
+Vitest under `tests/`. Last full count on the accepted EXE SHA `234a781` (PR #15): **831 passed / 94 files** (vitest 3.2.7). F branch: **841 passed / 96 files**. G branch: **862 passed / 98 files** (`tests/core/volume-automation.test.ts` + `tests/layout/volume-automation.test.tsx`).
 
 Suites by area:
 
@@ -12,8 +12,8 @@ Suites by area:
 - export (dialog, destination, aac-mux, filename-version / export-name `.vN`)
 - visualizer
 - mixer / volume
-- layout (**dynamic-audio-lanes**, **mixer-resize**, **track-groups**)
-- core (**audio-tracks**, **track-groups**)
+- layout (**dynamic-audio-lanes**, **mixer-resize**, **track-groups**, **volume-automation**)
+- core (**audio-tracks**, **track-groups**, **volume-automation**)
 - app (commands, keys, close-gap, ripple, duplicate, relink)
 
 MODE A: `npm test` / `npx tsc --noEmit`. MODE B HUMAN-PROVEN is operator EXE only — see `docs/ACCEPTANCE.md`.

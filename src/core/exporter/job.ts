@@ -10,6 +10,7 @@ import {
 } from "../models";
 import { vClipMixesOwnAudio } from "../link";
 import { clampPan, mixLinearGain } from "../volume";
+import { remapVolumeAutomation, volumeAutomationOf } from "../volume-automation";
 import { exportRangeMs } from "../timeline";
 import {
   compositeVideoAt,
@@ -84,7 +85,13 @@ export function jobFromProject(project: Project, opts: JobOptions = {}): ExportJ
           skipMix: !vClipMixesOwnAudio(project, c),
         };
       });
-    return { id: track.id, kind: track.kind, pan: clampPan(track.pan ?? 0), clips };
+    return {
+      id: track.id,
+      kind: track.kind,
+      pan: clampPan(track.pan ?? 0),
+      clips,
+      volumeAutomation: remapVolumeAutomation(volumeAutomationOf(track), startMs),
+    };
   });
 
   const hasClips = tracks.some((t) => t.clips.length > 0);

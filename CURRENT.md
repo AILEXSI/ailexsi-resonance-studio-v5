@@ -11,7 +11,7 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | **5.0.0** (package / tauri / Cargo / toolbar chip). JSON `schemaVersion` **5**. |
 | main | `origin/main` @ `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. **Stack not merged to main.** |
-| Lineage | D/E/save/export EXE: PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320`. **F HUMAN-PROVEN** in EXE from PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43` (`cursor/track-chapter-groups-6442` onto docs PR #16). This docs stamp is not the F EXE SHA. Open PR chain **#10–#17**; later heads supersede earlier D/E/export-only PRs. Stack not merged to main. |
+| Lineage | D/E/save/export EXE: PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320`. **F HUMAN-PROVEN** in EXE from PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43` (`cursor/track-chapter-groups-6442` onto docs PR #16). This docs stamp is not the F EXE SHA. **G HUMAN-PROVEN** in EXE from PR **#18** tip `896b64083f541d013b289de0e1eb98cfe3dcfb06` (`cursor/volume-automation-e329` onto F). This docs stamp is not the G EXE SHA. Open PR chain **#10–#18**; later heads supersede earlier D/E/export-only PRs. Stack not merged to main. |
 | Base | `main` after PR #9, plus unmerged stack D→D.1→E→Speichern→Export `.vN`. |
 | Live-UI | Chrome chrome still `docs/ui-2026-09-13.png` (Vite `127.0.0.1:1421`, MODE A). **EXE HUMAN-PROVEN** 2026-09-13: `docs/exe-acceptance-2026-09-13.png` (Task Manager + Export Fertig). See `docs/ACCEPTANCE.md`. |
 | App icon | 愛 — Tauri icons in `src-tauri/icons/` (PR-#5-Icon-Base). `docs/ailexsi-app-icon.png` is referenced historically and is **not** in this tree. Icons nicht anfassen. |
@@ -31,13 +31,14 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Dynamic audio | **D HUMAN-PROVEN in EXE.** Collection, not A1/A2 architecture. Default project still A1+A2 (`MIN_AUDIO_TRACKS` 2). Capacity **64** (`MAX_AUDIO_TRACKS`). Created as needed. Circular `+`/`−` on the **last** audio header (`−` hidden at floor 2, `+` disabled at 64). Stable ids (`A1`/`A2` legacy; new `a_*`); labels A1, A2, A3…. Legacy A1/A2 JSON loads. Lane template reused. `.timeline-lanes` **vertical** scroll. Mixer channels follow the collection; **horizontal** mixer scroll. Resizable mixer / workspace divider. Track/mixer state stays in sync. |
 | Stem import | **E HUMAN-PROVEN in EXE.** Import picker is multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename (extension stripped). Status reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. Optional `groupId` when filenames share a prefix — F maps that into `Project.groups`. Remaining E refinements: Suno naming normalize, single-vs-multi placement polish — **PLANNED**. |
 | Track / chapter groups | **F HUMAN-PROVEN in EXE.** Collapse UI only (no group bus). Operator confirmed create / assign / collapse / rename. Timeline + Mixer show the same groups; collapse hides child lanes/channels. Membership + display name persist in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. `+/−` last-lane UX kept. |
+| Volume automation | **G HUMAN-PROVEN in EXE.** VOL-Lane (label **VOL**, not V). Operator: VOL lane works well; Volume Automation accepted. Clip gain ≠ static track fader ≠ automation. Linear points. |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | **HUMAN-PROVEN** in EXE. Toolbar **Export** → H.264-MP4-Dialog. Default-Name immer `Stem.vN.ext` (screenshot: `Untitled_Resonance.v1.mp4` / status `Exported … bytes`). Empty folder → `.v1`; unversioned sibling occupies v1 → `.v2`. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
-| Nächster Slice | Production Pass **G** (Volume Automation) — **PLANNED / NOT IMPLEMENTED**. D + E + F are HUMAN-PROVEN. Future UI zettel (track rename / color / distribute / Preview Zoom / EQ-FX) is **not** this slice. STOP — no G+. |
-| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass **H** (Write Automation **W**) — **PLANNED / NOT IMPLEMENTED**. D + E + F + **G** stay HUMAN-PROVEN. Future UI zettel (track rename / color / distribute / Preview Zoom / EQ-FX / Relink filename assist) is **not** H. STOP — no H+. |
+| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
 ## Verification paths
 
@@ -48,9 +49,9 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + chip **5.0.0** + dynamic tracks/mixer visible. Details: `docs/ACCEPTANCE.md`.
 
-## Production Pass (D + E + F HUMAN-PROVEN · G–N planned)
+## Production Pass (D + E + F + G HUMAN-PROVEN · H–N planned)
 
-**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). G–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
+**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). **G Volume Automation** is in App-Code and **HUMAN-PROVEN** in EXE (operator: VOL lane works well; Volume Automation accepted). H–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
 
 **Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
@@ -62,7 +63,7 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, ZIP in-memory; Chapter `groupId` prefix maps into F groups | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
 | E+ | E refinements: Suno filename normalize; single-vs-multi placement polish (code already: 2+ same start / 1 appends) | **PLANNED** (do not implement here) |
 | F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
-| G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **PLANNED / NOT IMPLEMENTED** |
+| G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
 | H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |
 | I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
 | J | Four Chapters — echte Produktion: **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code | **PLANNED / NOT IMPLEMENTED** |
@@ -75,6 +76,7 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | Zettel | Track / Mixer Channel Rename — one shared display name; inline edit from header or mixer | **PLANNED / NOT IMPLEMENTED** |
 | Zettel | Track Color — one shared color from Timeline header and Mixer channel | **PLANNED / NOT IMPLEMENTED** |
 | Zettel | Distribute Colors — sequential palette on a selection or Chapter group | **PLANNED / NOT IMPLEMENTED** |
+| Zettel | Relink filename assist — picker should prefer the expected / last-known filename | **PLANNED / NOT IMPLEMENTED** (do not expand Relink UX in G) |
 
 ## F Evidence Report
 
@@ -108,9 +110,54 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 
 Collapse does **not** change playback, mute/solo, volume, pan, routing, or export mix. No group bus / group FX / group mute.
 
+## G Evidence Report
+
+**IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE). Operator: VOL lane works well; Volume Automation accepted. Feature tip `896b640` (VOL label, not V) — this docs stamp is not the G EXE SHA. Stacked on F tip `9afed5e`. Version **5.0.0**. AUTO unangetastet. MODE A on the feature tip: tsc exit 0; vitest **862 / 98**; vite build 5.0.0, 196 modules.
+
+### What shipped
+
+- Model: `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }` on audio tracks. Linear gain internally (1 = 0 dB). `schemaVersion` stays **5**. Missing field = identity (exact prior mix).
+- Lane: per-track **VOL** toggle opens a Volume sub-lane (UI state in `resonance-studio-v5-volume-lane-open`). Clip-lane height is unchanged. Same project-time axis as clips (zoom / pan / Follow / scroll). Chapter collapse hides child automation with the tracks.
+- Editing: click empty lane to create; drag H/V; Delete / double-click to remove. Linear interpolation only. Clamp / reject NaN / Infinity.
+- Playback: `effective = clipGain × staticTrackVolume × automationValueAt(t)` (+ existing master / mute / fades). Empty or disabled = prior behavior. Points stay when disabled.
+- Mixer: static fader stays static. Ghost + dB readout of `static × automation` while the envelope is active. No Write Automation.
+- Undo: create / delete / completed move / enable = one history entry each (no spam while dragging).
+- Save/Load / rename / group assign / missing+relink keep the track-owned envelope.
+
+### Files
+
+- `src/core/volume-automation.ts` — sanitize, interp, point edit, export remap/schedule
+- `src/core/models.ts` / `src/core/project.ts` / `src/core/volume.ts` / `src/core/layout-prefs.ts`
+- `src/core/exporter/job.ts` / `types.ts` / `audio.ts` — envelope rides after baked clip/static/master gain
+- `src/ui/preview/Preview.tsx` / `src/core/visualz/playback-tap.ts` — live mix + short gain smoothing
+- `src/ui/timeline/VolumeAutomationLane.tsx` / `Timeline.tsx` / `src/ui/mixer/Mixer.tsx` / `src/app/App.tsx` / `commands.ts` / `session.ts` / `src/styles.css`
+- Tests: `tests/core/volume-automation.test.ts`, `tests/layout/volume-automation.test.tsx`, layout-prefs + mixer volume
+
+### Persistence
+
+| What | Where | Persist? |
+| --- | --- | --- |
+| `volumeAutomation.enabled` + points | Project JSON (`schemaVersion` 5) | **Yes** (Speichern) |
+| Open/closed Volume sub-lane | `localStorage` `resonance-studio-v5-volume-lane-open` | **Yes** (layout-prefs, not the project file) |
+
+### Human acceptance (MODE B — operator EXE PASS)
+
+Operator accepted G in the local EXE from feature tip `896b640`. Checklist that passed:
+
+1. Import a WAV onto an audio track (or stem-import).
+2. Click **VOL** on that audio header — Volume sub-lane opens under the clips; other tracks stay single-height.
+3. Click the lane to create points; drag horizontally (time) and vertically (volume). Readout in dB; 0 dB is the faint unity line.
+4. Draw a fade (e.g. 0 dB → −∞ or −12 dB). Play — audible level follows the envelope.
+5. Mixer: static fader stays where you left it; ghost / cyan readout follows the envelope. Moving the static fader still changes overall level (automation is a separate multiplier).
+6. Collapse the Chapter group that contains the track — child lane + envelope hide; playback does not change. Expand restores.
+7. Speichern / reopen — points and enabled state return. Optional: Relink missing media — envelope stays on the track.
+8. Confirm D (add/remove audio + mixer resize), E (stem import), F (create/assign/collapse/rename groups) still work.
+
+STOP — no H / Write / EQ / FX / Pan automation / Chapter bus / mixer redesign.
+
 ## Future UI (zettel — production-adjacent, not next slice)
 
-**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass G. Do not implement in this docs pass.
+**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass H. Do not implement in this G pass.
 
 `Track.name` already exists as the lane/mixer label (defaults A1…; stem import may write a filename). There is **no** inline rename UI, **no** track color property, **no** Distribute Colors. Project rename and marker rename are unrelated.
 
@@ -137,7 +184,7 @@ Rules:
 
 Color assignable from Timeline track header **and** Mixer channel; both modify the same track color property.
 
-Reflected consistently in: Timeline track, audio clips, Mixer channel, later automation lanes (when G exists).
+Reflected consistently in: Timeline track, audio clips, Mixer channel, volume automation lanes.
 
 ### Distribute Colors
 

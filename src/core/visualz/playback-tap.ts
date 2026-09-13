@@ -173,9 +173,18 @@ export function createPlaybackTap(
       return connectLane(id, el);
     },
     setGains(gains) {
+      const now = ctx.currentTime;
       for (const id of laneIds) {
         const node = trackGains[id];
-        if (node) node.gain.value = Math.max(0, Number(gains[id]) || 0);
+        if (node) {
+          const value = Math.max(0, Number(gains[id]) || 0);
+          try {
+            node.gain.cancelScheduledValues(now);
+            node.gain.setTargetAtTime(value, now, 0.012);
+          } catch {
+            node.gain.value = value;
+          }
+        }
         const panner = trackPanners[id];
         const pan = panOf(gains, id);
         if (panner && pan != null) panner.pan.value = Math.max(-1, Math.min(1, pan));

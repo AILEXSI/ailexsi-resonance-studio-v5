@@ -37,13 +37,17 @@ import {
   loadLaneHeights,
   loadLaneLabelPx,
   GROUP_COLLAPSED_KEY,
+  VOLUME_LANE_OPEN_KEY,
   loadCollapsedGroupIds,
+  loadOpenVolumeLaneIds,
   loadMixerCollapsed,
   loadMixerWidth,
   loadSplitRatio,
   saveCollapsedGroupIds,
+  saveOpenVolumeLaneIds,
   saveHSplitRatio,
   toggleCollapsedGroupId,
+  toggleOpenVolumeLaneId,
   saveLaneHeights,
   saveLaneLabelPx,
   saveMixerCollapsed,
@@ -207,6 +211,16 @@ describe("layout prefs", () => {
     expect(loadCollapsedGroupIds(memoryStorage({ [GROUP_COLLAPSED_KEY]: '{"01":true,"g_x":false}' }))).toEqual([
       "01",
     ]);
+  });
+
+  it("persists open volume-automation lane ids (UI state only)", () => {
+    const store = memoryStorage();
+    expect(loadOpenVolumeLaneIds(store)).toEqual([]);
+    saveOpenVolumeLaneIds(store, ["A1", "a_x"]);
+    expect(store.map.get(VOLUME_LANE_OPEN_KEY)).toBe(JSON.stringify(["A1", "a_x"]));
+    expect(loadOpenVolumeLaneIds(store)).toEqual(["A1", "a_x"]);
+    expect(toggleOpenVolumeLaneId(["A1"], "A1")).toEqual([]);
+    expect(toggleOpenVolumeLaneId(["A1"], "A2")).toEqual(["A1", "A2"]);
   });
 
   it("packs V/A/VIS headers inline below the stacked name + chrome threshold", () => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react
 import { kindOfTrack, trackById, type Project, type TrackId } from "../../core/models";
 import { arrangeRows } from "../../core/track-groups";
 import {
+  clampLinearVolume,
   dbToFader,
   dbToLinear,
   faderToDb,
@@ -11,6 +12,11 @@ import {
   meterHeightPct,
   peakToDb,
 } from "../../core/volume";
+import {
+  automationValueAt,
+  volumeAutomationIsActive,
+  volumeAutomationOf,
+} from "../../core/volume-automation";
 
 export type MixPeaks = { master: number } & Record<string, number>;
 
@@ -37,6 +43,7 @@ interface Props {
   onPan?: (id: TrackId, pan: number) => void;
   collapsedGroupIds?: readonly string[];
   onToggleGroupCollapsed?: (groupId: string) => void;
+  playing?: boolean;
 }
 
 function Strip(props: {
@@ -49,6 +56,8 @@ function Strip(props: {
   selected?: boolean;
   peak: number;
   kind: "video" | "audio" | "master";
+  effectiveVolume?: number;
+  automationActive?: boolean;
   onSelect?: (opts?: { toggle?: boolean }) => void;
   onVolume: (linear: number) => void;
   onPan?: (pan: number) => void;
@@ -58,9 +67,12 @@ function Strip(props: {
   const pos = dbToFader(linearToDb(props.volume));
   const dbLabel = formatDb(linearToDb(props.volume));
   const meterDb = formatDb(peakToDb(props.peak));
+  const showAuto = props.automationActive === true && props.effectiveVolume != null;
+  const autoPos = showAuto ? dbToFader(linearToDb(props.effectiveVolume!)) : pos;
+  const autoLabel = showAuto ? formatDb(linearToDb(props.effectiveVolume!)) : null;
   return (
     <div
-      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}`}
+      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}${props.automationActive ? " auto-read" : ""}`}
       data-testid={`mix-${props.id}`}
       onClick={(e) => props.onSelect?.({ toggle: e.ctrlKey || e.metaKey })}
     >
@@ -89,22 +101,37 @@ function Strip(props: {
           </div>
         </>
       ) : null}
-      <input
-        type="range"
-        className="mix-fader"
-        min={0}
-        max={1}
-        step={0.005}
-        value={pos}
-        aria-label={`${props.label} volume`}
-        title={dbLabel}
-        data-testid={`mix-fader-${props.id}`}
-        onClick={(e) => e.stopPropagation()}
-        onChange={(e) => props.onVolume(dbToLinear(faderToDb(Number(e.target.value))))}
-      />
+      <div className="mix-fader-wrap">
+        {showAuto ? (
+          <span
+            className="mix-auto-ghost"
+            data-testid={`mix-auto-ghost-${props.id}`}
+            style={{ bottom: `${autoPos * 100}%` }}
+            title={`Automation ${autoLabel}`}
+          />
+        ) : null}
+        <input
+          type="range"
+          className="mix-fader"
+          min={0}
+          max={1}
+          step={0.005}
+          value={pos}
+          aria-label={`${props.label} volume`}
+          title={dbLabel}
+          data-testid={`mix-fader-${props.id}`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => props.onVolume(dbToLinear(faderToDb(Number(e.target.value))))}
+        />
+      </div>
       <div className="mix-db" data-testid={`mix-db-${props.id}`}>
         {dbLabel}
       </div>
+      {autoLabel ? (
+        <div className="mix-auto-db" data-testid={`mix-auto-db-${props.id}`}>
+          {autoLabel}
+        </div>
+      ) : null}
       <div className="mix-peak">{meterDb}</div>
       {props.onMute ? (
         <div className="mix-ms">
@@ -170,6 +197,7 @@ export function Mixer({
   onPan,
   collapsedGroupIds,
   onToggleGroupCollapsed,
+  playing = false,
 }: Props) {
   const rows = arrangeRows(project, { collapsedGroupIds });
   const channelScrollRef = useRef<HTMLDivElement>(null);
@@ -193,6 +221,7 @@ export function Mixer({
       className={`mixer${collapsed ? " collapsed" : ""}`}
       data-testid="mixer"
       data-collapsed={collapsed ? "true" : "false"}
+      data-playing={playing ? "true" : "false"}
     >
       {collapsed || !onResizePointerDown ? null : (
         <div
@@ -265,6 +294,11 @@ export function Mixer({
               const selectedSet = new Set(
                 selectedTrackIds && selectedTrackIds.length > 0 ? selectedTrackIds : [selectedTrackId],
               );
+              const auto = volumeAutomationOf(track);
+              const autoActive = volumeAutomationIsActive(auto);
+              const effective = autoActive
+                ? clampLinearVolume((track.volume ?? 1) * automationValueAt(auto, project.playheadMs))
+                : undefined;
               return (
                 <Strip
                   key={id}
@@ -277,6 +311,8 @@ export function Mixer({
                   solo={track.solo === true}
                   selected={selectedSet.has(id)}
                   peak={peaks[id] ?? 0}
+                  automationActive={autoActive}
+                  effectiveVolume={effective}
                   onSelect={(opts) => onSelectTrack(id, opts)}
                   onVolume={(v) => onVolume(id, v)}
                   onPan={onPan ? (p) => onPan(id, p) : undefined}

@@ -2,6 +2,7 @@ import { scheduleGainEnvelope } from "../fades";
 import { clampClipRate } from "../models";
 import { scheduleTransitionAudioGain } from "../transition";
 import { clampPan, equalPowerPan } from "../volume";
+import { scheduleVolumeAutomation, volumeAutomationIsActive } from "../volume-automation";
 import { audioClipsForMix, mixWindowsForClip, presentLinkedAudioMates } from "./job";
 import { decodeAudio, isPlayableSource } from "./media";
 import type { AacSample } from "./mp4";
@@ -127,6 +128,15 @@ export async function mixJobAudio(
         { startFactor: clip.fadeInFrom, endFactor: clip.fadeOutTo },
       );
       src.connect(gain);
+      const trackAuto = job.tracks.find((t) => t.id === clip.trackId)?.volumeAutomation;
+      let mixOut: AudioNode = gain;
+      if (volumeAutomationIsActive(trackAuto)) {
+        const autoGain = ctx.createGain();
+        autoGain.gain.value = 1;
+        scheduleVolumeAutomation(autoGain.gain, trackAuto, clip.startMs, clip.endMs);
+        gain.connect(autoGain);
+        mixOut = autoGain;
+      }
       const transitions = job.transitions ?? [];
       if (transitions.length > 0) {
         const transGain = ctx.createGain();
@@ -140,10 +150,10 @@ export async function mixJobAudio(
           undefined,
           peers,
         );
-        gain.connect(transGain);
+        mixOut.connect(transGain);
         connectTrackPan(ctx, transGain, trackPanOfJob(job, clip.trackId));
       } else {
-        connectTrackPan(ctx, gain, trackPanOfJob(job, clip.trackId));
+        connectTrackPan(ctx, mixOut, trackPanOfJob(job, clip.trackId));
       }
       const rate = clampClipRate(clip.rate ?? 1);
       src.playbackRate.value = rate;

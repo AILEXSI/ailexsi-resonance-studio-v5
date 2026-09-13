@@ -47,6 +47,7 @@ import {
   lastAudioChromeHost,
   type ArrangeRow,
 } from "../../core/track-groups";
+import { VolumeAutomationLane } from "./VolumeAutomationLane";
 
 export { RULER_PAD_PX };
 
@@ -163,6 +164,20 @@ interface Props {
   onCreateTrackGroup?: (trackIds?: TrackId[]) => void;
   onAssignTracksToGroup?: (trackIds: TrackId[], groupId: string | null) => void;
   onRenameTrackGroup?: (groupId: string, name: string) => void;
+  openVolumeLaneIds?: readonly TrackId[];
+  selectedVolumeAutomation?: { trackId: TrackId; timeMs: number } | null;
+  onToggleVolumeLane?: (trackId: TrackId) => void;
+  onSetVolumeAutomationEnabled?: (trackId: TrackId, enabled: boolean) => void;
+  onSelectVolumeAutomationPoint?: (trackId: TrackId, timeMs: number | null) => void;
+  onAddVolumeAutomationPoint?: (trackId: TrackId, timeMs: number, value: number) => void;
+  onDeleteVolumeAutomationPoint?: (trackId: TrackId, timeMs: number) => void;
+  onVolumeAutomationPointLive?: (
+    trackId: TrackId,
+    fromTimeMs: number,
+    timeMs: number,
+    value: number,
+  ) => void;
+  onVolumeAutomationPointCommit?: () => void;
 }
 
 function GroupCollapseIcon({ collapsed }: { collapsed: boolean }) {
@@ -395,6 +410,15 @@ export function Timeline({
   onCreateTrackGroup,
   onAssignTracksToGroup,
   onRenameTrackGroup,
+  openVolumeLaneIds,
+  selectedVolumeAutomation,
+  onToggleVolumeLane,
+  onSetVolumeAutomationEnabled,
+  onSelectVolumeAutomationPoint,
+  onAddVolumeAutomationPoint,
+  onDeleteVolumeAutomationPoint,
+  onVolumeAutomationPointLive,
+  onVolumeAutomationPointCommit,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -1505,7 +1529,7 @@ export function Timeline({
         const showAudioAdd = buttons.showAdd;
         const showAudioRemove = buttons.showRemove;
         const showCreateGroup = buttons.showGroup;
-        return (
+        const clipLane = (
           <div
             className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}${headerInline ? " lane-header-compact" : ""}`}
             key={id}
@@ -1573,6 +1597,22 @@ export function Timeline({
               >
                 S
               </button>
+              {kind === "audio" && onToggleVolumeLane ? (
+                <button
+                  type="button"
+                  className={openVolumeLaneIds?.includes(id) ? "active volume-lane-btn" : "volume-lane-btn"}
+                  title={openVolumeLaneIds?.includes(id) ? "Hide volume automation" : "Show volume automation"}
+                  aria-label={openVolumeLaneIds?.includes(id) ? "Hide volume automation" : "Show volume automation"}
+                  data-testid={`volume-lane-toggle-${id}`}
+                  aria-pressed={openVolumeLaneIds?.includes(id) ? true : false}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleVolumeLane(id);
+                  }}
+                >
+                  VOL
+                </button>
+              ) : null}
               </div>
               {showAudioAdd || showAudioRemove || showCreateGroup ? (
                 <div className="lane-audio-count" data-testid={`lane-audio-count-${id}`}>
@@ -1813,6 +1853,33 @@ export function Timeline({
             />
           </div>
         );
+        if (
+          kind !== "audio" ||
+          !onToggleVolumeLane ||
+          !openVolumeLaneIds?.includes(id)
+        ) {
+          return clipLane;
+        }
+        return [
+          clipLane,
+          <VolumeAutomationLane
+            key={`vol:${id}`}
+            project={project}
+            trackId={id}
+            selectedTimeMs={
+              selectedVolumeAutomation?.trackId === id ? selectedVolumeAutomation.timeMs : null
+            }
+            onToggle={() => onToggleVolumeLane(id)}
+            onSetEnabled={(enabled) => onSetVolumeAutomationEnabled?.(id, enabled)}
+            onSelectPoint={(timeMs) => onSelectVolumeAutomationPoint?.(id, timeMs)}
+            onAddPoint={(timeMs, value) => onAddVolumeAutomationPoint?.(id, timeMs, value)}
+            onDeletePoint={(timeMs) => onDeleteVolumeAutomationPoint?.(id, timeMs)}
+            onPointLive={(fromTimeMs, timeMs, value) =>
+              onVolumeAutomationPointLive?.(id, fromTimeMs, timeMs, value)
+            }
+            onPointCommit={() => onVolumeAutomationPointCommit?.()}
+          />,
+        ];
         });
       })()}
       </div>

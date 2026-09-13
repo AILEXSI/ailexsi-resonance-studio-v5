@@ -598,6 +598,94 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .lane.vis-lane { height: var(--lane-height-vis); }
 .lane.audio-lane { height: var(--lane-height-audio); }
+.lane.volume-lane {
+  height: 48px;
+  background: #10161e;
+}
+.lane.volume-lane .lane-label {
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: #8eb4c9;
+}
+.volume-lane-enable {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.volume-lane-db {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--muted);
+}
+.volume-lane-close {
+  width: 16px;
+  height: 14px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid rgba(238, 242, 247, 0.15);
+  border-radius: 3px;
+}
+.volume-lane-body {
+  background: #0c1118;
+}
+.volume-envelope {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.volume-unity {
+  stroke: #2a3646;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.volume-envelope-path {
+  fill: none;
+  stroke: #4a6278;
+  stroke-width: 1.4;
+}
+.volume-envelope-path.on {
+  stroke: #7ec8e3;
+}
+.volume-point {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4px 0 0 -4px;
+  padding: 0;
+  border: 1px solid #d7eef7;
+  border-radius: 50%;
+  background: #1b2a33;
+  z-index: 2;
+  cursor: grab;
+}
+.volume-point.selected {
+  background: #7ec8e3;
+  border-color: #f4fbff;
+}
+.volume-lane-btn {
+  min-width: 22px;
+  padding: 0 3px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8eb4c9;
+  background: rgba(16, 20, 27, 0.45);
+  border: 1px solid rgba(126, 200, 227, 0.28);
+  border-radius: 3px;
+}
+.volume-lane-btn.active {
+  color: #10161e;
+  background: #7ec8e3;
+}
 .lane.group-lane {
   height: 28px;
   grid-template-columns: var(--lane-label-px) 1fr;
@@ -920,6 +1008,7 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .lane.lane-header-compact .mute-btn,
 .lane.lane-header-compact .solo-btn,
+.lane.lane-header-compact .volume-lane-btn,
 .lane.lane-header-compact .scene-btn {
   position: relative;
   z-index: 1;
@@ -959,6 +1048,7 @@ body.media-asset-dragging .project-overlay-drawer {
   }
   .lane-label:has(.lane-ms) .mute-btn,
   .lane-label:has(.lane-ms) .solo-btn,
+  .lane-label:has(.lane-ms) .volume-lane-btn,
   .lane-label:has(.vis-lane-btns) .mute-btn,
   .lane-label:has(.vis-lane-btns) .scene-btn {
     position: relative;
@@ -1263,6 +1353,11 @@ body.media-asset-dragging .project-overlay-drawer {
   color: var(--muted);
   line-height: 1;
 }
+.mix-fader-wrap {
+  position: relative;
+  width: 18px;
+  height: 120px;
+}
 .mix-fader {
   writing-mode: vertical-lr;
   direction: rtl;
@@ -1270,6 +1365,23 @@ body.media-asset-dragging .project-overlay-drawer {
   height: 120px;
   padding: 0;
   accent-color: var(--accent);
+}
+.mix-auto-ghost {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-bottom: -1px;
+  background: #7ec8e3;
+  pointer-events: none;
+  z-index: 1;
+}
+.mix-auto-db {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: #7ec8e3;
+  text-align: center;
+  line-height: 1.15;
 }
 .mix-db, .mix-peak {
   font-family: var(--mono);
