@@ -1,5 +1,5 @@
 /**
- * Optional live V1/V2/A1/A2 AnalyserNode tap for Visualz setFeatures + mix meters.
+ * Optional live AnalyserNode tap for Visualz setFeatures + mix meters.
  * MediaElementSource can only be created once per element, so sources are
  * cached for the page lifetime. If Web Audio is unavailable or tap fails,
  * the host must use the synthetic 120 BPM AudioFeatures fallback.
@@ -8,23 +8,21 @@
 import { createFeatureExtractor, isSilentEnergy, type FeatureExtractor } from "./feature-extractor";
 import type { AudioFeatures } from "./types";
 
+/** Default mix keys. Extra audio tracks use their stable ids. */
 export const MIX_LANES = ["V1", "V2", "A1", "A2"] as const;
-export type MixLane = (typeof MIX_LANES)[number];
+export type MixLane = string;
 
-export interface MixPeaks {
-  V1: number;
-  V2: number;
-  A1: number;
-  A2: number;
+export type MixPeaks = { master: number } & Record<string, number>;
+
+export interface MixGains {
   master: number;
-}
-
-export type MixGains = MixPeaks & {
+  pans?: Record<string, number>;
   V1pan?: number;
   V2pan?: number;
   A1pan?: number;
   A2pan?: number;
-};
+  [lane: string]: number | Record<string, number> | undefined;
+}
 
 export interface PlaybackTap {
   sample(timeMs: number): AudioFeatures;
@@ -32,6 +30,7 @@ export interface PlaybackTap {
   disconnect(): void;
   setGains(gains: MixGains): void;
   peaks(): MixPeaks;
+  connect(id: string, el: HTMLMediaElement | null): boolean;
 }
 
 const sourceCache = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
@@ -67,8 +66,15 @@ function sourceFor(ctx: AudioContext, el: HTMLMediaElement): MediaElementAudioSo
   }
 }
 
+function panOf(gains: MixGains, id: string): number | undefined {
+  const fromMap = gains.pans?.[id];
+  if (fromMap != null) return fromMap;
+  const legacy = (gains as Record<string, number | undefined>)[`${id}pan`];
+  return legacy;
+}
+
 export function createPlaybackTap(
-  elements: Partial<Record<MixLane, HTMLMediaElement | null>>,
+  elements: Partial<Record<string, HTMLMediaElement | null>> = {},
 ): PlaybackTap | null {
   const ctx = sharedAudioContext();
   if (!ctx) return null;
@@ -80,15 +86,17 @@ export function createPlaybackTap(
   mixer.connect(masterAnalyser);
   masterAnalyser.connect(ctx.destination);
 
-  const trackGains: Partial<Record<MixLane, GainNode>> = {};
-  const trackPanners: Partial<Record<MixLane, StereoPannerNode | null>> = {};
-  const trackAnalysers: Partial<Record<MixLane, AnalyserNode>> = {};
+  const trackGains: Record<string, GainNode> = {};
+  const trackPanners: Record<string, StereoPannerNode | null> = {};
+  const trackAnalysers: Record<string, AnalyserNode> = {};
+  const laneIds: string[] = [];
   let connected = 0;
-  for (const id of MIX_LANES) {
-    const el = elements[id];
-    if (!el) continue;
+
+  const connectLane = (id: string, el: HTMLMediaElement | null): boolean => {
+    if (!el) return false;
+    if (trackGains[id]) return true;
     const source = sourceFor(ctx, el);
-    if (!source) continue;
+    if (!source) return false;
     try {
       const gain = ctx.createGain();
       gain.gain.value = 1;
@@ -109,10 +117,16 @@ export function createPlaybackTap(
       trackGains[id] = gain;
       trackPanners[id] = panner;
       trackAnalysers[id] = analyser;
+      if (!laneIds.includes(id)) laneIds.push(id);
       connected += 1;
+      return true;
     } catch {
-      // already wired this tick
+      return false;
     }
+  };
+
+  for (const [id, el] of Object.entries(elements)) {
+    connectLane(id, el ?? null);
   }
 
   if (connected === 0) {
@@ -155,25 +169,26 @@ export function createPlaybackTap(
     resume() {
       if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
     },
+    connect(id, el) {
+      return connectLane(id, el);
+    },
     setGains(gains) {
-      for (const id of MIX_LANES) {
+      for (const id of laneIds) {
         const node = trackGains[id];
-        if (node) node.gain.value = Math.max(0, gains[id]);
+        if (node) node.gain.value = Math.max(0, Number(gains[id]) || 0);
         const panner = trackPanners[id];
-        const panKey = `${id}pan` as const;
-        const pan = gains[panKey];
+        const pan = panOf(gains, id);
         if (panner && pan != null) panner.pan.value = Math.max(-1, Math.min(1, pan));
       }
       mixer.gain.value = Math.max(0, gains.master);
     },
     peaks() {
-      return {
-        V1: trackAnalysers.V1 ? readPeak(trackAnalysers.V1) : 0,
-        V2: trackAnalysers.V2 ? readPeak(trackAnalysers.V2) : 0,
-        A1: trackAnalysers.A1 ? readPeak(trackAnalysers.A1) : 0,
-        A2: trackAnalysers.A2 ? readPeak(trackAnalysers.A2) : 0,
-        master: readPeak(masterAnalyser),
-      };
+      const out: MixPeaks = { master: readPeak(masterAnalyser) };
+      for (const id of laneIds) {
+        const node = trackAnalysers[id];
+        out[id] = node ? readPeak(node) : 0;
+      }
+      return out;
     },
     disconnect() {
       extractor.disconnect();

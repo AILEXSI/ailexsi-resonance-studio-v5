@@ -1,4 +1,4 @@
-import { TRACK_IDS, type Project, type TrackId } from "../../core/models";
+import { kindOfTrack, orderedTracks, type Project, type TrackId } from "../../core/models";
 import {
   dbToFader,
   dbToLinear,
@@ -10,13 +10,7 @@ import {
   peakToDb,
 } from "../../core/volume";
 
-export type MixPeaks = {
-  V1: number;
-  V2: number;
-  A1: number;
-  A2: number;
-  master: number;
-};
+export type MixPeaks = { master: number } & Record<string, number>;
 
 interface Props {
   project: Project;
@@ -162,6 +156,7 @@ export function Mixer({
   onToggleSolo,
   onPan,
 }: Props) {
+  const tracks = orderedTracks(project);
   return (
     <aside
       className={`mixer${collapsed ? " collapsed" : ""}`}
@@ -186,10 +181,14 @@ export function Mixer({
         {collapsed ? null : <span className="mixer-chrome-label">Mix</span>}
       </div>
       <div className="mixer-strips" id="mixer-channels" data-testid="mixer-channels">
-        {collapsed
-          ? null
-          : TRACK_IDS.map((id) => {
-              const track = project.tracks.find((t) => t.id === id);
+        {collapsed ? null : (
+          <div
+            className="mixer-channel-scroll"
+            data-testid="mixer-channel-scroll"
+            style={{ overflowX: "auto", overflowY: "hidden" }}
+          >
+            {tracks.map((track) => {
+              const id = track.id;
               const selectedSet = new Set(
                 selectedTrackIds && selectedTrackIds.length > 0 ? selectedTrackIds : [selectedTrackId],
               );
@@ -197,14 +196,14 @@ export function Mixer({
                 <Strip
                   key={id}
                   id={id}
-                  label={id}
-                  kind={id === "A1" || id === "A2" ? "audio" : "video"}
-                  volume={track?.volume ?? 1}
-                  pan={track?.pan ?? 0}
-                  muted={track?.muted === true}
-                  solo={track?.solo === true}
+                  label={track.name || id}
+                  kind={track.kind === "audio" ? "audio" : kindOfTrack(id)}
+                  volume={track.volume ?? 1}
+                  pan={track.pan ?? 0}
+                  muted={track.muted === true}
+                  solo={track.solo === true}
                   selected={selectedSet.has(id)}
-                  peak={peaks[id]}
+                  peak={peaks[id] ?? 0}
                   onSelect={(opts) => onSelectTrack(id, opts)}
                   onVolume={(v) => onVolume(id, v)}
                   onPan={onPan ? (p) => onPan(id, p) : undefined}
@@ -213,6 +212,8 @@ export function Mixer({
                 />
               );
             })}
+          </div>
+        )}
         <Strip
           id="master"
           label="MST"

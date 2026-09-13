@@ -532,7 +532,7 @@ body.media-asset-dragging .project-overlay-drawer {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 .timeline-tools {
   display: flex;
@@ -1031,7 +1031,16 @@ body.media-asset-dragging .project-overlay-drawer {
   gap: 2px;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   align-items: stretch;
+}
+.mixer-channel-scroll {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .mix-strip {
   width: 42px;

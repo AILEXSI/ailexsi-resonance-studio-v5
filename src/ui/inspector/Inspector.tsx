@@ -6,7 +6,9 @@ import {
   clipById,
   clipIsLocked,
   formatTimecode,
+  audioTracksOf,
   kindOfTrack,
+  videoTracksOf,
   type Clip,
   type Project,
   type TrackId,
@@ -251,9 +253,12 @@ export function Inspector({
               disabled={clipIsLocked(clip)}
               onChange={(e) => onChange(clip.id, { trackId: e.target.value as TrackId })}
             >
-              {(kindOfTrack(clip.trackId) === "video" ? ["V1", "V2"] : ["A1", "A2"]).map((id) => (
-                <option key={id} value={id}>
-                  {id}
+              {(kindOfTrack(clip.trackId) === "video"
+                ? videoTracksOf(project)
+                : audioTracksOf(project)
+              ).map((track) => (
+                <option key={track.id} value={track.id}>
+                  {track.name || track.id}
                 </option>
               ))}
             </select>

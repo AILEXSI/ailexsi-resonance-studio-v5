@@ -57,7 +57,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: "Ctrl+Shift+L", action: "Unlink A/V pair" },
   { key: "Inspector / clip menu", action: "Relink selected clip(s) to a new file" },
   { key: "Inspector checkbox / clip menu", action: "Lock / unlock clip (no key — L is shuttle, Ctrl+Shift+L unlinks)" },
-  { key: "Lane / Mixer S", action: "Solo track (V1–A2)" },
+  { key: "Lane / Mixer S", action: "Solo track (V/A lanes)" },
   { key: "Shift+edge-drag", action: "Ripple trim (same track)" },
   { key: "Abutting edge-drag", action: "Roll edit (shared cut)" },
   { key: "Alt+drag clip", action: "Slip source (clip or contiguous block)" },

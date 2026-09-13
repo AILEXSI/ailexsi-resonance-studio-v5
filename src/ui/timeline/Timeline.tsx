@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
-  TRACK_IDS,
   clipEndMs,
   clipIsLocked,
   isTrackId,
   kindOfTrack,
   projectDurationMs,
+  trackById,
+  trackIdsOf,
   type Clip,
   type Project,
   type TrackId,
@@ -19,6 +20,7 @@ import {
   MARQUEE_CLICK_SLOP_PX,
   clipsIntersectingMarquee,
   isMarqueeLane,
+  marqueeLanesOf,
   type MarqueeLane,
 } from "../../core/marquee";
 import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapPlayheadSeek, snapTime } from "../../core/timeline";
@@ -49,8 +51,16 @@ function trackIdFromPoint(clientX: number, clientY: number): TrackId | undefined
   let node: Element | null = hit;
   while (node) {
     const raw = node.getAttribute("data-testid");
-    const m = raw?.match(/^lane-(V1|V2|A1|A2)(?:-body)?$/);
-    if (m && isTrackId(m[1]!)) return m[1];
+    if (!raw) {
+      node = node.parentElement;
+      continue;
+    }
+    const m = raw.match(/^lane-(.+)$/);
+    if (m) {
+      const captured = m[1]!;
+      const id = captured.endsWith("-body") ? captured.slice(0, -5) : captured;
+      if (isTrackId(id)) return id;
+    }
     node = node.parentElement;
   }
   return undefined;
@@ -137,6 +147,10 @@ interface Props {
   onLaneHeight?: (group: LaneHeightGroup, px: number) => void;
   /** Bin drag onto Arrange — same place command as MediaBrowser onPlace. */
   onPlaceAsset?: (assetId: string, trackId: TrackId, startMs: number) => void;
+  onAddAudioTrack?: () => void;
+  onRemoveAudioTrack?: () => void;
+  canAddAudioTrack?: boolean;
+  canRemoveAudioTrack?: boolean;
 }
 
 function msToX(ms: number, zoom: number, scrollMs: number): number {
@@ -244,6 +258,10 @@ export function Timeline({
   onLaneLabelPx,
   onLaneHeight,
   onPlaceAsset,
+  onAddAudioTrack,
+  onRemoveAudioTrack,
+  canAddAudioTrack = true,
+  canRemoveAudioTrack = false,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -425,12 +443,16 @@ export function Timeline({
         } else onSelect(null);
         return;
       }
-      const hits = clipsIntersectingMarquee(project.clips, {
-        aMs: originTime,
-        bMs: lastTime,
-        aLane: lane,
-        bLane: lastLane,
-      });
+      const hits = clipsIntersectingMarquee(
+        project.clips,
+        {
+          aMs: originTime,
+          bMs: lastTime,
+          aLane: lane,
+          bLane: lastLane,
+        },
+        marqueeLanesOf(project),
+      );
       onSelectClips?.(
         hits.map((c) => c.id),
         { union },
@@ -570,8 +592,9 @@ export function Timeline({
         const over = trackIdFromPoint(ev.clientX, ev.clientY);
         if (over && kindOfTrack(over) === kindOfTrack(originTrack)) trackId = over;
         else if (Math.abs(dy) > 24) {
-          const idx = TRACK_IDS.indexOf(originTrack);
-          const next = TRACK_IDS[idx + (dy > 0 ? 1 : -1)];
+          const ids = trackIdsOf(project);
+          const idx = ids.indexOf(originTrack);
+          const next = ids[idx + (dy > 0 ? 1 : -1)];
           if (next && kindOfTrack(next) === kindOfTrack(originTrack)) trackId = next;
         }
       }
@@ -992,6 +1015,28 @@ export function Timeline({
         <button type="button" data-testid="timeline-fit" onClick={() => onFit(measureWidth())}>
           Fit
         </button>
+        {onAddAudioTrack ? (
+          <button
+            type="button"
+            data-testid="add-audio-track"
+            title="Add audio track"
+            disabled={canAddAudioTrack === false}
+            onClick={() => onAddAudioTrack()}
+          >
+            +A
+          </button>
+        ) : null}
+        {onRemoveAudioTrack ? (
+          <button
+            type="button"
+            data-testid="remove-audio-track"
+            title="Remove audio track"
+            disabled={canRemoveAudioTrack === false}
+            onClick={() => onRemoveAudioTrack()}
+          >
+            −A
+          </button>
+        ) : null}
         <span className="timeline-zoom">
           {project.zoomPxPerSec < 10
             ? project.zoomPxPerSec.toFixed(1)
@@ -1068,7 +1113,7 @@ export function Timeline({
           />
         </div>
       </div>
-      <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "auto" }}>
+      <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "scroll" }}>
       <div
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}${visHeaderInline ? " lane-header-compact" : ""}`}
         data-testid="lane-VIS"
@@ -1216,12 +1261,13 @@ export function Timeline({
           onPointerDown={(e) => onLaneHeightPointerDown(e, "vis")}
         />
       </div>
-      {(visibleTrackIds ?? TRACK_IDS).map((id) => {
-        const track = project.tracks.find((t) => t.id === id);
+      {(visibleTrackIds ?? trackIdsOf(project)).map((id) => {
+        const track = trackById(project, id);
         const muted = track?.muted === true;
         const soloed = track?.solo === true;
         const group = heightGroupOfLane(id);
-        const kind = kindOfTrack(id);
+        const kind = track?.kind ?? kindOfTrack(id);
+        const label = track?.name || id;
         const headerInline = laneHeaderPacksInline(heights[group]);
         return (
           <div
@@ -1255,13 +1301,13 @@ export function Timeline({
                   {id}
                 </button>
               ) : (
-                <span>{id}</span>
+                <span>{label}</span>
               )}
               <div className="lane-ms">
               <button
                 type="button"
                 className={muted ? "active mute-btn" : "mute-btn"}
-                title={muted ? `Unmute ${id}` : `Mute ${id}`}
+                title={muted ? `Unmute ${label}` : `Mute ${label}`}
                 data-testid={`mute-${id}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1273,7 +1319,7 @@ export function Timeline({
               <button
                 type="button"
                 className={soloed ? "active solo-btn" : "solo-btn"}
-                title={soloed ? `Unsolo ${id}` : `Solo ${id}`}
+                title={soloed ? `Unsolo ${label}` : `Solo ${label}`}
                 data-testid={`solo-${id}`}
                 onClick={(e) => {
                   e.stopPropagation();

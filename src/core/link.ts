@@ -1,6 +1,7 @@
 import { createId } from "./ids";
 import {
   assetById,
+  audioTrackIdsOf,
   clipById,
   clipEndMs,
   clipIsEnabled,
@@ -76,16 +77,16 @@ export function rangeOverlapsClip(clip: Clip, startMs: number, durationMs: numbe
 }
 
 /**
- * First A lane (A1 then A2) that can hold `[startMs, startMs+durationMs)`
- * without overlapping an enabled clip. Disabled takes do not occupy
- * (same as G / lift / extract / roll-slide neighbor).
+ * First audio lane in collection order that can hold
+ * `[startMs, startMs+durationMs)` without overlapping an enabled clip.
+ * Disabled takes do not occupy (same as G / lift / extract / roll-slide neighbor).
  */
 export function firstFreeAudioTrack(
   project: Project,
   startMs: number,
   durationMs: number,
 ): TrackId | undefined {
-  for (const id of ["A1", "A2"] as const) {
+  for (const id of audioTrackIdsOf(project)) {
     const busy = project.clips.some(
       (c) =>
         c.trackId === id && clipIsEnabled(c) && rangeOverlapsClip(c, startMs, durationMs),

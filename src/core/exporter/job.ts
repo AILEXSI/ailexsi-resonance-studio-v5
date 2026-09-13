@@ -168,7 +168,13 @@ export function videoClipAt(job: ExportJob, timeMs: number): ExportClip | undefi
   const hits = clips.filter((c) => timeMs >= c.startMs && timeMs < c.endMs);
   const preferred = hits.find((c) => c.trackId === front);
   if (preferred) return preferred;
-  hits.sort((a, b) => TRACK_IDS.indexOf(b.trackId) - TRACK_IDS.indexOf(a.trackId));
+  const order = job.tracks.map((t) => t.id);
+  hits.sort((a, b) => {
+    const ib = order.indexOf(b.trackId);
+    const ia = order.indexOf(a.trackId);
+    if (ib !== ia) return (ib < 0 ? TRACK_IDS.length : ib) - (ia < 0 ? TRACK_IDS.length : ia);
+    return TRACK_IDS.indexOf(b.trackId) - TRACK_IDS.indexOf(a.trackId);
+  });
   return hits[0];
 }
 

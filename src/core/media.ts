@@ -209,8 +209,8 @@ export function assetFitsTrack(kind: MediaKind, trackId: TrackId): boolean {
 }
 
 export function preferredTrackForAsset(kind: MediaKind, target: TrackId): TrackId {
-  if (kind === "audio") return target === "A2" ? "A2" : "A1";
-  return target === "V2" ? "V2" : "V1";
+  if (kind === "audio") return kindOfTrack(target) === "audio" ? target : "A1";
+  return kindOfTrack(target) === "video" ? target : "V1";
 }
 
 export function writeAssetDrag(dt: DataTransfer, assetId: string): void {

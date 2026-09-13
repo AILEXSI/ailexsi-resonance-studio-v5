@@ -2,6 +2,7 @@ import { createId } from "./ids";
 import { livingLinkedMate } from "./link";
 import {
   TRACK_IDS,
+  audioTrackIdsOf,
   clipById,
   clipEndMs,
   clipIsEnabled,
@@ -470,7 +471,7 @@ function visFromProject(project: Project): CompositeVis {
 }
 
 export function contextFromProject(project: Project): CompositeContext {
-  const mutedTrackIds = (["A1", "A2"] as const).filter((id) => !isTrackAudible(project, id));
+  const mutedTrackIds = audioTrackIdsOf(project).filter((id) => !isTrackAudible(project, id));
   return {
     clips: project.clips
       .filter((c) => c.enabled !== false)
