@@ -392,6 +392,20 @@ export function mixClipsAt(project: Project, timeMs: number): Clip[] {
   });
 }
 
+/**
+ * Timeline has mixable A/V clips (not stills). A playhead gap does not clear this —
+ * VIS must stay quiet there instead of falling back to the 120 BPM metronome.
+ */
+export function projectHasMixAudio(project: Project): boolean {
+  return project.clips.some((c) => {
+    if (!clipIsEnabled(c) || !TRACK_IDS.includes(c.trackId)) return false;
+    const asset = assetById(project, c.assetId);
+    if (asset?.kind === "image") return false;
+    if (asset?.kind === "video" && asset.hasAudio === false) return false;
+    return true;
+  });
+}
+
 export function sourceTimeAt(clip: Clip, timelineMs: number): number {
   const offset = Math.max(0, timelineMs - clip.startMs);
   return clip.sourceInMs + offset * clipRateOf(clip);

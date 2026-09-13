@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, type Session } from "../../src/app/session";
+import type { TrackId } from "../../src/core/models";
 import { audioClipsForMix, jobFromProject, mixWindowsForClip, presentLinkedAudioMates } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
@@ -166,13 +167,27 @@ describe("linked A/V", () => {
     expect(viaCommand.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(2);
   });
 
-  it("split at playhead through applyCommand cuts the pair", () => {
+  it("split at playhead through applyCommand cuts only the active track", () => {
     const start = linkedPair();
+    const next = applyCommand(start, { type: "split" });
+    expect(next.project.clips).toHaveLength(3);
+    expect(next.project.clips.filter((c) => c.trackId === "V1")).toHaveLength(2);
+    expect(next.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(1);
+    expect(next.project.clips.find((c) => c.id === "a1")!.durationMs).toBe(2000);
+    expect(splitAtPlayhead(start.project).error).toBeUndefined();
+  });
+
+  it("split at playhead cuts a linked pair when both tracks are selected", () => {
+    const start = {
+      ...linkedPair(),
+      selectedClipId: "v1",
+      selectedClipIds: ["v1", "a1"],
+      selectedTrackIds: ["V1", "A1"] as TrackId[],
+    };
     const next = applyCommand(start, { type: "split" });
     expect(next.project.clips).toHaveLength(4);
     expect(next.project.clips.filter((c) => c.trackId === "V1")).toHaveLength(2);
     expect(next.project.clips.filter((c) => c.trackId === "A1")).toHaveLength(2);
-    expect(splitAtPlayhead(start.project).error).toBeUndefined();
   });
 
   it("move of one linked clip moves the mate by the same delta", () => {

@@ -12,14 +12,17 @@ import {
   featuresAt,
   featuresFromMix,
   visFeaturesForExport,
+  visFeaturesForPreview,
   nextSceneId,
   renderVisualizerScene,
   shouldShowVisualizer,
 } from "../../src/core/visualizer";
 import { builtinScenes, createVisualEngine, getRegisteredScene } from "../../src/core/visualz";
+import { isSilentEnergy, SILENCE_BASS, SILENCE_RMS } from "../../src/core/visualz/feature-extractor";
 import { preferLiveFeatures } from "../../src/core/visualz/playback-tap";
 import type { AudioFeatures } from "../../src/core/visualz";
-import { clip, projectWith } from "../helpers";
+import { asset, clip, projectWith } from "../helpers";
+import { projectHasMixAudio, mixClipsAt } from "../../src/core/models";
 import { createPixelCanvas } from "../helpers/pixel-canvas";
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -125,8 +128,9 @@ describe("visualizer energy", () => {
       numberOfChannels: 1,
       getChannelData: () => new Float32Array(2048),
     });
-    expect(silent.tempoBpm).toBe(120);
+    expect(silent.tempoBpm).toBeNull();
     expect(silent.energy).toBeCloseTo(0, 5);
+    expect(silent.onset).toBe(false);
   });
 
   it("no-mix fallback uses project time so IN does not restart the 120 BPM grid (P100)", () => {
@@ -323,5 +327,225 @@ describe("live vs synthetic feature prefer", () => {
     const fallback = featuresAt(250, 10_000);
     const live: AudioFeatures = { ...QUIET, rms: 0.4, bass: 0.3 };
     expect(preferLiveFeatures(live, fallback)).toBe(live);
+  });
+
+  it("loaded audio does not fall back to the 120 BPM grid when the tap is quiet", () => {
+    const metronome = featuresAt(0, 10_000);
+    expect(metronome.tempoBpm).toBe(120);
+    expect(metronome.energy).toBeCloseTo(1, 5);
+    const preview = visFeaturesForPreview({
+      timeMs: 0,
+      durationMs: 10_000,
+      live: QUIET,
+      audioLoaded: true,
+    });
+    expect(preview.tempoBpm).toBeNull();
+    expect(preview.energy).toBeCloseTo(0, 5);
+    expect(preview.onset).toBe(false);
+  });
+
+  it("Visualz silence floors trip below rms 0.02 and bass 0.03", () => {
+    expect(SILENCE_RMS).toBe(0.02);
+    expect(SILENCE_BASS).toBe(0.03);
+    expect(isSilentEnergy(0.019, 0.029)).toBe(true);
+    expect(isSilentEnergy(0.02, 0.029)).toBe(false);
+    expect(isSilentEnergy(0.019, 0.03)).toBe(false);
+  });
+});
+
+function clickMix(bpm: number, durationMs = 4000, sampleRate = 44100) {
+  const n = Math.round((sampleRate * durationMs) / 1000);
+  const data = new Float32Array(n);
+  const intervalSec = 60 / bpm;
+  const clickN = Math.round(sampleRate * 0.012);
+  for (let beat = 0; beat * intervalSec * 1000 < durationMs - 1; beat++) {
+    const start = Math.round(beat * intervalSec * sampleRate);
+    for (let i = 0; i < clickN && start + i < n; i++) {
+      const env = 1 - i / clickN;
+      const t = i / sampleRate;
+      data[start + i] =
+        env * (0.95 * Math.sin(2 * Math.PI * 70 * t) + 0.3 * Math.sin(2 * Math.PI * 160 * t));
+    }
+  }
+  return {
+    sampleRate,
+    length: n,
+    numberOfChannels: 1,
+    getChannelData: () => data,
+  };
+}
+
+function onsetTimes(buf: ReturnType<typeof clickMix>, durationMs: number, hop = 10): number[] {
+  const hits: number[] = [];
+  for (let t = 0; t < durationMs; t += hop) {
+    if (featuresFromMix(buf, t).onset) hits.push(t);
+  }
+  return hits;
+}
+
+function medianGap(times: number[]): number {
+  const gaps = [];
+  for (let i = 1; i < times.length; i++) gaps.push(times[i]! - times[i - 1]!);
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)] ?? NaN;
+}
+
+describe("visualizer timing from loaded audio (not 120 BPM metronome)", () => {
+  it("click tracks at 90/120/143/174 BPM produce matching onset intervals, not a stuck 500ms grid", () => {
+    const cases = [
+      { bpm: 90, interval: 60_000 / 90 },
+      { bpm: 120, interval: 500 },
+      { bpm: 143, interval: 60_000 / 143 },
+      { bpm: 174, interval: 60_000 / 174 },
+    ];
+    const measured: Record<number, number> = {};
+    for (const { bpm, interval } of cases) {
+      const buf = clickMix(bpm, 4000);
+      const hits = onsetTimes(buf, 4000);
+      expect(hits.length, `${bpm} BPM onsets`).toBeGreaterThan(3);
+      const gap = medianGap(hits);
+      measured[bpm] = gap;
+      expect(gap, `${bpm} BPM gap ${gap}`).toBeGreaterThan(interval - 40);
+      expect(gap, `${bpm} BPM gap ${gap}`).toBeLessThan(interval + 40);
+      const at500 = visFeaturesForExport(500, 4000, buf);
+      expect(at500.tempoBpm).toBeNull();
+      if (bpm !== 120) {
+        expect(at500.energy, `${bpm} BPM must not spike at the 120-grid 500ms`).toBeLessThan(0.35);
+        expect(featuresAt(500, 4000).energy).toBeCloseTo(1, 5);
+      }
+    }
+    expect(measured[90]).not.toBeCloseTo(500, 0);
+    expect(measured[143]).not.toBeCloseTo(500, 0);
+    expect(measured[174]).not.toBeCloseTo(500, 0);
+    expect(Math.abs(measured[90]! - measured[174]!)).toBeGreaterThan(200);
+  });
+
+  it("changing the loaded audio changes derived visual timing", () => {
+    const slow = clickMix(90, 3000);
+    const fast = clickMix(174, 3000);
+    const slowHits = onsetTimes(slow, 3000);
+    const fastHits = onsetTimes(fast, 3000);
+    expect(medianGap(fastHits)).toBeLessThan(medianGap(slowHits) - 150);
+    expect(fastHits.length).toBeGreaterThan(slowHits.length);
+    expect(visFeaturesForPreview({ timeMs: 500, durationMs: 3000, mix: slow, audioLoaded: true }).energy).toBeLessThan(
+      0.35,
+    );
+    expect(featuresAt(500, 3000).tempoBpm).toBe(120);
+  });
+});
+
+function toneThenSilence(toneMs: number, silenceMs: number, sampleRate = 44100) {
+  const n = Math.round((sampleRate * (toneMs + silenceMs)) / 1000);
+  const data = new Float32Array(n);
+  const toneN = Math.round((sampleRate * toneMs) / 1000);
+  for (let i = 0; i < toneN; i++) {
+    data[i] = Math.sin((i / sampleRate) * 220 * Math.PI * 2);
+  }
+  return {
+    sampleRate,
+    length: n,
+    numberOfChannels: 1,
+    getChannelData: () => data,
+  };
+}
+
+describe("VIS silence / gap at playhead (Visualz gate, no metronome)", () => {
+  it("true silence in mix PCM zeros energy/onset/beatPulse even after a recent tone", () => {
+    const buf = toneThenSilence(200, 800);
+    const loud = featuresFromMix(buf, 80);
+    expect(loud.energy).toBeGreaterThan(0.15);
+    expect(loud.rms).toBeGreaterThan(0.15);
+    expect(loud.tempoBpm).toBeNull();
+    const gap = featuresFromMix(buf, 600);
+    expect(gap.energy).toBeCloseTo(0, 5);
+    expect(gap.rms).toBeCloseTo(0, 5);
+    expect(gap.onset).toBe(false);
+    expect(gap.beatPulse).toBeCloseTo(0, 5);
+    expect(gap.tempoBpm).toBeNull();
+    expect(featuresAt(600, 2000).energy).toBeCloseTo(0, 5);
+    expect(featuresAt(500, 2000).energy).toBeCloseTo(1, 5);
+  });
+
+  it("missing clip at playhead is treated as no PCM — quiet, not featuresAt", () => {
+    const buf = toneThenSilence(200, 0);
+    const fromStaleMix = visFeaturesForPreview({
+      timeMs: 80,
+      durationMs: 8000,
+      mix: buf,
+      audioLoaded: true,
+      hasClipAtPlayhead: false,
+    });
+    expect(fromStaleMix.energy).toBeCloseTo(0, 5);
+    expect(fromStaleMix.beatPulse).toBeCloseTo(0, 5);
+    expect(fromStaleMix.onset).toBe(false);
+    expect(fromStaleMix.tempoBpm).toBeNull();
+  });
+
+  it("playhead in an A1/mix gap does not let featuresAt or leftover live drive VIS", () => {
+    const metronome = featuresAt(0, 10_000);
+    expect(metronome.energy).toBeCloseTo(1, 5);
+    expect(metronome.beatPulse).toBeCloseTo(1, 5);
+    const leftoverLive: AudioFeatures = { ...QUIET, rms: 0.5, bass: 0.4, beatPulse: 1, onset: true };
+    const gap = visFeaturesForPreview({
+      timeMs: 0,
+      durationMs: 10_000,
+      mix: null,
+      live: leftoverLive,
+      audioLoaded: true,
+      hasClipAtPlayhead: false,
+    });
+    expect(gap.energy).toBeCloseTo(0, 5);
+    expect(gap.rms).toBeCloseTo(0, 5);
+    expect(gap.onset).toBe(false);
+    expect(gap.beatPulse).toBeCloseTo(0, 5);
+    expect(gap.tempoBpm).toBeNull();
+  });
+
+  it("tone present at playhead stays non-zero (audio-derived clock still holds)", () => {
+    const buf = toneThenSilence(400, 400);
+    const preview = visFeaturesForPreview({
+      timeMs: 80,
+      durationMs: 2000,
+      mix: buf,
+      audioLoaded: true,
+      hasClipAtPlayhead: true,
+    });
+    expect(preview.energy).toBeGreaterThan(0.15);
+    expect(preview.rms).toBeGreaterThan(0.15);
+    expect(preview.tempoBpm).not.toBe(120);
+  });
+
+  it("empty project still uses the 120 BPM featuresAt fallback", () => {
+    const empty = visFeaturesForPreview({
+      timeMs: 0,
+      durationMs: 10_000,
+      audioLoaded: false,
+      hasClipAtPlayhead: false,
+    });
+    expect(empty.tempoBpm).toBe(120);
+    expect(empty.energy).toBeCloseTo(1, 5);
+  });
+
+  it("projectHasMixAudio is true in an A1 waveform gap so preview stays on the audio path", () => {
+    const p = projectWith(
+      [
+        clip({ id: "left", assetId: "song", trackId: "A1", startMs: 0, durationMs: 137_000 }),
+        clip({ id: "right", assetId: "song", trackId: "A1", startMs: 139_000, durationMs: 10_000 }),
+      ],
+      [asset({ id: "song", kind: "audio", durationMs: 180_000 })],
+    );
+    expect(projectHasMixAudio(p)).toBe(true);
+    expect(mixClipsAt(p, 138_000)).toEqual([]);
+    const preview = visFeaturesForPreview({
+      timeMs: 138_000,
+      durationMs: 180_000,
+      mix: null,
+      live: QUIET,
+      audioLoaded: projectHasMixAudio(p),
+      hasClipAtPlayhead: mixClipsAt(p, 138_000).length > 0,
+    });
+    expect(preview.energy).toBeCloseTo(0, 5);
+    expect(preview.beatPulse).toBeCloseTo(0, 5);
+    expect(featuresAt(138_000, 180_000).tempoBpm).toBe(120);
   });
 });

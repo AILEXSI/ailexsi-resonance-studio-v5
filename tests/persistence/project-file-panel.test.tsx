@@ -43,14 +43,10 @@ describe("project file panel", () => {
       root!.render(
         <ProjectFilePanel
           memory={memory}
-          fileSystemAccess
-          projectDirty
           onNew={() => {}}
           onSave={() => {}}
           onSaveAs={() => {}}
           onOpen={() => {}}
-          onRevert={() => {}}
-          onChooseFolder={() => {}}
           onOpenRecent={(recent) => {
             opened.push(recent.lastFileName);
           }}
@@ -74,7 +70,10 @@ describe("project file panel", () => {
     expect(host.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="save-project"]')).toBeTruthy();
     expect(host.querySelector('[data-testid="open-input"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="revert-project"]')).toBeTruthy();
+    expect(host.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(host.querySelector('[data-testid="project-choose-folder"]')).toBeNull();
+    expect(text).not.toContain("Ordner wählen");
+    expect(text).not.toContain("Revert");
     expect(statusHasFakePath(text)).toBe(false);
     expect(text).not.toMatch(/C:\\Users/);
     expect(text).not.toMatch(/\/Users\//);

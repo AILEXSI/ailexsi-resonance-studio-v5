@@ -63,6 +63,12 @@ describe("Projekt overlay", () => {
     expect(host!.querySelector('[data-testid="project-overlay"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="media-browser"]')).toBeTruthy();
     expect(host!.querySelector('[data-testid="timeline"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="project-choose-folder"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="import-input-panel"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="save-project"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="project-save-as"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
 
     await act(async () => {
       (host!.querySelector('[data-testid="project-overlay-close"]') as HTMLButtonElement).click();

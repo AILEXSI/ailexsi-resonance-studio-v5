@@ -1,10 +1,18 @@
 import { FRAME_MS, type Project } from "./models";
-import { exportRangeMs } from "./timeline";
+import { exportContentEndMs, exportRangeMs } from "./timeline";
 
-/** Same window as export: IN/OUT, else last enabled clip or finite VIS. */
+/**
+ * Transport window. IN/OUT bound playback only while Loop is on.
+ * Loop off plays 0 → enabled media/VIS end; OUT is a marker, not the stop.
+ * Export still uses `exportRangeMs` (unchanged).
+ */
 export function playbackBounds(project: Project): { startMs: number; endMs: number } {
-  const { startMs, endMs } = exportRangeMs(project);
-  return { startMs, endMs: Math.max(startMs + FRAME_MS, endMs) };
+  if (project.loop) {
+    const { startMs, endMs } = exportRangeMs(project);
+    return { startMs, endMs: Math.max(startMs + FRAME_MS, endMs) };
+  }
+  const endMs = Math.max(FRAME_MS, exportContentEndMs(project));
+  return { startMs: 0, endMs };
 }
 
 /** JKL shuttle steps. 0 = paused. Cap ±4. */

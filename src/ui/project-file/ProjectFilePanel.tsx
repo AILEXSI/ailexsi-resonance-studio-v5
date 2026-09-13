@@ -6,31 +6,23 @@ import {
 
 interface Props {
   memory: ProjectFileMemory;
-  fileSystemAccess: boolean;
-  projectDirty?: boolean;
   onNew: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpen: () => void;
   onOpenFile?: (file: File) => void;
   onOpenLast?: () => void;
-  onRevert?: () => void;
-  onChooseFolder: () => void;
   onOpenRecent: (recent: RecentProject) => void;
 }
 
 export function ProjectFilePanel({
   memory,
-  fileSystemAccess,
-  projectDirty = false,
   onNew,
   onSave,
   onSaveAs,
   onOpen,
   onOpenFile,
   onOpenLast,
-  onRevert,
-  onChooseFolder,
   onOpenRecent,
 }: Props) {
   const view = projectPanelView(memory);
@@ -92,20 +84,6 @@ export function ProjectFilePanel({
             Zuletzt
           </button>
         ) : null}
-        {projectDirty && onRevert ? (
-          <button type="button" data-testid="revert-project" onClick={onRevert}>
-            Revert
-          </button>
-        ) : null}
-        <button
-          type="button"
-          data-testid="project-choose-folder"
-          onClick={onChooseFolder}
-          disabled={!fileSystemAccess}
-          title={fileSystemAccess ? "Standard-Projektordner wählen" : "File System Access nicht verfügbar"}
-        >
-          Ordner wählen
-        </button>
       </div>
       <h3>Zuletzt</h3>
       {memory.recents.length === 0 ? (

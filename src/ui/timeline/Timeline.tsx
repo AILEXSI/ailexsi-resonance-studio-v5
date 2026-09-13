@@ -28,6 +28,7 @@ import {
   clampLaneHeightPx,
   clampLaneLabelPx,
   heightGroupOfLane,
+  laneHeaderPacksInline,
   type LaneHeightGroup,
   type LaneHeights,
 } from "../../core/layout-prefs";
@@ -60,6 +61,7 @@ interface Props {
   selectedClipId: string | null;
   selectedClipIds?: string[];
   selectedMarkerId?: string | null;
+  selectedVis?: boolean;
   selectedVisEventId?: string | null;
   selectedVisEventIds?: string[];
   onSelect: (clipId: string | null, opts?: { toggle?: boolean; range?: boolean }) => void;
@@ -90,6 +92,8 @@ interface Props {
   onSelectClips?: (clipIds: readonly string[], opts?: { union?: boolean }) => void;
   onToggleMute: (trackId: TrackId) => void;
   onToggleSolo?: (trackId: TrackId) => void;
+  selectedTrackIds?: readonly TrackId[];
+  onSelectTrack?: (trackId: TrackId, opts?: { toggle?: boolean }) => void;
   onToggleVisualizerMute: () => void;
   onCycleVisualizerScene: () => void;
   onSelectVis?: () => void;
@@ -171,6 +175,7 @@ export function Timeline({
   selectedClipId,
   selectedClipIds,
   selectedMarkerId = null,
+  selectedVis = false,
   selectedVisEventId = null,
   selectedVisEventIds,
   onSelect,
@@ -196,6 +201,8 @@ export function Timeline({
   onSelectClips,
   onToggleMute,
   onToggleSolo,
+  selectedTrackIds,
+  onSelectTrack,
   onToggleVisualizerMute,
   onCycleVisualizerScene,
   onSelectVis,
@@ -625,6 +632,11 @@ export function Timeline({
     setMenu(null);
     setMarkerMenu(null);
     setVisMenu(null);
+    // Event fill is the VIS lane — seek like empty V1/V2/A body clicks (P86 snap).
+    const laneBody =
+      (e.currentTarget.closest("[data-testid='lane-VIS-body']") as HTMLElement | null) ??
+      bodyRef.current;
+    onPlayhead(snapPlayheadSeek(project, timeFromEvent(e.clientX, laneBody)));
     if (dragKindRef.current) return;
     onSelectVisEvent?.(event.id);
     if (!onVisEventMoveLive) return;
@@ -757,6 +769,7 @@ export function Timeline({
     video: DEFAULT_LANE_HEIGHT_PX,
     audio: DEFAULT_LANE_HEIGHT_PX,
   };
+  const visHeaderInline = laneHeaderPacksInline(heights.vis);
 
   const onLaneLabelSplitterDown = (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
@@ -1057,11 +1070,20 @@ export function Timeline({
       </div>
       <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "auto" }}>
       <div
-        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}`}
+        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}${visHeaderInline ? " lane-header-compact" : ""}`}
         data-testid="lane-VIS"
+        data-header-pack={visHeaderInline ? "inline" : "stack"}
         style={{ height: heights.vis }}
       >
-        <div className="lane-label">
+        <div
+          className="lane-label"
+          data-testid="lane-label-VIS"
+          data-header-pack={visHeaderInline ? "inline" : "stack"}
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            onSelectVis?.();
+          }}
+        >
           {laneLabelSplitter}
           <span>VIS</span>
           <div className="vis-lane-btns">
@@ -1200,14 +1222,24 @@ export function Timeline({
         const soloed = track?.solo === true;
         const group = heightGroupOfLane(id);
         const kind = kindOfTrack(id);
+        const headerInline = laneHeaderPacksInline(heights[group]);
         return (
           <div
-            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}`}
+            className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}${headerInline ? " lane-header-compact" : ""}`}
             key={id}
             data-testid={`lane-${id}`}
+            data-header-pack={headerInline ? "inline" : "stack"}
             style={{ height: heights[group] }}
           >
-            <div className="lane-label">
+            <div
+              className="lane-label"
+              data-testid={`lane-label-${id}`}
+              data-header-pack={headerInline ? "inline" : "stack"}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest("button")) return;
+                onSelectTrack?.(id, { toggle: e.ctrlKey || e.metaKey });
+              }}
+            >
               {laneLabelSplitter}
               {id === "V1" || id === "V2" ? (
                 <button

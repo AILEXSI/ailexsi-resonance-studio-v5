@@ -32,15 +32,11 @@ describe("MediaBrowser stills + drag", () => {
           selectedAssetId={null}
           onSelectAsset={() => undefined}
           onTargetTrack={() => undefined}
-          onImport={() => undefined}
           onPlace={() => undefined}
         />,
       );
     });
-    const input = host.querySelector('[data-testid="import-input-panel"]') as HTMLInputElement;
-    expect(input.accept).toMatch(/image\/*/);
-    expect(input.accept).toMatch(/audio\/*/);
-    expect(input.accept).toMatch(/video\/*/);
+    expect(host.querySelector('[data-testid="import-input-panel"]')).toBeNull();
     const item = host.querySelector('[data-testid="media-item-still"]') as HTMLElement;
     expect(item.draggable).toBe(true);
     expect(item.getAttribute("data-asset-kind")).toBe("image");
@@ -70,7 +66,6 @@ describe("MediaBrowser stills + drag", () => {
           selectedAssetId={null}
           onSelectAsset={() => undefined}
           onTargetTrack={() => undefined}
-          onImport={() => undefined}
           onPlace={() => undefined}
           onRelinkAsset={(id) => relinked.push(id)}
         />,
@@ -104,7 +99,6 @@ describe("MediaBrowser stills + drag", () => {
           selectedAssetId={null}
           onSelectAsset={() => undefined}
           onTargetTrack={() => undefined}
-          onImport={() => undefined}
           onPlace={() => undefined}
         />,
       );
@@ -139,7 +133,6 @@ describe("MediaBrowser stills + drag", () => {
           selectedAssetId={null}
           onSelectAsset={() => undefined}
           onTargetTrack={() => undefined}
-          onImport={() => undefined}
           onPlace={() => undefined}
           posterOf={async (a) =>
             a.kind === "video" || a.kind === "image" ? `data:image/png,${a.id}` : null

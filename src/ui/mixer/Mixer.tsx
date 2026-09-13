@@ -21,10 +21,11 @@ export type MixPeaks = {
 interface Props {
   project: Project;
   selectedTrackId: TrackId;
+  selectedTrackIds?: readonly TrackId[];
   peaks: MixPeaks;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
-  onSelectTrack: (id: TrackId) => void;
+  onSelectTrack: (id: TrackId, opts?: { toggle?: boolean }) => void;
   onVolume: (id: TrackId, linear: number) => void;
   onMasterVolume: (linear: number) => void;
   onToggleMute: (id: TrackId) => void;
@@ -42,7 +43,7 @@ function Strip(props: {
   selected?: boolean;
   peak: number;
   kind: "video" | "audio" | "master";
-  onSelect?: () => void;
+  onSelect?: (opts?: { toggle?: boolean }) => void;
   onVolume: (linear: number) => void;
   onPan?: (pan: number) => void;
   onMute?: () => void;
@@ -55,7 +56,7 @@ function Strip(props: {
     <div
       className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}`}
       data-testid={`mix-${props.id}`}
-      onClick={props.onSelect}
+      onClick={(e) => props.onSelect?.({ toggle: e.ctrlKey || e.metaKey })}
     >
       <div className="mix-name">{props.label}</div>
       <div className="mix-meter" aria-hidden="true">
@@ -150,6 +151,7 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
 export function Mixer({
   project,
   selectedTrackId,
+  selectedTrackIds,
   peaks,
   collapsed = false,
   onToggleCollapsed,
@@ -188,6 +190,9 @@ export function Mixer({
           ? null
           : TRACK_IDS.map((id) => {
               const track = project.tracks.find((t) => t.id === id);
+              const selectedSet = new Set(
+                selectedTrackIds && selectedTrackIds.length > 0 ? selectedTrackIds : [selectedTrackId],
+              );
               return (
                 <Strip
                   key={id}
@@ -198,9 +203,9 @@ export function Mixer({
                   pan={track?.pan ?? 0}
                   muted={track?.muted === true}
                   solo={track?.solo === true}
-                  selected={selectedTrackId === id}
+                  selected={selectedSet.has(id)}
                   peak={peaks[id]}
-                  onSelect={() => onSelectTrack(id)}
+                  onSelect={(opts) => onSelectTrack(id, opts)}
                   onVolume={(v) => onVolume(id, v)}
                   onPan={onPan ? (p) => onPan(id, p) : undefined}
                   onMute={() => onToggleMute(id)}

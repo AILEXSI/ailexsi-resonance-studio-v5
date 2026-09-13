@@ -12,6 +12,7 @@ import {
 import { contextFromProject, resolvePictureSource } from "./transition";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
+import { isSilentEnergy, stepOnset } from "./visualz/feature-extractor";
 import { preferLiveFeatures } from "./visualz/playback-tap";
 
 export const DEFAULT_VIS_EVENT_MS = 4000;
@@ -151,12 +152,13 @@ function syntheticSpectrum(
 
 export type MixPcm = Pick<AudioBuffer, "sampleRate" | "length" | "numberOfChannels" | "getChannelData">;
 
-/**
- * Feature packet from mixed export PCM (same fields preview reads from the tap).
- * Not a live AnalyserNode. Quiet / empty windows stay near 0 so the caller
- * can fall back to `featuresAt`.
- */
-export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+function mixEnergyAt(buf: MixPcm, timeMs: number): {
+  rms: number;
+  bass: number;
+  mid: number;
+  treble: number;
+  energy: number;
+} {
   const sr = buf.sampleRate > 0 ? buf.sampleRate : 44100;
   const chans = Math.max(1, buf.numberOfChannels);
   const win = Math.min(buf.length, Math.max(64, Math.round(sr * 0.023)));
@@ -185,23 +187,73 @@ export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures
   const treble = clamp01(Math.sqrt(highSq / n) * 2);
   const mid = clamp01(rms * 0.55 + treble * 0.45);
   const energy = clamp01(rms * 0.5 + bass * 0.5);
-  const onset = energy > 0.35 && bass > mid * 0.8;
+  return { rms, bass, mid, treble, energy };
+}
+
+const MIX_HOP_MS = 10;
+
+function lastMixOnsetMs(buf: MixPcm, timeMs: number): number {
+  const hop = MIX_HOP_MS;
+  const from = Math.max(0, timeMs - 400);
+  let prevEnergy = mixEnergyAt(buf, from - hop).energy;
+  let last = Number.NEGATIVE_INFINITY;
+  for (let t = from; t < timeMs - 1e-6; t += hop) {
+    const energy = mixEnergyAt(buf, t).energy;
+    const stepped = stepOnset({ energy, prevEnergy, timeMs: t, lastOnsetTime: last });
+    if (stepped.onset) last = t;
+    prevEnergy = stepped.prevEnergy;
+  }
+  return last;
+}
+
+/**
+ * Feature packet from mixed / A1 PCM using the standalone Visualz onset step.
+ * Quiet windows stay near 0. Never invents a 120 BPM grid — tempoBpm stays null.
+ */
+export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+  const hop = MIX_HOP_MS;
+  const cur = mixEnergyAt(buf, timeMs);
+  if (isSilentEnergy(cur.rms, cur.bass)) return quietVisualizerFeatures(timeMs);
+  const prev = mixEnergyAt(buf, timeMs - hop);
+  const lastOnsetTime = lastMixOnsetMs(buf, timeMs);
+  const stepped = stepOnset({
+    energy: cur.energy,
+    prevEnergy: prev.energy,
+    timeMs,
+    lastOnsetTime,
+  });
   return {
     timeMs,
-    energy,
-    rms,
-    bass,
-    mid,
-    high: treble,
-    treble,
-    spectrum: syntheticSpectrum(bass, mid, treble, timeMs, energy),
-    onset,
-    beatPulse: energy,
+    energy: cur.energy,
+    rms: cur.rms,
+    bass: cur.bass,
+    mid: cur.mid,
+    high: cur.treble,
+    treble: cur.treble,
+    spectrum: syntheticSpectrum(cur.bass, cur.mid, cur.treble, timeMs, cur.energy),
+    onset: stepped.onset,
+    beatPulse: stepped.beatPulse,
     tempoBpm: null,
   };
 }
 
-/** Preview=export: prefer mix energy, else the 120 BPM grid. */
+export function quietVisualizerFeatures(timeMs: number): VisualizerFeatures {
+  return {
+    timeMs,
+    energy: 0,
+    rms: 0,
+    bass: 0,
+    mid: 0,
+    high: 0,
+    treble: 0,
+    spectrum: new Float32Array(64),
+    onset: false,
+    beatPulse: 0,
+    tempoBpm: null,
+  };
+}
+
+/** Preview=export: loaded mix PCM is the clock. No-audio only falls back to 120 BPM. */
 export function visFeaturesForExport(
   timeMs: number,
   durationMs: number,
@@ -209,9 +261,39 @@ export function visFeaturesForExport(
   opts?: { timelineOriginMs?: number },
 ): VisualizerFeatures {
   const origin = opts?.timelineOriginMs ?? 0;
-  const fallback = featuresAt(origin + timeMs, origin + durationMs);
-  if (!mix || mix.length < 8) return fallback;
-  return preferLiveFeatures(featuresFromMix(mix, timeMs), fallback) as VisualizerFeatures;
+  if (mix && mix.length >= 8) return featuresFromMix(mix, timeMs);
+  return featuresAt(origin + timeMs, origin + durationMs);
+}
+
+/**
+ * Preview clock: A1/mix PCM first, else live tap, else quiet if the project
+ * audio path is active (including a silent gap at the playhead), else the
+ * empty-project 120 BPM fallback. `featuresAt` must not run while real audio
+ * exists but is currently silent / missing at t.
+ */
+export function visFeaturesForPreview(opts: {
+  timeMs: number;
+  durationMs: number;
+  mix?: MixPcm | null;
+  live?: AudioFeatures | null;
+  audioLoaded: boolean;
+  /** False = timeline gap / no clip under the playhead. Omit = infer from mix. */
+  hasClipAtPlayhead?: boolean;
+}): VisualizerFeatures {
+  const clipHere = opts.hasClipAtPlayhead ?? Boolean(opts.mix && opts.mix.length >= 8);
+  if (clipHere && opts.mix && opts.mix.length >= 8) {
+    return featuresFromMix(opts.mix, opts.timeMs);
+  }
+  if (opts.audioLoaded) {
+    if (opts.hasClipAtPlayhead === false) return quietVisualizerFeatures(opts.timeMs);
+    const live = preferLiveFeatures(opts.live, quietVisualizerFeatures(opts.timeMs));
+    return {
+      ...live,
+      energy: clamp01(live.rms * 0.5 + live.bass * 0.5),
+      high: live.treble,
+    };
+  }
+  return preferLiveFeatures(opts.live, featuresAt(opts.timeMs, opts.durationMs)) as VisualizerFeatures;
 }
 
 export function nextSceneId(current: VisualizerSceneId): VisualizerSceneId {
@@ -562,6 +644,108 @@ export function deleteVisualizerEvent(project: Project, eventId: string): Projec
     },
     updatedAt: new Date().toISOString(),
   };
+}
+
+/** Fallback VIS-lane span when events/cues are empty (same paint as the window block). */
+export function visLaneSpanMs(project: Project): { startMs: number; durationMs: number } {
+  const startMs = Math.max(0, roundVisMs(project.visualizer.startMs ?? 0));
+  const rawDur = project.visualizer.durationMs ?? 0;
+  const durationMs =
+    rawDur > 0 ? Math.max(1, roundVisMs(rawDur)) : Math.max(10_000, roundVisMs(projectDurationMs(project)));
+  return { startMs, durationMs };
+}
+
+function withVisualizerEvents(project: Project, events: VisualizerEvent[], cues?: VisualizerCue[]): Project {
+  return {
+    ...project,
+    visualizer: {
+      ...project.visualizer,
+      events,
+      ...(cues ? { cues } : {}),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Cues → events, else the window/fallback span as one event. No-op when events already exist. */
+export function materializeVisualizerEvents(project: Project): Project {
+  if (visualizerEventsOf(project).length > 0) return project;
+  const cues = cuesOf(project);
+  if (cues.length > 0) {
+    return withVisualizerEvents(project, rematerializeEventsFromCues(project, cues), cues);
+  }
+  const span = visLaneSpanMs(project);
+  if (span.durationMs < minVisEventDurationMs()) return project;
+  return withVisualizerEvents(project, [
+    {
+      id: createId("ve"),
+      sceneId: project.visualizer.sceneId,
+      startMs: span.startMs,
+      durationMs: span.durationMs,
+    },
+  ]);
+}
+
+export function splitVisualizerEventAt(
+  project: Project,
+  eventId: string,
+  timeMs: number,
+  edgeGuardMs = minVisEventDurationMs(),
+): { project: Project; leftId?: string; rightId?: string; error?: string } {
+  const event = visualizerEventsOf(project).find((e) => e.id === eventId);
+  if (!event) return { project, error: "VIS event not found" };
+  const t = Math.max(0, roundVisMs(timeMs));
+  const offset = t - event.startMs;
+  const min = Math.max(minVisEventDurationMs(), Math.round(edgeGuardMs));
+  if (offset < min || event.durationMs - offset < min) {
+    return { project, error: "Split too close to VIS event edge" };
+  }
+  const left: VisualizerEvent = { ...event, durationMs: offset };
+  const right: VisualizerEvent = {
+    ...event,
+    id: createId("ve"),
+    startMs: t,
+    durationMs: event.durationMs - offset,
+  };
+  const events = visualizerEventsOf(project).flatMap((e) => (e.id === eventId ? [left, right] : [e]));
+  const cues = cuesOf(project);
+  return {
+    project: withVisualizerEvents(
+      project,
+      events,
+      cues.length > 0 ? upsertCueList(cues, t, event.sceneId) : undefined,
+    ),
+    leftId: left.id,
+    rightId: right.id,
+  };
+}
+
+/** Split every VIS event covering the playhead. Materializes cues/window first. */
+export function splitVisualizerAtPlayhead(
+  project: Project,
+  edgeGuardMs = minVisEventDurationMs(),
+): { project: Project; error?: string } {
+  const prepared = materializeVisualizerEvents(project);
+  const t = Math.max(0, roundVisMs(prepared.playheadMs));
+  const hits = visualizerEventsOf(prepared).filter((event) => visualizerEventCovers(event, t));
+  if (hits.length === 0) {
+    return { project, error: "No VIS event under playhead" };
+  }
+  let next = prepared;
+  let splitAny = false;
+  let lastError: string | undefined;
+  for (const event of hits) {
+    const current = visualizerEventsOf(next).find((e) => e.id === event.id);
+    if (!current) continue;
+    const result = splitVisualizerEventAt(next, current.id, t, edgeGuardMs);
+    if (result.error) lastError = result.error;
+    else {
+      next = result.project;
+      splitAny = true;
+    }
+  }
+  if (!splitAny) return { project, error: lastError ?? "Split rejected" };
+  return { project: next };
 }
 
 export function visEventClipboardOf(event: VisualizerEvent): VisEventClipboard {

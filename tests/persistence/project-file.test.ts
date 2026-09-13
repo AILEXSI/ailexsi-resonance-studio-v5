@@ -14,6 +14,7 @@ import {
   runChooseFolder,
   runOpen,
   runOpenRecent,
+  resolveSavePicker,
   runSave,
   runSaveAs,
   savePickerOptions,
@@ -194,6 +195,143 @@ describe("project file picker memory", () => {
     expect(unnamedDir.folderLabel).toBe("Song.resonance.json — Ordner gemerkt");
     expect(statusHasFakePath(unnamedDir.folderLabel)).toBe(false);
     expect(unnamedDir.folderLabel).not.toMatch(/C:\\/);
+  });
+
+  it("save picker types are Chromium-valid .json only", () => {
+    const opts = savePickerOptions("Untitled_Resonance.resonance.json", emptyProjectFileMemory());
+    expect(opts.suggestedName).toBe("Untitled_Resonance.resonance.json");
+    expect(opts.types).toEqual([
+      { description: "Resonance project", accept: { "application/json": [".json"] } },
+    ]);
+  });
+
+  it("Speichern unter invokes showSaveFilePicker when present; download only when missing", async () => {
+    const store = createMemoryProjectFileStore();
+    const picked = mockFileHandle("chosen.json");
+    let saveCalls = 0;
+    const downloads: string[] = [];
+    const host: PickerHost = {
+      showSaveFilePicker: async (opts) => {
+        saveCalls += 1;
+        expect(opts.types).toEqual([
+          { description: "Resonance project", accept: { "application/json": [".json"] } },
+        ]);
+        expect(opts.suggestedName).toBe("Untitled_Resonance.resonance.json");
+        return picked;
+      },
+    };
+    const savedAs = await runSaveAs({
+      host,
+      store,
+      memory: emptyProjectFileMemory(),
+      filename: "Untitled_Resonance.resonance.json",
+      json: "{}",
+      fallbackDownload: () => {
+        throw new Error("must not download when picker exists");
+      },
+    });
+    expect(saveCalls).toBe(1);
+    expect(savedAs.usedFallback).toBe(false);
+    expect(savedAs.memory.fileHandle).toBe(picked);
+
+    const w = window as unknown as { showSaveFilePicker?: unknown };
+    const previous = w.showSaveFilePicker;
+    delete w.showSaveFilePicker;
+    try {
+      const fallback = await runSaveAs({
+        host: {},
+        store,
+        memory: emptyProjectFileMemory(),
+        filename: "Untitled_Resonance.resonance.json",
+        json: "{}",
+        fallbackDownload: (name) => {
+          downloads.push(name);
+        },
+      });
+      expect(fallback.usedFallback).toBe(true);
+      expect(downloads).toEqual(["Untitled_Resonance.resonance.json"]);
+    } finally {
+      if (previous) w.showSaveFilePicker = previous;
+    }
+  });
+
+  it("Speichern unter uses live window.showSaveFilePicker when the host snapshot is empty", async () => {
+    const store = createMemoryProjectFileStore();
+    const picked = mockFileHandle("from-window.json");
+    let saveCalls = 0;
+    const w = window as unknown as {
+      showSaveFilePicker?: (opts: SavePickerOptions) => Promise<FileHandleLike>;
+    };
+    const previous = w.showSaveFilePicker;
+    w.showSaveFilePicker = async () => {
+      saveCalls += 1;
+      return picked;
+    };
+    try {
+      expect(typeof resolveSavePicker({})).toBe("function");
+      const result = await runSaveAs({
+        host: {},
+        store,
+        memory: emptyProjectFileMemory(),
+        filename: "Untitled_Resonance.resonance.json",
+        json: "{}",
+        fallbackDownload: () => {
+          throw new Error("live window picker must win over download");
+        },
+      });
+      expect(saveCalls).toBe(1);
+      expect(result.usedFallback).toBe(false);
+      expect(result.memory.fileHandle).toBe(picked);
+    } finally {
+      if (previous) w.showSaveFilePicker = previous;
+      else delete w.showSaveFilePicker;
+    }
+  });
+
+  it("Speichern unter always opens the picker; Speichern may overwrite a granted handle", async () => {
+    const dir: DirectoryHandleLike = { kind: "directory", name: "Studio" };
+    const store = createMemoryProjectFileStore();
+    const existing = mockFileHandle("Old.resonance.json", { getParent: async () => dir });
+    const renamed = mockFileHandle("Renamed.resonance.json", { getParent: async () => dir });
+    let saveCalls = 0;
+    const host: PickerHost = {
+      showSaveFilePicker: async () => {
+        saveCalls += 1;
+        return renamed;
+      },
+      showOpenFilePicker: async () => [renamed],
+    };
+    const remembered = await rememberFileHandle(store, existing);
+
+    const overwritten = await runSave({
+      host,
+      store,
+      memory: remembered,
+      filename: "Old.resonance.json",
+      json: "{}",
+      fallbackDownload: () => {
+        throw new Error("plain save should reuse the granted handle");
+      },
+    });
+    expect(saveCalls).toBe(0);
+    expect(overwritten.usedFallback).toBe(false);
+    expect(overwritten.memory.fileHandle).toBe(existing);
+    expect(overwritten.status).toBe(saveStatusFsa("Old.resonance.json"));
+
+    const savedAs = await runSaveAs({
+      host,
+      store,
+      memory: remembered,
+      filename: "Renamed.resonance.json",
+      json: "{}",
+      fallbackDownload: () => {
+        throw new Error("save-as must open the picker, not download");
+      },
+    });
+    expect(saveCalls).toBe(1);
+    expect(savedAs.usedFallback).toBe(false);
+    expect(savedAs.memory.fileHandle).toBe(renamed);
+    expect(savedAs.memory.lastFileName).toBe("Renamed.resonance.json");
   });
 
   it("Speichern unter and Öffnen pass startIn the last directory", async () => {

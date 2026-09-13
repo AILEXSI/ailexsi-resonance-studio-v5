@@ -26,16 +26,10 @@ describe("toolbar File button", () => {
     act(() => {
       root!.render(
         <Toolbar
-          snap
           exporting={false}
           onToggleFile={noop}
           onImport={noop}
           onExport={noop}
-          onExportWav={noop}
-          onUndo={noop}
-          onRedo={noop}
-          onSplit={noop}
-          onToggleSnap={noop}
         />,
       );
     });
@@ -47,7 +41,13 @@ describe("toolbar File button", () => {
     expect(labels).toContain("Import");
     expect(labels).not.toContain("Media");
     expect(labels).toContain("Export");
-    expect(labels).toContain("Export WAV");
+    expect(labels).not.toContain("Export WAV");
+    expect(labels.some((t) => t?.startsWith("Help"))).toBe(false);
+    expect(labels).not.toContain("Undo");
+    expect(labels).not.toContain("Redo");
+    expect(labels).not.toContain("Split");
+    expect(labels).not.toContain("Snap");
+    expect(labels).not.toContain("Edit");
     expect(labels).not.toContain("New");
     expect(labels).not.toContain("Open");
     expect(labels).not.toContain("Save");
@@ -74,6 +74,12 @@ describe("toolbar File button", () => {
     expect(group?.querySelector('[data-testid="toolbar-file"]')).toBeTruthy();
     const groupText = group?.textContent ?? "";
     expect(groupText).toMatch(/Import/);
+    expect(groupText).not.toMatch(/Export WAV/);
+    expect(groupText).not.toMatch(/Help/);
+    expect(groupText).not.toMatch(/\bUndo\b/);
+    expect(groupText).not.toMatch(/\bRedo\b/);
+    expect(groupText).not.toMatch(/\bSplit\b/);
+    expect(groupText).not.toMatch(/\bSnap\b/);
     expect(groupText).not.toMatch(/\bNew\b/);
     expect(groupText).not.toMatch(/\bOpen\b/);
     expect(groupText).not.toMatch(/\bSave\b/);
@@ -87,6 +93,23 @@ describe("toolbar File button", () => {
     expect(panel?.querySelector('[data-testid="save-project"]')).toBeTruthy();
     expect(panel?.querySelector('[data-testid="open-fsa"]')).toBeTruthy();
     expect(panel?.querySelector('[data-testid="open-input"]')).toBeTruthy();
+    expect(panel?.querySelector('[data-testid="project-save-as"]')).toBeTruthy();
+    expect(panel?.querySelector('[data-testid="revert-project"]')).toBeNull();
+    expect(panel?.querySelector('[data-testid="project-choose-folder"]')).toBeNull();
+    expect(host.querySelector('[data-testid="import-input-panel"]')).toBeNull();
+    expect(host.querySelector('[data-testid="import-input"]')).toBeTruthy();
     expect(group?.contains(panel)).toBe(false);
+    expect(host.querySelector('[data-testid="transport-undo"]')?.textContent?.trim()).toBe("Undo");
+    expect(host.querySelector('[data-testid="transport-redo"]')?.textContent?.trim()).toBe("Redo");
+    expect(host.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
+    const help = host.querySelector('[data-testid="shortcuts-help"]');
+    expect(help?.textContent?.replace(/\s+/g, " ").trim().startsWith("Help")).toBe(true);
+    expect(host.querySelector('[data-testid="transport"]')?.contains(help)).toBe(true);
+    expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
+    const transport = host.querySelector('[data-testid="transport"]');
+    const splitButtons = [...(transport?.querySelectorAll("button") ?? [])].filter((b) =>
+      (b.textContent ?? "").replace(/\s+/g, " ").trim().startsWith("Split"),
+    );
+    expect(splitButtons).toHaveLength(1);
   });
 });

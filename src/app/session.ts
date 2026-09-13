@@ -27,6 +27,7 @@ import {
   clipIsEnabled,
   clipIsLocked,
   clipOnTrackAt,
+  isTrackId,
   kindOfTrack,
   projectDurationMs,
   type Clip,
@@ -109,6 +110,7 @@ import {
   moveVisualizerEvent,
   pasteVisualizerEvent,
   setVisualizer,
+  splitVisualizerAtPlayhead,
   stretchVisualizerEvent,
   toggleVisualizerMute,
   updateVisualizerEvent,
@@ -124,6 +126,7 @@ import {
   fitZoomPxPerSec,
   LANE_LABEL_PX,
   minZoomPxPerSec,
+  scrollFollowPlayhead,
   scrollKeepPlayheadInView,
   scrollZoomAroundPlayhead,
 } from "../core/zoom";
@@ -150,6 +153,8 @@ export interface Session {
   /** Which clipboard Ctrl+V prefers when no clip is selected. */
   lastClipboardKind: "clip" | "vis" | null;
   targetTrackId: TrackId;
+  /** Mixer / lane multi-select. Empty = use `targetTrackId`. Clip selection wins for S. */
+  selectedTrackIds: TrackId[];
   status: string;
   error: string | null;
   playing: boolean;
@@ -159,7 +164,7 @@ export interface Session {
   timelineWidthPx: number;
   /** Last measured lane-label gutter. View state. */
   timelineLaneLabelPx: number;
-  /** When true, applyPlayhead pages scroll so the needle stays in view. */
+  /** When true, transport pins the playhead at ~65% and scrolls the shared timeline. */
   followPlayhead: boolean;
   store: BlobStore;
   /** History lengths at last save / open / new. Dirty when they differ. */
@@ -182,6 +187,7 @@ export function createSession(store?: BlobStore): Session {
     visClipboard: null,
     lastClipboardKind: null,
     targetTrackId: "V1",
+    selectedTrackIds: ["V1"],
     status: "New project",
     error: null,
     playing: false,
@@ -444,6 +450,7 @@ async function placeImportedAsset(
       placedIds,
     ),
     targetTrackId: preferred,
+    selectedTrackIds: [preferred],
   };
   return { session: applyPlayhead(placedSession, placed.clip.startMs) };
 }
@@ -603,12 +610,61 @@ export function applyRoll(
   return withHistory(session, result.project, "Rolled edit");
 }
 
+/** Tracks of selected clips, else mixer/lane multi-select, else `targetTrackId`. VIS-only = none. */
+export function activeEditTrackIds(session: Session): TrackId[] {
+  const fromClips: TrackId[] = [];
+  for (const id of selectionOf(session)) {
+    const clip = clipById(session.project, id);
+    if (clip && isTrackId(clip.trackId) && !fromClips.includes(clip.trackId)) {
+      fromClips.push(clip.trackId);
+    }
+  }
+  if (fromClips.length > 0) return fromClips;
+  if (visEventFocused(session)) return [];
+  const selected = (session.selectedTrackIds ?? []).filter(isTrackId);
+  if (selected.length > 0) return [...new Set(selected)];
+  return session.targetTrackId ? [session.targetTrackId] : [];
+}
+
+/** Last mixer/lane click. Ctrl/Cmd toggles a track into the S-cut set. */
+export function applySelectTracks(
+  session: Session,
+  trackId: TrackId,
+  opts?: { toggle?: boolean },
+): Session {
+  if (!isTrackId(trackId)) return session;
+  const current =
+    session.selectedTrackIds?.length > 0 ? [...session.selectedTrackIds] : [session.targetTrackId];
+  const next = opts?.toggle
+    ? current.includes(trackId)
+      ? current.filter((id) => id !== trackId)
+      : [...current, trackId]
+    : [trackId];
+  const ids = next.length > 0 ? next : [trackId];
+  return {
+    ...withClipSelection(session, []),
+    selectedMarkerId: null,
+    selectionAnchorClipId: null,
+    targetTrackId: trackId,
+    selectedTrackIds: ids,
+  };
+}
+
 export function applySplit(session: Session): Session {
-  const ids = selectionOf(session);
-  const result =
-    ids.length >= 2
-      ? splitAtPlayhead(session.project, undefined, ids)
-      : splitAtPlayhead(session.project);
+  if (visEventFocused(session) && selectionOf(session).length === 0) {
+    const result = splitVisualizerAtPlayhead(session.project);
+    if (result.error) return { ...session, error: result.error, status: "Split rejected" };
+    return {
+      ...withHistory(session, result.project, "Split at playhead"),
+      selectedVis: true,
+    };
+  }
+  const trackIds = new Set(activeEditTrackIds(session));
+  if (trackIds.size === 0) {
+    return { ...session, status: "Split", error: null };
+  }
+  const allow = session.project.clips.filter((c) => trackIds.has(c.trackId)).map((c) => c.id);
+  const result = splitAtPlayhead(session.project, undefined, allow, { includeLinkedMate: false });
   if (result.error) return { ...session, error: result.error, status: "Split rejected" };
   return withHistory(session, result.project, "Split at playhead");
 }
@@ -1196,16 +1252,32 @@ export function applyMoveMarker(session: Session, markerId: string, timeMs: numb
   };
 }
 
-export function applyPlayhead(session: Session, timeMs: number): Session {
+export type PlayheadApplyMode = "seek" | "transport";
+
+export function applyPlayhead(
+  session: Session,
+  timeMs: number,
+  mode: PlayheadApplyMode = "seek",
+): Session {
   const project = setPlayhead(session.project, timeMs);
   if (!session.followPlayhead) return { ...session, project };
-  const scrollMs = scrollKeepPlayheadInView(
-    project.playheadMs,
-    project.scrollMs,
-    project.zoomPxPerSec,
-    session.timelineWidthPx,
-    session.timelineLaneLabelPx,
-  );
+  const scrollMs =
+    mode === "transport"
+      ? scrollFollowPlayhead(
+          project.playheadMs,
+          project.scrollMs,
+          project.zoomPxPerSec,
+          session.timelineWidthPx,
+          projectDurationMs(project),
+          session.timelineLaneLabelPx,
+        )
+      : scrollKeepPlayheadInView(
+          project.playheadMs,
+          project.scrollMs,
+          project.zoomPxPerSec,
+          session.timelineWidthPx,
+          session.timelineLaneLabelPx,
+        );
   if (scrollMs === project.scrollMs) return { ...session, project };
   return { ...session, project: { ...project, scrollMs } };
 }
@@ -1372,6 +1444,7 @@ export function applySelectVis(session: Session): Session {
     selectedVis: true,
     selectedVisEventId: null,
     selectedVisEventIds: [],
+    selectedTrackIds: [],
     selectionAnchorClipId: null,
   };
 }
@@ -1387,6 +1460,7 @@ export function applySelectVisEvent(session: Session, eventId: string): Session 
     selectedVis: true,
     selectedVisEventId: event.id,
     selectedVisEventIds: [event.id],
+    selectedTrackIds: [],
     selectionAnchorClipId: null,
   };
 }
@@ -1550,6 +1624,7 @@ export function applySelect(
     selectedMarkerId: null,
     selectionAnchorClipId: clipId,
     targetTrackId: clicked?.trackId ?? session.targetTrackId,
+    selectedTrackIds: clicked?.trackId ? [clicked.trackId] : session.selectedTrackIds,
   };
 }
 

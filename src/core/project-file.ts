@@ -78,6 +78,14 @@ const PROJECT_TYPES = [
   },
 ];
 
+/** Chromium showSaveFilePicker rejects ".resonance.json" (second dot). */
+const SAVE_PROJECT_TYPES = [
+  {
+    description: "Resonance project",
+    accept: { "application/json": [".json"] },
+  },
+];
+
 const MP4_TYPES = [
   {
     description: "MP4 video",
@@ -194,7 +202,7 @@ export function savePickerOptions(suggestedName: string, memory: ProjectFileMemo
   return {
     suggestedName,
     startIn: startInForPicker(memory),
-    types: PROJECT_TYPES,
+    types: SAVE_PROJECT_TYPES,
   };
 }
 
@@ -405,6 +413,65 @@ export async function tryReadGrantedFile(
   }
 }
 
+async function writeSavedHandle(opts: {
+  host: PickerHost;
+  store: ProjectFileStore;
+  memory: ProjectFileMemory;
+  filename: string;
+  json: string;
+  fallbackDownload: (filename: string, text: string) => void;
+  handle: FileHandleLike;
+}): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
+  if (!opts.handle.createWritable) {
+    opts.fallbackDownload(opts.handle.name || opts.filename, opts.json);
+    return {
+      status: saveStatusFallback(opts.handle.name || opts.filename),
+      memory: opts.memory,
+      usedFallback: true,
+    };
+  }
+  const writable = await opts.handle.createWritable();
+  await writable.write(opts.json);
+  await writable.close();
+  const memory = await rememberFileHandle(opts.store, opts.handle, opts.memory);
+  return { status: saveStatusFsa(opts.handle.name), memory, usedFallback: false };
+}
+
+type WindowPickers = {
+  showSaveFilePicker?: PickerHost["showSaveFilePicker"];
+  showOpenFilePicker?: PickerHost["showOpenFilePicker"];
+  showDirectoryPicker?: PickerHost["showDirectoryPicker"];
+};
+
+/** Live window lookup — do not snapshot/bind at render; FSA can be missing until the click. */
+export function nativeWindowSavePicker(): PickerHost["showSaveFilePicker"] | undefined {
+  const w = typeof window !== "undefined" ? (window as unknown as WindowPickers) : undefined;
+  const fn = w?.showSaveFilePicker;
+  if (typeof fn !== "function") return undefined;
+  return (opts) => fn.call(w, opts);
+}
+
+export function resolveSavePicker(host: PickerHost): PickerHost["showSaveFilePicker"] | undefined {
+  if (typeof host.showSaveFilePicker === "function") return host.showSaveFilePicker;
+  return nativeWindowSavePicker();
+}
+
+async function pickSaveHandle(
+  host: PickerHost,
+  filename: string,
+  memory: ProjectFileMemory,
+): Promise<{ handle?: FileHandleLike; cancelled?: boolean }> {
+  const picker = resolveSavePicker(host);
+  if (typeof picker !== "function") return {};
+  try {
+    return { handle: await picker(savePickerOptions(filename, memory)) };
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "AbortError") return { cancelled: true };
+    throw e;
+  }
+}
+
 export async function runSave(opts: {
   host: PickerHost;
   store: ProjectFileStore;
@@ -413,7 +480,14 @@ export async function runSave(opts: {
   json: string;
   fallbackDownload: (filename: string, text: string) => void;
 }): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
-  if (!hasFileSystemAccess(opts.host) || !opts.host.showSaveFilePicker) {
+  let handle = opts.memory.fileHandle;
+  const canWrite = handle ? await queryGranted(handle, "readwrite") : false;
+  if (handle && canWrite && typeof handle.createWritable === "function") {
+    return writeSavedHandle({ ...opts, handle });
+  }
+
+  const picker = resolveSavePicker(opts.host);
+  if (typeof picker !== "function") {
     opts.fallbackDownload(opts.filename, opts.json);
     return {
       status: saveStatusFallback(opts.filename),
@@ -422,35 +496,14 @@ export async function runSave(opts: {
     };
   }
 
-  let handle = opts.memory.fileHandle;
-  const canWrite = handle ? await queryGranted(handle, "readwrite") : false;
-  if (!handle || !canWrite || typeof handle.createWritable !== "function") {
-    try {
-      handle = await opts.host.showSaveFilePicker(savePickerOptions(opts.filename, opts.memory));
-    } catch (e) {
-      const name = e instanceof Error ? e.name : "";
-      if (name === "AbortError") {
-        return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
-      }
-      throw e;
-    }
+  const picked = await pickSaveHandle(opts.host, opts.filename, opts.memory);
+  if (picked.cancelled || !picked.handle) {
+    return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
   }
-  if (!handle.createWritable) {
-    opts.fallbackDownload(handle.name || opts.filename, opts.json);
-    return {
-      status: saveStatusFallback(handle.name || opts.filename),
-      memory: opts.memory,
-      usedFallback: true,
-    };
-  }
-  const writable = await handle.createWritable();
-  await writable.write(opts.json);
-  await writable.close();
-  const memory = await rememberFileHandle(opts.store, handle, opts.memory);
-  return { status: saveStatusFsa(handle.name), memory, usedFallback: false };
+  return writeSavedHandle({ ...opts, handle: picked.handle });
 }
 
-/** Always open the save picker (Speichern unter). startIn is the last folder. */
+/** Always open the save picker (Speichern unter). Never reuse the last file handle. */
 export async function runSaveAs(opts: {
   host: PickerHost;
   store: ProjectFileStore;
@@ -459,10 +512,21 @@ export async function runSaveAs(opts: {
   json: string;
   fallbackDownload: (filename: string, text: string) => void;
 }): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
-  return runSave({
-    ...opts,
-    memory: { ...normalizeProjectFileMemory(opts.memory), fileHandle: null },
-  });
+  const picker = resolveSavePicker(opts.host);
+  if (typeof picker !== "function") {
+    opts.fallbackDownload(opts.filename, opts.json);
+    return {
+      status: saveStatusFallback(opts.filename),
+      memory: { ...opts.memory, lastFileName: opts.filename },
+      usedFallback: true,
+    };
+  }
+  // First await must be showSaveFilePicker so the click gesture stays valid.
+  const picked = await pickSaveHandle(opts.host, opts.filename, opts.memory);
+  if (picked.cancelled || !picked.handle) {
+    return { status: "", memory: opts.memory, usedFallback: false, cancelled: true };
+  }
+  return writeSavedHandle({ ...opts, handle: picked.handle });
 }
 
 export async function runChooseFolder(opts: {
@@ -559,15 +623,21 @@ export async function readFileText(file: File): Promise<string> {
 }
 
 export function browserPickerHost(): PickerHost {
-  const w = typeof window !== "undefined" ? window : undefined;
-  const rec = w as unknown as {
-    showSaveFilePicker?: PickerHost["showSaveFilePicker"];
-    showOpenFilePicker?: PickerHost["showOpenFilePicker"];
-    showDirectoryPicker?: PickerHost["showDirectoryPicker"];
-  };
   return {
-    showSaveFilePicker: rec?.showSaveFilePicker?.bind(w),
-    showOpenFilePicker: rec?.showOpenFilePicker?.bind(w),
-    showDirectoryPicker: rec?.showDirectoryPicker?.bind(w),
+    get showSaveFilePicker() {
+      return nativeWindowSavePicker();
+    },
+    get showOpenFilePicker() {
+      const w = typeof window !== "undefined" ? (window as unknown as WindowPickers) : undefined;
+      const fn = w?.showOpenFilePicker;
+      if (typeof fn !== "function") return undefined;
+      return (opts: OpenPickerOptions) => fn.call(w, opts);
+    },
+    get showDirectoryPicker() {
+      const w = typeof window !== "undefined" ? (window as unknown as WindowPickers) : undefined;
+      const fn = w?.showDirectoryPicker;
+      if (typeof fn !== "function") return undefined;
+      return (opts: DirectoryPickerOptions) => fn.call(w, opts);
+    },
   };
 }

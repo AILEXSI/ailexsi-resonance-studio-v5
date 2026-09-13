@@ -668,6 +668,7 @@ export function splitClipAt(
   clipId: string,
   timeMs: number,
   edgeGuardMs = SPLIT_EDGE_GUARD_MS,
+  opts?: { includeLinkedMate?: boolean },
 ): { project: Project; leftId?: string; rightId?: string; error?: string } {
   const clip = clipById(project, clipId);
   if (!clip) return { project, error: "Clip not found" };
@@ -675,8 +676,9 @@ export function splitClipAt(
   const first = splitOneClip(clip, timeMs, edgeGuardMs);
   if ("error" in first) return { project, error: first.error };
   const mate = livingLinkedMate(project, clipId);
-  const liveMate = editableLinkedMate(project, clipId);
-  const skipParkedMate = Boolean(mate && !liveMate);
+  const forceSolo = opts?.includeLinkedMate === false;
+  const liveMate = forceSolo ? undefined : editableLinkedMate(project, clipId);
+  const skipParkedMate = forceSolo || Boolean(mate && !liveMate);
   let mateParts: { left: Clip; right: Clip } | undefined;
   if (liveMate) {
     const second = splitOneClip(liveMate, timeMs, edgeGuardMs);
@@ -693,7 +695,7 @@ export function splitClipAt(
   const mateLeft = mateParts?.left;
   const mateRight =
     mateParts && rightLink ? { ...mateParts.right, linkId: rightLink } : mateParts?.right;
-  const parkedMateId = skipParkedMate ? mate!.id : undefined;
+  const parkedMateId = skipParkedMate ? mate?.id : undefined;
 
   return {
     project: {
@@ -715,6 +717,7 @@ export function splitAtPlayhead(
   project: Project,
   edgeGuardMs = SPLIT_EDGE_GUARD_MS,
   onlyClipIds?: readonly string[],
+  opts?: { includeLinkedMate?: boolean },
 ): { project: Project; error?: string } {
   const allow = onlyClipIds ? new Set(onlyClipIds) : null;
   const hits = project.clips.filter(
@@ -734,7 +737,7 @@ export function splitAtPlayhead(
   let lastError: string | undefined;
   let splitAny = false;
   for (const clip of hits) {
-    const result = splitClipAt(next, clip.id, next.playheadMs, edgeGuardMs);
+    const result = splitClipAt(next, clip.id, next.playheadMs, edgeGuardMs, opts);
     if (result.error) lastError = result.error;
     else {
       next = result.project;

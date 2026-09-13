@@ -18,6 +18,11 @@ interface Props {
   onMarker: () => void;
   onSplit: () => void;
   onSeek?: (ms: number) => void;
+  snap?: boolean;
+  onToggleSnap?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onToggleShortcuts?: () => void;
 }
 
 export function Transport(props: Props) {
@@ -94,6 +99,38 @@ export function Transport(props: Props) {
           OUT {props.project.outPointMs == null ? "—" : formatTimecode(props.project.outPointMs)}
         </button>
       </span>
+      {props.onUndo ? (
+        <button type="button" data-testid="transport-undo" title="Undo (Ctrl+Z)" onClick={props.onUndo}>
+          Undo
+        </button>
+      ) : null}
+      {props.onRedo ? (
+        <button type="button" data-testid="transport-redo" title="Redo (Ctrl+Y)" onClick={props.onRedo}>
+          Redo
+        </button>
+      ) : null}
+      {props.onToggleSnap ? (
+        <button
+          type="button"
+          className={props.snap ? "active" : ""}
+          data-testid="transport-snap"
+          aria-pressed={props.snap === true}
+          onClick={props.onToggleSnap}
+        >
+          Snap
+        </button>
+      ) : null}
+      {props.onToggleShortcuts ? (
+        <button
+          type="button"
+          data-testid="shortcuts-help"
+          title="Shortcuts (?)"
+          onClick={props.onToggleShortcuts}
+        >
+          Help
+          <kbd className="btn-kbd">?</kbd>
+        </button>
+      ) : null}
     </div>
   );
 }

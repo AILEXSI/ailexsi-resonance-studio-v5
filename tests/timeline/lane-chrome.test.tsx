@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import { asset, clip, projectWith } from "../helpers";
 import type { TrackId } from "../../src/core/models";
+import {
+  DEFAULT_LANE_HEIGHT_PX,
+  LANE_HEIGHT_MIN_PX,
+  type LaneHeights,
+} from "../../src/core/layout-prefs";
 import "../../src/styles.css";
 
 const noop = () => {};
@@ -33,6 +38,14 @@ describe("lane header chrome", () => {
       onLaneLabelPx?: (px: number) => void;
       onLaneHeight?: (group: "vis" | "video" | "audio", px: number) => void;
       mutedV1?: boolean;
+      selectedTrackIds?: TrackId[];
+      onSelectTrack?: (id: TrackId, opts?: { toggle?: boolean }) => void;
+      laneHeights?: LaneHeights;
+      onToggleMute?: (id: TrackId) => void;
+      onToggleSolo?: (id: TrackId) => void;
+      onToggleVisualizerMute?: () => void;
+      onCycleVisualizerScene?: () => void;
+      onSelectVis?: () => void;
     } = {},
   ) {
     const project = projectWith(
@@ -56,9 +69,13 @@ describe("lane header chrome", () => {
           onMoveCommit={noop}
           onTrimLive={() => {}}
           onTrimCommit={noop}
-          onToggleMute={(_id: TrackId) => {}}
-          onToggleVisualizerMute={noop}
-          onCycleVisualizerScene={noop}
+          onToggleMute={extras.onToggleMute ?? ((_id: TrackId) => {})}
+          onToggleSolo={extras.onToggleSolo ?? ((_id: TrackId) => {})}
+          selectedTrackIds={extras.selectedTrackIds}
+          onSelectTrack={extras.onSelectTrack}
+          onToggleVisualizerMute={extras.onToggleVisualizerMute ?? noop}
+          onCycleVisualizerScene={extras.onCycleVisualizerScene ?? noop}
+          onSelectVis={extras.onSelectVis}
           onSplitHere={() => {}}
           onCut={noop}
           onCopy={noop}
@@ -73,6 +90,7 @@ describe("lane header chrome", () => {
           onLoopMoveLive={noopMs}
           onLoopCommit={noop}
           laneLabelPx={extras.laneLabelPx ?? 96}
+          laneHeights={extras.laneHeights}
           onLaneLabelPx={extras.onLaneLabelPx}
           onLaneHeight={extras.onLaneHeight}
         />,
@@ -86,6 +104,9 @@ describe("lane header chrome", () => {
     expect(host!.querySelector("[data-testid=lane-height-VIS]")).toBeTruthy();
     expect(host!.querySelector("[data-testid=lane-height-V1]")).toBeTruthy();
     expect(host!.querySelector(".lane-label")).toBeTruthy();
+    for (const id of ["VIS", "V1", "V2", "A1", "A2"] as const) {
+      expect(host!.querySelector(`[data-testid=lane-${id}]`)!.getAttribute("data-header-pack")).toBe("stack");
+    }
   });
 
   it("dragging the label splitter writes a clamped width", () => {
@@ -115,5 +136,108 @@ describe("lane header chrome", () => {
     const body = host!.querySelector("[data-testid=lane-V1-body]") as HTMLElement;
     expect(body.className).not.toContain("audio-lane");
     expect(lane.className).not.toContain("audio-lane");
+  });
+
+  it("lane header click selects a track; Ctrl+click toggles", () => {
+    const picks: Array<{ id: TrackId; toggle?: boolean }> = [];
+    mount({
+      selectedTrackIds: ["V1"],
+      onSelectTrack: (id, opts) => picks.push({ id, toggle: opts?.toggle }),
+    });
+    expect(host!.querySelector("[data-testid=lane-V1]")!.className).toContain("track-selected");
+    act(() => {
+      (host!.querySelector("[data-testid=lane-label-A1]") as HTMLElement).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, ctrlKey: true }),
+      );
+    });
+    expect(picks).toEqual([{ id: "A1", toggle: true }]);
+  });
+
+  it("keeps stacked V/A headers at default height and packs M/S inline when short", () => {
+    const muted: TrackId[] = [];
+    const soloed: TrackId[] = [];
+    mount({
+      laneHeights: {
+        vis: DEFAULT_LANE_HEIGHT_PX,
+        video: LANE_HEIGHT_MIN_PX,
+        audio: DEFAULT_LANE_HEIGHT_PX,
+      },
+      onToggleMute: (id) => muted.push(id),
+      onToggleSolo: (id) => soloed.push(id),
+    });
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V2]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-label-V1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.className).toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A2]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.className).not.toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.className).not.toContain("lane-header-compact");
+
+    act(() => {
+      (host!.querySelector("[data-testid=mute-V1]") as HTMLButtonElement).click();
+      (host!.querySelector("[data-testid=solo-V2]") as HTMLButtonElement).click();
+    });
+    expect(muted).toEqual(["V1"]);
+    expect(soloed).toEqual(["V2"]);
+  });
+
+  it("packs A1/A2 M/S inline at the shortest audio height", () => {
+    mount({
+      laneHeights: {
+        vis: DEFAULT_LANE_HEIGHT_PX,
+        video: DEFAULT_LANE_HEIGHT_PX,
+        audio: LANE_HEIGHT_MIN_PX,
+      },
+    });
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-A2]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=mute-A1]")).toBeTruthy();
+    expect(host!.querySelector("[data-testid=solo-A2]")).toBeTruthy();
+  });
+
+  it("packs VIS M/scene beside the name at the shortest vis height", () => {
+    let muteVis = 0;
+    let cycleScene = 0;
+    let selectVis = 0;
+    mount({
+      laneHeights: {
+        vis: LANE_HEIGHT_MIN_PX,
+        video: DEFAULT_LANE_HEIGHT_PX,
+        audio: DEFAULT_LANE_HEIGHT_PX,
+      },
+      onToggleVisualizerMute: () => {
+        muteVis += 1;
+      },
+      onCycleVisualizerScene: () => {
+        cycleScene += 1;
+      },
+      onSelectVis: () => {
+        selectVis += 1;
+      },
+    });
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-label-VIS]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.className).toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("stack");
+    const scene = host!.querySelector("[data-testid=visualizer-scene]") as HTMLButtonElement;
+    expect(scene.textContent).toBe("Wave");
+
+    act(() => {
+      (host!.querySelector("[data-testid=mute-VIS]") as HTMLButtonElement).click();
+      scene.click();
+    });
+    expect(muteVis).toBe(1);
+    expect(cycleScene).toBe(1);
+    expect(selectVis).toBe(0);
+
+    act(() => {
+      (host!.querySelector("[data-testid=lane-label-VIS]") as HTMLElement).dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    expect(selectVis).toBe(1);
   });
 });

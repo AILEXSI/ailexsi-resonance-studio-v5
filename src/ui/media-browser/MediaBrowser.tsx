@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { MediaAsset, Project, TrackId } from "../../core/models";
 import { displayMediaName, filterMediaAssets, type MediaKindFilter } from "../../core/media-display";
-import { MEDIA_FILE_ACCEPT, writeAssetDrag } from "../../core/media";
+import { writeAssetDrag } from "../../core/media";
 import { describeMissing } from "../../core/persistence";
 import { binPosterKind, posterThumbForAsset } from "../timeline/ClipPreview";
 
@@ -11,7 +11,6 @@ interface Props {
   selectedAssetId: string | null;
   onSelectAsset: (id: string | null) => void;
   onTargetTrack: (id: TrackId) => void;
-  onImport: (files: FileList) => void;
   onPlace: (assetId: string) => void;
   onRelinkAsset?: (assetId: string) => void;
   posterOf?: (asset: MediaAsset) => Promise<string | null>;
@@ -23,7 +22,6 @@ export function MediaBrowser({
   selectedAssetId,
   onSelectAsset,
   onTargetTrack,
-  onImport,
   onPlace,
   onRelinkAsset,
   posterOf = posterThumbForAsset,
@@ -57,16 +55,6 @@ export function MediaBrowser({
   return (
     <aside className="panel" data-testid="media-browser">
       <h2>Media</h2>
-      <input
-        type="file"
-        accept={MEDIA_FILE_ACCEPT}
-        multiple
-        data-testid="import-input-panel"
-        onChange={(e) => {
-          if (e.target.files) onImport(e.target.files);
-          e.target.value = "";
-        }}
-      />
       <p style={{ fontSize: 12, color: "var(--muted)" }}>
         Audio, video, and images (jpeg/png/webp/gif). Other types fail visibly.
       </p>

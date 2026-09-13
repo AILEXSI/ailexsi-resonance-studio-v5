@@ -227,4 +227,62 @@ describe("Transport jump-to-time (P47)", () => {
     });
     expect(seeks).toEqual([500, 4000]);
   });
+
+  it("Undo / Redo / Snap / Help sit on the transport row; Split is not duplicated", () => {
+    let undos = 0;
+    let redos = 0;
+    let snaps = 0;
+    let helps = 0;
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <Transport
+          project={{ ...createEmptyProject(), snap: true }}
+          playing={false}
+          onPlay={noop}
+          onPause={noop}
+          onStop={noop}
+          onStep={noop}
+          onToggleLoop={noop}
+          onIn={noop}
+          onOut={noop}
+          onClear={noop}
+          onMarker={noop}
+          onSplit={noop}
+          snap
+          onToggleSnap={() => {
+            snaps += 1;
+          }}
+          onUndo={() => {
+            undos += 1;
+          }}
+          onRedo={() => {
+            redos += 1;
+          }}
+          onToggleShortcuts={() => {
+            helps += 1;
+          }}
+        />,
+      );
+    });
+    const labels = [...host.querySelectorAll("button")].map((b) => b.textContent?.replace(/\s+/g, " ").trim());
+    expect(labels.filter((t) => t === "Split" || t?.startsWith("Split")).length).toBe(1);
+    expect(host.querySelector('[data-testid="transport-undo"]')?.textContent?.trim()).toBe("Undo");
+    expect(host.querySelector('[data-testid="transport-redo"]')?.textContent?.trim()).toBe("Redo");
+    expect(host.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
+    expect(host.querySelector('[data-testid="transport-snap"]')?.classList.contains("active")).toBe(true);
+    expect(host.querySelector('[data-testid="shortcuts-help"]')?.textContent?.replace(/\s+/g, " ").trim().startsWith("Help")).toBe(true);
+    act(() => {
+      (host!.querySelector('[data-testid="transport-undo"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="transport-redo"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="transport-snap"]') as HTMLButtonElement).click();
+      (host!.querySelector('[data-testid="shortcuts-help"]') as HTMLButtonElement).click();
+    });
+    expect(undos).toBe(1);
+    expect(redos).toBe(1);
+    expect(snaps).toBe(1);
+    expect(helps).toBe(1);
+  });
 });

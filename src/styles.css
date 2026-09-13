@@ -590,6 +590,8 @@ body.media-asset-dragging .project-overlay-drawer {
   height: var(--lane-height-video);
   border-bottom: 1px solid var(--line);
   position: relative;
+  container-type: size;
+  container-name: lane;
 }
 .lane.vis-lane { height: var(--lane-height-vis); }
 .lane.audio-lane { height: var(--lane-height-audio); }
@@ -780,7 +782,76 @@ body.media-asset-dragging .project-overlay-drawer {
   cursor: e-resize;
 }
 .lane-ms { display: flex; gap: 2px; }
+/* Compact V/A/VIS headers: name + chrome in one row so M/S/scene stay clickable. */
+.lane.lane-header-compact .lane-label {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+.lane.lane-header-compact .lane-label > span,
+.lane.lane-header-compact .track-front-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.lane.lane-header-compact .track-front-btn {
+  padding-block: 0;
+}
+.lane.lane-header-compact .lane-ms,
+.lane.lane-header-compact .vis-lane-btns {
+  flex: 0 0 auto;
+}
+.lane.lane-header-compact .mute-btn,
+.lane.lane-header-compact .solo-btn,
+.lane.lane-header-compact .scene-btn {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+@container lane (max-height: 45px) {
+  .lane-label:has(.lane-ms),
+  .lane-label:has(.vis-lane-btns) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding-inline: 4px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .lane-label:has(.lane-ms) > span,
+  .lane-label:has(.vis-lane-btns) > span,
+  .lane-label:has(.lane-ms) .track-front-btn {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .lane-label:has(.lane-ms) .track-front-btn {
+    padding-block: 0;
+  }
+  .lane-label:has(.lane-ms) .lane-ms,
+  .lane-label:has(.vis-lane-btns) .vis-lane-btns {
+    flex: 0 0 auto;
+  }
+  .lane-label:has(.lane-ms) .mute-btn,
+  .lane-label:has(.lane-ms) .solo-btn,
+  .lane-label:has(.vis-lane-btns) .mute-btn,
+  .lane-label:has(.vis-lane-btns) .scene-btn {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    padding: 0 4px;
+  }
+}
 .lane.soloed .lane-label { color: var(--accent); }
+.lane.track-selected .lane-label {
+  outline: 1px solid var(--accent-2);
+  outline-offset: -1px;
+  background: #161c28;
+}
 .playhead {
   position: absolute;
   top: 0;
@@ -1120,12 +1191,18 @@ body.media-asset-dragging .project-overlay-drawer {
   inset: 0;
   background: rgba(6, 8, 12, 0.55);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: 16px;
+  overflow: auto;
   z-index: 40;
 }
 .shortcuts-card {
-  width: min(420px, calc(100vw - 32px));
+  width: min(860px, calc(100vw - 32px));
+  max-height: min(calc(100dvh - 32px), calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1138,6 +1215,7 @@ body.media-asset-dragging .project-overlay-drawer {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  flex-shrink: 0;
 }
 .shortcuts-card h2 { margin: 0 0 4px; font-size: 14px; }
 .shortcuts-close {
@@ -1149,7 +1227,25 @@ body.media-asset-dragging .project-overlay-drawer {
   flex-shrink: 0;
 }
 .shortcuts-card p { margin: 0; font-size: 12px; color: var(--muted); }
-.shortcuts-card dl { margin: 0; display: grid; gap: 4px; }
+.shortcuts-card dl,
+.shortcuts-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+@media (min-width: 720px) {
+  .shortcuts-card dl,
+  .shortcuts-list {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 28px;
+  }
+}
 .shortcuts-card dl > div { display: grid; grid-template-columns: 148px 1fr; gap: 10px; align-items: center; }
 .shortcuts-card dt { margin: 0; }
 .shortcuts-card dd { margin: 0; font-size: 13px; color: var(--text); }

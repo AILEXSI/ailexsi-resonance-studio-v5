@@ -21,14 +21,12 @@ import {
 import {
   browserPickerHost,
   emptyProjectFileMemory,
-  hasFileSystemAccess,
   lastLoadedStatus,
   loadStatusFallback,
   pickRelinkMediaFile,
   readFileText,
   relinkAcceptAttr,
   rememberFileHandle,
-  runChooseFolder,
   runOpen,
   runOpenRecent,
   runSave,
@@ -84,6 +82,7 @@ import {
   applyTrackVolume,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
+  applySelectTracks,
   applySelectVis,
   applySetVisualizer,
   applyToggleFollow,
@@ -98,7 +97,6 @@ import {
   beforeUnloadIfDirty,
   confirmNewProject,
   confirmOpenProject,
-  confirmRevertToLastSave,
   isProjectDirty,
   markProjectClean,
   withClipSelection,
@@ -184,7 +182,6 @@ export function App() {
   projectFileRef.current = projectFile;
   const projectFileStore = useRef(createIndexedDbProjectFileStore()).current;
   const pickerHost = browserPickerHost();
-  const fsa = hasFileSystemAccess(pickerHost);
   const lastTs = useRef<number | null>(null);
   const lastPathRef = useRef<string | null>(null);
   const tauriFsRef = useRef<Promise<TauriProjectFs> | null>(null);
@@ -357,9 +354,9 @@ export function App() {
         if (rate === 0 && !s.playing) return s;
         const stepped = advancePlayhead(s.project, delta * (rate === 0 ? 1 : rate));
         if (stepped.stopped) {
-          return applyCommand(applyPlayhead(s, stepped.playheadMs), { type: "pause" });
+          return applyCommand(applyPlayhead(s, stepped.playheadMs, "transport"), { type: "pause" });
         }
-        return applyPlayhead(s, stepped.playheadMs);
+        return applyPlayhead(s, stepped.playheadMs, "transport");
       });
       raf = requestAnimationFrame(tick);
     };
@@ -433,85 +430,70 @@ export function App() {
     return true;
   };
 
-  const persistSave = (
-    runner: typeof runSave | typeof runSaveAs,
-  ) => {
-    void (async () => {
-      const snapshot = sessionRef.current;
-      try {
-        if (isTauriRuntime()) {
+  const persistSave = (mode: "save" | "saveAs") => {
+    const snapshot = sessionRef.current;
+    const applySaved = (result: {
+      status: string;
+      memory?: ProjectFileMemory;
+      usedFallback?: boolean;
+      cancelled?: boolean;
+      path?: string;
+      name?: string;
+    }) => {
+      if (result.cancelled) return;
+      if (result.path) lastPathRef.current = result.path;
+      if (result.memory) setProjectFile(result.memory);
+      else if (result.name) setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+      if (!result.usedFallback) setProjectPanelOpen(false);
+      setSession((s) => {
+        const sameStack =
+          s.history.past.length === snapshot.history.past.length &&
+          s.history.future.length === snapshot.history.future.length;
+        const next = sameStack ? markProjectClean(s) : s;
+        return { ...next, status: result.status, error: null };
+      });
+    };
+    const fail = (e: unknown) => {
+      setSession((s) => ({
+        ...s,
+        error: e instanceof Error ? e.message : String(e),
+        status: "Save failed",
+      }));
+    };
+    if (isTauriRuntime()) {
+      void (async () => {
+        try {
           const result = await tauriSaveProject(await tauriFs(), {
             json: projectJson(snapshot),
             filename: projectFilename(snapshot.project),
             lastPath: lastPathRef.current,
-            forcePicker: runner === runSaveAs,
+            forcePicker: mode === "saveAs",
           });
           if ("cancelled" in result) return;
-          lastPathRef.current = result.path;
-          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
-          setProjectPanelOpen(false);
-          setSession((s) => {
-            const sameStack =
-              s.history.past.length === snapshot.history.past.length &&
-              s.history.future.length === snapshot.history.future.length;
-            const next = sameStack ? markProjectClean(s) : s;
-            return { ...next, status: result.status, error: null };
-          });
-          return;
+          applySaved({ status: result.status, path: result.path, name: result.name });
+        } catch (e) {
+          fail(e);
         }
-        const result = await runner({
-          host: pickerHost,
-          store: projectFileStore,
-          memory: projectFileRef.current,
-          filename: projectFilename(snapshot.project),
-          json: projectJson(snapshot),
-          fallbackDownload: downloadText,
-        });
-        if (result.cancelled) return;
-        setProjectFile(result.memory);
-        if (!result.usedFallback) setProjectPanelOpen(false);
-        setSession((s) => {
-          const sameStack =
-            s.history.past.length === snapshot.history.past.length &&
-            s.history.future.length === snapshot.history.future.length;
-          const next = sameStack ? markProjectClean(s) : s;
-          return { ...next, status: result.status, error: null };
-        });
-      } catch (e) {
-        setSession((s) => ({
-          ...s,
-          error: e instanceof Error ? e.message : String(e),
-          status: "Save failed",
-        }));
-      }
-    })();
+      })();
+      return;
+    }
+    // Resolve window.showSaveFilePicker on this click (not a render-time snapshot).
+    // First await inside runSaveAs is the picker so the user gesture stays valid.
+    const payload = {
+      host: browserPickerHost(),
+      store: projectFileStore,
+      memory: projectFileRef.current,
+      filename: projectFilename(snapshot.project),
+      json: projectJson(snapshot),
+      fallbackDownload: downloadText,
+    };
+    void (mode === "saveAs" ? runSaveAs(payload) : runSave(payload)).then(applySaved).catch(fail);
   };
 
-  const saveProject = () => persistSave(runSave);
-  const saveProjectAs = () => persistSave(runSaveAs);
+  const saveProject = () => persistSave("save");
+  const saveProjectAs = () => persistSave("saveAs");
   saveProjectRef.current = saveProject;
   saveProjectAsRef.current = saveProjectAs;
-
-  const chooseFolder = () => {
-    void (async () => {
-      try {
-        const result = await runChooseFolder({
-          host: pickerHost,
-          store: projectFileStore,
-          memory: projectFileRef.current,
-        });
-        if (result.cancelled) return;
-        setProjectFile(result.memory);
-        setSession((s) => ({ ...s, status: result.status, error: null }));
-      } catch (e) {
-        setSession((s) => ({
-          ...s,
-          error: e instanceof Error ? e.message : String(e),
-          status: "Folder pick failed",
-        }));
-      }
-    })();
-  };
 
   const openWithPicker = () => {
     void (async () => {
@@ -655,10 +637,6 @@ export function App() {
         fps: exportDialog.fps || 30,
       }),
     );
-  };
-
-  const runExportWav = () => {
-    startExport("wav");
   };
 
   const startExport = (kind: "mp4" | "wav") => {
@@ -1228,7 +1206,6 @@ export function App() {
   return (
     <div className="app" data-testid="app">
       <Toolbar
-        snap={session.project.snap}
         exporting={exporting}
         screen={screen}
         onSelectScreen={setScreen}
@@ -1236,12 +1213,6 @@ export function App() {
         filePanelOpen={projectPanelOpen}
         onImport={startImport}
         onExport={runExport}
-        onExportWav={runExportWav}
-        onUndo={() => runCommand({ type: "undo" })}
-        onRedo={() => runCommand({ type: "redo" })}
-        onSplit={() => runCommand({ type: "split" })}
-        onToggleSnap={() => setSession(applyToggleSnap(session))}
-        onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
@@ -1287,16 +1258,12 @@ export function App() {
             </button>
             <ProjectFilePanel
               memory={projectFile}
-              fileSystemAccess={fsa}
-              projectDirty={isProjectDirty(session)}
               onNew={() => setSession(confirmNewProject(sessionRef.current))}
               onSave={saveProject}
               onSaveAs={saveProjectAs}
               onOpen={openWithPicker}
               onOpenFile={(file) => void openProject(file)}
               onOpenLast={openLast}
-              onRevert={() => setSession(confirmRevertToLastSave(sessionRef.current))}
-              onChooseFolder={chooseFolder}
               onOpenRecent={openRecent}
             />
             <MediaBrowser
@@ -1304,10 +1271,7 @@ export function App() {
               targetTrackId={session.targetTrackId}
               selectedAssetId={selectedAssetId}
               onSelectAsset={setSelectedAssetId}
-              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
-              onImport={(files) => {
-                void importFiles(session, files).then(setSession);
-              }}
+              onTargetTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id, selectedTrackIds: [id] }))}
               onPlace={(assetId) => {
                 const asset = session.project.assets.find((a) => a.id === assetId);
                 if (!asset) return;
@@ -1413,7 +1377,12 @@ export function App() {
         onClear={() => runCommand({ type: "clearInOut" })}
         onMarker={() => runCommand({ type: "addMarker" })}
         onSplit={() => runCommand({ type: "split" })}
+        snap={session.project.snap}
+        onToggleSnap={() => setSession(applyToggleSnap(session))}
+        onUndo={() => runCommand({ type: "undo" })}
+        onRedo={() => runCommand({ type: "redo" })}
         onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
+        onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
       />
 
       {screen === "cutter" ? (
@@ -1437,6 +1406,9 @@ export function App() {
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
         selectedMarkerId={session.selectedMarkerId}
+        selectedVis={session.selectedVis}
+        selectedTrackIds={session.selectedTrackIds}
+        onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
         onSelect={(id, opts) =>
           setSession((s) =>
             applyCommand(s, { type: "select", clipId: id, toggle: opts?.toggle, range: opts?.range }),
@@ -1530,10 +1502,11 @@ export function App() {
       <Mixer
         project={session.project}
         selectedTrackId={session.targetTrackId}
+        selectedTrackIds={session.selectedTrackIds}
         peaks={mixPeaks}
         collapsed={mixerCollapsed}
         onToggleCollapsed={toggleMixerCollapsed}
-        onSelectTrack={(id) => setSession((s) => ({ ...s, targetTrackId: id }))}
+        onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
         onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}

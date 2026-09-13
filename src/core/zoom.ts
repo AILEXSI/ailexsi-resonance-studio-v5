@@ -84,6 +84,46 @@ export function playheadInView(
   return playheadMs >= scrollMs && playheadMs <= viewEnd;
 }
 
+/** Viewport fraction where Follow pins the playhead during transport. */
+export const FOLLOW_ANCHOR_RATIO = 0.65;
+
+/** Playhead position as a 0..1 fraction of the visible lane (may be outside). */
+export function playheadViewRatio(
+  playheadMs: number,
+  scrollMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx);
+  return (playheadMs - scrollMs) / Math.max(visible, 1e-6);
+}
+
+/**
+ * Follow during transport: walk through the left of the view, then keep the
+ * playhead visually anchored at FOLLOW_ANCHOR_RATIO and scroll the shared
+ * timeline underneath. One scrollMs — every lane uses the same time axis.
+ * Near the project end, clamp so the playhead can finish the last 35%.
+ */
+export function scrollFollowPlayhead(
+  playheadMs: number,
+  scrollMs: number,
+  zoomPxPerSec: number,
+  timelineWidthPx: number,
+  durationMs: number,
+  laneLabelPx = LANE_LABEL_PX,
+): number {
+  const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx);
+  const anchorOffsetMs = visible * FOLLOW_ANCHOR_RATIO;
+  let next = Math.max(0, scrollMs);
+  if (playheadMs < next) {
+    next = Math.max(0, playheadMs);
+  } else if (playheadMs > next + anchorOffsetMs) {
+    next = playheadMs - anchorOffsetMs;
+  }
+  return clampScrollMs(next, durationMs, zoomPxPerSec, timelineWidthPx, laneLabelPx);
+}
+
 function centerPlayheadScrollMs(
   playheadMs: number,
   zoomPxPerSec: number,
