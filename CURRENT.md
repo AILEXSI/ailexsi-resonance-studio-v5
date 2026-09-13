@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `c0392f0` — Merge PR #9 (`cursor/vis-silence-gate-d1d3` @ `fa1c782`). Nicht forcieren. |
-| Branch | `main` @ `c0392f0` (Human-verified A/B/C local exe `0df5da1`; docs tip `57bfa85`). |
+| Branch | `main` @ `01109a9` (stamp after PR #9 merge `c0392f0`; Human-verified exe `0df5da1`). |
 | Base | `main` nach PR #9. Stack: File/Import/Export chrome, Help/S-track, compact headers, Follow/audio-VIS/Loop, silence gate. |
 | Live-UI | Chrome + **local exe Human-verified** @ `0df5da1`. Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Icons nicht anfassen. |
