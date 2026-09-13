@@ -631,6 +631,11 @@ export function Timeline({
     setMenu(null);
     setMarkerMenu(null);
     setVisMenu(null);
+    // Event fill is the VIS lane — seek like empty V1/V2/A body clicks (P86 snap).
+    const laneBody =
+      (e.currentTarget.closest("[data-testid='lane-VIS-body']") as HTMLElement | null) ??
+      bodyRef.current;
+    onPlayhead(snapPlayheadSeek(project, timeFromEvent(e.clientX, laneBody)));
     if (dragKindRef.current) return;
     onSelectVisEvent?.(event.id);
     if (!onVisEventMoveLive) return;
