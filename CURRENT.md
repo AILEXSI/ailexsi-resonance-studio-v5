@@ -7,8 +7,8 @@ Ein Blick. Kein Wunschzettel.
 | Datum | 2026-09-13 |
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
-| main | `c0392f0` — Merge PR #9 (`cursor/vis-silence-gate-d1d3` @ `fa1c782`). Nicht forcieren. |
-| Branch | `main` @ `01109a9` (stamp after PR #9 merge `c0392f0`; Human-verified exe `0df5da1`). |
+| main | `368568e` — tip. PR #9 merge `c0392f0`. Nicht forcieren. |
+| Branch | `main` @ `368568e`. Human-verified exe lineage `0df5da1` (silence-gate content on main). |
 | Base | `main` nach PR #9. Stack: File/Import/Export chrome, Help/S-track, compact headers, Follow/audio-VIS/Loop, silence gate. |
 | Live-UI | Chrome + **local exe Human-verified** @ `0df5da1`. Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Icons nicht anfassen. |
@@ -29,4 +29,4 @@ Ein Blick. Kein Wunschzettel.
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-VERIFIED.** Canvas-Modi unverändert. Geladenes A1/Mix-PCM treibt Onset/Energy (Visualz-Step). Silence gate (`rms < 0.02 && bass < 0.03`): Playhead in A1/Mix-Lücke oder echter Stille → energy/onset/beatPulse ~0, kein Pulse in Audio-Lücken. Kein `featuresAt` 120-BPM-Metronom, solange das Projekt einen Audio-Pfad hat. Beat = audio-derived onset/energy sync — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
-| Nächster Slice | Relink+Save (keine missing-Parade). AUTO-Zeile unangetastet. |
+| Nächster Slice | Human-driven next. |
