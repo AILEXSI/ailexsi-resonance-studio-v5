@@ -111,7 +111,7 @@ Collapse does **not** change playback, mute/solo, volume, pan, routing, or expor
 
 ## G Evidence Report
 
-**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Operator MODE B EXE acceptance is still required. Feature stacked on F tip `9afed5e`. Version **5.0.0**. AUTO unangetastet. Linux VM — no Windows EXE was built in this pass. MODE A on this tip: tsc exit 0; vitest **862 / 98**; vite build 5.0.0, 196 modules.
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Operator MODE B EXE acceptance is still required. Feature stacked on F tip `9afed5e`. G HEAD `6778f2737389b201cd065ee50d82509b59d74e98`. Version **5.0.0**. AUTO unangetastet. Linux VM — no Windows EXE was built in this pass. MODE A on this tip: tsc exit 0; vitest **862 / 98**; vite build 5.0.0, 196 modules.
 
 ### What shipped
 
