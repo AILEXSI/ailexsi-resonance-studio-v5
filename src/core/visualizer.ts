@@ -152,14 +152,6 @@ function syntheticSpectrum(
 
 export type MixPcm = Pick<AudioBuffer, "sampleRate" | "length" | "numberOfChannels" | "getChannelData">;
 
-/** True when `timeMs` maps onto a sample inside the buffer (not a gap past the clip). */
-export function mixHasPcmAt(buf: MixPcm, timeMs: number): boolean {
-  if (!buf || buf.length < 8) return false;
-  const sr = buf.sampleRate > 0 ? buf.sampleRate : 44100;
-  const sample = (Math.max(0, timeMs) / 1000) * sr;
-  return sample < buf.length;
-}
-
 function mixEnergyAt(buf: MixPcm, timeMs: number): {
   rms: number;
   bass: number;
@@ -219,7 +211,6 @@ function lastMixOnsetMs(buf: MixPcm, timeMs: number): number {
  * Quiet windows stay near 0. Never invents a 120 BPM grid — tempoBpm stays null.
  */
 export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
-  if (!mixHasPcmAt(buf, timeMs)) return quietVisualizerFeatures(timeMs);
   const hop = MIX_HOP_MS;
   const cur = mixEnergyAt(buf, timeMs);
   if (isSilentEnergy(cur.rms, cur.bass)) return quietVisualizerFeatures(timeMs);
@@ -290,7 +281,7 @@ export function visFeaturesForPreview(opts: {
   hasClipAtPlayhead?: boolean;
 }): VisualizerFeatures {
   const clipHere = opts.hasClipAtPlayhead ?? Boolean(opts.mix && opts.mix.length >= 8);
-  if (clipHere && opts.mix && mixHasPcmAt(opts.mix, opts.timeMs)) {
+  if (clipHere && opts.mix && opts.mix.length >= 8) {
     return featuresFromMix(opts.mix, opts.timeMs);
   }
   if (opts.audioLoaded) {

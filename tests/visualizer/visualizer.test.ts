@@ -11,7 +11,6 @@ import {
   energyAt,
   featuresAt,
   featuresFromMix,
-  mixHasPcmAt,
   visFeaturesForExport,
   visFeaturesForPreview,
   nextSceneId,
@@ -458,7 +457,6 @@ describe("VIS silence / gap at playhead (Visualz gate, no metronome)", () => {
     expect(loud.rms).toBeGreaterThan(0.15);
     expect(loud.tempoBpm).toBeNull();
     const gap = featuresFromMix(buf, 600);
-    expect(mixHasPcmAt(buf, 600)).toBe(true);
     expect(gap.energy).toBeCloseTo(0, 5);
     expect(gap.rms).toBeCloseTo(0, 5);
     expect(gap.onset).toBe(false);
@@ -468,15 +466,19 @@ describe("VIS silence / gap at playhead (Visualz gate, no metronome)", () => {
     expect(featuresAt(500, 2000).energy).toBeCloseTo(1, 5);
   });
 
-  it("no PCM at the current time (past the buffer) is quiet, not a clamp-to-end pulse", () => {
+  it("missing clip at playhead is treated as no PCM — quiet, not featuresAt", () => {
     const buf = toneThenSilence(200, 0);
-    expect(mixHasPcmAt(buf, 50)).toBe(true);
-    expect(mixHasPcmAt(buf, 5000)).toBe(false);
-    const past = featuresFromMix(buf, 5000);
-    expect(past.energy).toBeCloseTo(0, 5);
-    expect(past.beatPulse).toBeCloseTo(0, 5);
-    expect(past.onset).toBe(false);
-    expect(visFeaturesForExport(5000, 8000, buf).energy).toBeCloseTo(0, 5);
+    const fromStaleMix = visFeaturesForPreview({
+      timeMs: 80,
+      durationMs: 8000,
+      mix: buf,
+      audioLoaded: true,
+      hasClipAtPlayhead: false,
+    });
+    expect(fromStaleMix.energy).toBeCloseTo(0, 5);
+    expect(fromStaleMix.beatPulse).toBeCloseTo(0, 5);
+    expect(fromStaleMix.onset).toBe(false);
+    expect(fromStaleMix.tempoBpm).toBeNull();
   });
 
   it("playhead in an A1/mix gap does not let featuresAt or leftover live drive VIS", () => {
