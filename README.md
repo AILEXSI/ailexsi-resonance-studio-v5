@@ -8,7 +8,7 @@ Quelle der Wahrheit für diesen Stand: `CURRENT.md`.
 
 Earlier HUMAN-PROVEN on main (exe `0df5da1` / PR #9): A Follow, B audio VIS + silence gate, C Loop-off.
 
-**E Stem Import:** IMPLEMENTED / AUTOMATED-TESTED on this stack. Not in the EXE HUMAN-PROVEN list. **F–N + zettel:** PLANNED / NOT IMPLEMENTED.
+**E Stem Import:** IMPLEMENTED / AUTOMATED-TESTED on this stack. Not in the EXE HUMAN-PROVEN list. **F–N + zettel:** PLANNED / NOT IMPLEMENTED (incl. Track/Mixer Rename, Track Color, Distribute Colors — Future UI in `CURRENT.md`, not next slice).
 
 `origin/main` is still `9ceb9bd` (docs stamp of `0cdcadf`). Stack D→D.1→E→Speichern→Export `.vN` is **not** merged to main. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Kein Force-Push auf `main`. AUTO und Icons unangetastet.
 
@@ -131,6 +131,6 @@ B VIS: HUMAN-PROVEN — audio/mix PCM Visualz onset/energy; silence gate in Audi
 C Loop: HUMAN-PROVEN — Loop OFF weiter über OUT; Loop ON wrappt OUT→IN.
 Production Pass **D**: HUMAN-PROVEN in EXE (dynamic audio, 64 cap, last-lane `+/−`, lane scroll, mixer follow/scroll/resize, sync).
 Production Pass **E**: IMPLEMENTED / AUTOMATED-TESTED (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Not HUMAN-PROVEN this pass. No F group collapse.
-F–N + zettel (Preview Zoom, mixer EQ/FX): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md`. VIS-Ausbau-Intent = K–N dort.
-Nächster Slice: Production Pass F (track/chapter groups UI collapse). STOP — no F+ here.
+F–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
+Nächster Slice: Production Pass F (track/chapter groups UI collapse). Future UI zettel is **not** the next slice. STOP — no F+ and no zettel implementation here.
 MODE A = FAST / HUMAN ITERATION (browser/tauri dev). MODE B = PRECISION / ACCEPTANCE (named-SHA EXE). HUMAN-PROVEN only from MODE B operator list.

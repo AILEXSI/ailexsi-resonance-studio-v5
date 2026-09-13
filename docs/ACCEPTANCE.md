@@ -60,7 +60,7 @@ Not in this HUMAN-PROVEN list (code may still be IMPLEMENTED / AUTOMATED-TESTED)
 
 - E multi-WAV / ZIP stem import
 - F–N production-pass items
-- zettel: Preview Zoom; audio channel strip EQ / FX
+- zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors (see `CURRENT.md` Future UI — not next slice)
 
 `origin/main` was not this EXE. Main tip at audit time: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`.
 

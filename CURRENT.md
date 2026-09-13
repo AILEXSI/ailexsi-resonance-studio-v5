@@ -35,7 +35,7 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Export | **HUMAN-PROVEN** in EXE. Toolbar **Export** → H.264-MP4-Dialog. Default-Name immer `Stem.vN.ext` (screenshot: `Untitled_Resonance.v1.mp4` / status `Exported … bytes`). Empty folder → `.v1`; unversioned sibling occupies v1 → `.v2`. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
-| Nächster Slice | Production Pass **F** (Track/Chapter Groups UI collapse) — **PLANNED / NOT IMPLEMENTED**. E remains IMPLEMENTED / AUTOMATED-TESTED only. STOP — no F+ in this docs pass. |
+| Nächster Slice | Production Pass **F** (Track/Chapter Groups UI collapse) — **PLANNED / NOT IMPLEMENTED**. E remains IMPLEMENTED / AUTOMATED-TESTED only. Future UI zettel (rename / color / distribute / Preview Zoom / EQ-FX) is **not** the next slice. STOP — no F+ and no zettel implementation in this docs pass. |
 | Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E IMPLEMENTED / AUTOMATED-TESTED**. **F–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
 ## Verification paths
@@ -71,3 +71,47 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | N | Späterer Ausbau nur aus nachgewiesenem Bedarf (Four Chapters) | **PLANNED / NOT IMPLEMENTED** |
 | Zettel | Preview Zoom (preview pane, not timeline zoom) | **PLANNED / NOT IMPLEMENTED** |
 | Zettel | Audio channel strip EQ / FX (mixer is volume / pan / mute / solo only) | **PLANNED / NOT IMPLEMENTED** |
+| Zettel | Track / Mixer Channel Rename — one shared display name; inline edit from header or mixer | **PLANNED / NOT IMPLEMENTED** |
+| Zettel | Track Color — one shared color from Timeline header and Mixer channel | **PLANNED / NOT IMPLEMENTED** |
+| Zettel | Distribute Colors — sequential palette on a selection or Chapter group | **PLANNED / NOT IMPLEMENTED** |
+
+## Future UI (zettel — production-adjacent, not next slice)
+
+**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass F. Do not implement in this docs pass.
+
+`Track.name` already exists as the lane/mixer label (defaults A1…; stem import may write a filename). There is **no** inline rename UI, **no** track color property, **no** Distribute Colors. Project rename and marker rename are unrelated.
+
+### Track / Mixer Channel Rename
+
+A track can be renamed from either representation:
+
+- Timeline track header → click / double-click name → inline edit
+- Mixer channel label → click / double-click name → inline edit
+- Enter = confirm, Esc = cancel
+
+Both edit the **same** underlying track display name (`Track.name`). Never duplicated state.
+
+Example: internal id stays `A12` (stable). Display name `Lead Vocals`. Rename in Timeline A12→Lead Vocals → Mixer shows Lead Vocals immediately. Rename in Mixer Lead Vocals→Lead Vox → Timeline shows Lead Vox immediately.
+
+Rules:
+
+- one shared display name
+- internal track ID remains stable (legacy `A1`/`A2`, generated `a_*`, labels A3…)
+- rename must not affect routing, clips, automation, or grouping
+- name persists through save / load
+
+### Track Color
+
+Color assignable from Timeline track header **and** Mixer channel; both modify the same track color property.
+
+Reflected consistently in: Timeline track, audio clips, Mixer channel, later automation lanes (when G exists).
+
+### Distribute Colors
+
+For a selected set of tracks or a Chapter group (F):
+
+- Distribute Colors
+- assign palette colors sequentially
+- same colors appear in Timeline + Mixer
+- individual colors remain editable afterwards
+- persists through save / load
