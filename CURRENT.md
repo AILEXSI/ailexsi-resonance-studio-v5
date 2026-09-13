@@ -29,4 +29,16 @@ Ein Blick. Kein Wunschzettel.
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-VERIFIED.** Canvas-Modi unverändert. Geladenes A1/Mix-PCM treibt Onset/Energy (Visualz-Step). Silence gate (`rms < 0.02 && bass < 0.03`): Playhead in A1/Mix-Lücke oder echter Stille → energy/onset/beatPulse ~0, kein Pulse in Audio-Lücken. Kein `featuresAt` 120-BPM-Metronom, solange das Projekt einen Audio-Pfad hat. Beat = audio-derived onset/energy sync — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
-| Nächster Slice | Human-driven next. |
+| Nächster Slice | Human-driven next. **VIS Ausbau** = Intent, **geplant / noch kein Code**. |
+| VIS Ausbau | **geplant / noch kein Code** — Human chose docs-only. Version bleibt 5.0.0. AUTO unangetastet. |
+
+## VIS Ausbau (geplant)
+
+**geplant / noch kein Code** — Human chose docs-only. Kein App-Code, kein AUTO-Touch, Version bleibt **5.0.0**.
+
+| Klasse | Intent |
+| --- | --- |
+| VIS Library | Existing generative scenes stay as fixed **BASICS** group; remain part of Resonance. |
+| Audio Reactive | Second VIS class for audio-reactive image/video processing. Existing media modulated live by audio features instead of only playback. |
+| Modulation | Existing audio analysis (Energy/Bass/Onset etc.) as shared modulation source for Basics and Live-FX. No separate metronome/beat path. |
+| Live FX | Non-destructive params (Scale/Zoom, Position, Rotation, Glow, Blur, Distortion, Color/Exposure, Displacement, …) made modulatable in principle. Expand by real Four-Chapters need. |
