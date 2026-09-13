@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { kindOfTrack, orderedTracks, type Project, type TrackId } from "../../core/models";
 import {
   dbToFader,
@@ -12,6 +12,13 @@ import {
 } from "../../core/volume";
 
 export type MixPeaks = { master: number } & Record<string, number>;
+
+/** Trackpad X, shift+wheel, or vertical wheel all pan the channel strip row. */
+export function mixerChannelPanDelta(e: { deltaX: number; deltaY: number; shiftKey?: boolean }): number {
+  const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  if (e.shiftKey || horiz) return horiz ? e.deltaX : e.deltaY;
+  return e.deltaY;
+}
 
 interface Props {
   project: Project;
@@ -160,6 +167,22 @@ export function Mixer({
   onPan,
 }: Props) {
   const tracks = orderedTracks(project);
+  const channelScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = channelScrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0) return;
+      const delta = mixerChannelPanDelta(e);
+      if (delta === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.scrollLeft += delta;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [collapsed, tracks.length]);
   return (
     <aside
       className={`mixer${collapsed ? " collapsed" : ""}`}
@@ -198,9 +221,10 @@ export function Mixer({
       <div className="mixer-strips" id="mixer-channels" data-testid="mixer-channels">
         {collapsed ? null : (
           <div
+            ref={channelScrollRef}
             className="mixer-channel-scroll"
             data-testid="mixer-channel-scroll"
-            style={{ overflowX: "auto", overflowY: "hidden" }}
+            style={{ overflowX: "scroll", overflowY: "hidden" }}
           >
             {tracks.map((track) => {
               const id = track.id;

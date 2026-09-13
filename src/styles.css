@@ -1092,8 +1092,21 @@ body.media-asset-dragging .project-overlay-drawer {
   gap: 2px;
   flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 #0d1118;
+}
+.mixer-channel-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.mixer-channel-scroll::-webkit-scrollbar-track {
+  background: #0d1118;
+}
+.mixer-channel-scroll::-webkit-scrollbar-thumb {
+  background: #4a5568;
+  border-radius: 5px;
 }
 .mix-strip {
   flex: 0 0 42px;

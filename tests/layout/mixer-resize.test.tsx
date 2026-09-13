@@ -13,7 +13,7 @@ import {
   type StorageLike,
 } from "../../src/core/layout-prefs";
 import { createEmptyProject } from "../../src/core/project";
-import { Mixer } from "../../src/ui/mixer/Mixer";
+import { Mixer, mixerChannelPanDelta } from "../../src/ui/mixer/Mixer";
 import "../../src/styles.css";
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
@@ -135,7 +135,8 @@ describe("mixer resize", () => {
     expect(narrow).toBe(MIXER_EXPANDED_PX - 80);
     expect(narrow).toBeGreaterThanOrEqual(MIXER_MIN_PX);
     stripKeepsFixedWidth(strip("A2"));
-    expect(getComputedStyle(scroll).overflowX === "auto" || scroll.style.overflowX === "auto").toBe(true);
+    const overflowX = getComputedStyle(scroll).overflowX || scroll.style.overflowX;
+    expect(overflowX === "auto" || overflowX === "scroll").toBe(true);
     expect(host!.querySelector('[data-testid="mix-master"]')?.parentElement).toBe(
       host!.querySelector('[data-testid="mixer-channels"]'),
     );
@@ -230,5 +231,23 @@ describe("mixer resize", () => {
     expect(extra.style.width).toBe("");
     const overflow = getComputedStyle(scroll).overflowX || scroll.style.overflowX;
     expect(overflow === "auto" || overflow === "scroll").toBe(true);
+
+    Object.defineProperty(scroll, "scrollWidth", { configurable: true, value: 480 });
+    Object.defineProperty(scroll, "clientWidth", { configurable: true, value: 80 });
+    scroll.scrollLeft = 0;
+    act(() => {
+      scroll.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 48, shiftKey: true }));
+    });
+    expect(scroll.scrollLeft).toBe(48);
+    act(() => {
+      scroll.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 24 }));
+    });
+    expect(scroll.scrollLeft).toBe(72);
+  });
+
+  it("maps shift+wheel and trackpad X to horizontal channel pan", () => {
+    expect(mixerChannelPanDelta({ deltaX: 0, deltaY: 40, shiftKey: true })).toBe(40);
+    expect(mixerChannelPanDelta({ deltaX: 30, deltaY: 8 })).toBe(30);
+    expect(mixerChannelPanDelta({ deltaX: 0, deltaY: 16 })).toBe(16);
   });
 });

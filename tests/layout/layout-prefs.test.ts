@@ -157,6 +157,12 @@ describe("layout prefs", () => {
     const tight = MIXER_MIN_PX + TIMELINE_MIN_PX + 80;
     expect(clampMixerWidth(MIXER_MAX_PX, tight)).toBe(tight - TIMELINE_MIN_PX);
     expect(clampMixerWidth(10, tight)).toBe(MIXER_MIN_PX);
+    const desktop = 1440;
+    const followRegion = clampMixerWidth(4000, desktop);
+    expect(followRegion).toBe(desktop - TIMELINE_MIN_PX);
+    expect(followRegion).toBeGreaterThan(560);
+    expect(TIMELINE_MIN_PX).toBeGreaterThan(0);
+    expect(TIMELINE_MIN_PX).toBeLessThanOrEqual(180);
   });
 
   it("left-edge mixer drag: left widens, right narrows; persist round-trips", () => {

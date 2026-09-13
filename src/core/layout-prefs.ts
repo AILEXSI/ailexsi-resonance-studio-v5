@@ -35,9 +35,14 @@ export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;
 /** Expanded mixer: MST + ≥1 channel peek + chrome. Never 0. */
 export const MIXER_MIN_PX = 120;
-/** Extra channels visible at once; timeline still gets TIMELINE_MIN_PX. */
-export const MIXER_MAX_PX = 560;
-export const TIMELINE_MIN_PX = 320;
+/**
+ * Absolute ceiling when arrange width is unknown (persist/load).
+ * Live max is arrangeWidth − TIMELINE_MIN_PX so the divider can reach the
+ * Follow-button region on a normal desktop (far past the old 560 cap).
+ */
+export const MIXER_MAX_PX = 1800;
+/** Lane labels (~96) + a strip of clips. Non-zero; small enough for Follow-align. */
+export const TIMELINE_MIN_PX = 160;
 export const MIXER_SPLITTER_PX = 8;
 
 export interface StorageLike {
