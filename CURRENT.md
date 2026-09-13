@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `314deff` — README-Stamp nach PR #3 (`e14d7af`). Nicht forcieren. |
-| Branch | `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `347ac3d` (`347ac3d64dcec88a1849d503b1c2564fdbefccb8`) |
+| Branch | `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `183c43f` (`183c43fed622905ed2f98d21e989cb253e19c651`) |
 | Base | WAV/Help-Chrome PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7` / Stamp `a094404`). Menu-polish PR #4 darunter. Spätere PR-#5-Commits (愛-Icons, Follow-Pin `ec0275a`) sind **nicht** in diesem Tree. |
 | Live-UI | Chrome Human-approved Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. VIS-S-Cut **Human-verified** auf diesem Branch. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Diese PR fasst Icons nicht an. |

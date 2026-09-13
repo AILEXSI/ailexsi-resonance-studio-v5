@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `347ac3d`. Chrome-Base ist PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7`) plus Menu-polish PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `183c43f`. Chrome-Base ist PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7`) plus Menu-polish PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -92,7 +92,7 @@ Klick in die VIS-Lane (leerer Body oder Event-Fill, z.B. Tunnel) springt den Pla
 
 ## Fuer Bots
 
-Basis: PR #6 auf `cursor/help-scroll-active-track-split-fdc6` @ `347ac3d`, Chrome-Base PR #5 @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
+Basis: PR #6 auf `cursor/help-scroll-active-track-split-fdc6` @ `183c43f`, Chrome-Base PR #5 @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A.
 Follow-Playhead-Pin: pending/unknown auf diesem Branch.
