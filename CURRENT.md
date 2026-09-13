@@ -25,17 +25,18 @@ Ein Blick. Kein Wunschzettel.
 | S / Split | Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / audio collection. Multi-Select OK. Linked Mates auf anderen Tracks werden **nicht** mitgeschnitten. |
 | VIS S-cut | **Human-verified.** S teilt VIS-Events / Cues / Window am Playhead, wenn VIS fokussiert ist (Header oder Event). V/A clips remain whole. |
 | Dynamic audio | **D TEST-VERIFIED.** Collection, not A1/A2 architecture. Capacity 64, created as needed. Small circular `+`/`−` on the **last** audio header (`−` hidden at floor 2, `+` disabled at 64). Stable ids; labels A1, A2, A3…. Legacy A1/A2 JSON loads. Lane template reused; `.timeline-lanes` vertical scroll; mixer channels scroll independently. **Live NOT VERIFIED.** |
+| Stem import | **E TEST-VERIFIED.** Import picker already multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename. Status line reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. **No F group collapse.** Optional `groupId` only when filenames share a prefix. **Live NOT VERIFIED.** |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill, z.B. Tunnel) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. Header/Event-Select blockiert den Seek nicht. Event-Drag unverändert. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-VERIFIED.** Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy (Visualz-Step). Default projects still A1-first. Silence gate (`rms < 0.02 && bass < 0.03`): Playhead in audio/Mix-Lücke oder echter Stille → energy/onset/beatPulse ~0, kein Pulse in Audio-Lücken. Kein `featuresAt` 120-BPM-Metronom, solange das Projekt einen Audio-Pfad hat. Beat = audio-derived onset/energy sync — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
-| Nächster Slice | Production Pass **E** (Stem Import) — **PLANNED / NOT IMPLEMENTED**. D is TEST-VERIFIED only; Live NOT VERIFIED. |
-| Production Pass | **D TEST-VERIFIED / IMPLEMENTED** (code). **E–N PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass **F** (Track/Chapter Groups UI collapse) — **PLANNED / NOT IMPLEMENTED**. E is TEST-VERIFIED only; Live NOT VERIFIED. STOP — no F+ in this slice. |
+| Production Pass | **D + E TEST-VERIFIED / IMPLEMENTED** (code). **F–N PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
-## Production Pass (D implemented · E–N planned)
+## Production Pass (D + E implemented · F–N planned)
 
-**D** is in App-Code (test + tsc + vite build). **Live NOT VERIFIED.** E–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
+**D** and **E** are in App-Code (test + tsc + vite build). **Live NOT VERIFIED.** F–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
 
 **Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
@@ -44,7 +45,7 @@ Ein Blick. Kein Wunschzettel.
 | ID | Item | Status |
 | --- | --- | --- |
 | D | Dynamic Audio Tracks — Kapazität ≥64, anlegen nach Bedarf, stabile IDs, A1/A2 rückwärtskompatibel | **IMPLEMENTED / TEST-VERIFIED** · Live NOT VERIFIED |
-| E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, Chapter-Gruppe; ZIP optional | **PLANNED / NOT IMPLEMENTED** |
+| E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, ZIP in-memory; Chapter `groupId` prefix-only (no collapse UI) | **IMPLEMENTED / TEST-VERIFIED** · Live NOT VERIFIED |
 | F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **PLANNED / NOT IMPLEMENTED** |
 | G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **PLANNED / NOT IMPLEMENTED** |
 | H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |

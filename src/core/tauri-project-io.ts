@@ -140,6 +140,7 @@ const MEDIA_EXTENSIONS = [
   "jpeg",
   "webp",
   "gif",
+  "zip",
 ];
 
 export function mediaExtensionsForKind(kind?: "video" | "audio" | "image"): string[] {

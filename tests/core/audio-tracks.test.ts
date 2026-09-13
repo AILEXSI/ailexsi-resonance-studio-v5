@@ -148,6 +148,21 @@ describe("dynamic audio tracks", () => {
     expect(job.tracks.find((t) => t.id === "A1")!.clips).toHaveLength(0);
   });
 
+  it("keeps filename stem labels when +/− reindexes default A-names", () => {
+    const named = {
+      ...addAudioTrack(createEmptyProject()).project,
+    };
+    named.tracks = named.tracks.map((t) => (t.id === "A1" ? { ...t, name: "vocals" } : t));
+    const extra = addAudioTrack(named);
+    expect(extra.project.tracks.find((t) => t.id === "A1")?.name).toBe("vocals");
+    expect(extra.project.tracks.find((t) => t.kind === "audio" && t.id !== "A1" && t.id !== "A2")?.name).toBe(
+      "A3",
+    );
+    const removed = removeAudioTrack(extra.project, extra.track!.id);
+    expect(removed.project.tracks.find((t) => t.id === "A1")?.name).toBe("vocals");
+    expect(removed.project.tracks.find((t) => t.id === "A2")?.name).toBe("A2");
+  });
+
   it("add/remove commands are undoable and address tracks by stable id", () => {
     let session = createSession(createMemoryBlobStore());
     session = applyCommand(session, { type: "addAudioTrack" });

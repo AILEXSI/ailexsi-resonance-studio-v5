@@ -221,7 +221,9 @@ describe("sourcePath helpers", () => {
     ).toEqual(["C:\\Users\\marti\\a.mp4", "C:\\Users\\marti\\b.wav"]);
     expect(mediaExtensionsForKind("video")).toContain("mp4");
     expect(mediaExtensionsForKind("audio")).toContain("wav");
+    expect(mediaExtensionsForKind("audio")).not.toContain("zip");
     expect(mediaExtensionsForKind("image")).toContain("png");
+    expect(mediaExtensionsForKind()).toContain("zip");
   });
 });
 

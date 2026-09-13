@@ -29,12 +29,17 @@ export function createAudioTrack(index: number, id?: TrackId): Track {
   };
 }
 
+export function isDefaultAudioTrackName(name: string): boolean {
+  return /^A[1-9]\d*$/.test(name);
+}
+
 export function relabelAudioTrackNames(tracks: readonly Track[]): Track[] {
   let audioIndex = 0;
   return tracks.map((track) => {
     if (track.kind !== "audio") return track;
     const name = audioTrackLabel(audioIndex);
     audioIndex += 1;
+    if (!isDefaultAudioTrackName(track.name)) return track;
     return track.name === name ? track : { ...track, name };
   });
 }
