@@ -36,6 +36,8 @@ G–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **T
 
 Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed / 94 files**; vite build 5.0.0.
 
+F branch (this pass): tsc exit 0; vitest **841 passed / 96 files**; vite build 5.0.0, 194 modules.
+
 ## Contradictions vs the historical log below
 
 The body after the divider is the 2026-08-30 P33 / PR #1 notebook. Keep it as history. Do **not** treat these stale sentences as current:

@@ -75,6 +75,6 @@ npm test                          → 94 files, 831 passed (vitest 3.2.7)
 npm run build                     → vite 7.3.6, 193 modules, version 5.0.0
 ```
 
-Re-run after docs-only commits if a count is needed; docs do not change product code.
+F branch (MODE A, this pass): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194 modules, version 5.0.0.
 
-Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.
+Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/core/track-groups.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/layout/track-groups.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.

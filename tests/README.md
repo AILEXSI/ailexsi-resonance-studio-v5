@@ -1,6 +1,6 @@
 # V5 tests
 
-Vitest under `tests/`. Last full count on the accepted EXE SHA `234a781` (PR #15): **831 passed / 94 files** (vitest 3.2.7). Docs-only commits should not change that.
+Vitest under `tests/`. Last full count on the accepted EXE SHA `234a781` (PR #15): **831 passed / 94 files** (vitest 3.2.7). F branch: **841 passed / 96 files**.
 
 Suites by area:
 

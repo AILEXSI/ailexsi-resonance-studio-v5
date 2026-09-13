@@ -1401,7 +1401,7 @@ export function Timeline({
         const audioChrome = (host: "track" | "group", hostId: string) => {
           const isHost =
             chrome?.kind === host &&
-            (host === "track" ? chrome.trackId === hostId : chrome.groupId === hostId);
+            (chrome.kind === "track" ? chrome.trackId === hostId : chrome.groupId === hostId);
           return {
             showAdd: Boolean(isHost && onAddAudioTrack),
             showRemove: Boolean(isHost && onRemoveAudioTrack && canRemoveAudioTrack),

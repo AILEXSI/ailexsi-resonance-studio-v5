@@ -77,7 +77,7 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 
 ## F Evidence Report (MODE A)
 
-**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN (no MODE B EXE this pass).
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN (no MODE B EXE this pass). MODE A this SHA: tsc 0; vitest **841 / 96**; vite build 5.0.0.
 
 ### Files
 
