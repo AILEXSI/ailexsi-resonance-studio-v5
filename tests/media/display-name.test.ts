@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayMediaName, filterMediaAssets } from "../../src/core/media-display";
+import { displayMediaName, filterMediaAssets, trackLabelFromFilename } from "../../src/core/media-display";
 import { asset } from "../helpers";
 
 describe("MEDIA display names", () => {
@@ -11,6 +11,12 @@ describe("MEDIA display names", () => {
 
   it("leaves short human names alone", () => {
     expect(displayMediaName("kick.wav")).toBe("kick.wav");
+  });
+
+  it("builds a short track label from a stem filename", () => {
+    expect(trackLabelFromFilename("vocals.wav")).toBe("vocals");
+    expect(trackLabelFromFilename("01_A Signal in the Dark_drums.wav")).toBe("01_A Signal in th…");
+    expect(trackLabelFromFilename("folder/bass.mp3")).toBe("bass");
   });
 
   it("does not rewrite the original string used as a tooltip", () => {

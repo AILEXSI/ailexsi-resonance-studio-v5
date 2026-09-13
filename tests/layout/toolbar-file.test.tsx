@@ -98,6 +98,7 @@ describe("toolbar File button", () => {
     expect(panel?.querySelector('[data-testid="project-choose-folder"]')).toBeNull();
     expect(host.querySelector('[data-testid="import-input-panel"]')).toBeNull();
     expect(host.querySelector('[data-testid="import-input"]')).toBeTruthy();
+    expect(host.querySelector<HTMLInputElement>('[data-testid="import-input"]')?.multiple).toBe(true);
     expect(group?.contains(panel)).toBe(false);
     expect(host.querySelector('[data-testid="transport-undo"]')?.textContent?.trim()).toBe("Undo");
     expect(host.querySelector('[data-testid="transport-redo"]')?.textContent?.trim()).toBe("Redo");

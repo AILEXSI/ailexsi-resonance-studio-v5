@@ -29,6 +29,7 @@ import {
   clipOnTrackAt,
   isTrackId,
   kindOfTrack,
+  MAX_AUDIO_TRACKS,
   projectDurationMs,
   type Clip,
   type FrontVideoTrackId,
@@ -102,6 +103,13 @@ import {
   type HistoryStack,
 } from "../core/timeline";
 import { addAudioTrack, canAddAudioTrack, canRemoveAudioTrack, removeAudioTrack } from "../core/audio-tracks";
+import {
+  allocateAudioTracksForStems,
+  inferStemGroupId,
+  nameStemTrack,
+  stemStartMs,
+} from "../core/stem-import";
+import { expandImportFiles } from "../core/zip-audio";
 import { nextShuttleRate } from "../core/playback";
 import {
   cycleVisualizerScene,
@@ -346,6 +354,15 @@ export function confirmOpenProject(
   return confirmDiscard();
 }
 
+function mergeImportNotes(session: Session, extra: string[]): Session {
+  if (extra.length === 0) return session;
+  const extraNote = extra.join(" · ");
+  return {
+    ...session,
+    error: session.error ? `${session.error} · ${extraNote}` : extraNote,
+  };
+}
+
 export async function importFiles(
   session: Session,
   files: FileList | File[],
@@ -355,6 +372,40 @@ export async function importFiles(
   if (list.length === 0) {
     return { ...session, error: "No files selected", status: "Import failed" };
   }
+  const expanded = await expandImportFiles(list);
+  const work = expanded.files;
+  if (work.length === 0) {
+    return {
+      ...session,
+      error: expanded.errors.join(" · ") || "No files selected",
+      status: "Import failed",
+    };
+  }
+  const audioFiles: File[] = [];
+  const otherFiles: File[] = [];
+  for (const file of work) {
+    try {
+      if (classifyFile(file) === "audio") audioFiles.push(file);
+      else otherFiles.push(file);
+    } catch {
+      otherFiles.push(file);
+    }
+  }
+  if (audioFiles.length >= 2) {
+    let next = await importStemAudioFiles(session, audioFiles, probe);
+    if (otherFiles.length > 0) {
+      next = await importFilesSequential(next, otherFiles, probe);
+    }
+    return mergeImportNotes(next, expanded.errors);
+  }
+  return mergeImportNotes(await importFilesSequential(session, work, probe), expanded.errors);
+}
+
+async function importFilesSequential(
+  session: Session,
+  files: readonly File[],
+  probe?: ProbeFn,
+): Promise<Session> {
   let next = session;
   const errors: string[] = [];
   const probeMsgs: string[] = [];
@@ -362,7 +413,7 @@ export async function importFiles(
   let recovered = 0;
   const prevScrollMs = session.project.scrollMs;
   const prevClipCount = session.project.clips.length;
-  for (const file of list) {
+  for (const file of files) {
     try {
       const asset = await importMediaFile(file, probe);
       const placedNext = await placeImportedAsset(next, asset, file, { persist: !asset.missing });
@@ -415,6 +466,129 @@ export async function importFiles(
         : failNote
           ? `Imported ${imported}, ${failNote}`
           : `Imported ${imported} file(s)`,
+  };
+}
+
+async function prepareImportedAudio(
+  file: File,
+  probe?: ProbeFn,
+): Promise<{ asset: MediaAsset; file: File; persist: boolean; probe?: string } | { error: string }> {
+  try {
+    const asset = await importMediaFile(file, probe);
+    return { asset, file, persist: !asset.missing };
+  } catch (e) {
+    if (e instanceof ImportError && e.code === "PROBE_FAILED") {
+      try {
+        return { asset: missingAssetFromImport(file), file, persist: false, probe: e.message };
+      } catch (inner) {
+        return { error: inner instanceof Error ? inner.message : String(inner) };
+      }
+    }
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function importStemAudioFiles(
+  session: Session,
+  files: readonly File[],
+  probe?: ProbeFn,
+): Promise<Session> {
+  const errors: string[] = [];
+  const probeMsgs: string[] = [];
+  const prepared: { asset: MediaAsset; file: File; persist: boolean }[] = [];
+  for (const file of files) {
+    const item = await prepareImportedAudio(file, probe);
+    if ("error" in item) {
+      errors.push(item.error);
+      continue;
+    }
+    prepared.push(item);
+    if (item.probe) probeMsgs.push(item.probe);
+  }
+  if (prepared.length === 0) {
+    return {
+      ...session,
+      error: errors.join(" · ") || "Import failed",
+      status: "Import failed",
+    };
+  }
+
+  const rawStart = session.project.playheadMs;
+  const startMs = session.project.snap
+    ? snapPlayheadSeek(session.project, rawStart)
+    : stemStartMs(rawStart);
+  const groupId = inferStemGroupId(prepared.map((p) => p.file.name));
+  const allocated = allocateAudioTracksForStems(session.project, prepared.length);
+  const take = allocated.trackIds.length;
+  let project = allocated.project;
+  const placedIds: string[] = [];
+  let imported = 0;
+  let recovered = 0;
+  let lastTrackId = session.targetTrackId;
+
+  for (let i = 0; i < take; i += 1) {
+    const item = prepared[i]!;
+    const trackId = allocated.trackIds[i]!;
+    project = {
+      ...project,
+      assets: [...project.assets, item.asset],
+      updatedAt: new Date().toISOString(),
+    };
+    const placed = placeAsset(project, item.asset.id, trackId, startMs);
+    if (placed.error || !placed.clip) {
+      errors.push(placed.error ?? "Place failed");
+      continue;
+    }
+    project = nameStemTrack(placed.project, trackId, item.file.name, groupId);
+    if (item.persist && !item.asset.missing) {
+      await persistAssetBlob(session.store, item.asset, item.file);
+    }
+    placedIds.push(placed.clip.id);
+    if (placed.audioClip) placedIds.push(placed.audioClip.id);
+    if (item.asset.missing) recovered += 1;
+    else imported += 1;
+    lastTrackId = trackId;
+  }
+
+  const skipped = allocated.skipped;
+  if (imported === 0 && recovered === 0) {
+    const capNote = skipped ? `${skipped} skipped (audio track limit ${MAX_AUDIO_TRACKS})` : "";
+    return {
+      ...session,
+      error: [errors.join(" · "), capNote].filter(Boolean).join(" · ") || "Import failed",
+      status: capNote ? `Imported 0 stems, ${capNote}` : "Import failed",
+    };
+  }
+
+  const failNote = [
+    recovered ? `${recovered} need Relink` : null,
+    skipped ? `${skipped} skipped (audio track limit ${MAX_AUDIO_TRACKS})` : null,
+    errors.length ? `${errors.length} failed` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const prevScrollMs = session.project.scrollMs;
+  const prevClipCount = session.project.clips.length;
+  project = maybeScrollToOrigin(project, { prevScrollMs, prevClipCount });
+  const stemCount = imported + recovered;
+  const status =
+    imported === 0 && recovered
+      ? `Marked ${recovered} missing — Relink`
+      : failNote
+        ? `Imported ${stemCount} stem(s), ${failNote}`
+        : `Imported ${stemCount} stem(s)`;
+  const parked = applyPlayhead(
+    {
+      ...withClipSelection(withHistory(session, project, status), placedIds),
+      targetTrackId: lastTrackId,
+      selectedTrackIds: [lastTrackId],
+    },
+    startMs,
+  );
+  return {
+    ...parked,
+    error: [...probeMsgs, ...errors].join(" · ") || null,
+    status,
   };
 }
 

@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: `CURRENT.md`. Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe `0df5da1`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. Production Pass **D**: TEST-VERIFIED (dynamic audio collection, ≥64 capacity, A1/A2 load). **Live NOT VERIFIED.** E–N: **PLANNED / NOT IMPLEMENTED**.
+Quelle der Wahrheit für diesen Stand: `CURRENT.md`. Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe `0df5da1`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. Production Pass **D**: TEST-VERIFIED (dynamic audio collection, ≥64 capacity, A1/A2 load). Production Pass **E**: TEST-VERIFIED (multi-stem import, same start, ZIP in-memory). **Live NOT VERIFIED.** F–N: **PLANNED / NOT IMPLEMENTED**.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -40,7 +40,7 @@ Zusätzlich: `src-tauri\\target\\release\\`.
 `File | Import | Export | [ARRANGE] | [CUTTER]`
 
 - **File** — öffnet/schließt das Projekt-Overlay.
-- **Import** — lokaler Media-Dialog (Video/Musik/Bilder). Einziger Datei-Eingang in der Leiste.
+- **Import** — lokaler Media-Dialog (Video/Musik/Bilder, Mehrfachauswahl). Zwei+ Audio-Dateien → je eine Spur, gleicher Start (Stem Import). ZIP von WAVs wird im Speicher entpackt. Einziger Datei-Eingang in der Leiste.
 - **Export** — öffnet den H.264-MP4-Export-Dialog. Kein zweiter Encoder-Button.
 - **[ARRANGE] / [CUTTER]** — Production-Screens. Kein Reload, kein Projekt-Reset.
 - **Nicht oben:** Export WAV, Help, Undo, Redo, Split, Snap. Media-Button bleibt weg.
@@ -107,5 +107,6 @@ A Follow: HUMAN-VERIFIED — 65%-Anchor + shared `scrollMs`; Follow OFF kein For
 B VIS: HUMAN-VERIFIED — A1/mix PCM Visualz onset/energy; silence gate in Audio-Lücken; kein 120-BPM-Metronom wenn das Projekt Audio hat. Beat ≠ DAW-Grid-Lock.
 C Loop: HUMAN-VERIFIED — Loop OFF weiter über OUT; Loop ON wrappt OUT→IN.
 Production Pass **D**: TEST-VERIFIED (dynamic audio tracks, ≥64, A1/A2 backward compat). Live NOT VERIFIED.
-E–N: **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md`. VIS-Ausbau-Intent = K–N dort.
-Nächster Slice: Production Pass E (stem import), Human bestätigt vor Code.
+Production Pass **E**: TEST-VERIFIED (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Live NOT VERIFIED. No F group collapse.
+F–N: **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md`. VIS-Ausbau-Intent = K–N dort.
+Nächster Slice: Production Pass F (track/chapter groups UI collapse). STOP — no F+ here.

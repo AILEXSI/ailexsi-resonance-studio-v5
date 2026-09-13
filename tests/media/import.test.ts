@@ -160,17 +160,20 @@ describe("import sequential placement", () => {
     expect(session.project.clips.filter((c) => c.trackId === "V2")).toHaveLength(0);
   });
 
-  it("two audios in one import sit end-to-end on A1", async () => {
+  it("two audios in one import each get a track at the same start (stem import)", async () => {
     const session = await importNamed(createSession(createMemoryBlobStore()), [
       "a-800ms.wav",
       "b-400ms.wav",
     ]);
-    const clips = session.project.clips.filter((c) => c.trackId === "A1");
-    expect(clips).toHaveLength(2);
-    expect(clips[0]!.startMs).toBe(0);
-    expect(clips[1]!.startMs).toBe(800);
-    expect(clipEndMs(clips[0]!)).toBe(clips[1]!.startMs);
-    expect(session.project.clips.filter((c) => c.trackId === "A2")).toHaveLength(0);
+    const a1 = session.project.clips.filter((c) => c.trackId === "A1");
+    const a2 = session.project.clips.filter((c) => c.trackId === "A2");
+    expect(a1).toHaveLength(1);
+    expect(a2).toHaveLength(1);
+    expect(a1[0]!.startMs).toBe(0);
+    expect(a2[0]!.startMs).toBe(0);
+    expect(a1[0]!.durationMs).toBe(800);
+    expect(a2[0]!.durationMs).toBe(400);
+    expect(session.project.clips).toHaveLength(2);
   });
 
   it("mixed video+audio stay on independent tracks", async () => {
@@ -181,15 +184,14 @@ describe("import sequential placement", () => {
       "a2-200ms.wav",
     ]);
     const v = session.project.clips.filter((c) => c.trackId === "V1");
-    const a = session.project.clips.filter((c) => c.trackId === "A1");
+    const a1 = session.project.clips.filter((c) => c.trackId === "A1");
+    const a2 = session.project.clips.filter((c) => c.trackId === "A2");
     expect(v.map((c) => [c.startMs, c.durationMs])).toEqual([
       [0, 1000],
       [1000, 300],
     ]);
-    expect(a.map((c) => [c.startMs, c.durationMs])).toEqual([
-      [0, 500],
-      [500, 200],
-    ]);
+    expect(a1.map((c) => [c.startMs, c.durationMs])).toEqual([[0, 500]]);
+    expect(a2.map((c) => [c.startMs, c.durationMs])).toEqual([[0, 200]]);
     expect(session.project.clips).toHaveLength(4);
   });
 

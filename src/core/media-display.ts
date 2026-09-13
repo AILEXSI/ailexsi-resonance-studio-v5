@@ -50,3 +50,15 @@ export function displayMediaName(name: string, max = 22): string {
   const keep = Math.max(8, max - ext.length - 1);
   return `${stem.slice(0, keep)}…${ext}`;
 }
+
+/** Lane / mixer label from a stem filename. Drops the extension; truncates long names. */
+export function trackLabelFromFilename(fileName: string, max = 18): string {
+  const base = (fileName.replace(/\\/g, "/").split("/").pop() ?? fileName).trim();
+  if (!base) return "audio";
+  const extMatch = base.match(/(\.[A-Za-z0-9]{1,8})$/);
+  const stem = extMatch ? base.slice(0, -extMatch[1].length) : base;
+  const label = (stem || base).trim();
+  if (UUID.test(label) || LONG_HEX.test(label)) return `${label.slice(0, 6)}…`;
+  if (label.length <= max) return label;
+  return `${label.slice(0, Math.max(8, max - 1))}…`;
+}

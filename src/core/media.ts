@@ -33,7 +33,7 @@ const VIDEO_EXT = /\.(mp4|webm|mov|mkv|m4v)$/i;
 export const MEDIA_ASSET_DRAG_TYPE = "application/x-resonance-asset-id";
 
 export const MEDIA_FILE_ACCEPT =
-  "audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*";
+  "audio/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/*,.zip,application/zip";
 
 /** Tauri / WebView2 File.path. Chrome File has no disk path. */
 export function diskPathOfFile(file: File): string | undefined {
