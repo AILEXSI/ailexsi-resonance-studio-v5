@@ -17,6 +17,7 @@ import { Mixer } from "../../src/ui/mixer/Mixer";
 import "../../src/styles.css";
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
+const Pointer = typeof PointerEvent === "undefined" ? MouseEvent : PointerEvent;
 
 function memoryStorage(initial: Record<string, string> = {}): StorageLike & { map: Map<string, string> } {
   const map = new Map<string, string>(Object.entries(initial));
@@ -105,30 +106,35 @@ describe("mixer resize", () => {
     expect(row.style.getPropertyValue("--mixer-width")).toBe(`${MIXER_EXPANDED_PX}px`);
     expect(parseFloat(getComputedStyle(mixer).width) || MIXER_EXPANDED_PX).toBe(MIXER_EXPANDED_PX);
 
-    const stripW = (id: string) =>
-      parseFloat(getComputedStyle(host!.querySelector(`[data-testid="mix-${id}"]`) as HTMLElement).width);
-    expect(stripW("V1")).toBe(42);
-    expect(stripW("A1")).toBe(42);
-    expect(stripW("master")).toBe(42);
+    const strip = (id: string) => host!.querySelector(`[data-testid="mix-${id}"]`) as HTMLElement;
+    const stripKeepsFixedWidth = (el: HTMLElement) => {
+      expect(el.className).toContain("mix-strip");
+      expect(el.style.width).toBe("");
+      expect(el.style.minWidth).toBe("");
+      expect(el.style.flex).toBe("");
+    };
+    stripKeepsFixedWidth(strip("V1"));
+    stripKeepsFixedWidth(strip("A1"));
+    stripKeepsFixedWidth(strip("master"));
 
     const defaultX = 900 - MIXER_EXPANDED_PX;
     act(() => {
-      divider.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: defaultX - 100, button: 0 }));
+      divider.dispatchEvent(new Pointer("pointerdown", { bubbles: true, clientX: defaultX - 100, button: 0 }));
     });
     const wide = Number(row.getAttribute("data-mixer-width"));
     expect(wide).toBe(MIXER_EXPANDED_PX + 100);
     expect(row.style.getPropertyValue("--mixer-width")).toBe(`${MIXER_EXPANDED_PX + 100}px`);
-    expect(stripW("V1")).toBe(42);
-    expect(stripW("master")).toBe(42);
+    stripKeepsFixedWidth(strip("V1"));
+    stripKeepsFixedWidth(strip("master"));
     expect(loadMixerWidth(storage)).toBe(MIXER_EXPANDED_PX + 100);
 
     act(() => {
-      divider.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: defaultX + 80, button: 0 }));
+      divider.dispatchEvent(new Pointer("pointerdown", { bubbles: true, clientX: defaultX + 80, button: 0 }));
     });
     const narrow = Number(row.getAttribute("data-mixer-width"));
     expect(narrow).toBe(MIXER_EXPANDED_PX - 80);
     expect(narrow).toBeGreaterThanOrEqual(MIXER_MIN_PX);
-    expect(stripW("A2")).toBe(42);
+    stripKeepsFixedWidth(strip("A2"));
     expect(getComputedStyle(scroll).overflowX === "auto" || scroll.style.overflowX === "auto").toBe(true);
     expect(host!.querySelector('[data-testid="mix-master"]')?.parentElement).toBe(
       host!.querySelector('[data-testid="mixer-channels"]'),
@@ -140,7 +146,6 @@ describe("mixer resize", () => {
   });
 
   it("hides the divider while the mixer is collapsed", () => {
-    const storage = memoryStorage();
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -174,23 +179,24 @@ describe("mixer resize", () => {
 
     const divider = host!.querySelector('[data-testid="mixer-resize"]') as HTMLElement;
     act(() => {
-      divider.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 0, button: 0 }));
+      divider.dispatchEvent(new Pointer("pointerdown", { bubbles: true, clientX: 0, button: 0 }));
     });
     expect(Number(row().getAttribute("data-mixer-width"))).toBe(Math.min(MIXER_MAX_PX, 1000 - TIMELINE_MIN_PX));
 
     act(() => {
-      divider.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 1000, button: 0 }));
+      divider.dispatchEvent(new Pointer("pointerdown", { bubbles: true, clientX: 1000, button: 0 }));
     });
     expect(Number(row().getAttribute("data-mixer-width"))).toBe(MIXER_MIN_PX);
     expect(getComputedStyle(mixer()).minWidth).not.toBe("0px");
   });
 
   it("extra audio strips stay in the horizontal scroller at a narrow mixer", () => {
-    const storage = memoryStorage();
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    const added = addAudioTrack(addAudioTrack(createEmptyProject()).project);
+    const first = addAudioTrack(createEmptyProject());
+    const second = addAudioTrack(first.project);
+    const extraIds = [first.track!.id, second.track!.id];
     act(() => {
       root!.render(
         <div
@@ -202,9 +208,9 @@ describe("mixer resize", () => {
             arrange
           </section>
           <Mixer
-            project={added.project}
+            project={second.project}
             selectedTrackId="A1"
-            peaks={{ ...silentPeaks, A3: 0, A4: 0 }}
+            peaks={{ ...silentPeaks, [extraIds[0]]: 0, [extraIds[1]]: 0 }}
             onResizePointerDown={() => {}}
             onSelectTrack={() => {}}
             onVolume={() => {}}
@@ -216,10 +222,12 @@ describe("mixer resize", () => {
       );
     });
     const scroll = host.querySelector('[data-testid="mixer-channel-scroll"]') as HTMLElement;
-    expect(host.querySelector('[data-testid="mix-A3"]')).toBeTruthy();
-    expect(host.querySelector('[data-testid="mix-A4"]')).toBeTruthy();
-    expect(scroll.contains(host.querySelector('[data-testid="mix-A4"]') as Node)).toBe(true);
-    expect(parseFloat(getComputedStyle(host.querySelector('[data-testid="mix-A4"]') as HTMLElement).width)).toBe(42);
+    const extra = host.querySelector(`[data-testid="mix-${extraIds[1]}"]`) as HTMLElement;
+    expect(host.querySelector(`[data-testid="mix-${extraIds[0]}"]`)).toBeTruthy();
+    expect(extra).toBeTruthy();
+    expect(scroll.contains(extra)).toBe(true);
+    expect(extra.className).toContain("mix-strip");
+    expect(extra.style.width).toBe("");
     const overflow = getComputedStyle(scroll).overflowX || scroll.style.overflowX;
     expect(overflow === "auto" || overflow === "scroll").toBe(true);
   });

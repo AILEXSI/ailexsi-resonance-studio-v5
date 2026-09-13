@@ -174,6 +174,7 @@ export function Mixer({
           aria-orientation="vertical"
           aria-label="Mixerbreite"
           title="Mixer breiter / schmaler"
+          style={{ cursor: "col-resize" }}
           onPointerDown={onResizePointerDown}
         />
       )}
