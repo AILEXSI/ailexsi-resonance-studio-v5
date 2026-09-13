@@ -1187,13 +1187,20 @@ export function App() {
       arrangeLeft: rect.left,
       arrangeWidth: rect.width,
     });
+    mixerWidthRef.current = next.widthPx;
     setMixerWidthPx(next.widthPx);
+    saveMixerWidth(layoutStore, next.widthPx);
   };
 
   const onMixerResizePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* jsdom / lost pointer */
+    }
     mixerResizeDragRef.current = true;
     applyMixerWidthFromEvent(e.clientX);
     const move = (ev: PointerEvent) => {
@@ -1203,12 +1210,13 @@ export function App() {
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      if (!mixerResizeDragRef.current) return;
+      window.removeEventListener("pointercancel", up);
       mixerResizeDragRef.current = false;
       saveMixerWidth(layoutStore, mixerWidthRef.current);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   const closeProjectPanel = () => setProjectPanelOpen(false);
