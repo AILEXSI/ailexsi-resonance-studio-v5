@@ -12,6 +12,7 @@ import {
   featuresAt,
   featuresFromMix,
   visFeaturesForExport,
+  visFeaturesForPreview,
   nextSceneId,
   renderVisualizerScene,
   shouldShowVisualizer,
@@ -125,8 +126,9 @@ describe("visualizer energy", () => {
       numberOfChannels: 1,
       getChannelData: () => new Float32Array(2048),
     });
-    expect(silent.tempoBpm).toBe(120);
+    expect(silent.tempoBpm).toBeNull();
     expect(silent.energy).toBeCloseTo(0, 5);
+    expect(silent.onset).toBe(false);
   });
 
   it("no-mix fallback uses project time so IN does not restart the 120 BPM grid (P100)", () => {
@@ -323,5 +325,101 @@ describe("live vs synthetic feature prefer", () => {
     const fallback = featuresAt(250, 10_000);
     const live: AudioFeatures = { ...QUIET, rms: 0.4, bass: 0.3 };
     expect(preferLiveFeatures(live, fallback)).toBe(live);
+  });
+
+  it("loaded audio does not fall back to the 120 BPM grid when the tap is quiet", () => {
+    const metronome = featuresAt(0, 10_000);
+    expect(metronome.tempoBpm).toBe(120);
+    expect(metronome.energy).toBeCloseTo(1, 5);
+    const preview = visFeaturesForPreview({
+      timeMs: 0,
+      durationMs: 10_000,
+      live: QUIET,
+      audioLoaded: true,
+    });
+    expect(preview.tempoBpm).toBeNull();
+    expect(preview.energy).toBeCloseTo(0, 5);
+    expect(preview.onset).toBe(false);
+  });
+});
+
+function clickMix(bpm: number, durationMs = 4000, sampleRate = 44100) {
+  const n = Math.round((sampleRate * durationMs) / 1000);
+  const data = new Float32Array(n);
+  const intervalSec = 60 / bpm;
+  const clickN = Math.round(sampleRate * 0.012);
+  for (let beat = 0; beat * intervalSec * 1000 < durationMs - 1; beat++) {
+    const start = Math.round(beat * intervalSec * sampleRate);
+    for (let i = 0; i < clickN && start + i < n; i++) {
+      const env = 1 - i / clickN;
+      const t = i / sampleRate;
+      data[start + i] =
+        env * (0.95 * Math.sin(2 * Math.PI * 70 * t) + 0.3 * Math.sin(2 * Math.PI * 160 * t));
+    }
+  }
+  return {
+    sampleRate,
+    length: n,
+    numberOfChannels: 1,
+    getChannelData: () => data,
+  };
+}
+
+function onsetTimes(buf: ReturnType<typeof clickMix>, durationMs: number, hop = 10): number[] {
+  const hits: number[] = [];
+  for (let t = 0; t < durationMs; t += hop) {
+    if (featuresFromMix(buf, t).onset) hits.push(t);
+  }
+  return hits;
+}
+
+function medianGap(times: number[]): number {
+  const gaps = [];
+  for (let i = 1; i < times.length; i++) gaps.push(times[i]! - times[i - 1]!);
+  gaps.sort((a, b) => a - b);
+  return gaps[Math.floor(gaps.length / 2)] ?? NaN;
+}
+
+describe("visualizer timing from loaded audio (not 120 BPM metronome)", () => {
+  it("click tracks at 90/120/143/174 BPM produce matching onset intervals, not a stuck 500ms grid", () => {
+    const cases = [
+      { bpm: 90, interval: 60_000 / 90 },
+      { bpm: 120, interval: 500 },
+      { bpm: 143, interval: 60_000 / 143 },
+      { bpm: 174, interval: 60_000 / 174 },
+    ];
+    const measured: Record<number, number> = {};
+    for (const { bpm, interval } of cases) {
+      const buf = clickMix(bpm, 4000);
+      const hits = onsetTimes(buf, 4000);
+      expect(hits.length, `${bpm} BPM onsets`).toBeGreaterThan(3);
+      const gap = medianGap(hits);
+      measured[bpm] = gap;
+      expect(gap, `${bpm} BPM gap ${gap}`).toBeGreaterThan(interval - 40);
+      expect(gap, `${bpm} BPM gap ${gap}`).toBeLessThan(interval + 40);
+      const at500 = visFeaturesForExport(500, 4000, buf);
+      expect(at500.tempoBpm).toBeNull();
+      if (bpm !== 120) {
+        expect(at500.energy, `${bpm} BPM must not spike at the 120-grid 500ms`).toBeLessThan(0.35);
+        expect(featuresAt(500, 4000).energy).toBeCloseTo(1, 5);
+      }
+    }
+    expect(measured[90]).not.toBeCloseTo(500, 0);
+    expect(measured[143]).not.toBeCloseTo(500, 0);
+    expect(measured[174]).not.toBeCloseTo(500, 0);
+    expect(Math.abs(measured[90]! - measured[174]!)).toBeGreaterThan(200);
+  });
+
+  it("changing the loaded audio changes derived visual timing", () => {
+    const slow = clickMix(90, 3000);
+    const fast = clickMix(174, 3000);
+    const slowHits = onsetTimes(slow, 3000);
+    const fastHits = onsetTimes(fast, 3000);
+    expect(medianGap(fastHits)).toBeLessThan(medianGap(slowHits) - 150);
+    expect(fastHits.length).toBeGreaterThan(slowHits.length);
+    expect(visFeaturesForPreview({ timeMs: 500, durationMs: 3000, mix: slow, audioLoaded: true }).energy).toBeLessThan(
+      0.35,
+    );
+    expect(featuresAt(500, 3000).tempoBpm).toBe(120);
   });
 });

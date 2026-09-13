@@ -12,6 +12,7 @@ import {
 import { contextFromProject, resolvePictureSource } from "./transition";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
+import { stepOnset } from "./visualz/feature-extractor";
 import { preferLiveFeatures } from "./visualz/playback-tap";
 
 export const DEFAULT_VIS_EVENT_MS = 4000;
@@ -151,12 +152,13 @@ function syntheticSpectrum(
 
 export type MixPcm = Pick<AudioBuffer, "sampleRate" | "length" | "numberOfChannels" | "getChannelData">;
 
-/**
- * Feature packet from mixed export PCM (same fields preview reads from the tap).
- * Not a live AnalyserNode. Quiet / empty windows stay near 0 so the caller
- * can fall back to `featuresAt`.
- */
-export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+function mixEnergyAt(buf: MixPcm, timeMs: number): {
+  rms: number;
+  bass: number;
+  mid: number;
+  treble: number;
+  energy: number;
+} {
   const sr = buf.sampleRate > 0 ? buf.sampleRate : 44100;
   const chans = Math.max(1, buf.numberOfChannels);
   const win = Math.min(buf.length, Math.max(64, Math.round(sr * 0.023)));
@@ -185,23 +187,72 @@ export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures
   const treble = clamp01(Math.sqrt(highSq / n) * 2);
   const mid = clamp01(rms * 0.55 + treble * 0.45);
   const energy = clamp01(rms * 0.5 + bass * 0.5);
-  const onset = energy > 0.35 && bass > mid * 0.8;
+  return { rms, bass, mid, treble, energy };
+}
+
+const MIX_HOP_MS = 10;
+
+function lastMixOnsetMs(buf: MixPcm, timeMs: number): number {
+  const hop = MIX_HOP_MS;
+  const from = Math.max(0, timeMs - 400);
+  let prevEnergy = mixEnergyAt(buf, from - hop).energy;
+  let last = Number.NEGATIVE_INFINITY;
+  for (let t = from; t < timeMs - 1e-6; t += hop) {
+    const energy = mixEnergyAt(buf, t).energy;
+    const stepped = stepOnset({ energy, prevEnergy, timeMs: t, lastOnsetTime: last });
+    if (stepped.onset) last = t;
+    prevEnergy = stepped.prevEnergy;
+  }
+  return last;
+}
+
+/**
+ * Feature packet from mixed / A1 PCM using the standalone Visualz onset step.
+ * Quiet windows stay near 0. Never invents a 120 BPM grid — tempoBpm stays null.
+ */
+export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+  const hop = MIX_HOP_MS;
+  const cur = mixEnergyAt(buf, timeMs);
+  const prev = mixEnergyAt(buf, timeMs - hop);
+  const lastOnsetTime = lastMixOnsetMs(buf, timeMs);
+  const stepped = stepOnset({
+    energy: cur.energy,
+    prevEnergy: prev.energy,
+    timeMs,
+    lastOnsetTime,
+  });
   return {
     timeMs,
-    energy,
-    rms,
-    bass,
-    mid,
-    high: treble,
-    treble,
-    spectrum: syntheticSpectrum(bass, mid, treble, timeMs, energy),
-    onset,
-    beatPulse: energy,
+    energy: cur.energy,
+    rms: cur.rms,
+    bass: cur.bass,
+    mid: cur.mid,
+    high: cur.treble,
+    treble: cur.treble,
+    spectrum: syntheticSpectrum(cur.bass, cur.mid, cur.treble, timeMs, cur.energy),
+    onset: stepped.onset,
+    beatPulse: stepped.beatPulse,
     tempoBpm: null,
   };
 }
 
-/** Preview=export: prefer mix energy, else the 120 BPM grid. */
+export function quietVisualizerFeatures(timeMs: number): VisualizerFeatures {
+  return {
+    timeMs,
+    energy: 0,
+    rms: 0,
+    bass: 0,
+    mid: 0,
+    high: 0,
+    treble: 0,
+    spectrum: new Float32Array(64),
+    onset: false,
+    beatPulse: 0,
+    tempoBpm: null,
+  };
+}
+
+/** Preview=export: loaded mix PCM is the clock. No-audio only falls back to 120 BPM. */
 export function visFeaturesForExport(
   timeMs: number,
   durationMs: number,
@@ -209,9 +260,31 @@ export function visFeaturesForExport(
   opts?: { timelineOriginMs?: number },
 ): VisualizerFeatures {
   const origin = opts?.timelineOriginMs ?? 0;
-  const fallback = featuresAt(origin + timeMs, origin + durationMs);
-  if (!mix || mix.length < 8) return fallback;
-  return preferLiveFeatures(featuresFromMix(mix, timeMs), fallback) as VisualizerFeatures;
+  if (mix && mix.length >= 8) return featuresFromMix(mix, timeMs);
+  return featuresAt(origin + timeMs, origin + durationMs);
+}
+
+/**
+ * Preview clock: A1/mix PCM first, else live tap, else quiet if audio is loaded,
+ * else the empty-project 120 BPM fallback.
+ */
+export function visFeaturesForPreview(opts: {
+  timeMs: number;
+  durationMs: number;
+  mix?: MixPcm | null;
+  live?: AudioFeatures | null;
+  audioLoaded: boolean;
+}): VisualizerFeatures {
+  if (opts.mix && opts.mix.length >= 8) return featuresFromMix(opts.mix, opts.timeMs);
+  if (opts.audioLoaded) {
+    const live = preferLiveFeatures(opts.live, quietVisualizerFeatures(opts.timeMs));
+    return {
+      ...live,
+      energy: clamp01(live.rms * 0.5 + live.bass * 0.5),
+      high: live.treble,
+    };
+  }
+  return preferLiveFeatures(opts.live, featuresAt(opts.timeMs, opts.durationMs)) as VisualizerFeatures;
 }
 
 export function nextSceneId(current: VisualizerSceneId): VisualizerSceneId {

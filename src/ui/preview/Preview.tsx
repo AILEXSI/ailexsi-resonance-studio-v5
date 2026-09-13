@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   TRACK_IDS,
   clipById,
@@ -28,12 +28,14 @@ import { mixLinearGain } from "../../core/volume";
 export { compositeVideoAt as previewComposite } from "../../core/transition";
 import type { MixPeaks } from "../mixer/Mixer";
 import {
-  featuresAt,
   renderVisualizerScene,
   sceneAt,
   shouldShowVisualizer,
+  visFeaturesForPreview,
+  type MixPcm,
 } from "../../core/visualizer";
-import { createPlaybackTap, preferLiveFeatures, type PlaybackTap } from "../../core/visualz/playback-tap";
+import { createPlaybackTap, type PlaybackTap } from "../../core/visualz/playback-tap";
+import { decodeAudio, isPlayableSource } from "../../core/exporter/media";
 import { loadStill, paintStill } from "../../core/still";
 
 interface Props {
@@ -52,6 +54,8 @@ export function Preview({ project, playing, onLevels }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastPlayheadRef = useRef(project.playheadMs);
   const tapRef = useRef<PlaybackTap | null>(null);
+  const mixPcmRef = useRef<MixPcm | null>(null);
+  const [mixReady, setMixReady] = useState(0);
 
   const pictureCtx = contextFromProject(project);
   const composite = compositeVideoAt(pictureCtx, project.playheadMs);
@@ -69,6 +73,34 @@ export function Preview({ project, playing, onLevels }: Props) {
   const isStill = videoAsset?.kind === "image";
   const mixClips = mixClipsAt(project, project.playheadMs);
   const showViz = shouldShowVisualizer(project, project.playheadMs);
+  const analysisClip =
+    (isTrackAudible(project, "A1") ? clipOnTrackAt(project, "A1", project.playheadMs) : undefined) ??
+    mixClips[0];
+  const analysisAsset = analysisClip
+    ? project.assets.find((a) => a.id === analysisClip.assetId)
+    : undefined;
+  const analysisUrl = analysisAsset?.objectUrl;
+  const audioLoaded = mixClips.length > 0 || Boolean(analysisClip);
+
+  useEffect(() => {
+    if (!analysisUrl || !isPlayableSource(analysisUrl)) {
+      mixPcmRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    void decodeAudio(analysisUrl)
+      .then((buf) => {
+        if (cancelled) return;
+        mixPcmRef.current = buf;
+        setMixReady((n) => n + 1);
+      })
+      .catch(() => {
+        if (!cancelled) mixPcmRef.current = null;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [analysisUrl]);
 
   useEffect(() => {
     if (isStill) return;
@@ -247,14 +279,22 @@ export function Preview({ project, playing, onLevels }: Props) {
         canvas.height = h;
       }
       const durationMs = Math.max(projectDurationMs(project), 10_000);
-      const synthetic = featuresAt(project.playheadMs, durationMs);
       let live = null as ReturnType<PlaybackTap["sample"]> | null;
       try {
         live = tapRef.current?.sample(project.playheadMs) ?? null;
       } catch {
         live = null;
       }
-      const features = preferLiveFeatures(live, synthetic);
+      const mix = mixPcmRef.current;
+      const featureTimeMs =
+        mix && analysisClip ? sourceTimeAt(analysisClip, project.playheadMs) : project.playheadMs;
+      const features = visFeaturesForPreview({
+        timeMs: featureTimeMs,
+        durationMs,
+        mix,
+        live,
+        audioLoaded,
+      });
       const sceneId = sceneAt(project, project.playheadMs) ?? project.visualizer.sceneId;
       renderVisualizerScene(ctx, canvas.width, canvas.height, sceneId, features, dt);
     };
@@ -267,7 +307,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     const ro = new ResizeObserver(() => paint(0));
     ro.observe(target);
     return () => ro.disconnect();
-  }, [showViz, project]);
+  }, [showViz, project, mixReady, analysisClip, audioLoaded]);
 
   const activeLabel = formatResolvedSource(picture);
 
