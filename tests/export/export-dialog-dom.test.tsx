@@ -118,6 +118,25 @@ describe("export dialog DOM", () => {
     expect(closed).toEqual(["close"]);
   });
 
+  it("ready dialog shows the next versioned default name without a path", () => {
+    const state = readyExportDialog({ fileName: "Untitled_Resonance.v7.mp4" });
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <ExportDialog state={state} onCancel={() => {}} onClose={() => {}} />,
+      );
+    });
+    expect(host.querySelector('[data-testid="export-dialog-file"]')?.textContent).toBe(
+      "Untitled_Resonance.v7.mp4",
+    );
+    expect(host.querySelector('[data-testid="export-dialog-file"]')?.textContent).not.toMatch(/C:\\/);
+    expect(host.querySelector('[data-testid="export-dialog-status"]')?.textContent).toMatch(
+      /Größe wählen/,
+    );
+  });
+
   it("toolbar Export stays labeled Export (progress lives in the dialog)", () => {
     host = document.createElement("div");
     document.body.appendChild(host);

@@ -4,12 +4,15 @@
 
 import {
   LAST_PROJECT_FILENAME,
+  dirFromPath,
   fileNameFromPath,
+  joinDirAndFile,
   lastProjectMissingStatus,
   lastProjectPayload,
   parseLastProjectText,
   type LastProjectRef,
 } from "./last-project";
+import { nextVersionedFileName } from "./exporter/filename-version";
 
 export interface TauriProjectFs {
   openDialog(opts: { defaultPath?: string }): Promise<string | null>;
@@ -60,13 +63,29 @@ export async function autostartLastProject(fs: TauriProjectFs): Promise<TauriAut
   }
 }
 
+export function versionedSaveDefaultPath(opts: {
+  filename: string;
+  lastPath?: string | null;
+  extraNames?: readonly string[];
+}): string {
+  const lastName = opts.lastPath ? fileNameFromPath(opts.lastPath) : "";
+  const existing = [lastName, ...(opts.extraNames ?? [])].filter(Boolean);
+  const next = nextVersionedFileName(opts.filename, existing);
+  const dir = opts.lastPath ? dirFromPath(opts.lastPath) : "";
+  return dir ? joinDirAndFile(dir, next) : next;
+}
+
 export async function tauriSaveProject(
   fs: TauriProjectFs,
   opts: { json: string; filename: string; lastPath?: string | null; forcePicker?: boolean },
 ): Promise<{ cancelled: true } | { path: string; name: string; status: string }> {
   let path = opts.forcePicker ? null : opts.lastPath ?? null;
   if (!path) {
-    path = await fs.saveDialog({ defaultPath: opts.lastPath ?? opts.filename });
+    const defaultPath = versionedSaveDefaultPath({
+      filename: opts.filename,
+      lastPath: opts.lastPath,
+    });
+    path = await fs.saveDialog({ defaultPath });
   }
   if (!path) return { cancelled: true };
   await fs.writeText(path, opts.json);

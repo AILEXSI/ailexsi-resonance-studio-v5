@@ -48,9 +48,12 @@ import {
   exportTimeline,
   failExportDialog,
   isExportSuccess,
+  existingExportNamesFromMemory,
   jobFromProject,
+  nextVersionedFileName,
   openExportDialog,
   readyExportDialog,
+  readyExportNameFromProjectAsync,
   runExportWithDestination,
   succeedExportDialog,
   wavFileName,
@@ -643,15 +646,16 @@ export function App() {
   const runExport = () => {
     if (exporting || exportBusyRef.current) return;
     if (exportDialog.phase === "ready") return;
-    const safe = (session.project.name || "resonance").replace(/[^\w\-]+/g, "_");
-    setExportDialog(
-      readyExportDialog({
-        fileName: safe.endsWith(".mp4") ? safe : `${safe}.mp4`,
-        width: exportDialog.width || 1280,
-        height: exportDialog.height || 720,
-        fps: exportDialog.fps || 30,
-      }),
-    );
+    const width = exportDialog.width || 1280;
+    const height = exportDialog.height || 720;
+    const fps = exportDialog.fps || 30;
+    void (async () => {
+      const fileName = await readyExportNameFromProjectAsync({
+        projectName: session.project.name,
+        memory: projectFileRef.current,
+      });
+      setExportDialog(readyExportDialog({ fileName, width, height, fps }));
+    })();
   };
 
   const startExport = (kind: "mp4" | "wav") => {
@@ -664,7 +668,15 @@ export function App() {
     let planned;
     try {
       planned = jobFromProject(session.project, kind === "wav" ? {} : size);
-      if (kind === "wav") planned = { ...planned, fileName: wavFileName(planned.fileName) };
+      const fromDialog =
+        exportDialog.phase === "ready" && exportDialog.fileName
+          ? exportDialog.fileName
+          : planned.fileName;
+      const proposed = kind === "wav" ? wavFileName(fromDialog) : fromDialog;
+      planned = {
+        ...planned,
+        fileName: nextVersionedFileName(proposed, existingExportNamesFromMemory(projectFileRef.current)),
+      };
     } catch (e) {
       const msg = e instanceof ExportPlanError || e instanceof Error ? e.message : String(e);
       const fallbackName = kind === "wav" ? "export.wav" : "export.mp4";

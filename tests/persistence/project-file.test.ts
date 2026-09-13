@@ -23,6 +23,7 @@ import {
   saveStatusFsa,
   startInForPicker,
   statusHasFakePath,
+  suggestedProjectPickerName,
   type DirectoryHandleLike,
   type FileHandleLike,
   type PickerHost,
@@ -135,14 +136,14 @@ describe("project file picker memory", () => {
     });
     expect(hasFileSystemAccess({})).toBe(false);
     expect(result.usedFallback).toBe(true);
-    expect(result.status).toBe(saveStatusFallback("Untitled_Resonance.resonance.json"));
-    expect(result.status).toContain("Untitled_Resonance.resonance.json");
+    expect(result.status).toBe(saveStatusFallback("Untitled_Resonance.v1.resonance.json"));
+    expect(result.status).toContain("Untitled_Resonance.v1.resonance.json");
     expect(result.status).toMatch(/Downloads/);
     expect(result.status).toMatch(/unbekannt/);
     expect(statusHasFakePath(result.status)).toBe(false);
     expect(statusHasFakePath(loadStatusFallback("clip.resonance.json"))).toBe(false);
     expect(loadStatusFallback("clip.resonance.json")).toContain("clip.resonance.json");
-    expect(downloads[0]).toContain("Untitled_Resonance.resonance.json");
+    expect(downloads[0]).toContain("Untitled_Resonance.v1.resonance.json");
     expect(typeof downloadText).toBe("function");
   });
 
@@ -250,7 +251,7 @@ describe("project file picker memory", () => {
         expect(opts.types).toEqual([
           { description: "Resonance project", accept: { "application/json": [".json"] } },
         ]);
-        expect(opts.suggestedName).toBe("Untitled_Resonance.resonance.json");
+        expect(opts.suggestedName).toBe("Untitled_Resonance.v1.resonance.json");
         return picked;
       },
     };
@@ -283,10 +284,42 @@ describe("project file picker memory", () => {
         },
       });
       expect(fallback.usedFallback).toBe(true);
-      expect(downloads).toEqual(["Untitled_Resonance.resonance.json"]);
+      expect(downloads).toEqual(["Untitled_Resonance.v1.resonance.json"]);
     } finally {
       if (previous) w.showSaveFilePicker = previous;
     }
+  });
+
+  it("Speichern unter suggestedName is .vN, never Windows (2)", async () => {
+    expect(suggestedProjectPickerName("Untitled_Resonance.resonance.json", emptyProjectFileMemory())).toBe(
+      "Untitled_Resonance.v1.resonance.json",
+    );
+    const memory = {
+      ...emptyProjectFileMemory(),
+      lastFileName: "Untitled_Resonance.resonance.json",
+    };
+    expect(suggestedProjectPickerName("Untitled_Resonance.resonance.json", memory)).toBe(
+      "Untitled_Resonance.v2.resonance.json",
+    );
+    let suggested = "";
+    const host: PickerHost = {
+      showSaveFilePicker: async (opts) => {
+        suggested = opts.suggestedName;
+        expect(opts.suggestedName).not.toMatch(/\(\d+\)/);
+        return mockFileHandle(opts.suggestedName);
+      },
+    };
+    await runSaveAs({
+      host,
+      store: createMemoryProjectFileStore(),
+      memory,
+      filename: "Untitled_Resonance.resonance.json",
+      json: "{}",
+      fallbackDownload: () => {
+        throw new Error("picker exists");
+      },
+    });
+    expect(suggested).toBe("Untitled_Resonance.v2.resonance.json");
   });
 
   it("Speichern unter uses live window.showSaveFilePicker when the host snapshot is empty", async () => {

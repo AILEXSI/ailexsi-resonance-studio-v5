@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  dirFromPath,
   fileNameFromPath,
+  joinDirAndFile,
   lastProjectMissingStatus,
   lastProjectPayload,
   normalizeLastProjectPath,
@@ -15,6 +17,7 @@ import {
   sourcePathsOfAssets,
   tauriOpenProject,
   tauriSaveProject,
+  versionedSaveDefaultPath,
   type TauriProjectFs,
 } from "../../src/core/tauri-project-io";
 import { isTauriRuntime } from "../../src/core/tauri-runtime";
@@ -98,6 +101,16 @@ describe("last-project path normalize", () => {
     expect(parentFolderNameFromPath("/home/marti/Mixes/Live.resonance.json")).toBe("Mixes");
     expect(parentFolderNameFromPath("C:\\Show.resonance.json")).toBe("");
     expect(parentFolderNameFromPath("/Show.resonance.json")).toBe("");
+    expect(dirFromPath("C:\\Users\\marti\\Untitled_Resonance.resonance.json")).toBe(
+      "C:\\Users\\marti",
+    );
+    expect(joinDirAndFile("C:\\Users\\marti", "Untitled_Resonance.v2.resonance.json")).toBe(
+      "C:\\Users\\marti\\Untitled_Resonance.v2.resonance.json",
+    );
+    expect(dirFromPath("/home/marti/Show.resonance.json")).toBe("/home/marti");
+    expect(joinDirAndFile("/home/marti", "Show.v1.resonance.json")).toBe(
+      "/home/marti/Show.v1.resonance.json",
+    );
   });
 
   it("missing-file status uses the project name, not a raw disk path", () => {
@@ -172,10 +185,13 @@ describe("tauri save/open last-path", () => {
   it("Speichern with lastPath writes without picker; Speichern unter always picks", async () => {
     let saveDialogCalls = 0;
     const writes: Array<{ path: string; text: string }> = [];
+    const defaults: string[] = [];
     const fs = mockFs({
       async saveDialog(opts) {
         saveDialogCalls += 1;
-        expect(opts.defaultPath).toMatch(/\.resonance\.json$/);
+        defaults.push(opts.defaultPath ?? "");
+        expect(opts.defaultPath).toMatch(/\.v\d+\.resonance\.json$/);
+        expect(opts.defaultPath).not.toMatch(/\(\d+\)/);
         return "C:/Users/marti/Projects/Other.resonance.json";
       },
       async writeText(path, text) {
@@ -211,6 +227,7 @@ describe("tauri save/open last-path", () => {
       forcePicker: true,
     });
     expect(saveDialogCalls).toBe(1);
+    expect(defaults[0]).toBe("C:\\Users\\marti\\Projects\\Show.v2.resonance.json");
     expect("cancelled" in saveAs).toBe(false);
     if (!("cancelled" in saveAs)) {
       expect(saveAs.name).toBe("Other.resonance.json");
@@ -222,10 +239,42 @@ describe("tauri save/open last-path", () => {
       filename: "Untitled_Resonance.resonance.json",
     });
     expect(saveDialogCalls).toBe(2);
+    expect(defaults[1]).toBe("Untitled_Resonance.v1.resonance.json");
     expect("cancelled" in firstSave).toBe(false);
     if (!("cancelled" in firstSave)) {
       expect(firstSave.name).toBe("Other.resonance.json");
     }
+  });
+
+  it("Speichern unter defaultPath is the next .vN beside the last project", async () => {
+    expect(versionedSaveDefaultPath({ filename: "Untitled_Resonance.resonance.json" })).toBe(
+      "Untitled_Resonance.v1.resonance.json",
+    );
+    expect(
+      versionedSaveDefaultPath({
+        filename: "Untitled_Resonance.resonance.json",
+        lastPath: "C:\\Users\\marti\\Documents\\Untitled_Resonance.resonance.json",
+      }),
+    ).toBe("C:\\Users\\marti\\Documents\\Untitled_Resonance.v2.resonance.json");
+    let defaultPath = "";
+    const fs = mockFs({
+      async saveDialog(opts) {
+        defaultPath = opts.defaultPath ?? "";
+        return defaultPath;
+      },
+      async writeText() {
+        /* project json */
+      },
+    });
+    const result = await tauriSaveProject(fs, {
+      json: "{}",
+      filename: "Untitled_Resonance.resonance.json",
+      lastPath: "C:\\Users\\marti\\Documents\\Untitled_Resonance.resonance.json",
+      forcePicker: true,
+    });
+    expect(defaultPath).toBe("C:\\Users\\marti\\Documents\\Untitled_Resonance.v2.resonance.json");
+    expect(defaultPath).not.toMatch(/\(\d+\)/);
+    expect("cancelled" in result).toBe(false);
   });
 
   it("writes last-project.json after a successful save", async () => {

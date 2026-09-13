@@ -22,6 +22,8 @@ describe("project file panel", () => {
       fileHandle: { name: "Beginagain.resonance.json", kind: "file" },
       directoryHandle: { kind: "directory", name: "Projects" },
       lastFileName: "Beginagain.resonance.json",
+      lastExportFileName: null,
+      lastExportFileNames: [],
       recents: [
         {
           fileHandle: { name: "Beginagain.resonance.json", kind: "file" },
@@ -92,6 +94,8 @@ describe("project file panel", () => {
       directoryHandle: null,
       lastFileName: "Show.resonance.json",
       lastPath: "C:\\Users\\marti\\Projects\\Show.resonance.json",
+      lastExportFileName: null,
+      lastExportFileNames: [],
       recents: [],
     };
     host = document.createElement("div");

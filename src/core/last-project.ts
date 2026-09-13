@@ -25,6 +25,28 @@ export function parentFolderNameFromPath(path: string): string {
   return parent;
 }
 
+export function dirFromPath(path: string): string {
+  const norm = normalizeLastProjectPath(path);
+  if (!norm) return "";
+  const slash = norm.lastIndexOf("/");
+  const back = norm.lastIndexOf("\\");
+  const idx = Math.max(slash, back);
+  if (idx < 0) return "";
+  const dir = norm.slice(0, idx);
+  if (/^[A-Za-z]:$/.test(dir)) return `${dir}\\`;
+  return dir;
+}
+
+export function joinDirAndFile(dir: string, fileName: string): string {
+  const name = fileName.trim();
+  if (!name) return normalizeLastProjectPath(dir);
+  const norm = normalizeLastProjectPath(dir);
+  if (!norm) return name;
+  if (/^[A-Za-z]:\\$/.test(norm)) return `${norm}${name}`;
+  const sep = norm.includes("\\") ? "\\" : "/";
+  return `${norm}${sep}${name}`;
+}
+
 /** Normalize a remembered Windows or POSIX path. Empty / non-string → "". */
 export function normalizeLastProjectPath(path: unknown): string {
   if (typeof path !== "string") return "";
