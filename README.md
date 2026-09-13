@@ -58,7 +58,7 @@ Help (`?`) sitzt auf der Play-Zeile, nicht in der Top bar.
 - **Kein** Ordner wählen. **Kein** Revert. **Keine** MEDIA-Durchsuchen-Zeile.
 - Media-Bin im Overlay (Suche/Filter/Place/Relink) lädt keine Dateien — das macht **Import**.
 - **Speichern:** Chrome FSA überschreibt den gemerkten Handle. Tauri/Exe schreibt `lastPath` ohne Picker; ohne Pfad öffnet den nativen Save-Dialog.
-- **Speichern unter:** Chrome `showSaveFilePicker` (Ordner + Name). Tauri/Exe: nativer Save-Dialog (immer Picker). Firefox ohne FSA: Download. Nach Speichern/Öffnen in der Exe zeigt das File-Panel Dateiname + gemerkten Ordner (`folderRemembered`), nicht „Kein Ordner gemerkt“.
+- **Speichern unter:** Chrome `showSaveFilePicker` (Ordner + Name, Suggested name `.vN.resonance.json`). Tauri/Exe: nativer Save-Dialog (immer Picker, `defaultPath` versioniert). Firefox ohne FSA: Download. Nach Speichern/Öffnen in der Exe zeigt das File-Panel Dateiname + gemerkten Ordner (`folderRemembered`), nicht „Kein Ordner gemerkt“.
 
 ## Help overlay
 
@@ -93,7 +93,8 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 ## Limits (ehrlich)
 
 - **AUTO:** Video zuerst, VIS nur in der Lücke. Die AUTO-Zeile in `src/core/transition.ts` nicht anfassen.
-- **Export:** H.264 MP4 über den Export-Dialog. Default-Dateiname ist die nächste freie `.vN` im Zielordner (unversioniert = v1 → `.v2`). AAC nur wenn Probe + Mix + Encode klappen; sonst `audio=none` plus Grund. WebM ist nie Erfolg. Dedicated **Export WAV**-Button ist entfernt. `startExport("wav")` bleibt intern erreichbar, hat aber keinen Toolbar-/Dialog-Weg.
+- **Export:** H.264 MP4 über den Export-Dialog. Default-Dateiname ist immer `Stem.vN.mp4` (leer → `.v1`; vorhandenes unversioniertes File belegt v1 → `.v2`). AAC nur wenn Probe + Mix + Encode klappen; sonst `audio=none` plus Grund. WebM ist nie Erfolg. Dedicated **Export WAV**-Button ist entfernt. `startExport("wav")` bleibt intern erreichbar, hat aber keinen Toolbar-/Dialog-Weg.
+- **Speichern unter:** Suggested name `Untitled_Resonance.v1.resonance.json`, nicht Windows `resonance(2).json`.
 - **Persistenz:** Exe merkt den letzten Projekt**pfad** (`last-project.json` in AppData). Save/Open in der Exe über Tauri-Dialog. Browser: Chrome File System Access; Firefox fällt auf Download zurück. Medien: Exe-IDB-Blob, sonst Datei unter `sourcePath`, sonst missing + Relink. Altes JSON ohne `sourcePath` braucht einmal Relink, dann Save.
 - Chrome-Origin ≠ Exe-Origin. Ein im Browser gespeichertes Projekt erscheint **nicht** von allein in der Exe.
 - Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset/Energy), wenn Audio geladen ist — kein 120-BPM-Metronom. Playhead in einer A1/Mix-Lücke oder echter Stille: Visualz silence-gate (`rms`/`bass`), VIS bleibt ruhig. Beat = audio-derived onset/energy sync, **kein** DAW Beat-Grid-Lock.

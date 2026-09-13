@@ -212,6 +212,14 @@ describe("export default-name path (folder listing + memory)", () => {
     ).toBe("Untitled_Resonance.v2.mp4");
   });
 
+  it("ready dialog default name is .v1 when the folder listing is empty", async () => {
+    const fileName = await readyExportNameFromProjectAsync({
+      projectName: DEFAULT_PROJECT_NAME,
+      memory: emptyProjectFileMemory(),
+    });
+    expect(fileName).toBe("Untitled_Resonance.v1.mp4");
+  });
+
   it("ready dialog default name is the next .vN (async path + dialog state)", async () => {
     const listed = [
       "Untitled_Resonance.mp4",

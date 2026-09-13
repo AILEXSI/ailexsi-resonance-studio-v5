@@ -1,14 +1,14 @@
 /**
- * Automatic export/save filename versioning.
+ * Automatic export / Speichern-unter filename versioning.
  *
  * Rules (locked by tests):
- * - Preferred suffix is `.vN` (lowercase v, no padding). `_vN` is recognized as the same series.
- * - Unversioned `Stem.ext` counts as version 1. First collision → `Stem.v2.ext`.
- * - Next number is one past the highest `.vN` / `_vN` (or implicit 1) for the same stem+ext.
- *   Gaps are not filled: v3 + v5 → v6.
- * - If the stem already ends with `.vN` / `_vN`, N is stripped; the next free value is used.
- * - No siblings and the proposed name is free → keep it (unversioned, or `.vN` if the stem had one).
- * - Other suffixes (`.short`, `.temp`, ` (1)`) are not versions and do not join the series.
+ * - Suggested names are always `Stem.vN.ext`. Never unversioned, never Windows `(N)`.
+ * - Empty folder / no siblings → `.v1`.
+ * - Unversioned `Stem.ext` occupies v1 → next is `.v2`.
+ * - Next number is one past the highest `.vN` / `_vN` (or implicit 1). Gaps are not filled.
+ * - If the stem already ends with `.vN` / `_vN` and that name is free, keep N; else increment.
+ * - `.short` / `.temp` / `(1)` are not versions.
+ * - Compound project suffix `.resonance.json` stays intact (`Stem.v1.resonance.json`).
  * - Matching is case-insensitive; output keeps the proposed stem/ext casing.
  * - Folders are the caller's job: pass only names from the chosen directory.
  */
@@ -16,13 +16,14 @@
 const VERSION_SUFFIX = /[._]v(\d+)$/i;
 const EXT_OK = /^[A-Za-z0-9]{1,8}$/;
 const VERSION_AS_EXT = /^v\d+$/i;
+const COMPOUND_EXTS = ["resonance.json"] as const;
 
 export interface ParsedExportFileName {
   /** Stem with `.vN` / `_vN` stripped. */
   baseStem: string;
   /** Explicit `.vN` / `_vN`. Null when the file is unversioned. */
   version: number | null;
-  /** Extension without the dot. Empty when there is no media extension. */
+  /** Extension without the leading dot. May be compound (`resonance.json`). */
   ext: string;
 }
 
@@ -41,6 +42,13 @@ export function mediaExportFileName(projectName: string, ext = "mp4"): string {
 
 export function splitNameAndExt(fileName: string): { stem: string; ext: string } {
   const trimmed = fileName.trim();
+  const lower = trimmed.toLowerCase();
+  for (const compound of COMPOUND_EXTS) {
+    const token = `.${compound}`;
+    if (lower.endsWith(token)) {
+      return { stem: trimmed.slice(0, trimmed.length - token.length), ext: compound };
+    }
+  }
   const lastDot = trimmed.lastIndexOf(".");
   if (lastDot <= 0) return { stem: trimmed, ext: "" };
   const ext = trimmed.slice(lastDot + 1);
@@ -65,10 +73,11 @@ export function parseExportFileName(fileName: string): ParsedExportFileName {
   return { baseStem, version, ext };
 }
 
+/** `version == null` formats the unversioned sibling name (for occupancy / probe only). */
 export function formatExportFileName(baseStem: string, version: number | null, ext: string): string {
   const stem = baseStem || "untitled";
   const suffix = ext ? `.${ext}` : "";
-  if (version == null || version <= 1) return `${stem}${suffix}`;
+  if (version == null || version < 1) return `${stem}${suffix}`;
   return `${stem}.v${version}${suffix}`;
 }
 
@@ -81,8 +90,8 @@ function occupiedVersion(parsed: ParsedExportFileName): number {
 }
 
 /**
- * Next free name in one folder. `existingNames` must be that folder only.
- * Unversioned sibling = v1; first bump is `.v2`.
+ * Next free suggested name. Never returns an unversioned `Stem.ext`.
+ * Unversioned sibling = occupies v1; empty folder → `.v1`.
  */
 export function nextVersionedFileName(proposed: string, existingNames: readonly string[]): string {
   const trimmed = (proposed ?? "").trim() || "untitled.mp4";
@@ -103,13 +112,14 @@ export function nextVersionedFileName(proposed: string, existingNames: readonly 
     if (version > highest) highest = version;
   }
 
-  const keepProposed = formatExportFileName(parsed.baseStem, parsed.version, parsed.ext);
-  if (!foundSibling && !occupied.has(keepProposed.toLowerCase())) {
-    return keepProposed;
+  if (!foundSibling) {
+    const n = parsed.version != null && parsed.version >= 1 ? parsed.version : 1;
+    const keep = formatExportFileName(parsed.baseStem, n, parsed.ext);
+    if (!occupied.has(keep.toLowerCase())) return keep;
   }
 
   let next = highest + 1;
-  if (next < 2) next = 2;
+  if (next < 1) next = 1;
   for (;;) {
     const candidate = formatExportFileName(parsed.baseStem, next, parsed.ext);
     if (!occupied.has(candidate.toLowerCase())) return candidate;
@@ -137,6 +147,39 @@ export function existingExportNamesFromMemory(memory: {
     for (const name of memory.lastExportFileNames) push(name);
   }
   return names;
+}
+
+export function existingProjectNamesFromMemory(memory: {
+  lastFileName?: string | null;
+  recents?: ReadonlyArray<{ lastFileName?: string | null }>;
+}): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const name = value.trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    names.push(name);
+  };
+  push(memory.lastFileName);
+  if (Array.isArray(memory.recents)) {
+    for (const row of memory.recents) push(row?.lastFileName);
+  }
+  return names;
+}
+
+export function suggestedProjectSaveAsName(
+  filename: string,
+  memory: {
+    lastFileName?: string | null;
+    recents?: ReadonlyArray<{ lastFileName?: string | null }>;
+  } = {},
+  listedNames: readonly string[] = [],
+): string {
+  return nextVersionedFileName(filename, [...existingProjectNamesFromMemory(memory), ...listedNames]);
 }
 
 /** Sync default-name path: project title + remembered export names + optional folder listing. */
