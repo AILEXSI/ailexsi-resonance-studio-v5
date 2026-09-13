@@ -85,4 +85,41 @@ describe("project file panel", () => {
     });
     expect(opened).toEqual(["Older.resonance.json"]);
   });
+
+  it("Tauri lastPath shows the file name and remembered folder, not Kein Ordner gemerkt", () => {
+    const memory: ProjectFileMemory = {
+      fileHandle: null,
+      directoryHandle: null,
+      lastFileName: "Show.resonance.json",
+      lastPath: "C:\\Users\\marti\\Projects\\Show.resonance.json",
+      recents: [],
+    };
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <ProjectFilePanel
+          memory={memory}
+          onNew={() => {}}
+          onSave={() => {}}
+          onSaveAs={() => {}}
+          onOpen={() => {}}
+          onOpenRecent={() => {}}
+        />,
+      );
+    });
+    expect(host.querySelector('[data-testid="project-file-name"]')?.textContent).toBe(
+      "Show.resonance.json",
+    );
+    expect(host.querySelector('[data-testid="project-file-folder"]')?.textContent).toBe("Projects");
+    expect(host.querySelector('[data-testid="project-folder-remembered"]')?.textContent).toMatch(
+      /gemerkt/,
+    );
+    const text = host.textContent ?? "";
+    expect(text).not.toContain("Kein Ordner gemerkt");
+    expect(text).not.toContain("Noch kein Projektordner");
+    expect(statusHasFakePath(text)).toBe(false);
+    expect(text).not.toMatch(/C:\\Users/);
+  });
 });

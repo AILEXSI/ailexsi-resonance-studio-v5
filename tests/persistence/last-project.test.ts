@@ -4,9 +4,11 @@ import {
   lastProjectMissingStatus,
   lastProjectPayload,
   normalizeLastProjectPath,
+  parentFolderNameFromPath,
   parseLastProject,
   parseLastProjectText,
 } from "../../src/core/last-project";
+import { createEmptyProject, projectFilename, PROJECT_SCHEMA_VERSION } from "../../src/core/project";
 import {
   autostartLastProject,
   mediaExtensionsForKind,
@@ -90,6 +92,12 @@ describe("last-project path normalize", () => {
       name: "ignored.json",
     });
     expect(fileNameFromPath("C:\\shows\\night.resonance.json")).toBe("night.resonance.json");
+    expect(parentFolderNameFromPath("C:\\Users\\marti\\Projects\\Show.resonance.json")).toBe(
+      "Projects",
+    );
+    expect(parentFolderNameFromPath("/home/marti/Mixes/Live.resonance.json")).toBe("Mixes");
+    expect(parentFolderNameFromPath("C:\\Show.resonance.json")).toBe("");
+    expect(parentFolderNameFromPath("/Show.resonance.json")).toBe("");
   });
 
   it("missing-file status uses the project name, not a raw disk path", () => {
@@ -161,6 +169,65 @@ describe("autostart last-project", () => {
 });
 
 describe("tauri save/open last-path", () => {
+  it("Speichern with lastPath writes without picker; Speichern unter always picks", async () => {
+    let saveDialogCalls = 0;
+    const writes: Array<{ path: string; text: string }> = [];
+    const fs = mockFs({
+      async saveDialog(opts) {
+        saveDialogCalls += 1;
+        expect(opts.defaultPath).toMatch(/\.resonance\.json$/);
+        return "C:/Users/marti/Projects/Other.resonance.json";
+      },
+      async writeText(path, text) {
+        writes.push({ path, text });
+      },
+    });
+    const project = createEmptyProject("Show");
+    expect(project.schemaVersion).toBe(PROJECT_SCHEMA_VERSION);
+    expect(PROJECT_SCHEMA_VERSION).toBe(5);
+    expect(projectFilename(project)).toBe("Show.resonance.json");
+    expect(projectFilename(project)).not.toMatch(/\.\d+\.resonance\.json$/);
+    const json = JSON.stringify({ schemaVersion: PROJECT_SCHEMA_VERSION, name: "Show" });
+
+    const overwrite = await tauriSaveProject(fs, {
+      json,
+      filename: projectFilename(project),
+      lastPath: "C:/Users/marti/Projects/Show.resonance.json",
+    });
+    expect(saveDialogCalls).toBe(0);
+    expect("cancelled" in overwrite).toBe(false);
+    if (!("cancelled" in overwrite)) {
+      expect(overwrite.path).toBe("C:\\Users\\marti\\Projects\\Show.resonance.json");
+      expect(overwrite.name).toBe("Show.resonance.json");
+      expect(overwrite.status).toBe("Gespeichert: Show.resonance.json");
+    }
+    expect(writes[0]?.path).toBe("C:/Users/marti/Projects/Show.resonance.json");
+    expect(JSON.parse(writes[0]?.text ?? "{}").schemaVersion).toBe(5);
+
+    const saveAs = await tauriSaveProject(fs, {
+      json,
+      filename: projectFilename(project),
+      lastPath: "C:/Users/marti/Projects/Show.resonance.json",
+      forcePicker: true,
+    });
+    expect(saveDialogCalls).toBe(1);
+    expect("cancelled" in saveAs).toBe(false);
+    if (!("cancelled" in saveAs)) {
+      expect(saveAs.name).toBe("Other.resonance.json");
+      expect(saveAs.path).toBe("C:\\Users\\marti\\Projects\\Other.resonance.json");
+    }
+
+    const firstSave = await tauriSaveProject(fs, {
+      json,
+      filename: "Untitled_Resonance.resonance.json",
+    });
+    expect(saveDialogCalls).toBe(2);
+    expect("cancelled" in firstSave).toBe(false);
+    if (!("cancelled" in firstSave)) {
+      expect(firstSave.name).toBe("Other.resonance.json");
+    }
+  });
+
   it("writes last-project.json after a successful save", async () => {
     const fs = mockFs({
       async saveDialog() {

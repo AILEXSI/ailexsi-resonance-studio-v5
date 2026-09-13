@@ -14,6 +14,17 @@ export function fileNameFromPath(path: string): string {
   return parts[parts.length - 1] ?? "";
 }
 
+/** Parent folder basename only — never a drive letter or full path. */
+export function parentFolderNameFromPath(path: string): string {
+  const norm = normalizeLastProjectPath(path);
+  if (!norm) return "";
+  const parts = norm.split(/[/\\]/).filter(Boolean);
+  if (parts.length < 2) return "";
+  const parent = parts[parts.length - 2] ?? "";
+  if (!parent || /^[A-Za-z]:$/.test(parent)) return "";
+  return parent;
+}
+
 /** Normalize a remembered Windows or POSIX path. Empty / non-string → "". */
 export function normalizeLastProjectPath(path: unknown): string {
   if (typeof path !== "string") return "";

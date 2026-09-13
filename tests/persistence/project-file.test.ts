@@ -11,6 +11,7 @@ import {
   projectPanelView,
   rememberDirectoryHandle,
   rememberFileHandle,
+  rememberTauriProjectPath,
   runChooseFolder,
   runOpen,
   runOpenRecent,
@@ -195,6 +196,39 @@ describe("project file picker memory", () => {
     expect(unnamedDir.folderLabel).toBe("Song.resonance.json — Ordner gemerkt");
     expect(statusHasFakePath(unnamedDir.folderLabel)).toBe(false);
     expect(unnamedDir.folderLabel).not.toMatch(/C:\\/);
+  });
+
+  it("Tauri lastPath is remembered without FSA handles and never shows a disk path", () => {
+    const remembered = rememberTauriProjectPath(
+      "C:/Users/marti/Projects/Show.resonance.json",
+      "Show.resonance.json",
+    );
+    expect(remembered.fileHandle).toBeNull();
+    expect(remembered.directoryHandle).toBeNull();
+    expect(remembered.lastFileName).toBe("Show.resonance.json");
+    expect(remembered.lastPath).toBe("C:\\Users\\marti\\Projects\\Show.resonance.json");
+
+    const named = projectPanelView(remembered);
+    expect(named.fileName).toBe("Show.resonance.json");
+    expect(named.folderLabel).toBe("Projects");
+    expect(named.folderRemembered).toBe(true);
+    expect(statusHasFakePath(named.fileName)).toBe(false);
+    expect(statusHasFakePath(named.folderLabel)).toBe(false);
+    expect(named.folderLabel).not.toMatch(/C:\\/);
+    expect(named.folderLabel).not.toMatch(/\/Users\//);
+
+    const driveRoot = projectPanelView(
+      rememberTauriProjectPath("C:\\Show.resonance.json", "Show.resonance.json"),
+    );
+    expect(driveRoot.fileName).toBe("Show.resonance.json");
+    expect(driveRoot.folderLabel).toBe("Show.resonance.json — Pfad gemerkt");
+    expect(driveRoot.folderRemembered).toBe(true);
+    expect(statusHasFakePath(driveRoot.folderLabel)).toBe(false);
+
+    const empty = projectPanelView(emptyProjectFileMemory());
+    expect(empty.fileName).toBe("Noch nicht gespeichert");
+    expect(empty.folderLabel).toBe("Kein Ordner gemerkt");
+    expect(empty.folderRemembered).toBe(false);
   });
 
   it("save picker types are Chromium-valid .json only", () => {

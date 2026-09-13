@@ -28,6 +28,7 @@ import {
   readFileText,
   relinkAcceptAttr,
   rememberFileHandle,
+  rememberTauriProjectPath,
   runOpen,
   runOpenRecent,
   runSave,
@@ -218,7 +219,7 @@ export function App() {
               await allowMediaSourcePaths(sourcePathsOfAssets(opened.project.assets));
               const next = await hydrateRuntime(opened);
               lastPathRef.current = boot.ref.path;
-              setProjectFile({ ...emptyProjectFileMemory(), lastFileName: boot.ref.name });
+              setProjectFile(rememberTauriProjectPath(boot.ref.path, boot.ref.name));
               setSession({ ...next, status: `Geladen: ${boot.ref.name}` });
               return;
             } catch {
@@ -453,7 +454,11 @@ export function App() {
       if (result.cancelled) return;
       if (result.path) lastPathRef.current = result.path;
       if (result.memory) setProjectFile(result.memory);
-      else if (result.name) setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+      else if (result.path) {
+        setProjectFile(rememberTauriProjectPath(result.path, result.name));
+      } else if (result.name) {
+        setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+      }
       if (!result.usedFallback) setProjectPanelOpen(false);
       setSession((s) => {
         const sameStack =
@@ -476,7 +481,7 @@ export function App() {
           const result = await tauriSaveProject(await tauriFs(), {
             json: projectJson(snapshot),
             filename: projectFilename(snapshot.project),
-            lastPath: lastPathRef.current,
+            lastPath: lastPathRef.current ?? projectFileRef.current.lastPath,
             forcePicker: mode === "saveAs",
           });
           if ("cancelled" in result) return;
@@ -513,7 +518,7 @@ export function App() {
           if ("cancelled" in result) return;
           if (!(await applyOpenedText(result.text, result.status))) return;
           lastPathRef.current = result.path;
-          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: result.name });
+          setProjectFile(rememberTauriProjectPath(result.path, result.name));
           setProjectPanelOpen(false);
           return;
         }
@@ -547,7 +552,7 @@ export function App() {
         if (boot.kind === "loaded") {
           if (!(await applyOpenedText(boot.text, `Geladen: ${boot.ref.name}`))) return;
           lastPathRef.current = boot.ref.path;
-          setProjectFile({ ...emptyProjectFileMemory(), lastFileName: boot.ref.name });
+          setProjectFile(rememberTauriProjectPath(boot.ref.path, boot.ref.name));
           setProjectPanelOpen(false);
           return;
         }
