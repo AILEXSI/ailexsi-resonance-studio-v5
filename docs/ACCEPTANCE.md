@@ -55,10 +55,10 @@ HUMAN-PROVEN in this EXE (do not downgrade):
 - automatic Export `.vN` filename versioning
 - actual MP4 export completed successfully
 - existing playback / timeline behavior remained functional
+- **E Stem Import** (multi-WAV / ZIP, same start) — operator correction: HUMAN-PROVEN
 
-Not in this HUMAN-PROVEN list (code may still be IMPLEMENTED / AUTOMATED-TESTED):
+Not in this HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- E multi-WAV / ZIP stem import
 - F–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors (see `CURRENT.md` Future UI — not next slice)
 

@@ -26,8 +26,8 @@ HUMAN-PROVEN (do not downgrade):
 - Export `.vN` filename versioning
 - actual MP4 export completed successfully
 - existing playback / timeline remained functional
+- **E Stem Import** (multi-WAV / ZIP, same start, filename labels) — operator correction: HUMAN-PROVEN
 
-E Stem Import: **IMPLEMENTED / AUTOMATED-TESTED** on this tip. Not in the HUMAN-PROVEN list.
 F–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
 
 `origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
