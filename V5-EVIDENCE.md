@@ -28,7 +28,7 @@ HUMAN-PROVEN (do not downgrade):
 - existing playback / timeline remained functional
 - **E Stem Import** (multi-WAV / ZIP, same start, filename labels) — operator correction: HUMAN-PROVEN
 
-**F Track/Chapter Groups** (this branch): **IMPLEMENTED / AUTOMATED-TESTED**. Collapse UI only; membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. Not HUMAN-PROVEN. See `CURRENT.md` F Evidence Report.
+**F Track/Chapter Groups** (operator EXE, PR #17 feature tip `c4391cb` — this docs stamp is not the F EXE SHA): **HUMAN-PROVEN**. Collapse UI only; create / assign / collapse / rename confirmed. Membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. See `CURRENT.md` F Evidence Report.
 
 G–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
 

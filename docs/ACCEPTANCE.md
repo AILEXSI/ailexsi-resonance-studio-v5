@@ -57,9 +57,10 @@ HUMAN-PROVEN in this EXE (do not downgrade):
 - existing playback / timeline behavior remained functional
 - **E Stem Import** (multi-WAV / ZIP, same start) — operator correction: HUMAN-PROVEN
 
-Not in this HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
+F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43`: **F HUMAN-PROVEN** — groups create / assign / collapse / rename. This docs stamp is not the F EXE SHA.
 
-- F Track/Chapter Groups (now IMPLEMENTED / AUTOMATED-TESTED on a later SHA — not in this EXE HUMAN-PROVEN list)
+Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
+
 - G–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors (see `CURRENT.md` Future UI — not next slice)
 
