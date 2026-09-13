@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/transport-follow-audio-loop-44f8` (PR #8) auf PR-#7-Tip `f75b3b5`. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/vis-silence-gate-d1d3` auf PR #8 `cursor/transport-follow-audio-loop-44f8` @ `05ffa9c`. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder, Follow, Loop, Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -87,13 +87,13 @@ Follow ON: Playhead läuft durch das linke Viewport, pinnt bei ~65% der sichtbar
 - **Export:** H.264 MP4 über den Export-Dialog. AAC nur wenn Probe + Mix + Encode klappen; sonst `audio=none` plus Grund. WebM ist nie Erfolg. Dedicated **Export WAV**-Button ist entfernt. `startExport("wav")` bleibt intern erreichbar, hat aber keinen Toolbar-/Dialog-Weg.
 - **Persistenz:** Exe merkt den letzten Projekt**pfad** (`last-project.json` in AppData). Save/Open in der Exe über Tauri-Dialog. Browser: Chrome File System Access; Firefox fällt auf Download zurück. Medien: Exe-IDB-Blob, sonst Datei unter `sourcePath`, sonst missing + Relink. Altes JSON ohne `sourcePath` braucht einmal Relink, dann Save.
 - Chrome-Origin ≠ Exe-Origin. Ein im Browser gespeichertes Projekt erscheint **nicht** von allein in der Exe.
-- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset), wenn Audio geladen ist — kein 120-BPM-Metronom.
+- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset), wenn Audio geladen ist — kein 120-BPM-Metronom. Playhead in einer A1/Mix-Lücke oder echter Stille: Visualz silence-gate, VIS bleibt ruhig.
 - Kein Verkaufsprodukt. COMPLETE: NO.
 
 ## Fuer Bots
 
-Basis: PR #8 auf `cursor/transport-follow-audio-loop-44f8`, Start-Tip PR #7 `f75b3b5`, Version 5.0.0.
-Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
+Basis: `cursor/vis-silence-gate-d1d3` auf PR #8 `05ffa9c`, Version 5.0.0.
+Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Follow/Loop/Layout nicht anfassen. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A.
 Follow-Playhead-Pin: TEST-VERIFIED auf der Transport-PR-Linie (65%-Anchor + shared scrollMs). Live Exe: NOT VERIFIED.
 Nächster Slice: Exe zu/auf nach Relink+Save (keine missing-Parade).

@@ -17,6 +17,31 @@ export const ONSET_REFRACTORY_MS = 120;
 /** ~0.045 per 60 Hz frame → pulse fades in ~360ms. */
 export const BEAT_PULSE_DECAY_MS = 360;
 
+/**
+ * Silence gate from standalone Visualz (`src/audio/feature-extractor.ts`).
+ * When RMS/bass sit below these floors, kick/onset/`beatPulse` stay 0.
+ */
+export const SILENCE_RMS = 0.02;
+export const SILENCE_BASS = 0.03;
+
+export function isSilentEnergy(rms: number, bass: number): boolean {
+  return rms < SILENCE_RMS && bass < SILENCE_BASS;
+}
+
+/** Zero musical bands when the Visualz silence gate trips. Spectrum is left as-is. */
+export function applySilenceGate(features: AudioFeatures): AudioFeatures {
+  if (!isSilentEnergy(features.rms, features.bass)) return features;
+  return {
+    ...features,
+    rms: 0,
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    onset: false,
+    beatPulse: 0,
+  };
+}
+
 export function stepOnset(opts: {
   energy: number;
   prevEnergy: number;
@@ -84,6 +109,7 @@ export function createFeatureExtractor(
       const mid = avg(third, third * 3);
       const treble = avg(third * 3, freqBinCount);
 
+      const silent = isSilentEnergy(rms, bass);
       const energy = rms * 0.5 + bass * 0.5;
       const stepped = stepOnset({ energy, prevEnergy, timeMs, lastOnsetTime });
       prevEnergy = stepped.prevEnergy;
@@ -91,13 +117,13 @@ export function createFeatureExtractor(
 
       return {
         timeMs,
-        rms,
-        bass,
-        mid,
-        treble,
+        rms: silent ? 0 : rms,
+        bass: silent ? 0 : bass,
+        mid: silent ? 0 : mid,
+        treble: silent ? 0 : treble,
         spectrum: spectrum.slice(),
-        onset: stepped.onset,
-        beatPulse: stepped.beatPulse,
+        onset: silent ? false : stepped.onset,
+        beatPulse: silent ? 0 : stepped.beatPulse,
         tempoBpm: null,
       };
     },

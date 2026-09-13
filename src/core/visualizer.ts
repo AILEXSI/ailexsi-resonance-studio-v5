@@ -12,7 +12,7 @@ import {
 import { contextFromProject, resolvePictureSource } from "./transition";
 import { getRegisteredScene } from "./visualz";
 import type { AudioFeatures } from "./visualz";
-import { stepOnset } from "./visualz/feature-extractor";
+import { isSilentEnergy, stepOnset } from "./visualz/feature-extractor";
 import { preferLiveFeatures } from "./visualz/playback-tap";
 
 export const DEFAULT_VIS_EVENT_MS = 4000;
@@ -152,6 +152,14 @@ function syntheticSpectrum(
 
 export type MixPcm = Pick<AudioBuffer, "sampleRate" | "length" | "numberOfChannels" | "getChannelData">;
 
+/** True when `timeMs` maps onto a sample inside the buffer (not a gap past the clip). */
+export function mixHasPcmAt(buf: MixPcm, timeMs: number): boolean {
+  if (!buf || buf.length < 8) return false;
+  const sr = buf.sampleRate > 0 ? buf.sampleRate : 44100;
+  const sample = (Math.max(0, timeMs) / 1000) * sr;
+  return sample < buf.length;
+}
+
 function mixEnergyAt(buf: MixPcm, timeMs: number): {
   rms: number;
   bass: number;
@@ -211,8 +219,10 @@ function lastMixOnsetMs(buf: MixPcm, timeMs: number): number {
  * Quiet windows stay near 0. Never invents a 120 BPM grid — tempoBpm stays null.
  */
 export function featuresFromMix(buf: MixPcm, timeMs: number): VisualizerFeatures {
+  if (!mixHasPcmAt(buf, timeMs)) return quietVisualizerFeatures(timeMs);
   const hop = MIX_HOP_MS;
   const cur = mixEnergyAt(buf, timeMs);
+  if (isSilentEnergy(cur.rms, cur.bass)) return quietVisualizerFeatures(timeMs);
   const prev = mixEnergyAt(buf, timeMs - hop);
   const lastOnsetTime = lastMixOnsetMs(buf, timeMs);
   const stepped = stepOnset({
@@ -265,8 +275,10 @@ export function visFeaturesForExport(
 }
 
 /**
- * Preview clock: A1/mix PCM first, else live tap, else quiet if audio is loaded,
- * else the empty-project 120 BPM fallback.
+ * Preview clock: A1/mix PCM first, else live tap, else quiet if the project
+ * audio path is active (including a silent gap at the playhead), else the
+ * empty-project 120 BPM fallback. `featuresAt` must not run while real audio
+ * exists but is currently silent / missing at t.
  */
 export function visFeaturesForPreview(opts: {
   timeMs: number;
@@ -274,9 +286,15 @@ export function visFeaturesForPreview(opts: {
   mix?: MixPcm | null;
   live?: AudioFeatures | null;
   audioLoaded: boolean;
+  /** False = timeline gap / no clip under the playhead. Omit = infer from mix. */
+  hasClipAtPlayhead?: boolean;
 }): VisualizerFeatures {
-  if (opts.mix && opts.mix.length >= 8) return featuresFromMix(opts.mix, opts.timeMs);
+  const clipHere = opts.hasClipAtPlayhead ?? Boolean(opts.mix && opts.mix.length >= 8);
+  if (clipHere && opts.mix && mixHasPcmAt(opts.mix, opts.timeMs)) {
+    return featuresFromMix(opts.mix, opts.timeMs);
+  }
   if (opts.audioLoaded) {
+    if (opts.hasClipAtPlayhead === false) return quietVisualizerFeatures(opts.timeMs);
     const live = preferLiveFeatures(opts.live, quietVisualizerFeatures(opts.timeMs));
     return {
       ...live,

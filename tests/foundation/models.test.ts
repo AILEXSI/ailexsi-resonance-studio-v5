@@ -3,6 +3,7 @@ import {
   audioClipsAt,
   clipOnTrackAt,
   mixClipsAt,
+  projectHasMixAudio,
   clipEndMs,
   defaultTracks,
   formatTimecode,
@@ -15,7 +16,7 @@ import {
   topVideoClipAt,
 } from "../../src/core/models";
 import { createEmptyProject } from "../../src/core/project";
-import { clip, projectWith } from "../helpers";
+import { asset, clip, projectWith } from "../helpers";
 
 describe("foundation models", () => {
   it("creates V1 V2 A1 A2 only", () => {
@@ -170,6 +171,19 @@ describe("mute skip", () => {
     );
     expect(isTrackAudible(p, "A1")).toBe(true);
     expect(isTrackAudible(p, "A2")).toBe(true);
+  });
+
+  it("projectHasMixAudio stays true across an A1 gap (playhead has no clip)", () => {
+    const p = projectWith(
+      [
+        clip({ id: "a", assetId: "x", trackId: "A1", startMs: 0, durationMs: 1000 }),
+        clip({ id: "b", assetId: "x", trackId: "A1", startMs: 2000, durationMs: 1000 }),
+      ],
+      [asset({ id: "x", kind: "audio", durationMs: 4000 })],
+    );
+    expect(projectHasMixAudio(p)).toBe(true);
+    expect(mixClipsAt(p, 1500)).toEqual([]);
+    expect(projectHasMixAudio(createEmptyProject())).toBe(false);
   });
 
   it("formats mm:ss.cc", () => {

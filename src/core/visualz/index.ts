@@ -15,5 +15,11 @@ export type {
 export { createVisualEngine, ensureBuiltinsRegistered, getRegisteredScene, registerScene } from "./engine";
 export type { VisualEngine } from "./engine";
 export { builtinScenes } from "./scenes";
-export { createFeatureExtractor } from "./feature-extractor";
+export {
+  applySilenceGate,
+  createFeatureExtractor,
+  isSilentEnergy,
+  SILENCE_BASS,
+  SILENCE_RMS,
+} from "./feature-extractor";
 export type { FeatureExtractor } from "./feature-extractor";

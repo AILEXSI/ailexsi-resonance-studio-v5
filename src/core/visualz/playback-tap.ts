@@ -5,7 +5,7 @@
  * the host must use the synthetic 120 BPM AudioFeatures fallback.
  */
 
-import { createFeatureExtractor, type FeatureExtractor } from "./feature-extractor";
+import { createFeatureExtractor, isSilentEnergy, type FeatureExtractor } from "./feature-extractor";
 import type { AudioFeatures } from "./types";
 
 export const MIX_LANES = ["V1", "V2", "A1", "A2"] as const;
@@ -187,13 +187,16 @@ export function createPlaybackTap(
   };
 }
 
-/** Prefer live analyser when it has energy; otherwise keep the synthetic grid. */
+/**
+ * Prefer live analyser when it has energy. Visualz silence gate (`rms`/`bass`
+ * floors) counts as no-sound — caller supplies quiet features when the project
+ * audio path is active, or `featuresAt` only for an empty project.
+ */
 export function preferLiveFeatures(
   live: AudioFeatures | null | undefined,
   fallback: AudioFeatures,
 ): AudioFeatures {
   if (!live) return fallback;
-  const energy = live.rms + live.bass + live.mid + live.treble;
-  if (energy < 0.02 && !live.onset) return fallback;
+  if (isSilentEnergy(live.rms, live.bass) && !live.onset) return fallback;
   return live;
 }

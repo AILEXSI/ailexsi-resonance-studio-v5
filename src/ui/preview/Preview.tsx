@@ -6,6 +6,7 @@ import {
   isTrackAudible,
   mixClipsAt,
   projectDurationMs,
+  projectHasMixAudio,
   sourceTimeAt,
   topVideoClipAt,
   trackPanOf,
@@ -80,7 +81,8 @@ export function Preview({ project, playing, onLevels }: Props) {
     ? project.assets.find((a) => a.id === analysisClip.assetId)
     : undefined;
   const analysisUrl = analysisAsset?.objectUrl;
-  const audioLoaded = mixClips.length > 0 || Boolean(analysisClip);
+  const audioLoaded = projectHasMixAudio(project);
+  const hasClipAtPlayhead = mixClips.length > 0 || Boolean(analysisClip);
 
   useEffect(() => {
     if (!analysisUrl || !isPlayableSource(analysisUrl)) {
@@ -285,7 +287,7 @@ export function Preview({ project, playing, onLevels }: Props) {
       } catch {
         live = null;
       }
-      const mix = mixPcmRef.current;
+      const mix = analysisClip ? mixPcmRef.current : null;
       const featureTimeMs =
         mix && analysisClip ? sourceTimeAt(analysisClip, project.playheadMs) : project.playheadMs;
       const features = visFeaturesForPreview({
@@ -294,6 +296,7 @@ export function Preview({ project, playing, onLevels }: Props) {
         mix,
         live,
         audioLoaded,
+        hasClipAtPlayhead,
       });
       const sceneId = sceneAt(project, project.playheadMs) ?? project.visualizer.sceneId;
       renderVisualizerScene(ctx, canvas.width, canvas.height, sceneId, features, dt);
@@ -307,7 +310,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     const ro = new ResizeObserver(() => paint(0));
     ro.observe(target);
     return () => ro.disconnect();
-  }, [showViz, project, mixReady, analysisClip, audioLoaded]);
+  }, [showViz, project, mixReady, analysisClip, audioLoaded, hasClipAtPlayhead]);
 
   const activeLabel = formatResolvedSource(picture);
 
