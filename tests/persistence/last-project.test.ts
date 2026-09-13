@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  dirFromPath,
   fileNameFromPath,
+  joinDirAndFile,
   lastProjectMissingStatus,
   lastProjectPayload,
   normalizeLastProjectPath,
@@ -13,6 +15,7 @@ import {
   sourcePathsOfAssets,
   tauriOpenProject,
   tauriSaveProject,
+  versionedSaveDefaultPath,
   type TauriProjectFs,
 } from "../../src/core/tauri-project-io";
 import { isTauriRuntime } from "../../src/core/tauri-runtime";
@@ -90,6 +93,16 @@ describe("last-project path normalize", () => {
       name: "ignored.json",
     });
     expect(fileNameFromPath("C:\\shows\\night.resonance.json")).toBe("night.resonance.json");
+    expect(dirFromPath("C:\\Users\\marti\\Untitled_Resonance.resonance.json")).toBe(
+      "C:\\Users\\marti",
+    );
+    expect(joinDirAndFile("C:\\Users\\marti", "Untitled_Resonance.v2.resonance.json")).toBe(
+      "C:\\Users\\marti\\Untitled_Resonance.v2.resonance.json",
+    );
+    expect(dirFromPath("/home/marti/Show.resonance.json")).toBe("/home/marti");
+    expect(joinDirAndFile("/home/marti", "Show.v1.resonance.json")).toBe(
+      "/home/marti/Show.v1.resonance.json",
+    );
   });
 
   it("missing-file status uses the project name, not a raw disk path", () => {
@@ -161,6 +174,37 @@ describe("autostart last-project", () => {
 });
 
 describe("tauri save/open last-path", () => {
+  it("Speichern unter defaultPath is the next .vN beside the last project", async () => {
+    expect(versionedSaveDefaultPath({ filename: "Untitled_Resonance.resonance.json" })).toBe(
+      "Untitled_Resonance.v1.resonance.json",
+    );
+    expect(
+      versionedSaveDefaultPath({
+        filename: "Untitled_Resonance.resonance.json",
+        lastPath: "C:\\Users\\marti\\Documents\\Untitled_Resonance.resonance.json",
+      }),
+    ).toBe("C:\\Users\\marti\\Documents\\Untitled_Resonance.v2.resonance.json");
+    let defaultPath = "";
+    const fs = mockFs({
+      async saveDialog(opts) {
+        defaultPath = opts.defaultPath ?? "";
+        return defaultPath;
+      },
+      async writeText() {
+        /* project json */
+      },
+    });
+    const result = await tauriSaveProject(fs, {
+      json: "{}",
+      filename: "Untitled_Resonance.resonance.json",
+      lastPath: "C:\\Users\\marti\\Documents\\Untitled_Resonance.resonance.json",
+      forcePicker: true,
+    });
+    expect(defaultPath).toBe("C:\\Users\\marti\\Documents\\Untitled_Resonance.v2.resonance.json");
+    expect(defaultPath).not.toMatch(/\(\d+\)/);
+    expect("cancelled" in result).toBe(false);
+  });
+
   it("writes last-project.json after a successful save", async () => {
     const fs = mockFs({
       async saveDialog() {
