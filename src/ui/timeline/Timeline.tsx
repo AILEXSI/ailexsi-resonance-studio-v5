@@ -769,6 +769,7 @@ export function Timeline({
     video: DEFAULT_LANE_HEIGHT_PX,
     audio: DEFAULT_LANE_HEIGHT_PX,
   };
+  const visHeaderInline = laneHeaderPacksInline(heights.vis);
 
   const onLaneLabelSplitterDown = (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
@@ -1069,13 +1070,15 @@ export function Timeline({
       </div>
       <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "auto" }}>
       <div
-        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}`}
+        className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}${visHeaderInline ? " lane-header-compact" : ""}`}
         data-testid="lane-VIS"
+        data-header-pack={visHeaderInline ? "inline" : "stack"}
         style={{ height: heights.vis }}
       >
         <div
           className="lane-label"
           data-testid="lane-label-VIS"
+          data-header-pack={visHeaderInline ? "inline" : "stack"}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest("button")) return;
             onSelectVis?.();

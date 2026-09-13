@@ -782,7 +782,7 @@ body.media-asset-dragging .project-overlay-drawer {
   cursor: e-resize;
 }
 .lane-ms { display: flex; gap: 2px; }
-/* Compact V/A headers: name + M/S in one row so M/S stay clickable. */
+/* Compact V/A/VIS headers: name + chrome in one row so M/S/scene stay clickable. */
 .lane.lane-header-compact .lane-label {
   flex-direction: row;
   align-items: center;
@@ -800,18 +800,21 @@ body.media-asset-dragging .project-overlay-drawer {
 .lane.lane-header-compact .track-front-btn {
   padding-block: 0;
 }
-.lane.lane-header-compact .lane-ms {
+.lane.lane-header-compact .lane-ms,
+.lane.lane-header-compact .vis-lane-btns {
   flex: 0 0 auto;
 }
 .lane.lane-header-compact .mute-btn,
-.lane.lane-header-compact .solo-btn {
+.lane.lane-header-compact .solo-btn,
+.lane.lane-header-compact .scene-btn {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
   padding: 0 4px;
 }
 @container lane (max-height: 45px) {
-  .lane-label:has(.lane-ms) {
+  .lane-label:has(.lane-ms),
+  .lane-label:has(.vis-lane-btns) {
     flex-direction: row;
     align-items: center;
     justify-content: center;
@@ -821,6 +824,7 @@ body.media-asset-dragging .project-overlay-drawer {
     min-height: 0;
   }
   .lane-label:has(.lane-ms) > span,
+  .lane-label:has(.vis-lane-btns) > span,
   .lane-label:has(.lane-ms) .track-front-btn {
     flex: 0 1 auto;
     min-width: 0;
@@ -828,11 +832,14 @@ body.media-asset-dragging .project-overlay-drawer {
   .lane-label:has(.lane-ms) .track-front-btn {
     padding-block: 0;
   }
-  .lane-label:has(.lane-ms) .lane-ms {
+  .lane-label:has(.lane-ms) .lane-ms,
+  .lane-label:has(.vis-lane-btns) .vis-lane-btns {
     flex: 0 0 auto;
   }
   .lane-label:has(.lane-ms) .mute-btn,
-  .lane-label:has(.lane-ms) .solo-btn {
+  .lane-label:has(.lane-ms) .solo-btn,
+  .lane-label:has(.vis-lane-btns) .mute-btn,
+  .lane-label:has(.vis-lane-btns) .scene-btn {
     position: relative;
     z-index: 1;
     flex-shrink: 0;

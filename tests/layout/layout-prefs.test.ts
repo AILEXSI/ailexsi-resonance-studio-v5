@@ -137,7 +137,7 @@ describe("layout prefs", () => {
     expect(loadLaneHeights(store)).toEqual({ vis: 40, video: 80, audio: 120 });
   });
 
-  it("packs V/A headers inline below the stacked name + M/S threshold", () => {
+  it("packs V/A/VIS headers inline below the stacked name + chrome threshold", () => {
     expect(LANE_HEADER_STACK_MIN_PX).toBeGreaterThan(LANE_HEIGHT_MIN_PX);
     expect(LANE_HEADER_STACK_MIN_PX).toBeLessThanOrEqual(DEFAULT_LANE_HEIGHT_PX);
     expect(laneHeaderPacksInline(LANE_HEIGHT_MIN_PX)).toBe(true);

@@ -43,6 +43,9 @@ describe("lane header chrome", () => {
       laneHeights?: LaneHeights;
       onToggleMute?: (id: TrackId) => void;
       onToggleSolo?: (id: TrackId) => void;
+      onToggleVisualizerMute?: () => void;
+      onCycleVisualizerScene?: () => void;
+      onSelectVis?: () => void;
     } = {},
   ) {
     const project = projectWith(
@@ -70,8 +73,9 @@ describe("lane header chrome", () => {
           onToggleSolo={extras.onToggleSolo ?? ((_id: TrackId) => {})}
           selectedTrackIds={extras.selectedTrackIds}
           onSelectTrack={extras.onSelectTrack}
-          onToggleVisualizerMute={noop}
-          onCycleVisualizerScene={noop}
+          onToggleVisualizerMute={extras.onToggleVisualizerMute ?? noop}
+          onCycleVisualizerScene={extras.onCycleVisualizerScene ?? noop}
+          onSelectVis={extras.onSelectVis}
           onSplitHere={() => {}}
           onCut={noop}
           onCopy={noop}
@@ -100,7 +104,7 @@ describe("lane header chrome", () => {
     expect(host!.querySelector("[data-testid=lane-height-VIS]")).toBeTruthy();
     expect(host!.querySelector("[data-testid=lane-height-V1]")).toBeTruthy();
     expect(host!.querySelector(".lane-label")).toBeTruthy();
-    for (const id of ["V1", "V2", "A1", "A2"] as const) {
+    for (const id of ["VIS", "V1", "V2", "A1", "A2"] as const) {
       expect(host!.querySelector(`[data-testid=lane-${id}]`)!.getAttribute("data-header-pack")).toBe("stack");
     }
   });
@@ -191,5 +195,49 @@ describe("lane header chrome", () => {
     expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("stack");
     expect(host!.querySelector("[data-testid=mute-A1]")).toBeTruthy();
     expect(host!.querySelector("[data-testid=solo-A2]")).toBeTruthy();
+  });
+
+  it("packs VIS M/scene beside the name at the shortest vis height", () => {
+    let muteVis = 0;
+    let cycleScene = 0;
+    let selectVis = 0;
+    mount({
+      laneHeights: {
+        vis: LANE_HEIGHT_MIN_PX,
+        video: DEFAULT_LANE_HEIGHT_PX,
+        audio: DEFAULT_LANE_HEIGHT_PX,
+      },
+      onToggleVisualizerMute: () => {
+        muteVis += 1;
+      },
+      onCycleVisualizerScene: () => {
+        cycleScene += 1;
+      },
+      onSelectVis: () => {
+        selectVis += 1;
+      },
+    });
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-label-VIS]")!.getAttribute("data-header-pack")).toBe("inline");
+    expect(host!.querySelector("[data-testid=lane-VIS]")!.className).toContain("lane-header-compact");
+    expect(host!.querySelector("[data-testid=lane-V1]")!.getAttribute("data-header-pack")).toBe("stack");
+    expect(host!.querySelector("[data-testid=lane-A1]")!.getAttribute("data-header-pack")).toBe("stack");
+    const scene = host!.querySelector("[data-testid=visualizer-scene]") as HTMLButtonElement;
+    expect(scene.textContent).toBe("Wave");
+
+    act(() => {
+      (host!.querySelector("[data-testid=mute-VIS]") as HTMLButtonElement).click();
+      scene.click();
+    });
+    expect(muteVis).toBe(1);
+    expect(cycleScene).toBe(1);
+    expect(selectVis).toBe(0);
+
+    act(() => {
+      (host!.querySelector("[data-testid=lane-label-VIS]") as HTMLElement).dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    expect(selectVis).toBe(1);
   });
 });
