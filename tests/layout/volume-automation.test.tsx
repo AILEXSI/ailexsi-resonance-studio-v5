@@ -96,7 +96,10 @@ describe("volume automation lane chrome", () => {
     const toggled: string[] = [];
     mount(createEmptyProject(), { onToggle: (id) => toggled.push(id) });
     expect(host!.querySelector('[data-testid="volume-lane-A1"]')).toBeNull();
-    expect(host!.querySelector('[data-testid="volume-lane-toggle-A1"]')).toBeTruthy();
+    const toggle = host!.querySelector('[data-testid="volume-lane-toggle-A1"]') as HTMLButtonElement;
+    expect(toggle).toBeTruthy();
+    expect(toggle.textContent).toBe("VOL");
+    expect(toggle.getAttribute("aria-label")).toBe("Show volume automation");
     expect(host!.querySelector('[data-testid="volume-lane-toggle-V1"]')).toBeNull();
     act(() => {
       (host!.querySelector('[data-testid="volume-lane-toggle-A1"]') as HTMLButtonElement).click();

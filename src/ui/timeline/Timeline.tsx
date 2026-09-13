@@ -1602,6 +1602,7 @@ export function Timeline({
                   type="button"
                   className={openVolumeLaneIds?.includes(id) ? "active volume-lane-btn" : "volume-lane-btn"}
                   title={openVolumeLaneIds?.includes(id) ? "Hide volume automation" : "Show volume automation"}
+                  aria-label={openVolumeLaneIds?.includes(id) ? "Hide volume automation" : "Show volume automation"}
                   data-testid={`volume-lane-toggle-${id}`}
                   aria-pressed={openVolumeLaneIds?.includes(id) ? true : false}
                   onClick={(e) => {
@@ -1609,7 +1610,7 @@ export function Timeline({
                     onToggleVolumeLane(id);
                   }}
                 >
-                  V
+                  VOL
                 </button>
               ) : null}
               </div>

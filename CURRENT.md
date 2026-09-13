@@ -116,7 +116,7 @@ Collapse does **not** change playback, mute/solo, volume, pan, routing, or expor
 ### What shipped
 
 - Model: `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }` on audio tracks. Linear gain internally (1 = 0 dB). `schemaVersion` stays **5**. Missing field = identity (exact prior mix).
-- Lane: per-track **V** toggle opens a Volume sub-lane (UI state in `resonance-studio-v5-volume-lane-open`). Clip-lane height is unchanged. Same project-time axis as clips (zoom / pan / Follow / scroll). Chapter collapse hides child automation with the tracks.
+- Lane: per-track **VOL** toggle opens a Volume sub-lane (UI state in `resonance-studio-v5-volume-lane-open`). Clip-lane height is unchanged. Same project-time axis as clips (zoom / pan / Follow / scroll). Chapter collapse hides child automation with the tracks.
 - Editing: click empty lane to create; drag H/V; Delete / double-click to remove. Linear interpolation only. Clamp / reject NaN / Infinity.
 - Playback: `effective = clipGain × staticTrackVolume × automationValueAt(t)` (+ existing master / mute / fades). Empty or disabled = prior behavior. Points stay when disabled.
 - Mixer: static fader stays static. Ghost + dB readout of `static × automation` while the envelope is active. No Write Automation.
@@ -144,7 +144,7 @@ Collapse does **not** change playback, mute/solo, volume, pan, routing, or expor
 Do **not** treat this Linux/agent pass as EXE proof. Operator: `npm run tauri:exe` from the G SHA, then:
 
 1. Import a WAV onto an audio track (or stem-import).
-2. Click **V** on that audio header — Volume sub-lane opens under the clips; other tracks stay single-height.
+2. Click **VOL** on that audio header — Volume sub-lane opens under the clips; other tracks stay single-height.
 3. Click the lane to create points; drag horizontally (time) and vertically (volume). Readout in dB; 0 dB is the faint unity line.
 4. Draw a fade (e.g. 0 dB → −∞ or −12 dB). Play — audible level follows the envelope.
 5. Mixer: static fader stays where you left it; ghost / cyan readout follows the envelope. Moving the static fader still changes overall level (automation is a separate multiplier).
