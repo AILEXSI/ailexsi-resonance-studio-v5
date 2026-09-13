@@ -7,6 +7,8 @@ import { createEmptyProject } from "../../src/core/project";
 import {
   formatVisEventLabel,
   minVisEventDurationMs,
+  splitVisualizerAtPlayhead,
+  splitVisualizerEventAt,
   visualizerEventsOf,
 } from "../../src/core/visualizer";
 import { asset, clip, projectWith } from "../helpers";
@@ -178,5 +180,33 @@ describe("VIS event edit ops", () => {
     expect(visualizerEventsOf(next.project)).toHaveLength(1);
     expect(next.selectedVisEventId).toBe("ve1");
     expect(next.history.past.length).toBe(start.history.past.length);
+  });
+
+  it("split at playhead cuts a VIS event into two same-scene blocks", () => {
+    const start = visSession(
+      [{ id: "ve1", sceneId: "tunnel-spiral", startMs: 0, durationMs: 8000 }],
+      { playheadMs: 2500 },
+    );
+    const next = applyCommand(start, { type: "split" });
+    expect(next.error).toBeNull();
+    expect(next.status).toBe("Split at playhead");
+    const events = visualizerEventsOf(next.project).sort((a, b) => a.startMs - b.startMs);
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({ id: "ve1", sceneId: "tunnel-spiral", startMs: 0, durationMs: 2500 });
+    expect(events[1]).toMatchObject({ sceneId: "tunnel-spiral", startMs: 2500, durationMs: 5500 });
+    const undone = applyCommand(next, { type: "undo" });
+    expect(visualizerEventsOf(undone.project)).toEqual([
+      { id: "ve1", sceneId: "tunnel-spiral", startMs: 0, durationMs: 8000 },
+    ]);
+  });
+
+  it("splitVisualizerEventAt rejects cuts on the edge", () => {
+    const start = visSession([{ id: "ve1", sceneId: "aurora-veil", startMs: 1000, durationMs: 2000 }]);
+    const nearIn = splitVisualizerEventAt(start.project, "ve1", 1000);
+    expect(nearIn.error).toBe("Split too close to VIS event edge");
+    const nearOut = splitVisualizerEventAt(start.project, "ve1", 3000);
+    expect(nearOut.error).toBe("Split too close to VIS event edge");
+    const gap = splitVisualizerAtPlayhead({ ...start.project, playheadMs: 50 });
+    expect(gap.error).toBe("No VIS event under playhead");
   });
 });

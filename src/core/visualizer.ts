@@ -564,6 +564,108 @@ export function deleteVisualizerEvent(project: Project, eventId: string): Projec
   };
 }
 
+/** Fallback VIS-lane span when events/cues are empty (same paint as the window block). */
+export function visLaneSpanMs(project: Project): { startMs: number; durationMs: number } {
+  const startMs = Math.max(0, roundVisMs(project.visualizer.startMs ?? 0));
+  const rawDur = project.visualizer.durationMs ?? 0;
+  const durationMs =
+    rawDur > 0 ? Math.max(1, roundVisMs(rawDur)) : Math.max(10_000, roundVisMs(projectDurationMs(project)));
+  return { startMs, durationMs };
+}
+
+function withVisualizerEvents(project: Project, events: VisualizerEvent[], cues?: VisualizerCue[]): Project {
+  return {
+    ...project,
+    visualizer: {
+      ...project.visualizer,
+      events,
+      ...(cues ? { cues } : {}),
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Cues → events, else the window/fallback span as one event. No-op when events already exist. */
+export function materializeVisualizerEvents(project: Project): Project {
+  if (visualizerEventsOf(project).length > 0) return project;
+  const cues = cuesOf(project);
+  if (cues.length > 0) {
+    return withVisualizerEvents(project, rematerializeEventsFromCues(project, cues), cues);
+  }
+  const span = visLaneSpanMs(project);
+  if (span.durationMs < minVisEventDurationMs()) return project;
+  return withVisualizerEvents(project, [
+    {
+      id: createId("ve"),
+      sceneId: project.visualizer.sceneId,
+      startMs: span.startMs,
+      durationMs: span.durationMs,
+    },
+  ]);
+}
+
+export function splitVisualizerEventAt(
+  project: Project,
+  eventId: string,
+  timeMs: number,
+  edgeGuardMs = minVisEventDurationMs(),
+): { project: Project; leftId?: string; rightId?: string; error?: string } {
+  const event = visualizerEventsOf(project).find((e) => e.id === eventId);
+  if (!event) return { project, error: "VIS event not found" };
+  const t = Math.max(0, roundVisMs(timeMs));
+  const offset = t - event.startMs;
+  const min = Math.max(minVisEventDurationMs(), Math.round(edgeGuardMs));
+  if (offset < min || event.durationMs - offset < min) {
+    return { project, error: "Split too close to VIS event edge" };
+  }
+  const left: VisualizerEvent = { ...event, durationMs: offset };
+  const right: VisualizerEvent = {
+    ...event,
+    id: createId("ve"),
+    startMs: t,
+    durationMs: event.durationMs - offset,
+  };
+  const events = visualizerEventsOf(project).flatMap((e) => (e.id === eventId ? [left, right] : [e]));
+  const cues = cuesOf(project);
+  return {
+    project: withVisualizerEvents(
+      project,
+      events,
+      cues.length > 0 ? upsertCueList(cues, t, event.sceneId) : undefined,
+    ),
+    leftId: left.id,
+    rightId: right.id,
+  };
+}
+
+/** Split every VIS event covering the playhead. Materializes cues/window first. */
+export function splitVisualizerAtPlayhead(
+  project: Project,
+  edgeGuardMs = minVisEventDurationMs(),
+): { project: Project; error?: string } {
+  const prepared = materializeVisualizerEvents(project);
+  const t = Math.max(0, roundVisMs(prepared.playheadMs));
+  const hits = visualizerEventsOf(prepared).filter((event) => visualizerEventCovers(event, t));
+  if (hits.length === 0) {
+    return { project, error: "No VIS event under playhead" };
+  }
+  let next = prepared;
+  let splitAny = false;
+  let lastError: string | undefined;
+  for (const event of hits) {
+    const current = visualizerEventsOf(next).find((e) => e.id === event.id);
+    if (!current) continue;
+    const result = splitVisualizerEventAt(next, current.id, t, edgeGuardMs);
+    if (result.error) lastError = result.error;
+    else {
+      next = result.project;
+      splitAny = true;
+    }
+  }
+  if (!splitAny) return { project, error: lastError ?? "Split rejected" };
+  return { project: next };
+}
+
 export function visEventClipboardOf(event: VisualizerEvent): VisEventClipboard {
   return { sceneId: event.sceneId, durationMs: Math.max(1, roundVisMs(event.durationMs)) };
 }

@@ -110,6 +110,7 @@ import {
   moveVisualizerEvent,
   pasteVisualizerEvent,
   setVisualizer,
+  splitVisualizerAtPlayhead,
   stretchVisualizerEvent,
   toggleVisualizerMute,
   updateVisualizerEvent,
@@ -650,7 +651,12 @@ export function applySelectTracks(
 
 export function applySplit(session: Session): Session {
   if (visEventFocused(session) && selectionOf(session).length === 0) {
-    return { ...session, status: "Split", error: null };
+    const result = splitVisualizerAtPlayhead(session.project);
+    if (result.error) return { ...session, error: result.error, status: "Split rejected" };
+    return {
+      ...withHistory(session, result.project, "Split at playhead"),
+      selectedVis: true,
+    };
   }
   const trackIds = new Set(activeEditTrackIds(session));
   if (trackIds.size === 0) {
@@ -1421,6 +1427,7 @@ export function applySelectVis(session: Session): Session {
     selectedVis: true,
     selectedVisEventId: null,
     selectedVisEventIds: [],
+    selectedTrackIds: [],
     selectionAnchorClipId: null,
   };
 }
@@ -1436,6 +1443,7 @@ export function applySelectVisEvent(session: Session, eventId: string): Session 
     selectedVis: true,
     selectedVisEventId: event.id,
     selectedVisEventIds: [event.id],
+    selectedTrackIds: [],
     selectionAnchorClipId: null,
   };
 }
