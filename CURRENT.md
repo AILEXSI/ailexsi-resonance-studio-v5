@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `314deff` — README-Stamp nach PR #3 (`e14d7af`). Nicht forcieren. |
-| Branch | `cursor/remove-wav-move-help-0258` (PR #5) — SHA nach Docs-Commit |
+| Branch | `cursor/remove-wav-move-help-0258` (PR #5) @ `a5113d7` (`a5113d749ccd66a281bb0a169a452f8a7cfea990`) |
 | Base | Menu-polish PR #4 (`cursor/menu-polish-2bc0` @ `6423bd4`) liegt unter diesem Branch |
 | Live-UI | Human-approved Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png` |
 | Start Dev | `npm run web:dev` **oder** `npx tauri dev` auf `127.0.0.1:1421` (`beforeDevCommand` = `web:dev`) |

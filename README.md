@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/remove-wav-move-help-0258` (PR #5). Base enthält Menu-polish aus PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/remove-wav-move-help-0258` (PR #5) @ `a5113d7`. Base enthält Menu-polish aus PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`.
 
 Live-UI (Human-approved, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -68,7 +68,7 @@ Help (`?`) sitzt auf der Play-Zeile, nicht in der Top bar.
 
 ## Fuer Bots
 
-Basis: PR #5 auf `cursor/remove-wav-move-help-0258`, Menu-polish PR #4 darunter, Version 5.0.0.
+Basis: PR #5 auf `cursor/remove-wav-move-help-0258` @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen.
 Chrome dieser Revision: Top bar ohne WAV/Help/Undo/Redo/Split/Snap; Help auf Transport.
 Nächster Slice: Exe zu/auf nach Relink+Save (keine missing-Parade), dann nächste Produktkante.
