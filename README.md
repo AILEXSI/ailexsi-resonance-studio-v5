@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/vis-silence-gate-d1d3` @ `57bfa85` (docs nach Human-verified local exe `0df5da1` — A Follow, B audio VIS + silence gate, C Loop-off). Close-out Tip → `main` (`314deff` nach PR #3). Kein Force-Push auf `main`. AUTO und Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: `main` @ `c0392f0` (Merge PR #9). Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe `0df5da1`). Kein Force-Push auf `main`. AUTO und Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -100,7 +100,7 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 
 ## Fuer Bots
 
-Basis: `cursor/vis-silence-gate-d1d3` @ `57bfa85` (exe `0df5da1`), Version 5.0.0. Close-out Tip → `main`.
+Basis: `main` @ `c0392f0` (PR #9, exe `0df5da1`), Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A. Speichern unter picker.
 A Follow: HUMAN-VERIFIED — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
