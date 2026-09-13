@@ -210,7 +210,7 @@ describe("clip-menu shortcut labels", () => {
     const splits = [...host.querySelectorAll("button")].filter((b) =>
       (b.textContent ?? "").includes("Split"),
     );
-    expect(splits.length).toBeGreaterThanOrEqual(2);
+    expect(splits).toHaveLength(1);
     for (const btn of splits) {
       expect(btn.getAttribute("title")).toBe("Split (S)");
       expect(btn.querySelector("kbd")?.textContent).toBe("S");

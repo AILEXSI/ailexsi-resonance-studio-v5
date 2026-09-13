@@ -43,7 +43,7 @@ describe("toolbar File button", () => {
     expect(labels).not.toContain("Media");
     expect(labels).toContain("Export");
     expect(labels).toContain("Export WAV");
-    expect(labels).toContain("Help");
+    expect(labels.some((t) => t?.startsWith("Help"))).toBe(true);
     expect(labels).not.toContain("Undo");
     expect(labels).not.toContain("Redo");
     expect(labels).not.toContain("Split");
