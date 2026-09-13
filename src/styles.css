@@ -782,6 +782,35 @@ body.media-asset-dragging .project-overlay-drawer {
   cursor: e-resize;
 }
 .lane-ms { display: flex; gap: 2px; }
+.lane-audio-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.lane-audio-count-btn {
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(238, 242, 247, 0.22);
+  background: rgba(16, 20, 27, 0.45);
+  color: #c5cdd8;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lane-audio-count-btn:hover:not(:disabled) {
+  border-color: rgba(238, 242, 247, 0.4);
+  background: rgba(29, 36, 48, 0.7);
+}
+.lane-audio-count-btn:disabled {
+  opacity: 0.35;
+}
 /* Compact V/A/VIS headers: name + chrome in one row so M/S/scene stay clickable. */
 .lane.lane-header-compact .lane-label {
   flex-direction: row;
@@ -801,6 +830,7 @@ body.media-asset-dragging .project-overlay-drawer {
   padding-block: 0;
 }
 .lane.lane-header-compact .lane-ms,
+.lane.lane-header-compact .lane-audio-count,
 .lane.lane-header-compact .vis-lane-btns {
   flex: 0 0 auto;
 }
@@ -811,6 +841,12 @@ body.media-asset-dragging .project-overlay-drawer {
   z-index: 1;
   flex-shrink: 0;
   padding: 0 4px;
+}
+.lane.lane-header-compact .lane-audio-count-btn {
+  width: 13px;
+  height: 13px;
+  min-width: 13px;
+  font-size: 10px;
 }
 @container lane (max-height: 45px) {
   .lane-label:has(.lane-ms),
@@ -833,6 +869,7 @@ body.media-asset-dragging .project-overlay-drawer {
     padding-block: 0;
   }
   .lane-label:has(.lane-ms) .lane-ms,
+  .lane-label:has(.lane-ms) .lane-audio-count,
   .lane-label:has(.vis-lane-btns) .vis-lane-btns {
     flex: 0 0 auto;
   }

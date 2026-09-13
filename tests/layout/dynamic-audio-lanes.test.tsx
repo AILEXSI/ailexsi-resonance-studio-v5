@@ -45,37 +45,33 @@ describe("dynamic audio lane chrome", () => {
   let host: HTMLDivElement | undefined;
   let root: Root | undefined;
 
-  afterEach(() => {
-    act(() => {
-      root?.unmount();
-    });
-    host?.remove();
-    host = undefined;
-    root = undefined;
-  });
-
-  it("reuses the A-lane template for extra tracks and scrolls lanes + mixer independently", () => {
-    const added = addAudioTrack(createEmptyProject());
-    const a3 = added.track!;
+  function mountTimeline(
+    project: ReturnType<typeof createEmptyProject>,
+    opts: {
+      canAdd?: boolean;
+      canRemove?: boolean;
+      onAdd?: () => void;
+      onRemove?: () => void;
+    } = {},
+  ) {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
-    const addedCalls: string[] = [];
     act(() => {
       root!.render(
         <div className="lower-stage" style={{ height: 240 }}>
           <div className="arrange-row" data-testid="arrange-row" style={{ overflow: "hidden" }}>
             <Timeline
-              project={added.project}
+              project={project}
               {...timelineNoops()}
-              onAddAudioTrack={() => addedCalls.push("add")}
-              onRemoveAudioTrack={() => addedCalls.push("remove")}
-              canAddAudioTrack
-              canRemoveAudioTrack
+              onAddAudioTrack={opts.onAdd ?? (() => undefined)}
+              onRemoveAudioTrack={opts.onRemove ?? (() => undefined)}
+              canAddAudioTrack={opts.canAdd ?? true}
+              canRemoveAudioTrack={opts.canRemove ?? false}
             />
             <Mixer
-              project={added.project}
-              selectedTrackId={a3.id}
+              project={project}
+              selectedTrackId="A1"
               peaks={silentPeaks}
               onSelectTrack={noop}
               onVolume={noop}
@@ -87,10 +83,32 @@ describe("dynamic audio lane chrome", () => {
         </div>,
       );
     });
+  }
 
-    const lanes = host.querySelector('[data-testid="timeline-lanes"]') as HTMLElement;
-    const a1 = host.querySelector('[data-testid="lane-A1"]') as HTMLElement;
-    const extra = host.querySelector(`[data-testid="lane-${a3.id}"]`) as HTMLElement;
+  afterEach(() => {
+    act(() => {
+      root?.unmount();
+    });
+    host?.remove();
+    host = undefined;
+    root = undefined;
+  });
+
+  it("reuses the A-lane template; +/− live on the last audio header, not next to Fit", () => {
+    const added = addAudioTrack(createEmptyProject());
+    const a3 = added.track!;
+    const addedCalls: string[] = [];
+    mountTimeline(added.project, {
+      canAdd: true,
+      canRemove: true,
+      onAdd: () => addedCalls.push("add"),
+      onRemove: () => addedCalls.push("remove"),
+    });
+
+    const lanes = host!.querySelector('[data-testid="timeline-lanes"]') as HTMLElement;
+    const tools = host!.querySelector(".timeline-tools") as HTMLElement;
+    const a1 = host!.querySelector('[data-testid="lane-A1"]') as HTMLElement;
+    const extra = host!.querySelector(`[data-testid="lane-${a3.id}"]`) as HTMLElement;
     expect(a1).toBeTruthy();
     expect(extra).toBeTruthy();
     expect(extra.className).toContain("audio-lane");
@@ -104,18 +122,56 @@ describe("dynamic audio lane chrome", () => {
     const lanesOverflow = lanes.style.overflowY || getComputedStyle(lanes).overflowY;
     expect(lanesOverflow === "scroll" || lanesOverflow === "auto").toBe(true);
 
-    const mixScroll = host.querySelector('[data-testid="mixer-channel-scroll"]') as HTMLElement;
+    expect(tools.textContent).not.toContain("+A");
+    expect(tools.textContent).not.toContain("−A");
+    expect(tools.querySelector('[data-testid="add-audio-track"]')).toBeNull();
+    expect(tools.querySelector('[data-testid="remove-audio-track"]')).toBeNull();
+    expect(a1.querySelector('[data-testid="add-audio-track"]')).toBeNull();
+    expect(a1.querySelector('[data-testid="lane-audio-count-A1"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="lane-A2"]')!.querySelector('[data-testid="add-audio-track"]')).toBeNull();
+
+    const add = extra.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement;
+    const remove = extra.querySelector('[data-testid="remove-audio-track"]') as HTMLButtonElement;
+    expect(add).toBeTruthy();
+    expect(remove).toBeTruthy();
+    expect(add.className).toContain("lane-audio-count-btn");
+    expect(remove.className).toContain("lane-audio-count-btn");
+    expect(add.textContent).toBe("+");
+    expect(remove.textContent).toBe("−");
+    expect(add.disabled).toBe(false);
+
+    const mixScroll = host!.querySelector('[data-testid="mixer-channel-scroll"]') as HTMLElement;
     expect(mixScroll).toBeTruthy();
-    expect(host.querySelector('[data-testid="mix-A1"]')).toBeTruthy();
-    expect(host.querySelector(`[data-testid="mix-${a3.id}"]`)).toBeTruthy();
-    expect(host.querySelector('[data-testid="mix-master"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="mix-A1"]')).toBeTruthy();
+    expect(host!.querySelector(`[data-testid="mix-${a3.id}"]`)).toBeTruthy();
+    expect(host!.querySelector('[data-testid="mix-master"]')).toBeTruthy();
     const mixOverflow = getComputedStyle(mixScroll).overflowX || mixScroll.style.overflowX;
     expect(mixOverflow === "auto" || mixOverflow === "scroll").toBe(true);
 
     act(() => {
-      (host!.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement).click();
-      (host!.querySelector('[data-testid="remove-audio-track"]') as HTMLButtonElement).click();
+      add.click();
+      remove.click();
     });
     expect(addedCalls).toEqual(["add", "remove"]);
+  });
+
+  it("shows only + on the last audio header at the two-track floor", () => {
+    mountTimeline(createEmptyProject(), { canAdd: true, canRemove: false });
+    const a2 = host!.querySelector('[data-testid="lane-A2"]') as HTMLElement;
+    expect(a2.querySelector('[data-testid="add-audio-track"]')).toBeTruthy();
+    expect(a2.querySelector('[data-testid="remove-audio-track"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="lane-A1"]')!.querySelector('[data-testid="add-audio-track"]')).toBeNull();
+    expect(
+      (a2.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
+  it("disables + at the 64-track cap on the last audio header", () => {
+    const added = addAudioTrack(createEmptyProject());
+    mountTimeline(added.project, { canAdd: false, canRemove: true });
+    const extra = host!.querySelector(`[data-testid="lane-${added.track!.id}"]`) as HTMLElement;
+    const add = extra.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement;
+    expect(add.disabled).toBe(true);
+    expect(extra.querySelector('[data-testid="remove-audio-track"]')).toBeTruthy();
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   clipEndMs,
+  audioTrackIdsOf,
   clipIsLocked,
   isTrackId,
   kindOfTrack,
@@ -1015,28 +1016,6 @@ export function Timeline({
         <button type="button" data-testid="timeline-fit" onClick={() => onFit(measureWidth())}>
           Fit
         </button>
-        {onAddAudioTrack ? (
-          <button
-            type="button"
-            data-testid="add-audio-track"
-            title="Add audio track"
-            disabled={canAddAudioTrack === false}
-            onClick={() => onAddAudioTrack()}
-          >
-            +A
-          </button>
-        ) : null}
-        {onRemoveAudioTrack ? (
-          <button
-            type="button"
-            data-testid="remove-audio-track"
-            title="Remove audio track"
-            disabled={canRemoveAudioTrack === false}
-            onClick={() => onRemoveAudioTrack()}
-          >
-            −A
-          </button>
-        ) : null}
         <span className="timeline-zoom">
           {project.zoomPxPerSec < 10
             ? project.zoomPxPerSec.toFixed(1)
@@ -1261,7 +1240,12 @@ export function Timeline({
           onPointerDown={(e) => onLaneHeightPointerDown(e, "vis")}
         />
       </div>
-      {(visibleTrackIds ?? trackIdsOf(project)).map((id) => {
+      {(() => {
+        const visibleIds = visibleTrackIds ?? trackIdsOf(project);
+        const lastVisibleAudio = audioTrackIdsOf(project)
+          .filter((laneId) => visibleIds.includes(laneId))
+          .at(-1);
+        return visibleIds.map((id) => {
         const track = trackById(project, id);
         const muted = track?.muted === true;
         const soloed = track?.solo === true;
@@ -1269,6 +1253,9 @@ export function Timeline({
         const kind = track?.kind ?? kindOfTrack(id);
         const label = track?.name || id;
         const headerInline = laneHeaderPacksInline(heights[group]);
+        const isLastAudio = kind === "audio" && id === lastVisibleAudio;
+        const showAudioAdd = Boolean(isLastAudio && onAddAudioTrack);
+        const showAudioRemove = Boolean(isLastAudio && onRemoveAudioTrack && canRemoveAudioTrack);
         return (
           <div
             className={`lane ${kind}-lane${muted ? " muted" : ""}${soloed ? " soloed" : ""}${selectedTrackIds?.includes(id) ? " track-selected" : ""}${headerInline ? " lane-header-compact" : ""}`}
@@ -1329,6 +1316,39 @@ export function Timeline({
                 S
               </button>
               </div>
+              {showAudioAdd || showAudioRemove ? (
+                <div className="lane-audio-count" data-testid={`lane-audio-count-${id}`}>
+                  {showAudioAdd ? (
+                    <button
+                      type="button"
+                      className="lane-audio-count-btn"
+                      data-testid="add-audio-track"
+                      title="Add audio track"
+                      disabled={canAddAudioTrack === false}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddAudioTrack?.();
+                      }}
+                    >
+                      +
+                    </button>
+                  ) : null}
+                  {showAudioRemove ? (
+                    <button
+                      type="button"
+                      className="lane-audio-count-btn"
+                      data-testid="remove-audio-track"
+                      title="Remove audio track"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveAudioTrack?.();
+                      }}
+                    >
+                      −
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div
               className="lane-body"
@@ -1521,7 +1541,8 @@ export function Timeline({
             />
           </div>
         );
-      })}
+        });
+      })()}
       </div>
       {marquee ? (
         <div

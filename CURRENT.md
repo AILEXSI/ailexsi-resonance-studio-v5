@@ -24,7 +24,7 @@ Ein Blick. Kein Wunschzettel.
 | Help overlay | Scrollbares 2-Spalten-Sheet (`?` / Help). `max-height` Viewport (`dvh`/`vh`), sticky Header, innerer Scroll — passt ins maximierte Fenster. |
 | S / Split | Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / audio collection. Multi-Select OK. Linked Mates auf anderen Tracks werden **nicht** mitgeschnitten. |
 | VIS S-cut | **Human-verified.** S teilt VIS-Events / Cues / Window am Playhead, wenn VIS fokussiert ist (Header oder Event). V/A clips remain whole. |
-| Dynamic audio | **D TEST-VERIFIED.** Collection, not A1/A2 architecture. Capacity 64, created as needed (`+A` / `−A`). Stable ids; labels A1, A2, A3…. Legacy A1/A2 JSON loads. Lane template reused; `.timeline-lanes` vertical scroll; mixer channels scroll independently. **Live NOT VERIFIED.** |
+| Dynamic audio | **D TEST-VERIFIED.** Collection, not A1/A2 architecture. Capacity 64, created as needed. Small circular `+`/`−` on the **last** audio header (`−` hidden at floor 2, `+` disabled at 64). Stable ids; labels A1, A2, A3…. Legacy A1/A2 JSON loads. Lane template reused; `.timeline-lanes` vertical scroll; mixer channels scroll independently. **Live NOT VERIFIED.** |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill, z.B. Tunnel) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. Header/Event-Select blockiert den Seek nicht. Event-Drag unverändert. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
