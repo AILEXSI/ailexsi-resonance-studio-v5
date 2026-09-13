@@ -36,12 +36,11 @@ export const MIXER_COLLAPSED_PX = 56;
 /** Expanded mixer: MST + ≥1 channel peek + chrome. Never 0. */
 export const MIXER_MIN_PX = 120;
 /**
- * Absolute ceiling when arrange width is unknown (persist/load).
- * Live max is arrangeWidth − TIMELINE_MIN_PX so the divider can reach the
- * Follow-button region on a normal desktop (far past the old 560 cap).
+ * Persist/load fallback only — never used as the live drag cap.
+ * Live max is always arrangeWidth − TIMELINE_MIN_PX (Follow-region reachable).
  */
-export const MIXER_MAX_PX = 1800;
-/** Lane labels (~96) + a strip of clips. Non-zero; small enough for Follow-align. */
+export const MIXER_MAX_PX = 8192;
+/** Thin usable timeline (lane labels + a clip sliver). Divider can reach Follow. */
 export const TIMELINE_MIN_PX = 160;
 export const MIXER_SPLITTER_PX = 8;
 
@@ -92,14 +91,16 @@ export function saveMixerCollapsed(storage: StorageLike | null | undefined, coll
   }
 }
 
+export function mixerWidthMax(arrangeWidthPx?: number): number {
+  if (arrangeWidthPx != null && Number.isFinite(arrangeWidthPx) && arrangeWidthPx > 0) {
+    return Math.max(MIXER_MIN_PX, arrangeWidthPx - TIMELINE_MIN_PX);
+  }
+  return MIXER_MAX_PX;
+}
+
 export function clampMixerWidth(px: number, arrangeWidthPx?: number): number {
-  const maxByTimeline =
-    arrangeWidthPx != null && Number.isFinite(arrangeWidthPx) && arrangeWidthPx > 0
-      ? Math.max(MIXER_MIN_PX, arrangeWidthPx - TIMELINE_MIN_PX)
-      : MIXER_MAX_PX;
-  const max = Math.min(MIXER_MAX_PX, maxByTimeline);
   if (!Number.isFinite(px)) return MIXER_EXPANDED_PX;
-  return Math.round(Math.min(max, Math.max(MIXER_MIN_PX, px)));
+  return Math.round(Math.min(mixerWidthMax(arrangeWidthPx), Math.max(MIXER_MIN_PX, px)));
 }
 
 /** Left-edge divider: drag left → wider mixer; drag right → narrower. */

@@ -136,6 +136,7 @@ import {
   saveMixerCollapsed,
   saveMixerWidth,
   saveSplitRatio,
+  TIMELINE_MIN_PX,
   type LaneHeightGroup,
   type LaneHeights,
 } from "../core/layout-prefs";
@@ -1450,7 +1451,15 @@ export function App() {
         data-testid="arrange-row"
         data-mixer-width={mixerWidthPx}
         ref={arrangeRowRef}
-        style={{ overflow: "hidden", ["--mixer-width" as string]: `${mixerWidthPx}px` }}
+        style={{
+          overflow: "hidden",
+          ["--mixer-width" as string]: `${mixerWidthPx}px`,
+          ...(mixerCollapsed
+            ? {}
+            : {
+                gridTemplateColumns: `minmax(${TIMELINE_MIN_PX}px, 1fr) ${mixerWidthPx}px`,
+              }),
+        }}
       >
       <Timeline
         visibleTrackIds={tracksForScreen(screen, session.project)}

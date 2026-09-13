@@ -104,13 +104,16 @@ input[type="range"] { accent-color: var(--accent-2); }
 }
 .arrange-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--mixer-width, 228px);
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, var(--mixer-width, 228px));
   min-height: 200px;
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
   align-content: stretch;
   border-top: 1px solid var(--line);
+}
+.arrange-row > .timeline {
+  min-width: 0;
 }
 .arrange-row.mixer-collapsed {
   grid-template-columns: minmax(0, 1fr) 56px;

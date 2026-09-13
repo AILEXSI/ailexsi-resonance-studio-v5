@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { addAudioTrack } from "../../src/core/audio-tracks";
@@ -44,6 +44,7 @@ function timelineNoops() {
 describe("dynamic audio lane chrome", () => {
   let host: HTMLDivElement | undefined;
   let root: Root | undefined;
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
 
   function mountTimeline(
     project: ReturnType<typeof createEmptyProject>,
@@ -92,6 +93,7 @@ describe("dynamic audio lane chrome", () => {
     host?.remove();
     host = undefined;
     root = undefined;
+    Element.prototype.scrollIntoView = originalScrollIntoView;
   });
 
   it("reuses the A-lane template; +/− live on the last audio header, not next to Fit", () => {
@@ -173,5 +175,44 @@ describe("dynamic audio lane chrome", () => {
     const add = extra.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement;
     expect(add.disabled).toBe(true);
     expect(extra.querySelector('[data-testid="remove-audio-track"]')).toBeTruthy();
+  });
+
+  it("auto-scrolls the lane list to the new last audio header after +", () => {
+    const scrolled: string[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function () {
+      const id = (this as HTMLElement).getAttribute("data-testid");
+      if (id) scrolled.push(id);
+    };
+    function Harness() {
+      const [project, setProject] = useState(() => createEmptyProject());
+      return (
+        <div className="lower-stage" style={{ height: 160 }}>
+          <Timeline
+            project={project}
+            {...timelineNoops()}
+            onAddAudioTrack={() => setProject((p) => addAudioTrack(p).project)}
+            canAddAudioTrack
+            canRemoveAudioTrack
+          />
+        </div>
+      );
+    }
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(<Harness />);
+    });
+    const add = host.querySelector('[data-testid="add-audio-track"]') as HTMLButtonElement;
+    act(() => {
+      add.click();
+    });
+    const last = [...host.querySelectorAll(".audio-lane")].at(-1) as HTMLElement;
+    expect(last).toBeTruthy();
+    expect(last.querySelector('[data-testid="add-audio-track"]')).toBeTruthy();
+    expect(scrolled.some((id) => id === last.getAttribute("data-testid"))).toBe(true);
+    expect(scrolled.length).toBeGreaterThan(0);
+    Element.prototype.scrollIntoView = original;
   });
 });

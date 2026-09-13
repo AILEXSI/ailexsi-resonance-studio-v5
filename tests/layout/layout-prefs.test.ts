@@ -152,17 +152,21 @@ describe("layout prefs", () => {
     expect(MIXER_MAX_PX).toBeGreaterThan(MIXER_EXPANDED_PX);
     expect(clampMixerWidth(MIXER_EXPANDED_PX)).toBe(MIXER_EXPANDED_PX);
     expect(clampMixerWidth(0)).toBe(MIXER_MIN_PX);
-    expect(clampMixerWidth(4000)).toBe(MIXER_MAX_PX);
+    expect(clampMixerWidth(4000)).toBe(4000);
+    expect(clampMixerWidth(20_000)).toBe(MIXER_MAX_PX);
     expect(clampMixerWidth(Number.NaN)).toBe(MIXER_EXPANDED_PX);
     const tight = MIXER_MIN_PX + TIMELINE_MIN_PX + 80;
     expect(clampMixerWidth(MIXER_MAX_PX, tight)).toBe(tight - TIMELINE_MIN_PX);
     expect(clampMixerWidth(10, tight)).toBe(MIXER_MIN_PX);
-    const desktop = 1440;
-    const followRegion = clampMixerWidth(4000, desktop);
-    expect(followRegion).toBe(desktop - TIMELINE_MIN_PX);
-    expect(followRegion).toBeGreaterThan(560);
+    const desktop = 1920;
+    const followX = 400;
+    const atFollow = applyMixerWidthPointer({ clientX: followX, arrangeLeft: 0, arrangeWidth: desktop });
+    expect(atFollow.widthPx).toBe(desktop - followX);
+    expect(atFollow.widthPx).toBeGreaterThan(1000);
+    expect(clampMixerWidth(8000, desktop)).toBe(desktop - TIMELINE_MIN_PX);
+    expect(clampMixerWidth(8000, 1440)).toBe(1440 - TIMELINE_MIN_PX);
     expect(TIMELINE_MIN_PX).toBeGreaterThan(0);
-    expect(TIMELINE_MIN_PX).toBeLessThanOrEqual(180);
+    expect(TIMELINE_MIN_PX).toBeLessThanOrEqual(200);
   });
 
   it("left-edge mixer drag: left widens, right narrows; persist round-trips", () => {

@@ -266,6 +266,8 @@ export function Timeline({
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const lanesRef = useRef<HTMLDivElement>(null);
+  const audioCountRef = useRef(audioTrackIdsOf(project).length);
   const dragKindRef = useRef<
     | "move"
     | "trim"
@@ -312,6 +314,17 @@ export function Timeline({
   useEffect(() => {
     onViewport?.(viewWidth);
   }, [viewWidth, onViewport]);
+
+  const audioCount = audioTrackIdsOf(project).length;
+  useEffect(() => {
+    if (audioCount === audioCountRef.current) return;
+    audioCountRef.current = audioCount;
+    const lanes = lanesRef.current;
+    const lastId = audioTrackIdsOf(project).at(-1);
+    const last = lastId ? lanes?.querySelector<HTMLElement>(`[data-testid="lane-${lastId}"]`) : null;
+    last?.scrollIntoView({ block: "end", inline: "nearest" });
+    if (lanes) lanes.scrollTop = lanes.scrollHeight;
+  }, [audioCount, project]);
 
   const ticks = useMemo(
     () =>
@@ -1092,7 +1105,12 @@ export function Timeline({
           />
         </div>
       </div>
-      <div className="timeline-lanes" data-testid="timeline-lanes" style={{ overflowY: "scroll" }}>
+      <div
+        className="timeline-lanes"
+        data-testid="timeline-lanes"
+        ref={lanesRef}
+        style={{ overflowY: "scroll" }}
+      >
       <div
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}${visHeaderInline ? " lane-header-compact" : ""}`}
         data-testid="lane-VIS"
