@@ -101,6 +101,7 @@ import {
   updateClip,
   type HistoryStack,
 } from "../core/timeline";
+import { addAudioTrack, canAddAudioTrack, canRemoveAudioTrack, removeAudioTrack } from "../core/audio-tracks";
 import { nextShuttleRate } from "../core/playback";
 import {
   cycleVisualizerScene,
@@ -1370,6 +1371,50 @@ export function applyToggleSolo(session: Session, trackId: TrackId): Session {
   return { ...session, project: next, status: `${verb} ${trackId}`, error: null };
 }
 
+export function applyAddAudioTrack(session: Session): Session {
+  if (!canAddAudioTrack(session.project)) {
+    return { ...session, error: "Audio track limit is 64", status: session.status };
+  }
+  const result = addAudioTrack(session.project);
+  if (result.error || !result.track) {
+    return { ...session, error: result.error ?? "Could not add audio track" };
+  }
+  return {
+    ...withHistory(session, result.project, `Added ${result.track.name}`),
+    targetTrackId: result.track.id,
+    selectedTrackIds: [result.track.id],
+  };
+}
+
+export function applyRemoveAudioTrack(session: Session, trackId?: TrackId): Session {
+  const id = trackId ?? session.targetTrackId;
+  if (!canRemoveAudioTrack(session.project, kindOfTrack(id) === "audio" ? id : undefined)) {
+    return { ...session, error: "Need at least two audio tracks", status: session.status };
+  }
+  const result = removeAudioTrack(
+    session.project,
+    kindOfTrack(id) === "audio" ? id : undefined,
+  );
+  if (result.error || !result.removedId) {
+    return { ...session, error: result.error ?? "Could not remove audio track" };
+  }
+  const nextTarget =
+    result.project.tracks.find((t) => t.id === session.targetTrackId)?.id ??
+    result.project.tracks.find((t) => t.kind === "audio")?.id ??
+    "V1";
+  return {
+    ...withHistory(session, result.project, `Removed audio track`),
+    targetTrackId: nextTarget,
+    selectedTrackIds: [nextTarget],
+    selectedClipId: session.selectedClipId && result.project.clips.some((c) => c.id === session.selectedClipId)
+      ? session.selectedClipId
+      : null,
+    selectedClipIds: session.selectedClipIds.filter((cid) =>
+      result.project.clips.some((c) => c.id === cid),
+    ),
+  };
+}
+
 export function applyPlay(session: Session): Session {
   return { ...session, playing: true, shuttleRate: 1, status: "Playing", error: null };
 }
@@ -1649,7 +1694,7 @@ function visEventFocused(session: Session): boolean {
   return Boolean(session.selectedVisEventId || session.selectedVis);
 }
 
-/** All clips on V1–A2. VIS-focused: all VIS events, no clips. Empty = no-op. Selection-only (no history). */
+/** All clips on the project track collection. VIS-focused: all VIS events, no clips. Empty = no-op. Selection-only (no history). */
 export function applySelectAll(session: Session): Session {
   if (visEventFocused(session)) {
     const events = visualizerEventsOf(session.project);

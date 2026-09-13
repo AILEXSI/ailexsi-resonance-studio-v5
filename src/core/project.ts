@@ -2,11 +2,14 @@ import { createId } from "./ids";
 import { normalizeClipFades } from "./fades";
 import { sanitizeTransitions } from "./transition";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
+import { ensureAudioTracksForIds, sanitizeAutomationLanes } from "./audio-tracks";
 import {
+  MAX_AUDIO_TRACKS,
   clampClipRate,
   defaultTracks,
   defaultVisualizer,
   isTrackId,
+  isVideoTrackId,
   isVisualizerSceneId,
   type Clip,
   type MediaAsset,
@@ -132,24 +135,71 @@ function sanitizeClip(raw: unknown): Clip | null {
   };
 }
 
+function mergeTrack(base: Track, found: Record<string, unknown> | undefined): Track {
+  if (!found) return base;
+  const vol = Number(found.volume);
+  const pan = Number(found.pan);
+  const order = Number(found.order);
+  const name = typeof found.name === "string" && found.name.trim() ? found.name.trim() : base.name;
+  return {
+    ...base,
+    name,
+    muted: Boolean(found.muted),
+    solo: found.solo === true,
+    volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
+    pan: Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0,
+    order: Number.isFinite(order) ? order : base.order,
+    groupId: typeof found.groupId === "string" && found.groupId.length > 0 ? found.groupId : undefined,
+    automationLanes: sanitizeAutomationLanes(found.automationLanes),
+  };
+}
+
 function sanitizeTracks(raw: unknown): Track[] {
   const defaults = defaultTracks();
   if (!Array.isArray(raw)) return defaults;
-  return defaults.map((track) => {
-    const found = raw.find((t) => t && typeof t === "object" && (t as Track).id === track.id) as
-      | Track
-      | undefined;
-    if (!found) return track;
-    const vol = Number((found as Track).volume);
-    const pan = Number((found as Track).pan);
-    return {
-      ...track,
-      muted: Boolean(found.muted),
-      solo: found.solo === true,
-      volume: Number.isFinite(vol) ? Math.max(0, Math.min(2, vol)) : 1,
-      pan: Number.isFinite(pan) ? Math.max(-1, Math.min(1, pan)) : 0,
-    };
-  });
+  const byId = new Map<string, Record<string, unknown>>();
+  const extras: Record<string, unknown>[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as Record<string, unknown>;
+    if (typeof rec.id !== "string" || rec.id.length === 0 || rec.id === "VIS") continue;
+    if (rec.id === "V1" || rec.id === "V2" || rec.id === "A1" || rec.id === "A2") {
+      byId.set(rec.id, rec);
+      continue;
+    }
+    if (isVideoTrackId(rec.id)) {
+      byId.set(rec.id, rec);
+      continue;
+    }
+    if (rec.kind === "audio" || isTrackId(rec.id)) extras.push(rec);
+  }
+  const core = defaults.map((track) => mergeTrack(track, byId.get(track.id)));
+  const extraTracks: Track[] = [];
+  let audioCount = core.filter((t) => t.kind === "audio").length;
+  for (const rec of extras) {
+    if (audioCount >= MAX_AUDIO_TRACKS) break;
+    const id = rec.id as string;
+    if (!isTrackId(id) || isVideoTrackId(id) || core.some((t) => t.id === id)) continue;
+    if (extraTracks.some((t) => t.id === id)) continue;
+    extraTracks.push(
+      mergeTrack(
+        {
+          id,
+          kind: "audio",
+          name: typeof rec.name === "string" && rec.name.trim() ? rec.name.trim() : `A${audioCount + 1}`,
+          order: core.length + extraTracks.length,
+          muted: false,
+          solo: false,
+          volume: 1,
+          pan: 0,
+          automationLanes: [],
+        },
+        rec,
+      ),
+    );
+    audioCount += 1;
+  }
+  return [...core, ...extraTracks];
 }
 
 function sanitizeVisualizerEvent(raw: unknown): VisualizerEvent | null {
@@ -247,6 +297,12 @@ export function deserializeProject(text: string): Project {
   const clips = Array.isArray(raw.clips)
     ? raw.clips.map(sanitizeClip).filter((c): c is Clip => c != null)
     : [];
+  const tracks = ensureAudioTracksForIds(
+    sanitizeTracks(raw.tracks),
+    clips.map((c) => c.trackId),
+  );
+  const knownTracks = new Set(tracks.map((t) => t.id));
+  const keptClips = clips.filter((c) => knownTracks.has(c.trackId));
   const base = createEmptyProject(raw.name);
   return {
     ...base,
@@ -255,8 +311,8 @@ export function deserializeProject(text: string): Project {
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : base.createdAt,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : base.updatedAt,
     assets,
-    tracks: sanitizeTracks(raw.tracks),
-    clips,
+    tracks,
+    clips: keptClips,
     transitions: sanitizeTransitions(raw.transitions),
     markers: Array.isArray(raw.markers)
       ? raw.markers

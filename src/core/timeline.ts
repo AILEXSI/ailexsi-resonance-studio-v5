@@ -25,6 +25,7 @@ import {
   timelineDeltaToSource,
   timelineDurationForRate,
   TRACK_IDS,
+  trackIdsOf,
   type Clip,
   type Marker,
   type Project,
@@ -364,7 +365,7 @@ export function resolveCloseGapTrack(
     if (primary && isTrackId(primary.trackId)) return primary.trackId;
   }
   const timeMs = project.playheadMs;
-  for (const id of TRACK_IDS) {
+  for (const id of trackIdsOf(project)) {
     if (findGapOnTrack(project, id, timeMs)) return id;
   }
   return null;
@@ -416,7 +417,7 @@ export function playheadStrictlyInsideClip(clip: Clip, timeMs: number): boolean 
 
 /**
  * Clip to ripple-trim to the playhead: selected if playhead is strictly inside it;
- * else a covering clip on that track; else first of V1→V2→A1→A2. VIS is not a track.
+ * else a covering clip on that track; else first of the project track collection. VIS is not a track.
  * Disabled and locked clips are skipped (same as P105 disable) so Q/W can hit
  * an unlocked mate after the picture is locked.
  */
@@ -435,7 +436,7 @@ export function resolveRippleTrimToPlayheadClip(
       if (canTrim(onTrack) && playheadStrictlyInsideClip(onTrack, timeMs)) return onTrack;
     }
   }
-  for (const id of TRACK_IDS) {
+  for (const id of trackIdsOf(project)) {
     const hit = clipOnTrackAt(project, id, timeMs);
     if (canTrim(hit) && playheadStrictlyInsideClip(hit, timeMs)) return hit;
   }
@@ -1227,10 +1228,14 @@ export function renameMarker(
   };
 }
 
-/** Same-kind track, clamped to V1/V2 or A1/A2. `delta` is a lane step within that kind. */
-export function clampSameKindTrack(trackId: TrackId, delta = 0): TrackId {
+/** Same-kind track, clamped to the project's video or audio collection. `delta` is a lane step within that kind. */
+export function clampSameKindTrack(
+  trackId: TrackId,
+  delta = 0,
+  project?: Pick<Project, "tracks">,
+): TrackId {
   const kind = kindOfTrack(trackId);
-  const lane = TRACK_IDS.filter((id) => kindOfTrack(id) === kind);
+  const lane = (project ? trackIdsOf(project) : TRACK_IDS).filter((id) => kindOfTrack(id) === kind);
   const idx = Math.max(0, lane.indexOf(trackId));
   return lane[Math.max(0, Math.min(lane.length - 1, idx + delta))] ?? trackId;
 }
@@ -1255,7 +1260,7 @@ export function pasteClips(
       ...clip,
       id: createId("clip"),
       startMs: clampStartMs((rawStarts[i] ?? atMs) + pad),
-      trackId: clampSameKindTrack(clip.trackId),
+      trackId: clampSameKindTrack(clip.trackId, 0, project),
     };
     nextClips.push(copy);
     clipIds.push(copy.id);

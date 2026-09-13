@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  TRACK_IDS,
+  analysisAudioClipAt,
+  audioTracksOf,
   clipById,
   clipOnTrackAt,
   isTrackAudible,
@@ -9,6 +10,7 @@ import {
   projectHasMixAudio,
   sourceTimeAt,
   topVideoClipAt,
+  trackIdsOf,
   trackPanOf,
   trackVolumeOf,
   type Project,
@@ -50,8 +52,7 @@ export function Preview({ project, playing, onLevels }: Props) {
   const stillRef = useRef<HTMLCanvasElement>(null);
   const v1Ref = useRef<HTMLAudioElement>(null);
   const v2Ref = useRef<HTMLAudioElement>(null);
-  const a1Ref = useRef<HTMLAudioElement>(null);
-  const a2Ref = useRef<HTMLAudioElement>(null);
+  const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastPlayheadRef = useRef(project.playheadMs);
   const tapRef = useRef<PlaybackTap | null>(null);
@@ -74,9 +75,7 @@ export function Preview({ project, playing, onLevels }: Props) {
   const isStill = videoAsset?.kind === "image";
   const mixClips = mixClipsAt(project, project.playheadMs);
   const showViz = shouldShowVisualizer(project, project.playheadMs);
-  const analysisClip =
-    (isTrackAudible(project, "A1") ? clipOnTrackAt(project, "A1", project.playheadMs) : undefined) ??
-    mixClips[0];
+  const analysisClip = analysisAudioClipAt(project, project.playheadMs) ?? mixClips[0];
   const analysisAsset = analysisClip
     ? project.assets.find((a) => a.id === analysisClip.assetId)
     : undefined;
@@ -191,8 +190,9 @@ export function Preview({ project, playing, onLevels }: Props) {
     };
     bind(v1Ref.current, "V1");
     bind(v2Ref.current, "V2");
-    bind(a1Ref.current, "A1");
-    bind(a2Ref.current, "A2");
+    for (const track of audioTracksOf(project)) {
+      bind(audioRefs.current[track.id] ?? null, track.id);
+    }
   }, [mixClips, playing, project.assets, project.playheadMs, project.tracks, project.masterVolume]);
 
   useEffect(() => {
@@ -200,8 +200,9 @@ export function Preview({ project, playing, onLevels }: Props) {
     const tap = createPlaybackTap({
       V1: v1Ref.current,
       V2: v2Ref.current,
-      A1: a1Ref.current,
-      A2: a2Ref.current,
+      ...Object.fromEntries(
+        audioTracksOf(project).map((t) => [t.id, audioRefs.current[t.id] ?? null]),
+      ),
     });
     if (!tap) return;
     tapRef.current = tap;
@@ -210,6 +211,16 @@ export function Preview({ project, playing, onLevels }: Props) {
       tapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const tap = tapRef.current;
+    if (!tap) return;
+    tap.connect("V1", v1Ref.current);
+    tap.connect("V2", v2Ref.current);
+    for (const track of audioTracksOf(project)) {
+      tap.connect(track.id, audioRefs.current[track.id] ?? null);
+    }
+  }, [project.tracks]);
 
   useEffect(() => {
     if (playing) tapRef.current?.resume();
@@ -231,16 +242,23 @@ export function Preview({ project, playing, onLevels }: Props) {
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project)
       );
     };
-    tap.setGains({
+    const pans: Record<string, number> = {};
+    const next: Record<string, number> = {
       V1: gainOf("V1"),
       V2: gainOf("V2"),
-      A1: gainOf("A1"),
-      A2: gainOf("A2"),
+    };
+    for (const id of trackIdsOf(project)) {
+      next[id] = gainOf(id);
+      pans[id] = trackPanOf(project, id);
+    }
+    tap.setGains({
+      ...next,
       master: project.masterVolume ?? 1,
-      V1pan: trackPanOf(project, "V1"),
-      V2pan: trackPanOf(project, "V2"),
-      A1pan: trackPanOf(project, "A1"),
-      A2pan: trackPanOf(project, "A2"),
+      pans,
+      V1pan: pans.V1,
+      V2pan: pans.V2,
+      A1pan: pans.A1,
+      A2pan: pans.A2,
     });
   }, [mixClips, project]);
 
@@ -250,6 +268,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     const tick = () => {
       const p = tapRef.current?.peaks();
       onLevels({
+        ...(p ?? {}),
         V1: p?.V1 ?? 0,
         V2: p?.V2 ?? 0,
         A1: p?.A1 ?? 0,
@@ -379,11 +398,23 @@ export function Preview({ project, playing, onLevels }: Props) {
       </div>
       <audio ref={v1Ref} className="hidden-audio" data-testid="preview-v1" />
       <audio ref={v2Ref} className="hidden-audio" data-testid="preview-v2" />
-      <audio ref={a1Ref} className="hidden-audio" data-testid="preview-a1" />
-      <audio ref={a2Ref} className="hidden-audio" data-testid="preview-a2" />
+      {audioTracksOf(project).map((track) => (
+        <audio
+          key={track.id}
+          ref={(el) => {
+            audioRefs.current[track.id] = el;
+          }}
+          className="hidden-audio"
+          data-testid={
+            track.id === "A1" ? "preview-a1" : track.id === "A2" ? "preview-a2" : `preview-audio-${track.id}`
+          }
+        />
+      ))}
       <div className="preview-meta">
         Active: {activeLabel} · audio{" "}
-        {TRACK_IDS.filter((id) => mixClips.some((c) => c.trackId === id)).join(" ") || "—"}
+        {trackIdsOf(project)
+          .filter((id) => mixClips.some((c) => c.trackId === id))
+          .join(" ") || "—"}
       </div>
     </section>
   );

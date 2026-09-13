@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { MediaAsset, Project, TrackId } from "../../core/models";
+import { orderedTracks, type MediaAsset, type Project, type TrackId } from "../../core/models";
 import { displayMediaName, filterMediaAssets, type MediaKindFilter } from "../../core/media-display";
 import { writeAssetDrag } from "../../core/media";
 import { describeMissing } from "../../core/persistence";
@@ -64,10 +64,11 @@ export function MediaBrowser({
           value={targetTrackId}
           onChange={(e) => onTargetTrack(e.target.value as TrackId)}
         >
-          <option value="V1">V1</option>
-          <option value="V2">V2</option>
-          <option value="A1">A1</option>
-          <option value="A2">A2</option>
+          {orderedTracks(project).map((track) => (
+            <option key={track.id} value={track.id}>
+              {track.name || track.id}
+            </option>
+          ))}
         </select>
       </label>
       <input

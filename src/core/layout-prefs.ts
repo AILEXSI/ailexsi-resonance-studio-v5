@@ -212,7 +212,7 @@ export function saveLaneHeights(storage: StorageLike | null | undefined, heights
   }
 }
 
-export function heightGroupOfLane(id: "VIS" | "V1" | "V2" | "A1" | "A2"): LaneHeightGroup {
+export function heightGroupOfLane(id: string): LaneHeightGroup {
   if (id === "VIS") return "vis";
   if (id === "V1" || id === "V2") return "video";
   return "audio";

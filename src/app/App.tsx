@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { assetById, clipById, type TrackId } from "../core/models";
+import { canAddAudioTrack, canRemoveAudioTrack } from "../core/audio-tracks";
 import { MEDIA_FILE_ACCEPT, preferredTrackForAsset } from "../core/media";
 import { advancePlayhead } from "../core/playback";
 import { collectSnapTargets, moveInOut, setInPoint, setOutPoint, snapPlayheadSeek, snapTime } from "../core/timeline";
@@ -1401,7 +1402,7 @@ export function App() {
         style={{ overflow: "hidden" }}
       >
       <Timeline
-        visibleTrackIds={tracksForScreen(screen)}
+        visibleTrackIds={tracksForScreen(screen, session.project)}
         project={session.project}
         selectedClipId={session.selectedClipId}
         selectedClipIds={session.selectedClipIds}
@@ -1492,6 +1493,10 @@ export function App() {
         onPlaceAsset={(assetId, trackId, startMs) => {
           setSession((s) => applyPlaceAsset(s, assetId, trackId, startMs));
         }}
+        onAddAudioTrack={() => runCommand({ type: "addAudioTrack" })}
+        onRemoveAudioTrack={() => runCommand({ type: "removeAudioTrack" })}
+        canAddAudioTrack={canAddAudioTrack(session.project)}
+        canRemoveAudioTrack={canRemoveAudioTrack(session.project, session.targetTrackId)}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}
