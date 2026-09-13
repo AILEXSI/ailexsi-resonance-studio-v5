@@ -36,7 +36,7 @@ Ein Blick. Kein Wunschzettel.
 
 **Nicht implementiert.** Docs-only. Kein App-Code, kein AUTO-Touch, Version bleibt **5.0.0**.
 
-**Ziel:** vierteiliges Werk (Kapitel **01–04**, Titel laut Brief) + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon.
+**Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
 Älterer VIS-Ausbau-Intent ist hier in **K–N** aufgegangen — keine zweite Roadmap.
 
@@ -48,7 +48,7 @@ Ein Blick. Kein Wunschzettel.
 | G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **PLANNED / NOT IMPLEMENTED** |
 | H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |
 | I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
-| J | Four Chapters — echte Produktion, Kapitel 01–04 (Titel laut Brief) | **PLANNED / NOT IMPLEMENTED** |
+| J | Four Chapters — echte Produktion: **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code | **PLANNED / NOT IMPLEMENTED** |
 | K | VIS Library — bestehende Szenen = feste **BASICS**-Gruppe; Klassifikation `basics` \| `audioReactive` | **PLANNED / NOT IMPLEMENTED** |
 | L | Shared Modulation Bus — nur bestehende Features (Energy/Bass/Onset …); kein zweites Metronom | **PLANNED / NOT IMPLEMENTED** |
 | M | Audio Reactive v1 — Image/Video: Bass→Scale, Energy→Exposure, Onset→Glow | **PLANNED / NOT IMPLEMENTED** |
