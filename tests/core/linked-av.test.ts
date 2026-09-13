@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "../../src/app/commands";
 import { createSession, type Session } from "../../src/app/session";
+import type { TrackId } from "../../src/core/models";
 import { audioClipsForMix, jobFromProject, mixWindowsForClip, presentLinkedAudioMates } from "../../src/core/exporter/job";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { deserializeProject, serializeProject } from "../../src/core/project";
@@ -181,7 +182,7 @@ describe("linked A/V", () => {
       ...linkedPair(),
       selectedClipId: "v1",
       selectedClipIds: ["v1", "a1"],
-      selectedTrackIds: ["V1", "A1"] as const,
+      selectedTrackIds: ["V1", "A1"] as TrackId[],
     };
     const next = applyCommand(start, { type: "split" });
     expect(next.project.clips).toHaveLength(4);
