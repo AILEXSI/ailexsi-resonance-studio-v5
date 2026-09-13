@@ -19,11 +19,20 @@ export interface FileHandleLike {
   isSameEntry?: (other: FileHandleLike) => Promise<boolean>;
 }
 
+export interface DirectoryEntryLike {
+  kind?: "file" | "directory" | string;
+  name?: string;
+}
+
 export interface DirectoryHandleLike {
   kind?: "directory";
   name?: string;
   queryPermission?: (opts?: { mode?: "read" | "readwrite" }) => Promise<PermissionState | string>;
   requestPermission?: (opts?: { mode?: "read" | "readwrite" }) => Promise<PermissionState | string>;
+  values?: () => AsyncIterable<DirectoryEntryLike>;
+  entries?: () => AsyncIterable<[string, DirectoryEntryLike]>;
+  keys?: () => AsyncIterable<string>;
+  getFileHandle?: (name: string, opts?: { create?: boolean }) => Promise<FileHandleLike>;
 }
 
 export type StartIn = DirectoryHandleLike | FileHandleLike | WellKnownStartIn;
@@ -39,9 +48,14 @@ export interface ProjectFileMemory {
   directoryHandle: DirectoryHandleLike | null;
   lastFileName: string | null;
   recents: RecentProject[];
+  /** Last successful media export filename (not the project .json). */
+  lastExportFileName: string | null;
+  /** Recent export filenames in the remembered folder (same stem series). */
+  lastExportFileNames: string[];
 }
 
 export const MAX_RECENT_PROJECTS = 8;
+export const MAX_LAST_EXPORT_NAMES = 64;
 
 export interface SavePickerOptions {
   suggestedName: string;
@@ -122,7 +136,33 @@ const RELINK_IMAGE_TYPES = [
 ];
 
 export function emptyProjectFileMemory(): ProjectFileMemory {
-  return { fileHandle: null, directoryHandle: null, lastFileName: null, recents: [] };
+  return {
+    fileHandle: null,
+    directoryHandle: null,
+    lastFileName: null,
+    recents: [],
+    lastExportFileName: null,
+    lastExportFileNames: [],
+  };
+}
+
+function normalizeExportFileNames(raw: unknown, lastExportFileName: string | null): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const name = value.trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    names.push(name);
+  };
+  push(lastExportFileName);
+  if (Array.isArray(raw)) {
+    for (const row of raw) push(row);
+  }
+  return names.slice(0, MAX_LAST_EXPORT_NAMES);
 }
 
 export function normalizeProjectFileMemory(
@@ -136,11 +176,29 @@ export function normalizeProjectFileMemory(
         )
         .slice(0, MAX_RECENT_PROJECTS)
     : [];
+  const lastExportFileName =
+    typeof raw.lastExportFileName === "string" && raw.lastExportFileName.trim()
+      ? raw.lastExportFileName.trim()
+      : null;
   return {
     fileHandle: raw.fileHandle ?? null,
     directoryHandle: raw.directoryHandle ?? null,
     lastFileName: raw.lastFileName ?? null,
     recents,
+    lastExportFileName,
+    lastExportFileNames: normalizeExportFileNames(raw.lastExportFileNames, lastExportFileName),
+  };
+}
+
+export function withExportFileName(memory: ProjectFileMemory, fileName: string): ProjectFileMemory {
+  const prev = normalizeProjectFileMemory(memory);
+  const name = fileName.trim();
+  if (!name) return prev;
+  const rest = prev.lastExportFileNames.filter((row) => row.toLowerCase() !== name.toLowerCase());
+  return {
+    ...prev,
+    lastExportFileName: name,
+    lastExportFileNames: [name, ...rest].slice(0, MAX_LAST_EXPORT_NAMES),
   };
 }
 
@@ -150,7 +208,7 @@ export function upsertRecent(recents: RecentProject[], entry: RecentProject): Re
 }
 
 /** Panel copy only — never invent a drive letter or /Users path. */
-export function projectPanelView(memory: ProjectFileMemory): {
+export function projectPanelView(memory: Partial<ProjectFileMemory>): {
   fileName: string;
   folderLabel: string;
   folderRemembered: boolean;
@@ -368,17 +426,29 @@ export async function rememberFileHandle(
   fileHandle: FileHandleLike,
   previous: ProjectFileMemory = emptyProjectFileMemory(),
 ): Promise<ProjectFileMemory> {
-  const directoryHandle = (await directoryOf(fileHandle)) ?? previous.directoryHandle;
+  const prev = normalizeProjectFileMemory(previous);
+  const directoryHandle = (await directoryOf(fileHandle)) ?? prev.directoryHandle;
   const lastFileName = fileHandle.name;
   const recent: RecentProject = { fileHandle, directoryHandle, lastFileName };
   const memory: ProjectFileMemory = {
+    ...prev,
     fileHandle,
     directoryHandle,
     lastFileName,
-    recents: upsertRecent(previous.recents ?? [], recent),
+    recents: upsertRecent(prev.recents ?? [], recent),
   };
   await store.save(memory);
   return memory;
+}
+
+export async function rememberExportFileName(
+  store: ProjectFileStore,
+  memory: ProjectFileMemory,
+  fileName: string,
+): Promise<ProjectFileMemory> {
+  const next = withExportFileName(memory, fileName);
+  await store.save(next);
+  return next;
 }
 
 export async function rememberDirectoryHandle(

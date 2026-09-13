@@ -246,4 +246,92 @@ describe("export destination before encode", () => {
     expect(statusHasFakePath(outcome.status)).toBe(false);
     expect(outcome.status).not.toMatch(/C:\\/);
   });
+
+  it("picker suggestedName is the next free .vN from last exports (sync, before encode)", async () => {
+    let pickerOpts: SavePickerOptions | undefined;
+    const { handle } = mockMp4Handle("Untitled_Resonance.v7.mp4");
+    const host: PickerHost = {
+      showSaveFilePicker: async (opts) => {
+        pickerOpts = opts;
+        return handle;
+      },
+    };
+    const memory = {
+      ...emptyProjectFileMemory(),
+      lastExportFileName: "Untitled_Resonance.v6.mp4",
+      lastExportFileNames: [
+        "Untitled_Resonance.mp4",
+        "Untitled_Resonance.v3.mp4",
+        "Untitled_Resonance.v6.mp4",
+      ],
+    };
+    const store = createMemoryProjectFileStore(memory);
+    const outcome = await runExportWithDestination({
+      job: jobFromProject(projectReady()),
+      host,
+      store,
+      memory,
+      encode: async (job) => successResult(job),
+      downloadMp4: () => {},
+    });
+    expect(pickerOpts?.suggestedName).toBe("Untitled_Resonance.v7.mp4");
+    expect(outcome.kind).toBe("done");
+    if (outcome.kind !== "done") return;
+    expect(outcome.job.fileName).toBe("Untitled_Resonance.v7.mp4");
+    expect(outcome.memory.lastExportFileName).toBe("Untitled_Resonance.v7.mp4");
+    expect((await store.load()).lastExportFileName).toBe("Untitled_Resonance.v7.mp4");
+  });
+
+  it("failed encode does not remember an export name", async () => {
+    const memory = emptyProjectFileMemory();
+    const store = createMemoryProjectFileStore(memory);
+    const outcome = await runExportWithDestination({
+      job: jobFromProject(projectReady()),
+      host: {},
+      store,
+      memory,
+      encode: async (job) => ({
+        success: false,
+        aborted: false,
+        error: "FAIL: empty",
+        fileName: job.fileName,
+        durationMs: job.durationMs,
+        fileSizeBytes: 0,
+      }),
+      downloadMp4: () => {
+        throw new Error("no download");
+      },
+    });
+    expect(outcome.kind).toBe("done");
+    if (outcome.kind !== "done") return;
+    expect(outcome.memory.lastExportFileName).toBeNull();
+    expect((await store.load()).lastExportFileName).toBeNull();
+  });
+
+  it("download fallback also remembers the versioned name so the next export bumps", async () => {
+    const memory = {
+      ...emptyProjectFileMemory(),
+      lastExportFileName: "Untitled_Resonance.mp4",
+      lastExportFileNames: ["Untitled_Resonance.mp4"],
+    };
+    const store = createMemoryProjectFileStore(memory);
+    const downloads: string[] = [];
+    const outcome = await runExportWithDestination({
+      job: jobFromProject(projectReady()),
+      host: {},
+      store,
+      memory,
+      encode: async (job) => successResult(job),
+      downloadMp4: (result) => {
+        downloads.push(result.fileName);
+      },
+    });
+    expect(outcome.kind).toBe("done");
+    if (outcome.kind !== "done") return;
+    expect(outcome.job.fileName).toBe("Untitled_Resonance.v2.mp4");
+    expect(outcome.usedDownload).toBe(true);
+    expect(downloads).toEqual(["Untitled_Resonance.v2.mp4"]);
+    expect(outcome.memory.lastExportFileName).toBe("Untitled_Resonance.v2.mp4");
+    expect(outcome.status).toContain("Untitled_Resonance.v2.mp4");
+  });
 });
