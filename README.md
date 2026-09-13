@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/help-scroll-active-track-split-fdc6` (PR #6) @ `183c43f`. Chrome-Base ist PR #5 (`cursor/remove-wav-move-help-0258` @ `a5113d7`) plus Menu-polish PR #4. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/transport-follow-audio-loop-44f8` (PR #8) auf PR-#7-Tip `f75b3b5`. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder und Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -79,7 +79,7 @@ Klick in die VIS-Lane (leerer Body oder Event-Fill, z.B. Tunnel) springt den Pla
 
 ## Follow playhead
 
-**Pending / unknown** auf diesem Branch. Der 1/3-Pin aus späteren PR-#5-Commits (`ec0275a`) ist hier **nicht** gemerged. Nicht als fixed dokumentieren. Follow-Toggle existiert; Scroll ist Edge-Paging.
+Follow ON: Playhead läuft durch das linke Viewport, pinnt bei ~65% der sichtbaren Lane, danach scrollt **ein** `scrollMs` (Ruler, VIS, V1/V2, A1/A2). Seek paget nur, wenn die Nadel den View verlässt. Follow OFF: kein Auto-Scroll. Live Exe: NOT VERIFIED.
 
 ## Limits (ehrlich)
 
@@ -87,13 +87,13 @@ Klick in die VIS-Lane (leerer Body oder Event-Fill, z.B. Tunnel) springt den Pla
 - **Export:** H.264 MP4 über den Export-Dialog. AAC nur wenn Probe + Mix + Encode klappen; sonst `audio=none` plus Grund. WebM ist nie Erfolg. Dedicated **Export WAV**-Button ist entfernt. `startExport("wav")` bleibt intern erreichbar, hat aber keinen Toolbar-/Dialog-Weg.
 - **Persistenz:** Exe merkt den letzten Projekt**pfad** (`last-project.json` in AppData). Save/Open in der Exe über Tauri-Dialog. Browser: Chrome File System Access; Firefox fällt auf Download zurück. Medien: Exe-IDB-Blob, sonst Datei unter `sourcePath`, sonst missing + Relink. Altes JSON ohne `sourcePath` braucht einmal Relink, dann Save.
 - Chrome-Origin ≠ Exe-Origin. Ein im Browser gespeichertes Projekt erscheint **nicht** von allein in der Exe.
-- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus dem Mix, wenn ein Buffer da ist — kein Metronom-Märchen.
+- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset), wenn Audio geladen ist — kein 120-BPM-Metronom.
 - Kein Verkaufsprodukt. COMPLETE: NO.
 
 ## Fuer Bots
 
-Basis: PR #6 auf `cursor/help-scroll-active-track-split-fdc6` @ `183c43f`, Chrome-Base PR #5 @ `a5113d7`, Menu-polish PR #4 darunter, Version 5.0.0.
+Basis: PR #8 auf `cursor/transport-follow-audio-loop-44f8`, Start-Tip PR #7 `f75b3b5`, Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A.
-Follow-Playhead-Pin: pending/unknown auf diesem Branch.
-Nächster Slice: Follow erst dokumentieren, wenn er auf dieser Linie liegt. Dann Exe zu/auf nach Relink+Save (keine missing-Parade).
+Follow-Playhead-Pin: TEST-VERIFIED auf der Transport-PR-Linie (65%-Anchor + shared scrollMs). Live Exe: NOT VERIFIED.
+Nächster Slice: Exe zu/auf nach Relink+Save (keine missing-Parade).
