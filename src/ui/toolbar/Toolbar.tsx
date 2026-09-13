@@ -9,11 +9,9 @@ interface Props {
   filePanelOpen?: boolean;
   onImport: () => void;
   onExport: () => void;
-  onExportWav?: () => void;
   projectName?: string;
   onRenameProject?: (name: string) => void;
   projectDirty?: boolean;
-  onToggleShortcuts?: () => void;
 }
 
 export function Toolbar({
@@ -24,11 +22,9 @@ export function Toolbar({
   filePanelOpen = false,
   onImport,
   onExport,
-  onExportWav,
   projectName = "Untitled Resonance",
   onRenameProject,
   projectDirty = false,
-  onToggleShortcuts,
 }: Props) {
   return (
     <header className="toolbar" data-testid="toolbar">
@@ -55,24 +51,7 @@ export function Toolbar({
         >
           Export
         </button>
-        <button
-          type="button"
-          data-testid="export-wav-btn"
-          onClick={onExportWav}
-          disabled={exporting}
-        >
-          Export WAV
-        </button>
         <ScreenNav screen={screen} onSelect={onSelectScreen ?? (() => {})} />
-        <button
-          type="button"
-          data-testid="shortcuts-help"
-          title="Shortcuts (?)"
-          onClick={() => onToggleShortcuts?.()}
-        >
-          Help
-          <kbd className="btn-kbd">?</kbd>
-        </button>
         </div>
       </div>
       <div className="toolbar-brand">

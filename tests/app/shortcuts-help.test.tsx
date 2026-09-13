@@ -1,9 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
+import { createEmptyProject } from "../../src/core/project";
 import { SHORTCUT_ROWS } from "../../src/ui/shortcuts/labels";
 import { ShortcutsOverlay } from "../../src/ui/shortcuts/ShortcutsOverlay";
-import { Toolbar } from "../../src/ui/toolbar/Toolbar";
+import { Transport } from "../../src/ui/transport/Transport";
 
 describe("shortcuts help (P75)", () => {
   let host: HTMLDivElement | undefined;
@@ -18,7 +19,7 @@ describe("shortcuts help (P75)", () => {
     root = undefined;
   });
 
-  it("toolbar Help opens the existing labels.ts sheet", () => {
+  it("transport Help opens the existing labels.ts sheet", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -28,11 +29,19 @@ describe("shortcuts help (P75)", () => {
       act(() => {
         root!.render(
           <>
-            <Toolbar
-              exporting={false}
-              onToggleFile={noop}
-              onImport={noop}
-              onExport={noop}
+            <Transport
+              project={createEmptyProject()}
+              playing={false}
+              onPlay={noop}
+              onPause={noop}
+              onStop={noop}
+              onStep={noop}
+              onToggleLoop={noop}
+              onIn={noop}
+              onOut={noop}
+              onClear={noop}
+              onMarker={noop}
+              onSplit={noop}
               onToggleShortcuts={() => {
                 open = !open;
                 render();

@@ -30,7 +30,6 @@ describe("toolbar File button", () => {
           onToggleFile={noop}
           onImport={noop}
           onExport={noop}
-          onExportWav={noop}
         />,
       );
     });
@@ -42,8 +41,8 @@ describe("toolbar File button", () => {
     expect(labels).toContain("Import");
     expect(labels).not.toContain("Media");
     expect(labels).toContain("Export");
-    expect(labels).toContain("Export WAV");
-    expect(labels.some((t) => t?.startsWith("Help"))).toBe(true);
+    expect(labels).not.toContain("Export WAV");
+    expect(labels.some((t) => t?.startsWith("Help"))).toBe(false);
     expect(labels).not.toContain("Undo");
     expect(labels).not.toContain("Redo");
     expect(labels).not.toContain("Split");
@@ -75,7 +74,8 @@ describe("toolbar File button", () => {
     expect(group?.querySelector('[data-testid="toolbar-file"]')).toBeTruthy();
     const groupText = group?.textContent ?? "";
     expect(groupText).toMatch(/Import/);
-    expect(groupText).toMatch(/Help/);
+    expect(groupText).not.toMatch(/Export WAV/);
+    expect(groupText).not.toMatch(/Help/);
     expect(groupText).not.toMatch(/\bUndo\b/);
     expect(groupText).not.toMatch(/\bRedo\b/);
     expect(groupText).not.toMatch(/\bSplit\b/);
@@ -102,6 +102,10 @@ describe("toolbar File button", () => {
     expect(host.querySelector('[data-testid="transport-undo"]')?.textContent?.trim()).toBe("Undo");
     expect(host.querySelector('[data-testid="transport-redo"]')?.textContent?.trim()).toBe("Redo");
     expect(host.querySelector('[data-testid="transport-snap"]')?.textContent?.trim()).toBe("Snap");
+    const help = host.querySelector('[data-testid="shortcuts-help"]');
+    expect(help?.textContent?.replace(/\s+/g, " ").trim().startsWith("Help")).toBe(true);
+    expect(host.querySelector('[data-testid="transport"]')?.contains(help)).toBe(true);
+    expect(host.querySelector('[data-testid="export-wav-btn"]')).toBeNull();
     const transport = host.querySelector('[data-testid="transport"]');
     const splitButtons = [...(transport?.querySelectorAll("button") ?? [])].filter((b) =>
       (b.textContent ?? "").replace(/\s+/g, " ").trim().startsWith("Split"),

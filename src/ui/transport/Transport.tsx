@@ -22,6 +22,7 @@ interface Props {
   onToggleSnap?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onToggleShortcuts?: () => void;
 }
 
 export function Transport(props: Props) {
@@ -117,6 +118,17 @@ export function Transport(props: Props) {
           onClick={props.onToggleSnap}
         >
           Snap
+        </button>
+      ) : null}
+      {props.onToggleShortcuts ? (
+        <button
+          type="button"
+          data-testid="shortcuts-help"
+          title="Shortcuts (?)"
+          onClick={props.onToggleShortcuts}
+        >
+          Help
+          <kbd className="btn-kbd">?</kbd>
         </button>
       ) : null}
     </div>

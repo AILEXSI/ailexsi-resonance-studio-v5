@@ -638,10 +638,6 @@ export function App() {
     );
   };
 
-  const runExportWav = () => {
-    startExport("wav");
-  };
-
   const startExport = (kind: "mp4" | "wav") => {
     if (exporting || exportBusyRef.current) return;
     const size = {
@@ -1216,8 +1212,6 @@ export function App() {
         filePanelOpen={projectPanelOpen}
         onImport={startImport}
         onExport={runExport}
-        onExportWav={runExportWav}
-        onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
         projectName={session.project.name}
         projectDirty={isProjectDirty(session)}
         onRenameProject={(name) => runCommand({ type: "renameProject", name })}
@@ -1387,6 +1381,7 @@ export function App() {
         onUndo={() => runCommand({ type: "undo" })}
         onRedo={() => runCommand({ type: "redo" })}
         onSeek={(ms) => setSession((s) => applyPlayhead(s, ms))}
+        onToggleShortcuts={() => setShortcutsOpen((open) => !open)}
       />
 
       {screen === "cutter" ? (
