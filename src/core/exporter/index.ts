@@ -25,6 +25,7 @@ export { jobFromProject, ExportPlanError, summarizeJob, videoClipAt, missingOnly
 export { runExportWithDestination, type ExportDestinationOutcome } from "./destination";
 export {
   existingExportNamesFromMemory,
+  existingProjectNamesFromMemory,
   formatExportFileName,
   mediaExportFileName,
   nextVersionedFileName,
@@ -32,6 +33,7 @@ export {
   readyExportNameFromProject,
   sanitizeMediaExportStem,
   splitNameAndExt,
+  suggestedProjectSaveAsName,
 } from "./filename-version";
 export {
   collectExistingExportNames,

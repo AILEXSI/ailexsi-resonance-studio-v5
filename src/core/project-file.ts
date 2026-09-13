@@ -1,4 +1,8 @@
 import type { MediaKind } from "./models";
+import {
+  existingProjectNamesFromMemory,
+  nextVersionedFileName,
+} from "./exporter/filename-version";
 
 /** Well-known startIn. First run uses documents — never invent a C:\ path. */
 export const DEFAULT_START_IN = "documents" as const;
@@ -526,6 +530,10 @@ export function resolveSavePicker(host: PickerHost): PickerHost["showSaveFilePic
   return nativeWindowSavePicker();
 }
 
+export function suggestedProjectPickerName(filename: string, memory: ProjectFileMemory): string {
+  return nextVersionedFileName(filename, existingProjectNamesFromMemory(memory));
+}
+
 async function pickSaveHandle(
   host: PickerHost,
   filename: string,
@@ -534,7 +542,8 @@ async function pickSaveHandle(
   const picker = resolveSavePicker(host);
   if (typeof picker !== "function") return {};
   try {
-    return { handle: await picker(savePickerOptions(filename, memory)) };
+    const suggested = suggestedProjectPickerName(filename, memory);
+    return { handle: await picker(savePickerOptions(suggested, memory)) };
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
     if (name === "AbortError") return { cancelled: true };
@@ -558,10 +567,11 @@ export async function runSave(opts: {
 
   const picker = resolveSavePicker(opts.host);
   if (typeof picker !== "function") {
-    opts.fallbackDownload(opts.filename, opts.json);
+    const suggested = suggestedProjectPickerName(opts.filename, opts.memory);
+    opts.fallbackDownload(suggested, opts.json);
     return {
-      status: saveStatusFallback(opts.filename),
-      memory: { ...opts.memory, lastFileName: opts.filename },
+      status: saveStatusFallback(suggested),
+      memory: { ...opts.memory, lastFileName: suggested },
       usedFallback: true,
     };
   }
@@ -584,10 +594,11 @@ export async function runSaveAs(opts: {
 }): Promise<{ status: string; memory: ProjectFileMemory; usedFallback: boolean; cancelled?: boolean }> {
   const picker = resolveSavePicker(opts.host);
   if (typeof picker !== "function") {
-    opts.fallbackDownload(opts.filename, opts.json);
+    const suggested = suggestedProjectPickerName(opts.filename, opts.memory);
+    opts.fallbackDownload(suggested, opts.json);
     return {
-      status: saveStatusFallback(opts.filename),
-      memory: { ...opts.memory, lastFileName: opts.filename },
+      status: saveStatusFallback(suggested),
+      memory: { ...opts.memory, lastFileName: suggested },
       usedFallback: true,
     };
   }

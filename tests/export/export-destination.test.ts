@@ -169,7 +169,7 @@ describe("export destination before encode", () => {
         expect(dialog.phase).toBe("running");
       },
     });
-    expect(pickerOpts?.suggestedName).toBe("Untitled_Resonance.mp4");
+    expect(pickerOpts?.suggestedName).toBe("Untitled_Resonance.v1.mp4");
     expect(pickerOpts?.types[0]?.accept["video/mp4"]).toEqual([".mp4"]);
     expect(events).toEqual(["pick", "dialog", "encode"]);
     expect(dialogName).toBe("Show.mp4");
@@ -239,7 +239,7 @@ describe("export destination before encode", () => {
     expect(outcome.usedDownload).toBe(true);
     expect(outcome.wroteHandle).toBe(false);
     expect(outcome.status).toBe(
-      exportStatusFallback("Untitled_Resonance.mp4", "mp4bytes".length),
+      exportStatusFallback("Untitled_Resonance.v1.mp4", "mp4bytes".length),
     );
     expect(outcome.status).toMatch(/Downloads/);
     expect(outcome.status).toMatch(/unbekannt/);
