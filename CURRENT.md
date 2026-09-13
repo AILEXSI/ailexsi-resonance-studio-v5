@@ -8,7 +8,7 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `9ceb9bd` — tip (stamps `0cdcadf`). PR #9 merge `c0392f0`. Nicht forcieren. Close-out: dieser Tip → `main`. |
-| Branch | `cursor/dynamic-audio-tracks-2ecf` @ `511acad` — **D DONE / Human-OK**, PR #10, Root exe 2026-09-13. A/B/C exe lineage `0df5da1`. |
+| Branch | `cursor/dynamic-audio-tracks-2ecf` @ `6f916be` (docs after Human-OK D @ `511acad`, PR #10, Root exe 2026-09-13). A/B/C exe lineage `0df5da1`. |
 | Base | `main` `9ceb9bd`. Stack: File/Import/Export chrome, Help/S-track, compact headers, Follow/audio-VIS/Loop, silence gate, dynamic audio. |
 | Live-UI | Chrome + **Human-OK Root exe 2026-09-13** (D @ `511acad`). A/B/C @ `0df5da1`. Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png`. |
 | App icon | 愛 — Artwork `docs/ailexsi-app-icon.png` (PR-#5-Icon-Base). Icons nicht anfassen. |

@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: `CURRENT.md`. Human-verified A Follow, B audio VIS + silence gate, C Loop-off (`0df5da1`). Production Pass **D DONE / Human-OK** — Root exe 2026-09-13, PR #10, `511acad` (dynamic audio collection, ≥64, stable IDs). Close-out Tip → `main` (`9ceb9bd`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. E–N: **PLANNED / NOT IMPLEMENTED**.
+Quelle der Wahrheit für diesen Stand: `CURRENT.md`. Human-verified A Follow, B audio VIS + silence gate, C Loop-off (`0df5da1`). Production Pass **D DONE / Human-OK** — Root exe 2026-09-13, PR #10, tip `6f916be` (code `511acad`, dynamic audio collection, ≥64, stable IDs). Close-out Tip → `main` (`9ceb9bd`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. E–N: **PLANNED / NOT IMPLEMENTED**.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -106,7 +106,7 @@ Audio ist eine Collection, kein A1/A2-Limit. Kapazität ≥64, stabile IDs, Labe
 
 ## Fuer Bots
 
-Basis: `cursor/dynamic-audio-tracks-2ecf` @ `511acad` (PR #10), Version 5.0.0. `main` tip `9ceb9bd`. Close-out Tip → `main`.
+Basis: `cursor/dynamic-audio-tracks-2ecf` @ `6f916be` (docs after Human-OK D @ `511acad`, PR #10), Version 5.0.0. `main` tip `9ceb9bd`. Close-out Tip → `main`.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A. Speichern unter picker. Kein `+A`/`−A` oben / an Fit.
 A Follow: HUMAN-VERIFIED — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
