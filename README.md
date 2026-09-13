@@ -2,7 +2,7 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: `main` @ `d6345c7` (PR #9 merge `c0392f0`). Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe `0df5da1`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. VIS Ausbau: **geplant / noch kein Code** (Human chose docs-only).
+Quelle der Wahrheit für diesen Stand: `main` @ `d6345c7` (PR #9 merge `c0392f0`). Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe `0df5da1`). Kein Force-Push auf `main`. AUTO und Icons unangetastet. Production Pass D–N: **PLANNED / NOT IMPLEMENTED** — steht in `CURRENT.md`, kein App-Code.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
@@ -106,5 +106,5 @@ Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Tran
 A Follow: HUMAN-VERIFIED — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
 B VIS: HUMAN-VERIFIED — A1/mix PCM Visualz onset/energy; silence gate in Audio-Lücken; kein 120-BPM-Metronom wenn das Projekt Audio hat. Beat ≠ DAW-Grid-Lock.
 C Loop: HUMAN-VERIFIED — Loop OFF weiter über OUT; Loop ON wrappt OUT→IN.
-VIS Ausbau: **geplant / noch kein Code** — Human chose docs-only. BASICS bleiben; Audio Reactive / Modulation / Live-FX nur Intent. Details: `CURRENT.md`.
-Nächster Slice: Human-driven next.
+Production Pass D–N: **PLANNED / NOT IMPLEMENTED** — Details nur in `CURRENT.md` (geplant, nicht gebaut). VIS-Ausbau-Intent = K–N dort. Human bestätigt vor Code.
+Nächster Slice: Production Pass D–N (docs only until Human says go).

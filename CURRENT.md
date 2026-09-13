@@ -29,16 +29,27 @@ Ein Blick. Kein Wunschzettel.
 | Export | Toolbar **Export** öffnet den H.264-MP4-Dialog. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-VERIFIED.** Canvas-Modi unverändert. Geladenes A1/Mix-PCM treibt Onset/Energy (Visualz-Step). Silence gate (`rms < 0.02 && bass < 0.03`): Playhead in A1/Mix-Lücke oder echter Stille → energy/onset/beatPulse ~0, kein Pulse in Audio-Lücken. Kein `featuresAt` 120-BPM-Metronom, solange das Projekt einen Audio-Pfad hat. Beat = audio-derived onset/energy sync — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Altes JSON ohne `sourcePath`: einmal Relink, dann Save. Chrome-Projekte erscheinen **nicht** magisch in der Exe (anderes Origin). |
-| Nächster Slice | Human-driven next. **VIS Ausbau** = Intent, **geplant / noch kein Code**. |
-| VIS Ausbau | **geplant / noch kein Code** — Human chose docs-only. Version bleibt 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass D–N — **PLANNED / NOT IMPLEMENTED**. Human bestätigt vor Code. |
+| Production Pass | **PLANNED / NOT IMPLEMENTED** — Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
-## VIS Ausbau (geplant)
+## Production Pass (PLANNED / NOT IMPLEMENTED)
 
-**geplant / noch kein Code** — Human chose docs-only. Kein App-Code, kein AUTO-Touch, Version bleibt **5.0.0**.
+**Nicht implementiert.** Docs-only. Kein App-Code, kein AUTO-Touch, Version bleibt **5.0.0**.
 
-| Klasse | Intent |
-| --- | --- |
-| VIS Library | Existing generative scenes stay as fixed **BASICS** group; remain part of Resonance. |
-| Audio Reactive | Second VIS class for audio-reactive image/video processing. Existing media modulated live by audio features instead of only playback. |
-| Modulation | Existing audio analysis (Energy/Bass/Onset etc.) as shared modulation source for Basics and Live-FX. No separate metronome/beat path. |
-| Live FX | Non-destructive params (Scale/Zoom, Position, Rotation, Glow, Blur, Distortion, Color/Exposure, Displacement, …) made modulatable in principle. Expand by real Four-Chapters need. |
+**Ziel:** vierteiliges Werk (Kapitel **01–04**, Titel laut Brief) + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon.
+
+Älterer VIS-Ausbau-Intent ist hier in **K–N** aufgegangen — keine zweite Roadmap.
+
+| ID | Item | Status |
+| --- | --- | --- |
+| D | Dynamic Audio Tracks — Kapazität ≥64, anlegen nach Bedarf, stabile IDs, A1/A2 rückwärtskompatibel | **PLANNED / NOT IMPLEMENTED** |
+| E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, Chapter-Gruppe; ZIP optional | **PLANNED / NOT IMPLEMENTED** |
+| F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **PLANNED / NOT IMPLEMENTED** |
+| G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **PLANNED / NOT IMPLEMENTED** |
+| H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |
+| I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
+| J | Four Chapters — echte Produktion, Kapitel 01–04 (Titel laut Brief) | **PLANNED / NOT IMPLEMENTED** |
+| K | VIS Library — bestehende Szenen = feste **BASICS**-Gruppe; Klassifikation `basics` \| `audioReactive` | **PLANNED / NOT IMPLEMENTED** |
+| L | Shared Modulation Bus — nur bestehende Features (Energy/Bass/Onset …); kein zweites Metronom | **PLANNED / NOT IMPLEMENTED** |
+| M | Audio Reactive v1 — Image/Video: Bass→Scale, Energy→Exposure, Onset→Glow | **PLANNED / NOT IMPLEMENTED** |
+| N | Späterer Ausbau nur aus nachgewiesenem Bedarf (Four Chapters) | **PLANNED / NOT IMPLEMENTED** |
