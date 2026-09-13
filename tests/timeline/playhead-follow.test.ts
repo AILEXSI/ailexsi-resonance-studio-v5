@@ -256,7 +256,6 @@ describe("playhead follow transport pin", () => {
   it("scrollFollowPlayhead is monotonic and does not recenter behind the playhead", () => {
     const zoom = 200;
     const duration = 120_000;
-    const visible = visibleDurationMs(zoom, LANE);
     let scroll = 0;
     let playhead = 0;
     const ratios: number[] = [];
