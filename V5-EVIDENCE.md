@@ -1,11 +1,61 @@
 # V5 Evidence
 
+**Current stamp (2026-09-13).** One-look table: `CURRENT.md`. Acceptance contract: `docs/ACCEPTANCE.md`.
+
+Allowed statuses now: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED** | **NOT IMPLEMENTED**.
+Older aliases in the historical log below (`TEST-VERIFIED` ≈ AUTOMATED-TESTED, `RUNTIME-VERIFIED` / `Human-verified` / `Human-OK` ≠ HUMAN-PROVEN unless listed in the MODE B EXE pass).
+
+Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5. COMPLETE: NO. Version **5.0.0**. AUTO unangetastet.
+
+## 2026-09-13 MODE B EXE acceptance (operator PASS)
+
+Accepted local EXE built from PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320` (`cursor/stack-export-vn-1787` onto PR #14). Screenshot `docs/exe-acceptance-2026-09-13.png`: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + version chip **5.0.0** + dynamic tracks/mixer visible.
+
+HUMAN-PROVEN (do not downgrade):
+
+- app startup / runtime
+- Arrange workflow
+- dynamic audio-track create / remove (D)
+- audio-track vertical scrolling
+- dynamic mixer channels
+- mixer horizontal scrolling
+- mixer resizing / workspace divider (D.1)
+- track / mixer state interaction
+- Speichern / Speichern unter
+- project `.vN` filename versioning
+- Export `.vN` filename versioning
+- actual MP4 export completed successfully
+- existing playback / timeline remained functional
+
+E Stem Import: **IMPLEMENTED / AUTOMATED-TESTED** on this tip. Not in the HUMAN-PROVEN list.
+F–N + zettel (Preview Zoom, mixer EQ/FX): **PLANNED / NOT IMPLEMENTED**.
+
+`origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
+
+Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed / 94 files**; vite build 5.0.0.
+
+## Contradictions vs the historical log below
+
+The body after the divider is the 2026-08-30 P33 / PR #1 notebook. Keep it as history. Do **not** treat these stale sentences as current:
+
+- Successful H.264 encode / user-clip MP4 **NOT VERIFIED** — superseded: MODE B EXE **HUMAN-PROVEN** MP4 (`Untitled_Resonance.v1.mp4`, `Exported … bytes`).
+- Export suggested name `Untitled_Resonance.mp4` (unversioned) / Speichern unter `Untitled_Resonance.resonance.json` (unversioned) — superseded: shared `.vN` helpers; empty → `.v1`.
+- Mixer / Arrange as V1–A2 only / “A2 stays reachable” as the capacity story — superseded: D audio **collection** (default A1+A2, cap 64); mixer follows the collection.
+- `src-tauri leftover unused` — superseded: Tauri EXE is the MODE B product (`src-tauri/` active, version 5.0.0).
+- vitest **407 / 57 files** — superseded: **831 / 94** on the accepted EXE SHA.
+- File overlay still listing **Ordner wählen** — superseded: that row is gone.
+- Browser-only / “Windows double-click NOT VERIFIED” for the accepted flows above — superseded for those HUMAN-PROVEN EXE items only. Other historical NOT VERIFIED rows stay NOT HUMAN-PROVEN.
+
+---
+
+# Historical log (2026-08-30 — P33 / PR #1)
+
 Stand: 2026-08-30 10:03 UTC. P33 duplicate at playhead on PR #1 after P32 marker snap. Commands below are from this follow-up run unless noted.
-Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5 (private, origin present). Branch `cursor/visualz-scenes-7f5e` / PR #1.
+Branch then: `cursor/visualz-scenes-7f5e` / PR #1.
 V4 was not copied. No files taken from ailexsi-resonance-studio.
 COMPLETE: NO
 
-Allowed statuses: IMPLEMENTED | RUNTIME-VERIFIED | TEST-VERIFIED | NOT VERIFIED | PLANNED | NOT IMPLEMENTED
+Historical statuses in this log: IMPLEMENTED | RUNTIME-VERIFIED | TEST-VERIFIED | NOT VERIFIED | PLANNED | NOT IMPLEMENTED
 
 ## Browser host
 
