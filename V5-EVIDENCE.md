@@ -30,7 +30,7 @@ HUMAN-PROVEN (do not downgrade):
 
 **F Track/Chapter Groups** (operator EXE, PR #17 feature tip `c4391cb` — this docs stamp is not the F EXE SHA): **HUMAN-PROVEN**. Collapse UI only; create / assign / collapse / rename confirmed. Membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. See `CURRENT.md` F Evidence Report.
 
-**G Volume Automation:** **IMPLEMENTED / AUTOMATED-TESTED** on `cursor/volume-automation-e329` (stacked on F tip `9afed5e`). Not HUMAN-PROVEN. No Windows EXE in this Linux pass. See `CURRENT.md` G Evidence Report.
+**G Volume Automation** (operator EXE, PR #18 feature tip `896b640` — this docs stamp is not the G EXE SHA): **HUMAN-PROVEN**. VOL lane works well; Volume Automation accepted. Label **VOL** (not V). Clip gain ≠ static fader ≠ automation. See `CURRENT.md` G Evidence Report.
 
 H–N + zettel: **PLANNED / NOT IMPLEMENTED** — Write Automation **W**; Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable); Relink filename assist (picker should prefer expected filename). Not next slice except H. See `CURRENT.md` Future UI.
 
@@ -40,7 +40,7 @@ Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed /
 
 F branch: tsc exit 0; vitest **841 passed / 96 files**; vite build 5.0.0, 194 modules.
 
-G branch (this pass): tsc exit 0; vitest **862 passed / 98 files**; vite build 5.0.0, 196 modules. Not HUMAN-PROVEN.
+G branch: tsc exit 0; vitest **862 passed / 98 files**; vite build 5.0.0, 196 modules. **G HUMAN-PROVEN** in EXE (`896b640`). This docs stamp is not the EXE SHA.
 
 ## Contradictions vs the historical log below
 

@@ -59,9 +59,10 @@ HUMAN-PROVEN in this EXE (do not downgrade):
 
 F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43`: **F HUMAN-PROVEN** — groups create / assign / collapse / rename. This docs stamp is not the F EXE SHA.
 
+G is **not** in the `234a781` EXE (that SHA predates G). Operator MODE B on PR **#18** feature tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`: **G HUMAN-PROVEN** — VOL lane works well; Volume Automation accepted. This docs stamp is not the G EXE SHA.
+
 Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- **G Volume Automation** is IMPLEMENTED / AUTOMATED-TESTED only — not HUMAN-PROVEN until a MODE B operator EXE pass (checklist in `CURRENT.md` G Evidence Report)
 - H–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors; Relink filename assist (see `CURRENT.md` Future UI — not next slice)
 
@@ -79,6 +80,6 @@ npm run build                     → vite 7.3.6, 193 modules, version 5.0.0
 
 F branch (MODE A): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194 modules, version 5.0.0.
 
-G branch (MODE A, this pass): tsc exit 0; vitest **862 passed / 98 files**; vite 7.3.6, 196 modules, version 5.0.0. G is not HUMAN-PROVEN.
+G branch (MODE A): tsc exit 0; vitest **862 passed / 98 files**; vite 7.3.6, 196 modules, version 5.0.0. **G HUMAN-PROVEN** in EXE (`896b640`). This docs stamp is not the EXE SHA.
 
 Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/core/track-groups.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/layout/track-groups.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.
