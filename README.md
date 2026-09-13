@@ -2,13 +2,13 @@
 
 Version **5.0.0**. Stand 2026-09-13. Ein-Blick-Tabelle: `CURRENT.md`.
 
-Quelle der Wahrheit für diesen Stand: Branch `cursor/vis-silence-gate-d1d3` auf PR #8 `cursor/transport-follow-audio-loop-44f8` @ `05ffa9c`. `main` bleibt `314deff` (Stamp nach PR #3). Kein Force-Push auf `main`. AUTO, Encoder, Follow, Loop, Icons unangetastet.
+Quelle der Wahrheit für diesen Stand: Branch `cursor/vis-silence-gate-d1d3` @ `0df5da1` — Human-verified A Follow, B audio VIS + silence gate, C Loop-off (local exe). Close-out Tip → `main` (`314deff` nach PR #3). Kein Force-Push auf `main`. AUTO und Icons unangetastet.
 
 Live-UI (Human-approved chrome, Vite `127.0.0.1:1421`, 2026-09-13):
 
 ![AILEXSI Resonance Studio V5 — File \| Import \| Export \| ARRANGE \| CUTTER; transport holds Split Undo Redo Snap Help](docs/ui-2026-09-13.png)
 
-App icon: **愛** — Artwork `docs/ailexsi-app-icon.png` auf der PR-#5-Icon-Base. Diese PR fasst Icons nicht an.
+App icon: **愛** — Artwork `docs/ailexsi-app-icon.png` auf der PR-#5-Icon-Base. Icons nicht anfassen.
 
 ## Start
 
@@ -26,7 +26,7 @@ npx tauri dev
 
 (`web:dev` bindet `127.0.0.1:1421`. `npx tauri dev` startet dasselbe via `beforeDevCommand`. `npm run dev` startet Vite ohne festen Host/Port.)
 
-Standalone (Human baut lokal):
+Standalone — Root-Exe:
 
 ```
 npm run tauri:exe
@@ -77,9 +77,17 @@ Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / A1 / A2:
 
 Klick in die VIS-Lane (leerer Body oder Event-Fill, z.B. Tunnel) springt den Playhead — gleicher Snap-Seek wie Klick in V1/V2/A. Header- oder Event-Select blockiert das nicht. Event-Ziehen bleibt Move, nicht Seek.
 
+## Compact headers
+
+Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1 [M] [S]`. Default-Höhe ~52px bleibt Name über den Buttons.
+
 ## Follow playhead
 
-Follow ON: Playhead läuft durch das linke Viewport, pinnt bei ~65% der sichtbaren Lane, danach scrollt **ein** `scrollMs` (Ruler, VIS, V1/V2, A1/A2). Seek paget nur, wenn die Nadel den View verlässt. Follow OFF: kein Auto-Scroll. Live Exe: NOT VERIFIED.
+**HUMAN-VERIFIED** (Chrome + local exe @ `0df5da1`). Follow ON: Playhead läuft durch das linke Viewport, pinnt bei ~65% der sichtbaren Lane, danach scrollt **ein** `scrollMs` (Ruler, VIS, V1/V2, A1/A2). Seek paget nur, wenn die Nadel den View verlässt. Follow OFF: kein Auto-Scroll, kein Force-Scroll.
+
+## Loop
+
+**HUMAN-VERIFIED.** Loop OFF spielt über OUT weiter — OUT ist ein Marker, kein Playback-Stop. Loop ON wrappt OUT→IN.
 
 ## Limits (ehrlich)
 
@@ -87,13 +95,15 @@ Follow ON: Playhead läuft durch das linke Viewport, pinnt bei ~65% der sichtbar
 - **Export:** H.264 MP4 über den Export-Dialog. AAC nur wenn Probe + Mix + Encode klappen; sonst `audio=none` plus Grund. WebM ist nie Erfolg. Dedicated **Export WAV**-Button ist entfernt. `startExport("wav")` bleibt intern erreichbar, hat aber keinen Toolbar-/Dialog-Weg.
 - **Persistenz:** Exe merkt den letzten Projekt**pfad** (`last-project.json` in AppData). Save/Open in der Exe über Tauri-Dialog. Browser: Chrome File System Access; Firefox fällt auf Download zurück. Medien: Exe-IDB-Blob, sonst Datei unter `sourcePath`, sonst missing + Relink. Altes JSON ohne `sourcePath` braucht einmal Relink, dann Save.
 - Chrome-Origin ≠ Exe-Origin. Ein im Browser gespeichertes Projekt erscheint **nicht** von allein in der Exe.
-- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset), wenn Audio geladen ist — kein 120-BPM-Metronom. Playhead in einer A1/Mix-Lücke oder echter Stille: Visualz silence-gate, VIS bleibt ruhig.
+- Visualizer: viele Canvas-2D- und projizierte-3D-Modi. Features aus A1/Mix-PCM (Visualz-Onset/Energy), wenn Audio geladen ist — kein 120-BPM-Metronom. Playhead in einer A1/Mix-Lücke oder echter Stille: Visualz silence-gate (`rms`/`bass`), VIS bleibt ruhig. Beat = audio-derived onset/energy sync, **kein** DAW Beat-Grid-Lock.
 - Kein Verkaufsprodukt. COMPLETE: NO.
 
 ## Fuer Bots
 
-Basis: `cursor/vis-silence-gate-d1d3` auf PR #8 `05ffa9c`, Version 5.0.0.
-Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Follow/Loop/Layout nicht anfassen. Export-Encoder nicht anfassen. Icons nicht anfassen.
-Chrome dieser Revision: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A.
-Follow-Playhead-Pin: TEST-VERIFIED auf der Transport-PR-Linie (65%-Anchor + shared scrollMs). Live Exe: NOT VERIFIED.
-Nächster Slice: Exe zu/auf nach Relink+Save (keine missing-Parade).
+Basis: `cursor/vis-silence-gate-d1d3` @ `0df5da1`, Version 5.0.0. Close-out Tip → `main`.
+Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
+Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (Human-verified). VIS-Lane-Klick seekt wie V/A. Speichern unter picker.
+A Follow: HUMAN-VERIFIED — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
+B VIS: HUMAN-VERIFIED — A1/mix PCM Visualz onset/energy; silence gate in Audio-Lücken; kein 120-BPM-Metronom wenn das Projekt Audio hat. Beat ≠ DAW-Grid-Lock.
+C Loop: HUMAN-VERIFIED — Loop OFF weiter über OUT; Loop ON wrappt OUT→IN.
+Nächster Slice: Relink+Save (keine missing-Parade).
