@@ -121,17 +121,20 @@ import {
   PREVIEW_H_MIN_PX,
   PREVIEW_MIN_PX,
   applyHSplitPointer,
+  applyMixerWidthPointer,
   applySplitPointer,
   browserLayoutStorage,
   loadHSplitRatio,
   loadLaneHeights,
   loadLaneLabelPx,
   loadMixerCollapsed,
+  loadMixerWidth,
   loadSplitRatio,
   saveHSplitRatio,
   saveLaneHeights,
   saveLaneLabelPx,
   saveMixerCollapsed,
+  saveMixerWidth,
   saveSplitRatio,
   type LaneHeightGroup,
   type LaneHeights,
@@ -161,6 +164,11 @@ export function App() {
   shortcutsOpenRef.current = shortcutsOpen;
   const layoutStore = browserLayoutStorage();
   const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
+  const [mixerWidthPx, setMixerWidthPx] = useState(() => loadMixerWidth(layoutStore));
+  const mixerWidthRef = useRef(mixerWidthPx);
+  mixerWidthRef.current = mixerWidthPx;
+  const mixerResizeDragRef = useRef(false);
+  const arrangeRowRef = useRef<HTMLDivElement>(null);
   const [splitRatio, setSplitRatio] = useState(() => loadSplitRatio(layoutStore));
   const splitRatioRef = useRef(splitRatio);
   splitRatioRef.current = splitRatio;
@@ -1170,6 +1178,39 @@ export function App() {
     window.addEventListener("pointerup", up);
   };
 
+  const applyMixerWidthFromEvent = (clientX: number) => {
+    const row = arrangeRowRef.current;
+    if (!row) return;
+    const rect = row.getBoundingClientRect();
+    const next = applyMixerWidthPointer({
+      clientX,
+      arrangeLeft: rect.left,
+      arrangeWidth: rect.width,
+    });
+    setMixerWidthPx(next.widthPx);
+  };
+
+  const onMixerResizePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mixerResizeDragRef.current = true;
+    applyMixerWidthFromEvent(e.clientX);
+    const move = (ev: PointerEvent) => {
+      if (!mixerResizeDragRef.current) return;
+      applyMixerWidthFromEvent(ev.clientX);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (!mixerResizeDragRef.current) return;
+      mixerResizeDragRef.current = false;
+      saveMixerWidth(layoutStore, mixerWidthRef.current);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   const closeProjectPanel = () => setProjectPanelOpen(false);
   const toggleProjectPanel = () => setProjectPanelOpen((open) => !open);
 
@@ -1399,7 +1440,9 @@ export function App() {
       <div
         className={`arrange-row${mixerCollapsed ? " mixer-collapsed" : ""}`}
         data-testid="arrange-row"
-        style={{ overflow: "hidden" }}
+        data-mixer-width={mixerWidthPx}
+        ref={arrangeRowRef}
+        style={{ overflow: "hidden", ["--mixer-width" as string]: `${mixerWidthPx}px` }}
       >
       <Timeline
         visibleTrackIds={tracksForScreen(screen, session.project)}
@@ -1511,6 +1554,7 @@ export function App() {
         peaks={mixPeaks}
         collapsed={mixerCollapsed}
         onToggleCollapsed={toggleMixerCollapsed}
+        onResizePointerDown={onMixerResizePointerDown}
         onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
         onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
         onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}

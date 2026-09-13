@@ -1,4 +1,4 @@
-/** Session chrome (mixer fold + preview/arrange split). localStorage is enough. */
+/** Session chrome (mixer fold/width + preview/arrange split). localStorage is enough. */
 
 export const MIXER_COLLAPSED_KEY = "resonance-studio-v5-mixer-collapsed";
 export const SPLIT_RATIO_KEY = "resonance-studio-v5-preview-split";
@@ -30,8 +30,15 @@ export const PREVIEW_H_MIN_PX = 200;
 export const INSPECTOR_MIN_PX = 180;
 export const H_SPLITTER_PX = 14;
 export const DEFAULT_H_SPLIT_RATIO = 0.74;
+export const MIXER_WIDTH_KEY = "resonance-studio-v5-mixer-width";
 export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;
+/** Expanded mixer: MST + ≥1 channel peek + chrome. Never 0. */
+export const MIXER_MIN_PX = 120;
+/** Extra channels visible at once; timeline still gets TIMELINE_MIN_PX. */
+export const MIXER_MAX_PX = 560;
+export const TIMELINE_MIN_PX = 320;
+export const MIXER_SPLITTER_PX = 8;
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -75,6 +82,44 @@ export function loadMixerCollapsed(storage?: StorageLike | null): boolean {
 export function saveMixerCollapsed(storage: StorageLike | null | undefined, collapsed: boolean): void {
   try {
     storage?.setItem(MIXER_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function clampMixerWidth(px: number, arrangeWidthPx?: number): number {
+  const maxByTimeline =
+    arrangeWidthPx != null && Number.isFinite(arrangeWidthPx) && arrangeWidthPx > 0
+      ? Math.max(MIXER_MIN_PX, arrangeWidthPx - TIMELINE_MIN_PX)
+      : MIXER_MAX_PX;
+  const max = Math.min(MIXER_MAX_PX, maxByTimeline);
+  if (!Number.isFinite(px)) return MIXER_EXPANDED_PX;
+  return Math.round(Math.min(max, Math.max(MIXER_MIN_PX, px)));
+}
+
+/** Left-edge divider: drag left → wider mixer; drag right → narrower. */
+export function applyMixerWidthPointer(opts: {
+  clientX: number;
+  arrangeLeft: number;
+  arrangeWidth: number;
+}): { widthPx: number } {
+  const mixerPx = opts.arrangeLeft + opts.arrangeWidth - opts.clientX;
+  return { widthPx: clampMixerWidth(mixerPx, opts.arrangeWidth) };
+}
+
+export function loadMixerWidth(storage?: StorageLike | null): number {
+  try {
+    const raw = storage?.getItem(MIXER_WIDTH_KEY);
+    if (raw == null) return MIXER_EXPANDED_PX;
+    return clampMixerWidth(Number(raw));
+  } catch {
+    return MIXER_EXPANDED_PX;
+  }
+}
+
+export function saveMixerWidth(storage: StorageLike | null | undefined, px: number): void {
+  try {
+    storage?.setItem(MIXER_WIDTH_KEY, String(clampMixerWidth(px)));
   } catch {
     /* quota / private mode */
   }

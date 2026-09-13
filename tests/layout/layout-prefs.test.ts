@@ -6,11 +6,17 @@ import {
   H_SPLIT_RATIO_KEY,
   INSPECTOR_MIN_PX,
   MIXER_COLLAPSED_KEY,
+  MIXER_EXPANDED_PX,
+  MIXER_MAX_PX,
+  MIXER_MIN_PX,
+  MIXER_WIDTH_KEY,
+  TIMELINE_MIN_PX,
   PREVIEW_H_MIN_PX,
   PREVIEW_MIN_PX,
   SPLITTER_PX,
   SPLIT_RATIO_KEY,
   applyHSplitPointer,
+  applyMixerWidthPointer,
   applySplitPointer,
   DEFAULT_LANE_HEIGHT_PX,
   DEFAULT_LANE_LABEL_PX,
@@ -23,6 +29,7 @@ import {
   LANE_LABEL_PX_KEY,
   clampHSplitRatio,
   clampLaneHeightPx,
+  clampMixerWidth,
   clampLaneLabelPx,
   clampSplitRatio,
   loadHSplitRatio,
@@ -30,11 +37,13 @@ import {
   loadLaneHeights,
   loadLaneLabelPx,
   loadMixerCollapsed,
+  loadMixerWidth,
   loadSplitRatio,
   saveHSplitRatio,
   saveLaneHeights,
   saveLaneLabelPx,
   saveMixerCollapsed,
+  saveMixerWidth,
   saveSplitRatio,
 } from "../../src/core/layout-prefs";
 
@@ -135,6 +144,42 @@ describe("layout prefs", () => {
     saveLaneHeights(store, { vis: 40, video: 80, audio: 200 });
     expect(JSON.parse(store.map.get(LANE_HEIGHTS_KEY)!)).toEqual({ vis: 40, video: 80, audio: 120 });
     expect(loadLaneHeights(store)).toEqual({ vis: 40, video: 80, audio: 120 });
+  });
+
+  it("clamps mixer width so the panel cannot collapse and the timeline stays usable", () => {
+    expect(MIXER_MIN_PX).toBeGreaterThan(0);
+    expect(MIXER_MIN_PX).toBeLessThan(MIXER_EXPANDED_PX);
+    expect(MIXER_MAX_PX).toBeGreaterThan(MIXER_EXPANDED_PX);
+    expect(clampMixerWidth(MIXER_EXPANDED_PX)).toBe(MIXER_EXPANDED_PX);
+    expect(clampMixerWidth(0)).toBe(MIXER_MIN_PX);
+    expect(clampMixerWidth(4000)).toBe(MIXER_MAX_PX);
+    expect(clampMixerWidth(Number.NaN)).toBe(MIXER_EXPANDED_PX);
+    const tight = MIXER_MIN_PX + TIMELINE_MIN_PX + 80;
+    expect(clampMixerWidth(MIXER_MAX_PX, tight)).toBe(tight - TIMELINE_MIN_PX);
+    expect(clampMixerWidth(10, tight)).toBe(MIXER_MIN_PX);
+  });
+
+  it("left-edge mixer drag: left widens, right narrows; persist round-trips", () => {
+    const arrangeWidth = 900;
+    const defaultRight = arrangeWidth - MIXER_EXPANDED_PX;
+    const wider = applyMixerWidthPointer({ clientX: defaultRight - 80, arrangeLeft: 0, arrangeWidth });
+    expect(wider.widthPx).toBe(MIXER_EXPANDED_PX + 80);
+    const narrower = applyMixerWidthPointer({ clientX: defaultRight + 40, arrangeLeft: 0, arrangeWidth });
+    expect(narrower.widthPx).toBe(MIXER_EXPANDED_PX - 40);
+    const maxed = applyMixerWidthPointer({ clientX: 0, arrangeLeft: 0, arrangeWidth });
+    expect(maxed.widthPx).toBeLessThanOrEqual(MIXER_MAX_PX);
+    expect(maxed.widthPx).toBeLessThanOrEqual(arrangeWidth - TIMELINE_MIN_PX);
+    const mined = applyMixerWidthPointer({ clientX: arrangeWidth, arrangeLeft: 0, arrangeWidth });
+    expect(mined.widthPx).toBe(MIXER_MIN_PX);
+
+    const store = memoryStorage();
+    expect(loadMixerWidth(store)).toBe(MIXER_EXPANDED_PX);
+    saveMixerWidth(store, 360);
+    expect(store.map.get(MIXER_WIDTH_KEY)).toBe("360");
+    expect(loadMixerWidth(store)).toBe(360);
+    saveMixerWidth(store, 8);
+    expect(loadMixerWidth(store)).toBe(MIXER_MIN_PX);
+    expect(loadMixerWidth(memoryStorage({ [MIXER_WIDTH_KEY]: "nope" }))).toBe(MIXER_EXPANDED_PX);
   });
 
   it("packs V/A/VIS headers inline below the stacked name + chrome threshold", () => {

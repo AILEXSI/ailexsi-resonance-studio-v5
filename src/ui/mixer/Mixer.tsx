@@ -1,3 +1,4 @@
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { kindOfTrack, orderedTracks, type Project, type TrackId } from "../../core/models";
 import {
   dbToFader,
@@ -19,6 +20,7 @@ interface Props {
   peaks: MixPeaks;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onResizePointerDown?: (e: ReactPointerEvent<HTMLDivElement>) => void;
   onSelectTrack: (id: TrackId, opts?: { toggle?: boolean }) => void;
   onVolume: (id: TrackId, linear: number) => void;
   onMasterVolume: (linear: number) => void;
@@ -149,6 +151,7 @@ export function Mixer({
   peaks,
   collapsed = false,
   onToggleCollapsed,
+  onResizePointerDown,
   onSelectTrack,
   onVolume,
   onMasterVolume,
@@ -163,6 +166,17 @@ export function Mixer({
       data-testid="mixer"
       data-collapsed={collapsed ? "true" : "false"}
     >
+      {collapsed || !onResizePointerDown ? null : (
+        <div
+          className="mixer-resize"
+          data-testid="mixer-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Mixerbreite"
+          title="Mixer breiter / schmaler"
+          onPointerDown={onResizePointerDown}
+        />
+      )}
       <div className="mixer-chrome">
         <button
           type="button"
