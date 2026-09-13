@@ -3,6 +3,7 @@ import { applyCommand } from "../../src/app/commands";
 import {
   applyPlayhead,
   applyToggleFollow,
+  applyToggleLoop,
   applyTimelineViewport,
   createSession,
   type Session,
@@ -271,5 +272,32 @@ describe("playhead follow transport pin", () => {
     for (const r of ratios) {
       expect(r).toBeLessThanOrEqual(FOLLOW_ANCHOR_RATIO + 1e-6);
     }
+  });
+
+  it("Follow ON + LOOP OFF crosses OUT as a marker and keeps pinning", () => {
+    const start = zoomedSession();
+    start.project = {
+      ...start.project,
+      loop: false,
+      inPointMs: 800,
+      outPointMs: 1600,
+      playheadMs: 1500,
+    };
+    const visible = visibleDurationMs(200, LANE);
+    expect(1600).toBeLessThan(visible * FOLLOW_ANCHOR_RATIO);
+    const before = transportTo(start, 1500);
+    const stepped = advancePlayhead(before.project, 200);
+    expect(stepped.stopped).toBe(false);
+    expect(stepped.playheadMs).toBe(1700);
+    const after = transportTo(before, stepped.playheadMs);
+    expect(after.project.playheadMs).toBe(1700);
+    expect(after.project.outPointMs).toBe(1600);
+    expect(after.project.loop).toBe(false);
+    expect(after.project.scrollMs).toBe(0);
+    const toggled = applyToggleLoop({ ...start, project: { ...start.project, loop: true, playheadMs: 1550 } });
+    expect(toggled.project.loop).toBe(false);
+    const through = advancePlayhead(toggled.project, 100);
+    expect(through.playheadMs).toBe(1650);
+    expect(through.stopped).toBe(false);
   });
 });

@@ -20,7 +20,7 @@ describe("preview / playback", () => {
     expect(sourceTimeAt(fast, 1250)).toBe(700);
   });
 
-  it("loops inside IN/OUT and stops without loop", () => {
+  it("LOOP ON wraps OUT → IN; LOOP OFF crosses OUT and continues", () => {
     const p = projectWith([
       clip({ id: "c", assetId: "a", trackId: "V1", startMs: 0, durationMs: 5000 }),
     ]);
@@ -28,14 +28,17 @@ describe("preview / playback", () => {
     p.outPointMs = 2000;
     p.playheadMs = 1900;
     p.loop = true;
+    expect(playbackBounds(p)).toEqual({ startMs: 1000, endMs: 2000 });
     expect(advancePlayhead(p, 200).playheadMs).toBe(1000);
     p.loop = false;
-    const stopped = advancePlayhead(p, 200);
-    expect(stopped.stopped).toBe(true);
-    expect(stopped.playheadMs).toBe(2000);
+    expect(playbackBounds(p).startMs).toBe(0);
+    expect(playbackBounds(p).endMs).toBe(5000);
+    const crossed = advancePlayhead(p, 200);
+    expect(crossed.stopped).toBe(false);
+    expect(crossed.playheadMs).toBe(2100);
   });
 
-  it("reverse shuttle stops at IN without loop and wraps with loop", () => {
+  it("reverse shuttle crosses IN when LOOP is off and wraps when LOOP is on", () => {
     const p = projectWith([
       clip({ id: "c", assetId: "a", trackId: "V1", startMs: 0, durationMs: 5000 }),
     ]);
@@ -43,9 +46,9 @@ describe("preview / playback", () => {
     p.outPointMs = 2000;
     p.playheadMs = 1100;
     p.loop = false;
-    const stopped = advancePlayhead(p, -200);
-    expect(stopped.stopped).toBe(true);
-    expect(stopped.playheadMs).toBe(1000);
+    const crossed = advancePlayhead(p, -200);
+    expect(crossed.stopped).toBe(false);
+    expect(crossed.playheadMs).toBe(900);
     p.loop = true;
     const wrapped = advancePlayhead(p, -200);
     expect(wrapped.stopped).toBe(false);
@@ -83,5 +86,55 @@ describe("preview / playback", () => {
       events: [{ id: "e1", sceneId: "pulse-orb", startMs: 500, durationMs: 1500 }],
     };
     expect(playbackBounds(p).endMs).toBe(2000);
+  });
+});
+
+describe("LOOP OFF ignores OUT as a playback boundary", () => {
+  function ranged(): ReturnType<typeof projectWith> {
+    const p = projectWith([
+      clip({ id: "c", assetId: "a", trackId: "V1", startMs: 0, durationMs: 5000 }),
+    ]);
+    p.inPointMs = 1000;
+    p.outPointMs = 2000;
+    return p;
+  }
+
+  it("toggle LOOP OFF inside the loop makes OUT stop being a boundary immediately", () => {
+    const p = ranged();
+    p.loop = true;
+    p.playheadMs = 1500;
+    p.loop = false;
+    const next = advancePlayhead(p, 600);
+    expect(next.stopped).toBe(false);
+    expect(next.playheadMs).toBe(2100);
+  });
+
+  it("toggle LOOP OFF immediately before OUT continues through OUT", () => {
+    const p = ranged();
+    p.loop = true;
+    p.playheadMs = 1980;
+    p.loop = false;
+    const next = advancePlayhead(p, 40);
+    expect(next.stopped).toBe(false);
+    expect(next.playheadMs).toBe(2020);
+  });
+
+  it("seeking after OUT with LOOP OFF is valid and playback continues", () => {
+    const p = ranged();
+    p.loop = false;
+    p.playheadMs = 3500;
+    expect(playbackBounds(p).endMs).toBe(5000);
+    const next = advancePlayhead(p, 100);
+    expect(next.stopped).toBe(false);
+    expect(next.playheadMs).toBe(3600);
+  });
+
+  it("project/media end still stops when LOOP is off", () => {
+    const p = ranged();
+    p.loop = false;
+    p.playheadMs = 4950;
+    const stopped = advancePlayhead(p, 100);
+    expect(stopped.stopped).toBe(true);
+    expect(stopped.playheadMs).toBe(5000);
   });
 });
