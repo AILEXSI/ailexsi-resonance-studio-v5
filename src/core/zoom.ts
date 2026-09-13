@@ -84,6 +84,9 @@ export function playheadInView(
   return playheadMs >= scrollMs && playheadMs <= viewEnd;
 }
 
+/** Visible-lane fraction where Follow pins the playhead (look-ahead, DAW-normal). */
+export const FOLLOW_PLAYHEAD_FRACTION = 1 / 3;
+
 function centerPlayheadScrollMs(
   playheadMs: number,
   zoomPxPerSec: number,
@@ -94,15 +97,23 @@ function centerPlayheadScrollMs(
   return Math.max(0, playheadMs - half);
 }
 
-/** Page the Arrange view so the playhead stays in the visible lane. */
+/**
+ * Keep the playhead inside the Arrange window.
+ * `pin`: Follow — lock the needle at FOLLOW_PLAYHEAD_FRACTION and scroll the tracks.
+ * Default: page only after the needle has left (zoom-around safety).
+ */
 export function scrollKeepPlayheadInView(
   playheadMs: number,
   scrollMs: number,
   zoomPxPerSec: number,
   timelineWidthPx: number,
   laneLabelPx = LANE_LABEL_PX,
+  pin = false,
 ): number {
   const visible = visibleDurationMs(zoomPxPerSec, timelineWidthPx, laneLabelPx);
+  if (pin) {
+    return Math.max(0, playheadMs - visible * FOLLOW_PLAYHEAD_FRACTION);
+  }
   let scroll = Math.max(0, scrollMs);
   if (playheadMs < scroll) scroll = Math.max(0, playheadMs);
   if (playheadMs > scroll + visible) scroll = Math.max(0, playheadMs - visible);

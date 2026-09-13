@@ -8,13 +8,14 @@ Ein Blick. Kein Wunschzettel.
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | 5.0.0 |
 | main | `314deff` — README-Stamp nach PR #3 (`e14d7af`). Nicht forcieren. |
-| Branch | `cursor/remove-wav-move-help-0258` (PR #5) @ `a5113d7` (`a5113d749ccd66a281bb0a169a452f8a7cfea990`) |
+| Branch | `cursor/remove-wav-move-help-0258` (PR #5) — Follow pins playhead in the Arrange window |
 | Base | Menu-polish PR #4 (`cursor/menu-polish-2bc0` @ `6423bd4`) liegt unter diesem Branch |
 | Live-UI | Human-approved Vite `127.0.0.1:1421` — `docs/ui-2026-09-13.png` |
 | Start Dev | `npm run web:dev` **oder** `npx tauri dev` auf `127.0.0.1:1421` (`beforeDevCommand` = `web:dev`) |
 | Start Standalone | `npm run tauri:exe` kopiert nach Repo-Root `AILEXSI Resonance Studio V5.exe`; liegt auch unter `src-tauri\\target\\release\\` |
 | Top bar | File \| Import \| Export \| [ARRANGE] \| [CUTTER] — **kein** Export WAV, **kein** Help, **kein** Undo/Redo/Split/Snap oben |
 | Transport | Play / Pause / Stop / … + **Split** + **Undo** + **Redo** + **Snap** + **Help** |
+| Follow | ON: playhead stays in the Arrange window, pinned at 1/3 of the visible lane; tracks scroll under it. OFF: free pan, playhead may leave. |
 | File overlay | New / Speichern / Speichern unter / Öffnen / Zuletzt — **kein** Ordner wählen, **kein** Revert, **keine** MEDIA-Durchsuchen-Zeile. Import bleibt der Toolbar-Button. Media-Bin (Suche/Filter/Place) kann im Overlay sitzen, lädt aber keine Dateien. |
 | Speichern unter | Chrome: `showSaveFilePicker` (Ordner + Name). Tauri/Exe: nativer Save-Dialog (Ordner + Name, immer Picker). Firefox: kein FSA → Download. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |

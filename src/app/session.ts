@@ -159,7 +159,7 @@ export interface Session {
   timelineWidthPx: number;
   /** Last measured lane-label gutter. View state. */
   timelineLaneLabelPx: number;
-  /** When true, applyPlayhead pages scroll so the needle stays in view. */
+  /** When true, applyPlayhead pins the playhead in the Arrange window and scrolls the tracks. */
   followPlayhead: boolean;
   store: BlobStore;
   /** History lengths at last save / open / new. Dirty when they differ. */
@@ -1205,6 +1205,7 @@ export function applyPlayhead(session: Session, timeMs: number): Session {
     project.zoomPxPerSec,
     session.timelineWidthPx,
     session.timelineLaneLabelPx,
+    true,
   );
   if (scrollMs === project.scrollMs) return { ...session, project };
   return { ...session, project: { ...project, scrollMs } };

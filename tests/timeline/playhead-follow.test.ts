@@ -9,7 +9,7 @@ import {
 } from "../../src/app/session";
 import { createMemoryBlobStore } from "../../src/core/persistence";
 import { FRAME_MS } from "../../src/core/models";
-import { playheadInView, visibleDurationMs } from "../../src/core/zoom";
+import { FOLLOW_PLAYHEAD_FRACTION, playheadInView, visibleDurationMs } from "../../src/core/zoom";
 import { asset, clip, projectWith } from "../helpers";
 
 const LANE = 1000;
@@ -25,7 +25,7 @@ function zoomedSession(): Session {
 }
 
 describe("playhead follow (P46)", () => {
-  it("applyPlayhead pages scroll when the needle leaves the view", () => {
+  it("applyPlayhead pins the playhead at 1/3 and scrolls the tracks", () => {
     const start = zoomedSession();
     expect(playheadInView(30_000, 0, 200, LANE)).toBe(false);
     const next = applyPlayhead(start, 30_000);
@@ -34,14 +34,35 @@ describe("playhead follow (P46)", () => {
     expect(playheadInView(30_000, next.project.scrollMs, 200, LANE)).toBe(true);
     expect(next.history.past.length).toBe(start.history.past.length);
     const visible = visibleDurationMs(200, LANE);
-    expect(next.project.scrollMs).toBeCloseTo(30_000 - visible, 5);
+    expect(next.project.scrollMs).toBeCloseTo(30_000 - visible * FOLLOW_PLAYHEAD_FRACTION, 5);
   });
 
-  it("leaves scroll alone when the playhead is already visible", () => {
+  it("leaves scroll at 0 while the pin still fits from t=0", () => {
     const start = zoomedSession();
     const next = applyPlayhead(start, 500);
     expect(next.project.playheadMs).toBe(500);
     expect(next.project.scrollMs).toBe(0);
+  });
+
+  it("Follow keeps the playhead inside the window across high-zoom playback steps", () => {
+    const start = zoomedSession();
+    start.project = { ...start.project, zoomPxPerSec: 12_000, scrollMs: 0, playheadMs: 0 };
+    let s = applyPlayhead(start, 4_000);
+    const visible = visibleDurationMs(12_000, LANE);
+    expect(playheadInView(s.project.playheadMs, s.project.scrollMs, 12_000, LANE)).toBe(true);
+    expect(s.project.scrollMs).toBeCloseTo(4_000 - visible * FOLLOW_PLAYHEAD_FRACTION, 5);
+
+    for (let i = 0; i < 90; i++) {
+      s = applyPlayhead(s, s.project.playheadMs + 16);
+      expect(playheadInView(s.project.playheadMs, s.project.scrollMs, 12_000, LANE)).toBe(true);
+      expect(s.project.scrollMs).toBeCloseTo(
+        s.project.playheadMs - visible * FOLLOW_PLAYHEAD_FRACTION,
+        5,
+      );
+      expect(s.project.scrollMs + visible * FOLLOW_PLAYHEAD_FRACTION).toBeLessThan(
+        s.project.scrollMs + visible,
+      );
+    }
   });
 
   it("goto next/prev edit follows; Follow off does not scroll", () => {
