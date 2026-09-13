@@ -354,9 +354,9 @@ export function App() {
         if (rate === 0 && !s.playing) return s;
         const stepped = advancePlayhead(s.project, delta * (rate === 0 ? 1 : rate));
         if (stepped.stopped) {
-          return applyCommand(applyPlayhead(s, stepped.playheadMs), { type: "pause" });
+          return applyCommand(applyPlayhead(s, stepped.playheadMs, "transport"), { type: "pause" });
         }
-        return applyPlayhead(s, stepped.playheadMs);
+        return applyPlayhead(s, stepped.playheadMs, "transport");
       });
       raf = requestAnimationFrame(tick);
     };

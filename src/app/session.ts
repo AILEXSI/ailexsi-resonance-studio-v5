@@ -126,6 +126,7 @@ import {
   fitZoomPxPerSec,
   LANE_LABEL_PX,
   minZoomPxPerSec,
+  scrollFollowPlayhead,
   scrollKeepPlayheadInView,
   scrollZoomAroundPlayhead,
 } from "../core/zoom";
@@ -163,7 +164,7 @@ export interface Session {
   timelineWidthPx: number;
   /** Last measured lane-label gutter. View state. */
   timelineLaneLabelPx: number;
-  /** When true, applyPlayhead pages scroll so the needle stays in view. */
+  /** When true, transport pins the playhead at ~65% and scrolls the shared timeline. */
   followPlayhead: boolean;
   store: BlobStore;
   /** History lengths at last save / open / new. Dirty when they differ. */
@@ -1251,16 +1252,32 @@ export function applyMoveMarker(session: Session, markerId: string, timeMs: numb
   };
 }
 
-export function applyPlayhead(session: Session, timeMs: number): Session {
+export type PlayheadApplyMode = "seek" | "transport";
+
+export function applyPlayhead(
+  session: Session,
+  timeMs: number,
+  mode: PlayheadApplyMode = "seek",
+): Session {
   const project = setPlayhead(session.project, timeMs);
   if (!session.followPlayhead) return { ...session, project };
-  const scrollMs = scrollKeepPlayheadInView(
-    project.playheadMs,
-    project.scrollMs,
-    project.zoomPxPerSec,
-    session.timelineWidthPx,
-    session.timelineLaneLabelPx,
-  );
+  const scrollMs =
+    mode === "transport"
+      ? scrollFollowPlayhead(
+          project.playheadMs,
+          project.scrollMs,
+          project.zoomPxPerSec,
+          session.timelineWidthPx,
+          projectDurationMs(project),
+          session.timelineLaneLabelPx,
+        )
+      : scrollKeepPlayheadInView(
+          project.playheadMs,
+          project.scrollMs,
+          project.zoomPxPerSec,
+          session.timelineWidthPx,
+          session.timelineLaneLabelPx,
+        );
   if (scrollMs === project.scrollMs) return { ...session, project };
   return { ...session, project: { ...project, scrollMs } };
 }
