@@ -102,6 +102,7 @@ describe("dynamic audio tracks", () => {
     expect(loaded.tracks.find((t) => t.id === extra.id)?.muted).toBe(true);
     expect(loaded.tracks.find((t) => t.id === extra.id)?.volume).toBeCloseTo(0.5);
     expect(loaded.tracks.find((t) => t.id === extra.id)?.groupId).toBe("ch-01");
+    expect(loaded.groups?.some((g) => g.id === "ch-01")).toBe(true);
     expect(loaded.tracks.find((t) => t.id === extra.id)?.automationLanes?.[0]?.kind).toBe("volume");
     expect(loaded.clips.map((c) => c.trackId).sort()).toEqual(["A1", extra.id].sort());
 

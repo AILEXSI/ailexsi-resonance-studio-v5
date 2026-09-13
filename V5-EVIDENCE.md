@@ -28,7 +28,9 @@ HUMAN-PROVEN (do not downgrade):
 - existing playback / timeline remained functional
 - **E Stem Import** (multi-WAV / ZIP, same start, filename labels) — operator correction: HUMAN-PROVEN
 
-F–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
+**F Track/Chapter Groups** (this branch): **IMPLEMENTED / AUTOMATED-TESTED**. Collapse UI only; membership + display name in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. Not HUMAN-PROVEN. See `CURRENT.md` F Evidence Report.
+
+G–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + later automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable). Not next slice. See `CURRENT.md` Future UI.
 
 `origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
 

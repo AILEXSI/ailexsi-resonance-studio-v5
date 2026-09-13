@@ -29,14 +29,14 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | S / Split | Nur **aktive/selektierte** Tracks unter VIS / V1 / V2 / audio collection (not A1/A2-only). Multi-Select OK. Linked Mates auf anderen Tracks werden **nicht** mitgeschnitten. |
 | VIS S-cut | **HUMAN-PROVEN** (earlier). S teilt VIS-Events / Cues / Window am Playhead, wenn VIS fokussiert ist. V/A clips remain whole. |
 | Dynamic audio | **D HUMAN-PROVEN in EXE.** Collection, not A1/A2 architecture. Default project still A1+A2 (`MIN_AUDIO_TRACKS` 2). Capacity **64** (`MAX_AUDIO_TRACKS`). Created as needed. Circular `+`/`−` on the **last** audio header (`−` hidden at floor 2, `+` disabled at 64). Stable ids (`A1`/`A2` legacy; new `a_*`); labels A1, A2, A3…. Legacy A1/A2 JSON loads. Lane template reused. `.timeline-lanes` **vertical** scroll. Mixer channels follow the collection; **horizontal** mixer scroll. Resizable mixer / workspace divider. Track/mixer state stays in sync. |
-| Stem import | **E HUMAN-PROVEN in EXE.** Import picker is multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename (extension stripped). Status reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. **No F group collapse.** Optional `groupId` only when filenames share a prefix. Remaining E/F intent: Suno naming normalize, single-vs-multi placement polish — **PLANNED**. |
+| Stem import | **E HUMAN-PROVEN in EXE.** Import picker is multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename (extension stripped). Status reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. Optional `groupId` when filenames share a prefix — F maps that into `Project.groups`. Remaining E refinements: Suno naming normalize, single-vs-multi placement polish — **PLANNED**. |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | **HUMAN-PROVEN** in EXE. Toolbar **Export** → H.264-MP4-Dialog. Default-Name immer `Stem.vN.ext` (screenshot: `Untitled_Resonance.v1.mp4` / status `Exported … bytes`). Empty folder → `.v1`; unversioned sibling occupies v1 → `.v2`. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
-| Nächster Slice | Production Pass **F** (Track/Chapter Groups UI collapse) — **PLANNED / NOT IMPLEMENTED**. D + E are HUMAN-PROVEN. Future UI zettel (rename / color / distribute / Preview Zoom / EQ-FX) is **not** the next slice. STOP — no F+ and no zettel implementation in this docs pass. |
-| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass **G** (Volume Automation) — **PLANNED / NOT IMPLEMENTED**. F is IMPLEMENTED / AUTOMATED-TESTED (not HUMAN-PROVEN). Future UI zettel (track rename / color / distribute / Preview Zoom / EQ-FX) is **not** this slice. STOP — no G+. |
+| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F IMPLEMENTED / AUTOMATED-TESTED** (Track/Chapter Groups collapse UI). **G–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
 ## Verification paths
 
@@ -47,9 +47,9 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + chip **5.0.0** + dynamic tracks/mixer visible. Details: `docs/ACCEPTANCE.md`.
 
-## Production Pass (D + E HUMAN-PROVEN · F–N planned)
+## Production Pass (D + E HUMAN-PROVEN · F AUTOMATED-TESTED · G–N planned)
 
-**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). F–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
+**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **AUTOMATED-TESTED** (MODE A — not EXE HUMAN-PROVEN). G–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
 
 **Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
@@ -58,9 +58,9 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | ID | Item | Status |
 | --- | --- | --- |
 | D | Dynamic Audio Tracks — Kapazität 64, anlegen nach Bedarf, stabile IDs, A1/A2 rückwärtskompatibel; last-lane `+/−`; vertical lane scroll; mixer follows collection; horizontal mixer scroll; resizable mixer / workspace divider; track↔mixer sync | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
-| E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, ZIP in-memory; Chapter `groupId` prefix-only (no collapse UI) | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
+| E | Stem Import — Multi-WAV Suno-Stems, gleicher Start, ZIP in-memory; Chapter `groupId` prefix maps into F groups | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
 | E+ | E refinements: Suno filename normalize; single-vs-multi placement polish (code already: 2+ same start / 1 appends) | **PLANNED** (do not implement here) |
-| F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **PLANNED / NOT IMPLEMENTED** |
+| F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **IMPLEMENTED / AUTOMATED-TESTED** |
 | G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **PLANNED / NOT IMPLEMENTED** |
 | H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |
 | I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
@@ -75,9 +75,41 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | Zettel | Track Color — one shared color from Timeline header and Mixer channel | **PLANNED / NOT IMPLEMENTED** |
 | Zettel | Distribute Colors — sequential palette on a selection or Chapter group | **PLANNED / NOT IMPLEMENTED** |
 
+## F Evidence Report (MODE A)
+
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN (no MODE B EXE this pass).
+
+### Files
+
+- `src/core/track-groups.ts` — group model, assign/rename, arrange rows, last-lane chrome host
+- `src/core/models.ts` — `TrackGroup`; optional `Project.groups`; `Track.groupId` still membership
+- `src/core/project.ts` — `groups: []` default; deserialize hydrates from `groups` + stem `groupId`
+- `src/core/stem-import.ts` — prefix `groupId` upserts `Project.groups`
+- `src/core/layout-prefs.ts` — `resonance-studio-v5-group-collapsed` (JSON id list)
+- `src/app/commands.ts` / `src/app/session.ts` — `createTrackGroup` / `assignTracksToGroup` / `renameTrackGroup`
+- `src/ui/timeline/Timeline.tsx` / `src/ui/mixer/Mixer.tsx` / `src/app/App.tsx` / `src/styles.css`
+- Tests: `tests/core/track-groups.test.ts`, `tests/layout/track-groups.test.tsx`, layout-prefs + stem-import + zip-audio
+
+### How to create / collapse a group
+
+1. Select one or more audio lanes (or leave the last audio targeted).
+2. Click **Grp** on the last audio header (next to `+/−`). Default name `Chapter N`. Or use the per-lane **—** dropdown → an existing group or **New group…**.
+3. Stem import of files that share a prefix (`01_vocals.wav`, `01_drums.wav`) still writes `Track.groupId` and now also a `Project.groups` row (`id`/`name` = `01`). Rename the header to e.g. `Chapter IV — New Reality`.
+4. Collapse: chevron on the Timeline group header **or** the Mixer group strip. Child lanes/channels hide. Expand restores the same rows.
+5. `+/−` stay on the last **visible** audio lane; if that lane is inside a collapsed group, they move onto that group header.
+
+### Persistence
+
+| What | Where | Persist? |
+| --- | --- | --- |
+| Group id + display name + track membership (`Track.groupId`) | Project JSON (`schemaVersion` 5, `groups: []` default) | **Yes** (Speichern) |
+| Collapse open/closed | `localStorage` key `resonance-studio-v5-group-collapsed` | **Yes** (layout-prefs, not the project file) |
+
+Collapse does **not** change playback, mute/solo, volume, pan, routing, or export mix. No group bus / group FX / group mute.
+
 ## Future UI (zettel — production-adjacent, not next slice)
 
-**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass F. Do not implement in this docs pass.
+**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass G. Do not implement in this F pass.
 
 `Track.name` already exists as the lane/mixer label (defaults A1…; stem import may write a filename). There is **no** inline rename UI, **no** track color property, **no** Distribute Colors. Project rename and marker rename are unrelated.
 

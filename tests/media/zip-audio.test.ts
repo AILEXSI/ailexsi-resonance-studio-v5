@@ -96,6 +96,7 @@ describe("ZIP stem expand (no new deps)", () => {
       expect.arrayContaining(["01_vocals-800ms", "01_drums-400ms"]),
     );
     expect(session.project.tracks.find((t) => t.id === "A1")?.groupId).toBe("01");
+    expect(session.project.groups?.some((g) => g.id === "01")).toBe(true);
     expect(session.status).toMatch(/Imported 2 stem/);
   });
 

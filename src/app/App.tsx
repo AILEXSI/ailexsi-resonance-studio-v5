@@ -128,18 +128,21 @@ import {
   applyMixerWidthPointer,
   applySplitPointer,
   browserLayoutStorage,
+  loadCollapsedGroupIds,
   loadHSplitRatio,
   loadLaneHeights,
   loadLaneLabelPx,
   loadMixerCollapsed,
   loadMixerWidth,
   loadSplitRatio,
+  saveCollapsedGroupIds,
   saveHSplitRatio,
   saveLaneHeights,
   saveLaneLabelPx,
   saveMixerCollapsed,
   saveMixerWidth,
   saveSplitRatio,
+  toggleCollapsedGroupId,
   TIMELINE_MIN_PX,
   type LaneHeightGroup,
   type LaneHeights,
@@ -169,6 +172,7 @@ export function App() {
   shortcutsOpenRef.current = shortcutsOpen;
   const layoutStore = browserLayoutStorage();
   const [mixerCollapsed, setMixerCollapsed] = useState(() => loadMixerCollapsed(layoutStore));
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState(() => loadCollapsedGroupIds(layoutStore));
   const [mixerWidthPx, setMixerWidthPx] = useState(() => loadMixerWidth(layoutStore));
   const mixerWidthRef = useRef(mixerWidthPx);
   mixerWidthRef.current = mixerWidthPx;
@@ -1119,6 +1123,14 @@ export function App() {
     });
   };
 
+  const toggleGroupCollapsed = (groupId: string) => {
+    setCollapsedGroupIds((prev) => {
+      const next = toggleCollapsedGroupId(prev, groupId);
+      saveCollapsedGroupIds(layoutStore, next);
+      return next;
+    });
+  };
+
   const onLaneLabelPx = (px: number) => {
     setLaneLabelPx(px);
     saveLaneLabelPx(layoutStore, px);
@@ -1574,6 +1586,13 @@ export function App() {
         onRemoveAudioTrack={() => runCommand({ type: "removeAudioTrack" })}
         canAddAudioTrack={canAddAudioTrack(session.project)}
         canRemoveAudioTrack={canRemoveAudioTrack(session.project, session.targetTrackId)}
+        collapsedGroupIds={collapsedGroupIds}
+        onToggleGroupCollapsed={toggleGroupCollapsed}
+        onCreateTrackGroup={(trackIds) => runCommand({ type: "createTrackGroup", trackIds })}
+        onAssignTracksToGroup={(trackIds, groupId) =>
+          runCommand({ type: "assignTracksToGroup", trackIds, groupId })
+        }
+        onRenameTrackGroup={(groupId, name) => runCommand({ type: "renameTrackGroup", groupId, name })}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}
@@ -1595,6 +1614,8 @@ export function App() {
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
         onToggleSolo={(id) => runCommand({ type: "toggleSolo", trackId: id })}
+        collapsedGroupIds={collapsedGroupIds}
+        onToggleGroupCollapsed={toggleGroupCollapsed}
       />
       </div>
       </div>

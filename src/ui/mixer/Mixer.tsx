@@ -1,5 +1,6 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { kindOfTrack, orderedTracks, type Project, type TrackId } from "../../core/models";
+import { kindOfTrack, trackById, type Project, type TrackId } from "../../core/models";
+import { arrangeRows } from "../../core/track-groups";
 import {
   dbToFader,
   dbToLinear,
@@ -34,6 +35,8 @@ interface Props {
   onToggleMute: (id: TrackId) => void;
   onToggleSolo: (id: TrackId) => void;
   onPan?: (id: TrackId, pan: number) => void;
+  collapsedGroupIds?: readonly string[];
+  onToggleGroupCollapsed?: (groupId: string) => void;
 }
 
 function Strip(props: {
@@ -165,8 +168,10 @@ export function Mixer({
   onToggleMute,
   onToggleSolo,
   onPan,
+  collapsedGroupIds,
+  onToggleGroupCollapsed,
 }: Props) {
-  const tracks = orderedTracks(project);
+  const rows = arrangeRows(project, { collapsedGroupIds });
   const channelScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = channelScrollRef.current;
@@ -182,7 +187,7 @@ export function Mixer({
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [collapsed, tracks.length]);
+  }, [collapsed, rows.length]);
   return (
     <aside
       className={`mixer${collapsed ? " collapsed" : ""}`}
@@ -226,8 +231,37 @@ export function Mixer({
             data-testid="mixer-channel-scroll"
             style={{ overflowX: "scroll", overflowY: "hidden" }}
           >
-            {tracks.map((track) => {
-              const id = track.id;
+            {rows.map((row) => {
+              if (row.kind === "group") {
+                return (
+                  <div
+                    key={`group:${row.group.id}`}
+                    className={`mix-strip group${row.collapsed ? " collapsed" : ""}`}
+                    data-testid={`mix-group-${row.group.id}`}
+                    data-collapsed={row.collapsed ? "true" : "false"}
+                    title={row.group.name}
+                  >
+                    <button
+                      type="button"
+                      className="mix-group-collapse"
+                      data-testid={`mix-group-collapse-${row.group.id}`}
+                      title={row.collapsed ? "Expand group" : "Collapse group"}
+                      aria-expanded={!row.collapsed}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleGroupCollapsed?.(row.group.id);
+                      }}
+                    >
+                      <CollapseIcon collapsed={row.collapsed} />
+                    </button>
+                    <div className="mix-name">{row.group.name}</div>
+                    <span className="mix-group-count">{row.memberIds.length}</span>
+                  </div>
+                );
+              }
+              const id = row.trackId;
+              const track = trackById(project, id);
+              if (!track) return null;
               const selectedSet = new Set(
                 selectedTrackIds && selectedTrackIds.length > 0 ? selectedTrackIds : [selectedTrackId],
               );

@@ -12,8 +12,8 @@ Suites by area:
 - export (dialog, destination, aac-mux, filename-version / export-name `.vN`)
 - visualizer
 - mixer / volume
-- layout (**dynamic-audio-lanes**, **mixer-resize**)
-- core (**audio-tracks**)
+- layout (**dynamic-audio-lanes**, **mixer-resize**, **track-groups**)
+- core (**audio-tracks**, **track-groups**)
 - app (commands, keys, close-gap, ripple, duplicate, relink)
 
 MODE A: `npm test` / `npx tsc --noEmit`. MODE B HUMAN-PROVEN is operator EXE only — see `docs/ACCEPTANCE.md`.

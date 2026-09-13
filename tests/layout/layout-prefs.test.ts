@@ -36,10 +36,14 @@ import {
   laneHeaderPacksInline,
   loadLaneHeights,
   loadLaneLabelPx,
+  GROUP_COLLAPSED_KEY,
+  loadCollapsedGroupIds,
   loadMixerCollapsed,
   loadMixerWidth,
   loadSplitRatio,
+  saveCollapsedGroupIds,
   saveHSplitRatio,
+  toggleCollapsedGroupId,
   saveLaneHeights,
   saveLaneLabelPx,
   saveMixerCollapsed,
@@ -190,6 +194,19 @@ describe("layout prefs", () => {
     saveMixerWidth(store, 8);
     expect(loadMixerWidth(store)).toBe(MIXER_MIN_PX);
     expect(loadMixerWidth(memoryStorage({ [MIXER_WIDTH_KEY]: "nope" }))).toBe(MIXER_EXPANDED_PX);
+  });
+
+  it("persists chapter-group collapse ids in layout prefs", () => {
+    const store = memoryStorage();
+    expect(loadCollapsedGroupIds(store)).toEqual([]);
+    saveCollapsedGroupIds(store, ["01", "g_x"]);
+    expect(store.map.get(GROUP_COLLAPSED_KEY)).toBe(JSON.stringify(["01", "g_x"]));
+    expect(loadCollapsedGroupIds(store)).toEqual(["01", "g_x"]);
+    expect(toggleCollapsedGroupId(["01"], "01")).toEqual([]);
+    expect(toggleCollapsedGroupId(["01"], "g_x")).toEqual(["01", "g_x"]);
+    expect(loadCollapsedGroupIds(memoryStorage({ [GROUP_COLLAPSED_KEY]: '{"01":true,"g_x":false}' }))).toEqual([
+      "01",
+    ]);
   });
 
   it("packs V/A/VIS headers inline below the stacked name + chrome threshold", () => {

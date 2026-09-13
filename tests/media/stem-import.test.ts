@@ -86,6 +86,7 @@ describe("stem import helpers", () => {
     expect(a1.id).toBe("A1");
     expect(a1.name).toBe("Suno_Vocals");
     expect(a1.groupId).toBe("01");
+    expect(named.groups?.some((g) => g.id === "01" && g.name === "01")).toBe(true);
   });
 });
 
@@ -111,6 +112,16 @@ describe("multi-stem import alignment + track creation", () => {
     const last = audioTracksOf(session.project).at(-1)!;
     expect(session.targetTrackId).toBe(last.id);
     expect(last.id.startsWith("a_")).toBe(true);
+  });
+
+  it("writes a chapter group from a shared stem prefix", async () => {
+    const session = await importWavs(createSession(createMemoryBlobStore()), [
+      "01_vocals-200ms.wav",
+      "01_drums-200ms.wav",
+    ]);
+    expect(session.project.tracks.find((t) => t.id === "A1")?.groupId).toBe("01");
+    expect(session.project.tracks.find((t) => t.id === "A2")?.groupId).toBe("01");
+    expect(session.project.groups?.some((g) => g.id === "01" && g.name === "01")).toBe(true);
   });
 
   it("single-file Import still appends on the preferred audio track", async () => {

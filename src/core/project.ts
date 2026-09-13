@@ -3,6 +3,7 @@ import { normalizeClipFades } from "./fades";
 import { sanitizeTransitions } from "./transition";
 import { ZOOM_MAX_PX_PER_SEC } from "./zoom";
 import { ensureAudioTracksForIds, sanitizeAutomationLanes } from "./audio-tracks";
+import { sanitizeTrackGroups, syncTrackGroups } from "./track-groups";
 import {
   MAX_AUDIO_TRACKS,
   clampClipRate,
@@ -37,6 +38,7 @@ export function createEmptyProject(name = DEFAULT_PROJECT_NAME): Project {
     updatedAt: now,
     assets: [],
     tracks: defaultTracks(),
+    groups: [],
     clips: [],
     markers: [],
     transitions: [],
@@ -312,6 +314,7 @@ export function deserializeProject(text: string): Project {
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : base.updatedAt,
     assets,
     tracks,
+    groups: syncTrackGroups({ ...base, tracks, groups: sanitizeTrackGroups(raw.groups) }).groups,
     clips: keptClips,
     transitions: sanitizeTransitions(raw.transitions),
     markers: Array.isArray(raw.markers)

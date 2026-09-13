@@ -130,7 +130,8 @@ A Follow: HUMAN-PROVEN — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force
 B VIS: HUMAN-PROVEN — audio/mix PCM Visualz onset/energy; silence gate in Audio-Lücken; kein 120-BPM-Metronom wenn das Projekt Audio hat. Beat ≠ DAW-Grid-Lock.
 C Loop: HUMAN-PROVEN — Loop OFF weiter über OUT; Loop ON wrappt OUT→IN.
 Production Pass **D**: HUMAN-PROVEN in EXE (dynamic audio, 64 cap, last-lane `+/−`, lane scroll, mixer follow/scroll/resize, sync).
-Production Pass **E**: HUMAN-PROVEN in EXE (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). No F group collapse.
-F–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
-Nächster Slice: Production Pass F (track/chapter groups UI collapse). Future UI zettel is **not** the next slice. STOP — no F+ and no zettel implementation here.
+Production Pass **E**: HUMAN-PROVEN in EXE (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Prefix `groupId` maps into F groups.
+Production Pass **F**: IMPLEMENTED / AUTOMATED-TESTED (chapter/track groups, collapse UI only, no group bus). Not HUMAN-PROVEN.
+G–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
+Nächster Slice: Production Pass G (volume automation). Future UI zettel is **not** the next slice. STOP — no G+.
 MODE A = FAST / HUMAN ITERATION (browser/tauri dev). MODE B = PRECISION / ACCEPTANCE (named-SHA EXE). HUMAN-PROVEN only from MODE B operator list.

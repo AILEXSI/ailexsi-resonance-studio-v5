@@ -59,7 +59,8 @@ HUMAN-PROVEN in this EXE (do not downgrade):
 
 Not in this HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- F–N production-pass items
+- F Track/Chapter Groups (now IMPLEMENTED / AUTOMATED-TESTED on a later SHA — not in this EXE HUMAN-PROVEN list)
+- G–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors (see `CURRENT.md` Future UI — not next slice)
 
 `origin/main` was not this EXE. Main tip at audit time: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`.

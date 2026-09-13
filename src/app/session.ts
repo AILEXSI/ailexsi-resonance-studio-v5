@@ -104,6 +104,13 @@ import {
 } from "../core/timeline";
 import { addAudioTrack, canAddAudioTrack, canRemoveAudioTrack, removeAudioTrack } from "../core/audio-tracks";
 import {
+  assignTracksToGroup,
+  createTrackGroup,
+  nextTrackGroupName,
+  renameTrackGroup,
+  syncTrackGroups,
+} from "../core/track-groups";
+import {
   allocateAudioTracksForStems,
   inferStemGroupId,
   nameStemTrack,
@@ -1577,7 +1584,7 @@ export function applyRemoveAudioTrack(session: Session, trackId?: TrackId): Sess
     result.project.tracks.find((t) => t.kind === "audio")?.id ??
     "V1";
   return {
-    ...withHistory(session, result.project, `Removed audio track`),
+    ...withHistory(session, syncTrackGroups(result.project), `Removed audio track`),
     targetTrackId: nextTarget,
     selectedTrackIds: [nextTarget],
     selectedClipId: session.selectedClipId && result.project.clips.some((c) => c.id === session.selectedClipId)
@@ -1587,6 +1594,49 @@ export function applyRemoveAudioTrack(session: Session, trackId?: TrackId): Sess
       result.project.clips.some((c) => c.id === cid),
     ),
   };
+}
+
+function audioIdsForGroup(session: Session, trackIds?: readonly TrackId[]): TrackId[] {
+  const raw =
+    trackIds && trackIds.length > 0
+      ? trackIds
+      : (session.selectedTrackIds ?? []).filter((id) => kindOfTrack(id) === "audio");
+  const audio = raw.filter((id) => kindOfTrack(id) === "audio");
+  if (audio.length > 0) return audio;
+  if (kindOfTrack(session.targetTrackId) === "audio") return [session.targetTrackId];
+  const last = session.project.tracks.filter((t) => t.kind === "audio").at(-1);
+  return last ? [last.id] : [];
+}
+
+export function applyCreateTrackGroup(session: Session, name?: string, trackIds?: readonly TrackId[]): Session {
+  const ids = audioIdsForGroup(session, trackIds);
+  const result = createTrackGroup(session.project, {
+    name: name ?? nextTrackGroupName(session.project),
+    trackIds: ids,
+  });
+  if (result.error || !result.group) {
+    return { ...session, error: result.error ?? "Could not create group" };
+  }
+  return withHistory(session, result.project, `Grouped ${result.group.name}`);
+}
+
+export function applyAssignTracksToGroup(
+  session: Session,
+  trackIds: readonly TrackId[],
+  groupId: string | null,
+): Session {
+  const ids = trackIds.filter((id) => kindOfTrack(id) === "audio");
+  if (ids.length === 0) return session;
+  const next = assignTracksToGroup(session.project, ids, groupId);
+  if (next === session.project) return session;
+  const status = groupId ? "Assigned to group" : "Ungrouped track";
+  return withHistory(session, next, status);
+}
+
+export function applyRenameTrackGroup(session: Session, groupId: string, name: string): Session {
+  const next = renameTrackGroup(session.project, groupId, name);
+  if (next === session.project) return session;
+  return withHistory(session, next, "Group renamed");
 }
 
 export function applyPlay(session: Session): Session {
