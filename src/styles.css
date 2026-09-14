@@ -687,10 +687,11 @@ body.media-asset-dragging .project-overlay-drawer {
   background: #7ec8e3;
 }
 .write-arm-btn {
-  min-width: 18px;
+  min-width: 16px;
   padding: 0 4px;
   font-size: 10px;
   font-weight: 700;
+  line-height: 18px;
   color: #c9b48e;
   background: rgba(16, 20, 27, 0.45);
   border: 1px solid rgba(224, 161, 90, 0.35);
@@ -830,7 +831,22 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .mute-btn, .solo-btn { padding: 0 6px; font-size: 12px; line-height: 18px; }
 .solo-btn.active { background: #3a2f18; border-color: var(--accent); color: var(--accent); }
-.mix-ms { display: flex; gap: 2px; }
+.mix-ms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.mix-ms .mute-btn,
+.mix-ms .solo-btn,
+.mix-ms .write-arm-btn {
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 16px;
+  min-width: 16px;
+}
 .vis-lane-btns { display: flex; gap: 3px; }
 .scene-btn {
   padding: 0 4px;
@@ -969,7 +985,23 @@ body.media-asset-dragging .project-overlay-drawer {
   right: 8px;
   cursor: e-resize;
 }
-.lane-ms { display: flex; gap: 2px; }
+.lane-ms {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  max-width: 100%;
+}
+.lane-ms .mute-btn,
+.lane-ms .solo-btn {
+  padding: 0 4px;
+  font-size: 11px;
+}
+.lane-ms .volume-lane-btn {
+  min-width: 20px;
+  padding: 0 2px;
+}
 .lane-audio-count {
   display: flex;
   align-items: center;
@@ -1019,9 +1051,12 @@ body.media-asset-dragging .project-overlay-drawer {
 }
 .lane.lane-header-compact .lane-ms,
 .lane.lane-header-compact .lane-audio-count,
-.lane.lane-header-compact .lane-group-assign,
 .lane.lane-header-compact .vis-lane-btns {
   flex: 0 0 auto;
+}
+/* Compact row keeps M/S/W/VOL; chapter assign stays on the default stacked header. */
+.lane.lane-header-compact .lane-group-assign {
+  display: none;
 }
 .lane.lane-header-compact .mute-btn,
 .lane.lane-header-compact .solo-btn,
@@ -1063,6 +1098,9 @@ body.media-asset-dragging .project-overlay-drawer {
   .lane-label:has(.lane-ms) .lane-audio-count,
   .lane-label:has(.vis-lane-btns) .vis-lane-btns {
     flex: 0 0 auto;
+  }
+  .lane-label:has(.lane-ms) .lane-group-assign {
+    display: none;
   }
   .lane-label:has(.lane-ms) .mute-btn,
   .lane-label:has(.lane-ms) .solo-btn,
