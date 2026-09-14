@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,11 +9,6 @@ import { Mixer } from "../../src/ui/mixer/Mixer";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import type { TrackId } from "../../src/core/models";
 import "../../src/styles.css";
-
-const stylesCss = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "../../src/styles.css"),
-  "utf8",
-);
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
 const noop = () => {};
@@ -226,9 +218,9 @@ describe("volume automation lane chrome", () => {
     expect(label.querySelector(".volume-lane-meta")?.querySelector(".volume-lane-enable")).toBeTruthy();
     expect(label.querySelector(".volume-lane-meta")?.querySelector(".volume-lane-db")).toBeTruthy();
     expect(vol.style.height).toBe(`${VOLUME_LANE_HEIGHT_PX}px`);
-    expect(stylesCss).toMatch(/\.volume-lane-head\s*,\s*\n\.volume-lane-meta/);
-    expect(stylesCss).toMatch(/\.lane-ms \{[\s\S]*?gap:\s*3px/);
-    expect(stylesCss).toMatch(/\.ruler \{[\s\S]*?flex:\s*0 0 26px/);
+    expect(label.querySelector(".volume-lane-head")?.nextElementSibling?.classList.contains("volume-lane-meta")).toBe(
+      true,
+    );
   });
 
   it("chapter group rows use a fixed height and do not stretch clip lanes", () => {

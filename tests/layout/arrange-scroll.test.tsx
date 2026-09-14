@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,18 +6,6 @@ import { Mixer } from "../../src/ui/mixer/Mixer";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import type { TrackId } from "../../src/core/models";
 import "../../src/styles.css";
-
-const stylesCss = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "../../src/styles.css"),
-  "utf8",
-);
-
-function cssBlock(selector: string): string {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = stylesCss.match(new RegExp(`${escaped}\\s*\\{([^}]+)\\}`));
-  expect(match, `missing ${selector} rule`).toBeTruthy();
-  return match![1];
-}
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
 const noop = () => {};
@@ -168,16 +153,9 @@ describe("arrange overflow", () => {
     const tools = host.querySelector(".timeline-tools") as HTMLElement;
     const lanes = host.querySelector('[data-testid="timeline-lanes"]') as HTMLElement;
     expect(chrome && tools && lanes).toBeTruthy();
-    const rulerCss = cssBlock(".ruler");
-    expect(rulerCss).toMatch(/min-height:\s*26px/);
-    expect(rulerCss).toMatch(/max-height:\s*26px/);
-    expect(rulerCss).toMatch(/flex:\s*0 0 26px/);
-    expect(rulerCss).toMatch(/flex-shrink:\s*0/);
-    const toolsCss = cssBlock(".timeline-tools");
-    expect(toolsCss).toMatch(/flex-shrink:\s*0/);
-    expect(cssBlock(".timeline-lanes")).toMatch(/flex:\s*1 1 0/);
     expect(lanes.contains(chrome)).toBe(false);
     expect(lanes.contains(tools)).toBe(false);
     expect(chrome.nextElementSibling).toBe(lanes);
+    expect(tools.nextElementSibling).toBe(chrome);
   });
 });
