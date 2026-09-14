@@ -129,7 +129,7 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 
 ## Fuer Bots
 
-Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). This docs stamp is not a G EXE SHA. `origin/main` @ `9ceb9bd` (stamp of `0cdcadf`; PR #9 merge `c0392f0`). Version 5.0.0.
+Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). H writes onto G docs tip `9099f6a` (new branch — not the G branch). This docs stamp is not a G/H EXE SHA. `origin/main` @ `9ceb9bd` (stamp of `0cdcadf`; PR #9 merge `c0392f0`). Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (HUMAN-PROVEN earlier). VIS-Lane-Klick seekt wie V/A. Speichern unter picker + `.vN`.
 A Follow: HUMAN-PROVEN — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
@@ -139,6 +139,7 @@ Production Pass **D**: HUMAN-PROVEN in EXE (dynamic audio, 64 cap, last-lane `+/
 Production Pass **E**: HUMAN-PROVEN in EXE (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Prefix `groupId` maps into F groups.
 Production Pass **F**: HUMAN-PROVEN in EXE (chapter/track groups, collapse UI only, no group bus; create / assign / collapse / rename).
 Production Pass **G**: HUMAN-PROVEN in EXE (volume automation, VOL lane — label **VOL** not V, linear points, clip gain ≠ static fader ≠ automation).
-H–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**, Relink filename assist): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
-Nächster Slice: Production Pass H (Write Automation **W**). Future UI zettel is **not** the next slice. STOP — no H+.
+Production Pass **H**: IMPLEMENTED / AUTOMATED-TESTED (Write Volume **W** into the existing G envelope). Not HUMAN-PROVEN.
+I–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**, Relink filename assist): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
+Nächster Slice: Production Pass I (44-Track). Future UI zettel is **not** the next slice. STOP — no I+.
 MODE A = FAST / HUMAN ITERATION (browser/tauri dev). MODE B = PRECISION / ACCEPTANCE (named-SHA EXE). HUMAN-PROVEN only from MODE B operator list.

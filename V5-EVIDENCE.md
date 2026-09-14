@@ -32,7 +32,9 @@ HUMAN-PROVEN (do not downgrade):
 
 **G Volume Automation** (operator EXE, PR #18 feature tip `896b640` — this docs stamp is not the G EXE SHA): **HUMAN-PROVEN**. VOL lane works well; Volume Automation accepted. Label **VOL** (not V). Clip gain ≠ static fader ≠ automation. See `CURRENT.md` G Evidence Report.
 
-H–N + zettel: **PLANNED / NOT IMPLEMENTED** — Write Automation **W**; Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable); Relink filename assist (picker should prefer expected filename). Not next slice except H. See `CURRENT.md` Future UI.
+**H Write Volume** (this branch, onto PR #18 G tip `9099f6a`): **IMPLEMENTED / AUTOMATED-TESTED**. Not HUMAN-PROVEN. Compact **W**; writes into the existing G envelope during playback. See `CURRENT.md` H Evidence Report.
+
+I–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable); Relink filename assist (picker should prefer expected filename). Not next slice except I. See `CURRENT.md` Future UI.
 
 `origin/main` at audit: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Stack not merged to main.
 

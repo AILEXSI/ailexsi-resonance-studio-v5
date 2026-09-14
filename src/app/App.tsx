@@ -84,7 +84,8 @@ import {
   applyMoveMarker,
   applyToggleLoop,
   applyMasterVolume,
-  applyTrackVolume,
+  applyMixerVolume,
+  applyCommitVolumeWriteIfIdle,
   previewMoveVolumeAutomationPoint,
   applyToggleVisualizerMute,
   applyCycleVisualizerScene,
@@ -111,6 +112,7 @@ import {
   type Session,
 } from "./session";
 import { applyCommand, type EditorCommand } from "./commands";
+import { WRITE_IDLE_END_MS, WRITE_POINTER_UP_MS } from "../core/volume-write";
 import { dispatchEditorKey } from "./keys";
 import {
   cycleProductionScreen,
@@ -386,6 +388,14 @@ export function App() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [session.playing, session.shuttleRate]);
+
+  useEffect(() => {
+    if (!session.volumeWriteGesture) return;
+    const id = window.setInterval(() => {
+      setSession((s) => applyCommitVolumeWriteIfIdle(s, Date.now(), WRITE_IDLE_END_MS));
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [session.volumeWriteGesture]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1654,6 +1664,8 @@ export function App() {
         }
         onVolumeAutomationPointLive={onVolumePointLive}
         onVolumeAutomationPointCommit={onVolumePointCommit}
+        volumeWriteArmedIds={session.volumeWriteArmedIds}
+        onToggleVolumeWriteArm={(trackId) => runCommand({ type: "toggleVolumeWriteArm", trackId })}
         onScroll={(ms) => setSession(applyScroll(session, ms))}
         onLoopClick={onLoopClick}
         onLoopInLive={onLoopInLive}
@@ -1670,7 +1682,7 @@ export function App() {
         onToggleCollapsed={toggleMixerCollapsed}
         onResizePointerDown={onMixerResizePointerDown}
         onSelectTrack={(id, opts) => setSession((s) => applySelectTracks(s, id, opts))}
-        onVolume={(id, v) => setSession(applyTrackVolume(session, id, v))}
+        onVolume={(id, v) => setSession((s) => applyMixerVolume(s, id, v))}
         onPan={(id, pan) => setSession(applyCommand(session, { type: "setTrackPan", trackId: id, pan }))}
         onMasterVolume={(v) => setSession(applyMasterVolume(session, v))}
         onToggleMute={(id) => runCommand({ type: "toggleMute", trackId: id })}
@@ -1678,6 +1690,19 @@ export function App() {
         collapsedGroupIds={collapsedGroupIds}
         onToggleGroupCollapsed={toggleGroupCollapsed}
         playing={session.playing}
+        volumeWriteArmedIds={session.volumeWriteArmedIds}
+        volumeWriteTrackId={session.volumeWriteGesture?.trackId ?? null}
+        volumeWriteValue={
+          session.volumeWriteGesture
+            ? session.volumeWriteGesture.samples[session.volumeWriteGesture.samples.length - 1]?.value ?? null
+            : null
+        }
+        onToggleVolumeWriteArm={(id) => runCommand({ type: "toggleVolumeWriteArm", trackId: id })}
+        onVolumeWritePointerUp={() => {
+          window.setTimeout(() => {
+            setSession((s) => applyCommitVolumeWriteIfIdle(s, Date.now(), WRITE_POINTER_UP_MS));
+          }, WRITE_POINTER_UP_MS);
+        }}
       />
       </div>
       </div>

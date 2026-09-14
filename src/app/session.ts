@@ -29,6 +29,7 @@ import {
   clipOnTrackAt,
   isTrackId,
   kindOfTrack,
+  trackById,
   MAX_AUDIO_TRACKS,
   projectDurationMs,
   type Clip,
@@ -140,9 +141,19 @@ import {
   addVolumeAutomationPoint,
   deleteVolumeAutomationPoint,
   moveVolumeAutomationPoint,
+  setTrackVolumeAutomation,
   setVolumeAutomationEnabled,
+  volumeAutomationOf,
   type VolumeAutomationPoint,
 } from "../core/volume-automation";
+import {
+  appendWriteSample,
+  isMeaningfulWriteMove,
+  punchVolumeWrite,
+  writeGestureIsIdle,
+  WRITE_IDLE_END_MS,
+  type VolumeWriteGesture,
+} from "../core/volume-write";
 import {
   clampScrollMs,
   clampZoomPxPerSec,
@@ -180,6 +191,13 @@ export interface Session {
   selectedTrackIds: TrackId[];
   /** Selected volume-automation point (track + time). View state only. */
   selectedVolumeAutomation?: { trackId: TrackId; timeMs: number } | null;
+  /**
+   * H write-arm. Session chrome only — not project JSON.
+   * Defaults OFF on new / open / reopen. Envelope data persists; arm does not.
+   */
+  volumeWriteArmedIds: TrackId[];
+  /** In-progress write gesture. Null when not capturing. */
+  volumeWriteGesture: VolumeWriteGesture | null;
   status: string;
   error: string | null;
   playing: boolean;
@@ -214,6 +232,8 @@ export function createSession(store?: BlobStore): Session {
     targetTrackId: "V1",
     selectedTrackIds: ["V1"],
     selectedVolumeAutomation: null,
+    volumeWriteArmedIds: [],
+    volumeWriteGesture: null,
     status: "New project",
     error: null,
     playing: false,
@@ -863,15 +883,17 @@ export function applySplit(session: Session): Session {
 }
 
 export function applyUndo(session: Session): Session {
-  const result = undoHistory(session.history, session.project);
-  if (!result) return { ...session, status: "Nothing to undo" };
-  return { ...session, project: result.project, history: result.history, status: "Undo", error: null };
+  const cleared = applyAbortVolumeWrite(session);
+  const result = undoHistory(cleared.history, cleared.project);
+  if (!result) return { ...cleared, status: "Nothing to undo" };
+  return { ...cleared, project: result.project, history: result.history, status: "Undo", error: null };
 }
 
 export function applyRedo(session: Session): Session {
-  const result = redoHistory(session.history, session.project);
-  if (!result) return { ...session, status: "Nothing to redo" };
-  return { ...session, project: result.project, history: result.history, status: "Redo", error: null };
+  const cleared = applyAbortVolumeWrite(session);
+  const result = redoHistory(cleared.history, cleared.project);
+  if (!result) return { ...cleared, status: "Nothing to redo" };
+  return { ...cleared, project: result.project, history: result.history, status: "Redo", error: null };
 }
 
 export function applyIn(session: Session): Session {
@@ -1459,6 +1481,17 @@ export function applyPlayhead(
   timeMs: number,
   mode: PlayheadApplyMode = "seek",
 ): Session {
+  let nextSession = session;
+  if (session.volumeWriteGesture) {
+    const prev = session.project.playheadMs;
+    const wrapped = Number.isFinite(timeMs) && Number.isFinite(prev) && timeMs + 50 < prev;
+    if (mode === "seek") {
+      nextSession = applyCommitVolumeWrite(session);
+    } else if (mode === "transport" && wrapped) {
+      nextSession = applyCommitVolumeWrite(session);
+    }
+  }
+  session = nextSession;
   const project = setPlayhead(session.project, timeMs);
   if (!session.followPlayhead) return { ...session, project };
   const scrollMs =
@@ -1538,6 +1571,137 @@ export function applyTrackVolume(session: Session, trackId: TrackId, volume: num
   };
 }
 
+export function volumeWriteIsArmed(session: Session, trackId: TrackId): boolean {
+  return session.volumeWriteArmedIds.includes(trackId);
+}
+
+/** W ON + forward playback + audio track. Movement is checked separately. */
+export function volumeWriteCanCapture(session: Session, trackId: TrackId): boolean {
+  if (!volumeWriteIsArmed(session, trackId)) return false;
+  if (!session.playing) return false;
+  if (session.shuttleRate <= 0) return false;
+  if (kindOfTrack(trackId) !== "audio") return false;
+  if (!trackById(session.project, trackId)) return false;
+  return Number.isFinite(session.project.playheadMs);
+}
+
+export function applyToggleVolumeWriteArm(session: Session, trackId: TrackId): Session {
+  if (kindOfTrack(trackId) !== "audio" || !trackById(session.project, trackId)) return session;
+  if (session.volumeWriteArmedIds.includes(trackId)) {
+    const committed = applyCommitVolumeWrite(session);
+    return {
+      ...committed,
+      volumeWriteArmedIds: committed.volumeWriteArmedIds.filter((id) => id !== trackId),
+      status: "Write off",
+      error: null,
+    };
+  }
+  return {
+    ...session,
+    volumeWriteArmedIds: [...session.volumeWriteArmedIds, trackId],
+    status: "Write armed",
+    error: null,
+  };
+}
+
+export function applyAbortVolumeWrite(session: Session): Session {
+  const gesture = session.volumeWriteGesture;
+  if (!gesture) {
+    return session.volumeWriteGesture === null ? session : { ...session, volumeWriteGesture: null };
+  }
+  const restored = setTrackVolumeAutomation(session.project, gesture.trackId, gesture.before);
+  return { ...session, project: restored, volumeWriteGesture: null };
+}
+
+export function applyCommitVolumeWrite(session: Session): Session {
+  const gesture = session.volumeWriteGesture;
+  if (!gesture) return session.volumeWriteGesture ? { ...session, volumeWriteGesture: null } : session;
+  if (gesture.samples.length === 0) return { ...session, volumeWriteGesture: null };
+  const punched = punchVolumeWrite(gesture.before, gesture.samples);
+  const pre = setTrackVolumeAutomation(session.project, gesture.trackId, gesture.before);
+  const final = setTrackVolumeAutomation(pre, gesture.trackId, punched);
+  if (final === pre) return { ...session, project: pre, volumeWriteGesture: null };
+  return {
+    ...withHistory({ ...session, project: pre, volumeWriteGesture: null }, final, "Volume write"),
+    volumeWriteGesture: null,
+  };
+}
+
+export function applyCommitVolumeWriteIfIdle(
+  session: Session,
+  nowMs = Date.now(),
+  idleMs = WRITE_IDLE_END_MS,
+): Session {
+  if (!session.volumeWriteGesture) return session;
+  if (!writeGestureIsIdle(session.volumeWriteGesture, nowMs, idleMs)) return session;
+  return applyCommitVolumeWrite(session);
+}
+
+export function applyVolumeWriteSample(
+  session: Session,
+  trackId: TrackId,
+  timeMs: number,
+  value: number,
+  nowMs = Date.now(),
+): Session {
+  if (!volumeWriteCanCapture(session, trackId)) return session;
+  const track = trackById(session.project, trackId);
+  if (!track) return session;
+
+  let working = session;
+  if (working.volumeWriteGesture && working.volumeWriteGesture.trackId !== trackId) {
+    working = applyCommitVolumeWrite(working);
+  }
+
+  const currentGesture = working.volumeWriteGesture?.trackId === trackId ? working.volumeWriteGesture : null;
+  if (
+    currentGesture &&
+    Number.isFinite(timeMs) &&
+    timeMs + 80 < currentGesture.endMs
+  ) {
+    working = applyCommitVolumeWrite(working);
+  }
+
+  const gesture = working.volumeWriteGesture?.trackId === trackId ? working.volumeWriteGesture : null;
+  const liveTrack = trackById(working.project, trackId);
+  if (!liveTrack) return working;
+  if (!volumeWriteCanCapture(working, trackId)) return working;
+
+  if (!gesture && !isMeaningfulWriteMove(liveTrack.volume ?? 1, value)) return working;
+
+  const appended = appendWriteSample(
+    gesture,
+    trackId,
+    timeMs,
+    value,
+    gesture?.before ?? volumeAutomationOf(liveTrack),
+    nowMs,
+  );
+  if (!appended) return working;
+  if (appended.wrapped) {
+    const committed = applyCommitVolumeWrite(working);
+    if (!volumeWriteCanCapture(committed, trackId)) return committed;
+    return applyVolumeWriteSample(committed, trackId, timeMs, value, nowMs);
+  }
+
+  const punched = punchVolumeWrite(appended.gesture.before, appended.gesture.samples);
+  return {
+    ...working,
+    project: setTrackVolumeAutomation(working.project, trackId, punched),
+    volumeWriteGesture: appended.gesture,
+    status: "Writing volume",
+    error: null,
+  };
+}
+
+/** Mixer fader: write into G while armed+playing; otherwise static track volume. */
+export function applyMixerVolume(session: Session, trackId: TrackId, volume: number): Session {
+  if (volumeWriteCanCapture(session, trackId)) {
+    return applyVolumeWriteSample(session, trackId, session.project.playheadMs, volume);
+  }
+  return applyTrackVolume(session, trackId, volume);
+}
+
 export function applySetTrackPan(session: Session, trackId: TrackId, pan: number): Session {
   return {
     ...session,
@@ -1590,27 +1754,34 @@ export function applyRemoveAudioTrack(session: Session, trackId?: TrackId): Sess
   if (!canRemoveAudioTrack(session.project, kindOfTrack(id) === "audio" ? id : undefined)) {
     return { ...session, error: "Need at least two audio tracks", status: session.status };
   }
+  let working = session;
+  if (working.volumeWriteGesture?.trackId === id) {
+    working = applyCommitVolumeWrite(working);
+  }
   const result = removeAudioTrack(
-    session.project,
+    working.project,
     kindOfTrack(id) === "audio" ? id : undefined,
   );
   if (result.error || !result.removedId) {
-    return { ...session, error: result.error ?? "Could not remove audio track" };
+    return { ...working, error: result.error ?? "Could not remove audio track" };
   }
   const nextTarget =
     result.project.tracks.find((t) => t.id === session.targetTrackId)?.id ??
     result.project.tracks.find((t) => t.kind === "audio")?.id ??
     "V1";
   return {
-    ...withHistory(session, syncTrackGroups(result.project), `Removed audio track`),
+    ...withHistory(working, syncTrackGroups(result.project), `Removed audio track`),
     targetTrackId: nextTarget,
     selectedTrackIds: [nextTarget],
-    selectedClipId: session.selectedClipId && result.project.clips.some((c) => c.id === session.selectedClipId)
-      ? session.selectedClipId
+    selectedClipId: working.selectedClipId && result.project.clips.some((c) => c.id === working.selectedClipId)
+      ? working.selectedClipId
       : null,
-    selectedClipIds: session.selectedClipIds.filter((cid) =>
+    selectedClipIds: working.selectedClipIds.filter((cid) =>
       result.project.clips.some((c) => c.id === cid),
     ),
+    volumeWriteArmedIds: working.volumeWriteArmedIds.filter((tid) => tid !== result.removedId),
+    volumeWriteGesture:
+      working.volumeWriteGesture?.trackId === result.removedId ? null : working.volumeWriteGesture,
   };
 }
 
@@ -1751,13 +1922,15 @@ export function applyPlay(session: Session): Session {
 }
 
 export function applyPause(session: Session): Session {
-  return { ...session, playing: false, shuttleRate: 0, status: "Paused", error: null };
+  const committed = applyCommitVolumeWrite(session);
+  return { ...committed, playing: false, shuttleRate: 0, status: "Paused", error: null };
 }
 
 export function applyStop(session: Session): Session {
+  const committed = applyCommitVolumeWrite(session);
   return applyPlayhead(
-    { ...session, playing: false, shuttleRate: 0, status: "Stopped", error: null },
-    session.project.inPointMs ?? 0,
+    { ...committed, playing: false, shuttleRate: 0, status: "Stopped", error: null },
+    committed.project.inPointMs ?? 0,
   );
 }
 
@@ -1767,11 +1940,12 @@ export function applyPlayPause(session: Session): Session {
 
 export function applyShuttle(session: Session, dir: -1 | 0 | 1): Session {
   const rate = nextShuttleRate(session.shuttleRate, dir);
+  const base = rate <= 0 ? applyCommitVolumeWrite(session) : session;
   if (rate === 0) {
-    return { ...session, playing: false, shuttleRate: 0, status: "Paused", error: null };
+    return { ...base, playing: false, shuttleRate: 0, status: "Paused", error: null };
   }
   const label = rate < 0 ? `Shuttle ${rate}x` : `Shuttle +${rate}x`;
-  return { ...session, playing: true, shuttleRate: rate, status: label, error: null };
+  return { ...base, playing: true, shuttleRate: rate, status: label, error: null };
 }
 
 export function applyToggleVisualizerMute(session: Session): Session {
@@ -2146,6 +2320,8 @@ export function openSerialized(session: Session, text: string): Session {
     shuttleRate: 0,
     savedPastLength: 0,
     savedFutureLength: 0,
+    volumeWriteArmedIds: [],
+    volumeWriteGesture: null,
   };
 }
 

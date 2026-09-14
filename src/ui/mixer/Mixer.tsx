@@ -44,6 +44,11 @@ interface Props {
   collapsedGroupIds?: readonly string[];
   onToggleGroupCollapsed?: (groupId: string) => void;
   playing?: boolean;
+  volumeWriteArmedIds?: readonly TrackId[];
+  volumeWriteTrackId?: TrackId | null;
+  volumeWriteValue?: number | null;
+  onToggleVolumeWriteArm?: (id: TrackId) => void;
+  onVolumeWritePointerUp?: () => void;
 }
 
 function Strip(props: {
@@ -58,22 +63,30 @@ function Strip(props: {
   kind: "video" | "audio" | "master";
   effectiveVolume?: number;
   automationActive?: boolean;
+  writeArmed?: boolean;
+  writeActive?: boolean;
+  writeValue?: number;
   onSelect?: (opts?: { toggle?: boolean }) => void;
   onVolume: (linear: number) => void;
   onPan?: (pan: number) => void;
   onMute?: () => void;
   onSolo?: () => void;
+  onToggleWrite?: () => void;
+  onVolumeWritePointerUp?: () => void;
 }) {
-  const pos = dbToFader(linearToDb(props.volume));
-  const dbLabel = formatDb(linearToDb(props.volume));
+  const displayVolume = props.writeActive && props.writeValue != null ? props.writeValue : props.volume;
+  const pos = dbToFader(linearToDb(displayVolume));
+  const dbLabel = formatDb(linearToDb(props.writeActive && props.writeValue != null ? props.writeValue : props.volume));
   const meterDb = formatDb(peakToDb(props.peak));
   const showAuto = props.automationActive === true && props.effectiveVolume != null;
   const autoPos = showAuto ? dbToFader(linearToDb(props.effectiveVolume!)) : pos;
   const autoLabel = showAuto ? formatDb(linearToDb(props.effectiveVolume!)) : null;
   return (
     <div
-      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}${props.automationActive ? " auto-read" : ""}`}
+      className={`mix-strip ${props.kind}${props.selected ? " selected" : ""}${props.muted ? " muted" : ""}${props.solo ? " soloed" : ""}${props.automationActive ? " auto-read" : ""}${props.writeArmed ? " write-armed" : ""}${props.writeActive ? " write-active" : ""}`}
       data-testid={`mix-${props.id}`}
+      data-write-armed={props.writeArmed ? "true" : "false"}
+      data-write-active={props.writeActive ? "true" : "false"}
       onClick={(e) => props.onSelect?.({ toggle: e.ctrlKey || e.metaKey })}
     >
       <div className="mix-name">{props.label}</div>
@@ -121,6 +134,7 @@ function Strip(props: {
           title={dbLabel}
           data-testid={`mix-fader-${props.id}`}
           onClick={(e) => e.stopPropagation()}
+          onPointerUp={() => props.onVolumeWritePointerUp?.()}
           onChange={(e) => props.onVolume(dbToLinear(faderToDb(Number(e.target.value))))}
         />
       </div>
@@ -161,6 +175,22 @@ function Strip(props: {
               S
             </button>
           ) : null}
+          {props.onToggleWrite ? (
+            <button
+              type="button"
+              className={props.writeArmed ? "active write-arm-btn" : "write-arm-btn"}
+              title={props.writeArmed ? `Disarm write ${props.label}` : `Arm write ${props.label}`}
+              aria-label={props.writeArmed ? `Disarm volume write ${props.label}` : `Arm volume write ${props.label}`}
+              aria-pressed={props.writeArmed ? true : false}
+              data-testid={`mix-write-${props.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onToggleWrite?.();
+              }}
+            >
+              W
+            </button>
+          ) : null}
         </div>
       ) : (
         <span className="mix-master-tag">MST</span>
@@ -198,6 +228,11 @@ export function Mixer({
   collapsedGroupIds,
   onToggleGroupCollapsed,
   playing = false,
+  volumeWriteArmedIds,
+  volumeWriteTrackId,
+  volumeWriteValue,
+  onToggleVolumeWriteArm,
+  onVolumeWritePointerUp,
 }: Props) {
   const rows = arrangeRows(project, { collapsedGroupIds });
   const channelScrollRef = useRef<HTMLDivElement>(null);
@@ -296,6 +331,8 @@ export function Mixer({
               );
               const auto = volumeAutomationOf(track);
               const autoActive = volumeAutomationIsActive(auto);
+              const writeArmed = track.kind === "audio" && (volumeWriteArmedIds?.includes(id) ?? false);
+              const writeActive = writeArmed && volumeWriteTrackId === id && volumeWriteValue != null;
               const effective = autoActive
                 ? clampLinearVolume((track.volume ?? 1) * automationValueAt(auto, project.playheadMs))
                 : undefined;
@@ -313,11 +350,20 @@ export function Mixer({
                   peak={peaks[id] ?? 0}
                   automationActive={autoActive}
                   effectiveVolume={effective}
+                  writeArmed={writeArmed}
+                  writeActive={writeActive}
+                  writeValue={writeActive ? volumeWriteValue ?? undefined : undefined}
                   onSelect={(opts) => onSelectTrack(id, opts)}
                   onVolume={(v) => onVolume(id, v)}
                   onPan={onPan ? (p) => onPan(id, p) : undefined}
                   onMute={() => onToggleMute(id)}
                   onSolo={() => onToggleSolo(id)}
+                  onToggleWrite={
+                    track.kind === "audio" && onToggleVolumeWriteArm
+                      ? () => onToggleVolumeWriteArm(id)
+                      : undefined
+                  }
+                  onVolumeWritePointerUp={onVolumeWritePointerUp}
                 />
               );
             })}

@@ -7,7 +7,7 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 | Feld | Stand |
 | --- | --- |
-| Datum | 2026-09-13 |
+| Datum | 2026-09-14 |
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | **5.0.0** (package / tauri / Cargo / toolbar chip). JSON `schemaVersion` **5**. |
 | main | `origin/main` @ `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. **Stack not merged to main.** |
@@ -32,13 +32,14 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Stem import | **E HUMAN-PROVEN in EXE.** Import picker is multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename (extension stripped). Status reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. Optional `groupId` when filenames share a prefix — F maps that into `Project.groups`. Remaining E refinements: Suno naming normalize, single-vs-multi placement polish — **PLANNED**. |
 | Track / chapter groups | **F HUMAN-PROVEN in EXE.** Collapse UI only (no group bus). Operator confirmed create / assign / collapse / rename. Timeline + Mixer show the same groups; collapse hides child lanes/channels. Membership + display name persist in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. `+/−` last-lane UX kept. |
 | Volume automation | **G HUMAN-PROVEN in EXE.** VOL-Lane (label **VOL**, not V). Operator: VOL lane works well; Volume Automation accepted. Clip gain ≠ static track fader ≠ automation. Linear points. |
+| Write volume | **H IMPLEMENTED / AUTOMATED-TESTED** (not HUMAN-PROVEN). Compact **W** on audio tracks. Writes into the existing G envelope during playback. |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | **HUMAN-PROVEN** in EXE. Toolbar **Export** → H.264-MP4-Dialog. Default-Name immer `Stem.vN.ext` (screenshot: `Untitled_Resonance.v1.mp4` / status `Exported … bytes`). Empty folder → `.v1`; unversioned sibling occupies v1 → `.v2`. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
-| Nächster Slice | Production Pass **H** (Write Automation **W**) — **PLANNED / NOT IMPLEMENTED**. D + E + F + **G** stay HUMAN-PROVEN. Future UI zettel (track rename / color / distribute / Preview Zoom / EQ-FX / Relink filename assist) is **not** H. STOP — no H+. |
-| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass **I** (44-Track Acceptance) — **PLANNED / NOT IMPLEMENTED**. D + E + F + **G** stay HUMAN-PROVEN. **H** is IMPLEMENTED / AUTOMATED-TESTED only — operator must MODE B before HUMAN-PROVEN. Future UI zettel is **not** I. STOP — no I+. |
+| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H IMPLEMENTED / AUTOMATED-TESTED** (Write Volume **W** — not HUMAN-PROVEN). **I–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
 ## Verification paths
 
@@ -49,9 +50,9 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + chip **5.0.0** + dynamic tracks/mixer visible. Details: `docs/ACCEPTANCE.md`.
 
-## Production Pass (D + E + F + G HUMAN-PROVEN · H–N planned)
+## Production Pass (D + E + F + G HUMAN-PROVEN · H automated · I–N planned)
 
-**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). **G Volume Automation** is in App-Code and **HUMAN-PROVEN** in EXE (operator: VOL lane works well; Volume Automation accepted). H–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
+**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). **G Volume Automation** is in App-Code and **HUMAN-PROVEN** in EXE (operator: VOL lane works well; Volume Automation accepted). **H Write Volume** is in App-Code and **IMPLEMENTED / AUTOMATED-TESTED** only — do **not** treat H as HUMAN-PROVEN until a MODE B operator EXE pass. I–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
 
 **Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
@@ -64,7 +65,7 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | E+ | E refinements: Suno filename normalize; single-vs-multi placement polish (code already: 2+ same start / 1 appends) | **PLANNED** (do not implement here) |
 | F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
 | G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
-| H | Write Automation **W** — Volume only während Playback | **PLANNED / NOT IMPLEMENTED** |
+| H | Write Automation **W** — Volume only während Playback; writes into G envelope | **IMPLEMENTED / AUTOMATED-TESTED** (not HUMAN-PROVEN) |
 | I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
 | J | Four Chapters — echte Produktion: **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code | **PLANNED / NOT IMPLEMENTED** |
 | K | VIS Library — bestehende Szenen = feste **BASICS**-Gruppe; Klassifikation `basics` \| `audioReactive` | **PLANNED / NOT IMPLEMENTED** |
@@ -153,11 +154,90 @@ Operator accepted G in the local EXE from feature tip `896b640`. Checklist that 
 7. Speichern / reopen — points and enabled state return. Optional: Relink missing media — envelope stays on the track.
 8. Confirm D (add/remove audio + mixer resize), E (stem import), F (create/assign/collapse/rename groups) still work.
 
-STOP — no H / Write / EQ / FX / Pan automation / Chapter bus / mixer redesign.
+STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second automation engine.
+
+## H Evidence Report
+
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **883 / 99**; vite 7.3.6, 197 modules, version 5.0.0.
+
+### What shipped
+
+- Compact per-track **W** next to M / S / VOL (Timeline + Mixer). Audio tracks only. Independent arm per track. No gang write. No Touch / Latch / Trim.
+- W OFF: fader = static `Track.volume`. G plays normally. No overwrite of automation.
+- W ON alone, opening VOL, selecting a track, or playback without a fader move = **no points**.
+- W ON + forward playback + meaningful fader movement → capture at `project.playheadMs` and punch into `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }`.
+- After the gesture: ordinary G points. Edit on the existing VOL lane. Immediate playback via existing G (live punch while writing; one undo on commit).
+- Static vs automation unchanged: `effective = clipGain × staticTrackVolume × automationValueAt(t)`. Arming W does not permanently overwrite static.
+
+### Fader ↔ automation mapping
+
+- Mixer fader range is the G range: **+6 … −∞ dB**; linear = `10^(dB/20)`; **1 = 0 dB**.
+- W OFF, or W ON without an active write gesture: fader reads/writes **static** `Track.volume`.
+- During an active write gesture: fader linear **is** the G automation `value` being written (not static ÷ something, not a second gain model).
+- If static is not 0 dB, effective ≠ fader (G mixer still shows static vs effective).
+- After the gesture the fader returns to static; ghost / cyan readout follow the persisted envelope.
+
+### Write session / punch
+
+- Gesture starts on the first meaningful fader move (`WRITE_MEANINGFUL_DB` 0.35 dB or `WRITE_MEANINGFUL_LINEAR` 0.02) while W ON + playing.
+- Stop moving → commit after `WRITE_IDLE_END_MS` 280 ms (pointer-up may use `WRITE_POINTER_UP_MS` 80 ms). Later movement = a new gesture / new undo.
+- STOP / PAUSE / SEEK / reverse shuttle / disarm W / remove that track → clean terminate (commit if samples exist).
+- PAUSE: no writing while time is stationary. SEEK alone invents no point at the destination.
+- Loop wrap uses real project time (playhead jump backward ends the gesture). No hidden monotonic write clock.
+- Punch replaces only `[firstWritten, lastWritten]`. Points strictly before/after stay. Empty identity envelopes get a 1 ms unity hold so a late punch does not flood t < t0.
+
+### Simplification thresholds (deterministic)
+
+| Constant | Value | Role |
+| --- | --- | --- |
+| `WRITE_MEANINGFUL_DB` / `WRITE_MEANINGFUL_LINEAR` | 0.35 dB / 0.02 | Start a gesture |
+| `WRITE_MIN_LINEAR_DELTA` / `WRITE_MIN_DB_DELTA` | 0.015 / 0.3 dB | Drop flat-run interiors |
+| `WRITE_RDP_EPSILON` | 0.02 | Ramer–Douglas–Peucker in (seconds, linear gain) |
+| `WRITE_PEAK_LINEAR` | 0.02 | Re-keep local extrema |
+| `WRITE_IDENTITY_HOLD_MS` | 1 | Unity hold before first punch on an empty envelope |
+| `WRITE_LOOP_WRAP_MS` | 80 | Treat a backward jump as a loop wrap |
+| `WRITE_IDLE_END_MS` / `WRITE_POINTER_UP_MS` | 280 / 80 | Gesture boundary |
+
+Duplicate timestamps: last sample wins. Invalid (NaN / Infinity / negative time) samples are dropped; existing envelopes are never wiped as recovery.
+
+### Files
+
+- `src/core/volume-write.ts` — capture, coalesce/simplify, punch into G
+- `src/app/session.ts` / `src/app/commands.ts` / `src/app/App.tsx`
+- `src/ui/mixer/Mixer.tsx` / `src/ui/timeline/Timeline.tsx` / `src/styles.css`
+- Tests: `tests/core/volume-write.test.ts`, W chrome in `tests/layout/volume-automation.test.tsx`
+
+### Persistence
+
+| What | Where | Persist? |
+| --- | --- | --- |
+| Written points (`volumeAutomation`) | Project JSON (`schemaVersion` 5) | **Yes** (Speichern) — same as G |
+| W armed | Session only | **No** — defaults OFF on reopen |
+
+### Human acceptance (MODE B — operator EXE, not yet run)
+
+Do **not** stamp H HUMAN-PROVEN from this branch. Operator builds the Windows EXE locally.
+
+1. Import a WAV onto an audio track (or stem-import). Confirm D / E / F / G still behave as proven.
+2. Arm **W** on that track. Do not play. Move the mixer fader — only static volume changes; VOL lane gains no points.
+3. Disarm, play, move the fader — still static only.
+4. Arm **W**, play, do not touch the fader — no new points.
+5. Arm **W**, play, move that track's fader — points appear on the existing G envelope at the playhead times. Other tracks unchanged.
+6. Stop writing (release / idle). Play again — audible level follows the written G curve immediately (no restart-only delay).
+7. Open **VOL** and edit a written point with the existing G lane (drag / delete).
+8. Mixer: W looks armed while on. After the gesture, fader is static again; ghost / cyan readout is effective (`static × automation`). Example language from G still holds (e.g. static +2.3 dB / effective −5.2 dB).
+9. Punch into an existing curve — region under the write changes; before/after points remain.
+10. STOP during a write — gesture ends; points stay. PAUSE — no further writing until play. SEEK — no fake point at the seek time. Loop ON — wrap does not draw a line backward across the timeline.
+11. Undo once — the whole write gesture disappears. Redo restores it.
+12. Speichern / reopen — points return; **W is off**.
+13. Repeat write on A3+ (dynamic track). Collapse the Chapter group — lanes hide; playback / envelope values do not change.
+14. Confirm Speichern / `.vN` / Export `.vN` / mixer resize / AUTO still as before.
+
+STOP — no Touch/Latch/Trim, no Pan/EQ/FX/VST/MIDI, no Chapter bus, no mixer redesign, no second engine, no I+.
 
 ## Future UI (zettel — production-adjacent, not next slice)
 
-**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass H. Do not implement in this G pass.
+**PLANNED / NOT IMPLEMENTED.** Not HUMAN-PROVEN. Not Production Pass I. Do not implement in this H pass.
 
 `Track.name` already exists as the lane/mixer label (defaults A1…; stem import may write a filename). There is **no** inline rename UI, **no** track color property, **no** Distribute Colors. Project rename and marker rename are unrelated.
 

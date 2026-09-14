@@ -61,9 +61,12 @@ F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR *
 
 G is **not** in the `234a781` EXE (that SHA predates G). Operator MODE B on PR **#18** feature tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`: **G HUMAN-PROVEN** — VOL lane works well; Volume Automation accepted. This docs stamp is not the G EXE SHA.
 
+H is **not** HUMAN-PROVEN. Code on the H branch is **IMPLEMENTED / AUTOMATED-TESTED** only (Write Volume **W** into G). Operator must MODE B a named SHA before any H HUMAN-PROVEN stamp. Linux VM does not produce the Windows EXE.
+
 Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- H–N production-pass items
+- H Write Volume (implemented in code; not operator-proven)
+- I–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors; Relink filename assist (see `CURRENT.md` Future UI — not next slice)
 
 `origin/main` was not this EXE. Main tip at audit time: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`.
@@ -81,5 +84,7 @@ npm run build                     → vite 7.3.6, 193 modules, version 5.0.0
 F branch (MODE A): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194 modules, version 5.0.0.
 
 G branch (MODE A): tsc exit 0; vitest **862 passed / 98 files**; vite 7.3.6, 196 modules, version 5.0.0. **G HUMAN-PROVEN** in EXE (`896b640`). This docs stamp is not the EXE SHA.
+
+H branch (MODE A): tsc exit 0; vitest **883 passed / 99 files**; vite 7.3.6, 197 modules, version 5.0.0. **H is not HUMAN-PROVEN.** Linux VM does not claim a Windows EXE.
 
 Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/core/track-groups.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/layout/track-groups.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.

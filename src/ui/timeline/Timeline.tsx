@@ -178,6 +178,8 @@ interface Props {
     value: number,
   ) => void;
   onVolumeAutomationPointCommit?: () => void;
+  volumeWriteArmedIds?: readonly TrackId[];
+  onToggleVolumeWriteArm?: (trackId: TrackId) => void;
 }
 
 function GroupCollapseIcon({ collapsed }: { collapsed: boolean }) {
@@ -419,6 +421,8 @@ export function Timeline({
   onDeleteVolumeAutomationPoint,
   onVolumeAutomationPointLive,
   onVolumeAutomationPointCommit,
+  volumeWriteArmedIds,
+  onToggleVolumeWriteArm,
 }: Props) {
   const timelineRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -1597,6 +1601,22 @@ export function Timeline({
               >
                 S
               </button>
+              {kind === "audio" && onToggleVolumeWriteArm ? (
+                <button
+                  type="button"
+                  className={volumeWriteArmedIds?.includes(id) ? "active write-arm-btn" : "write-arm-btn"}
+                  title={volumeWriteArmedIds?.includes(id) ? "Disarm volume write" : "Arm volume write"}
+                  aria-label={volumeWriteArmedIds?.includes(id) ? "Disarm volume write" : "Arm volume write"}
+                  data-testid={`write-arm-${id}`}
+                  aria-pressed={volumeWriteArmedIds?.includes(id) ? true : false}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleVolumeWriteArm(id);
+                  }}
+                >
+                  W
+                </button>
+              ) : null}
               {kind === "audio" && onToggleVolumeLane ? (
                 <button
                   type="button"

@@ -52,6 +52,8 @@ describe("volume automation lane chrome", () => {
       playing?: boolean;
       onToggle?: (id: TrackId) => void;
       onAdd?: (id: TrackId, timeMs: number, value: number) => void;
+      writeArmed?: string[];
+      onToggleWrite?: (id: TrackId) => void;
     } = {},
   ) {
     host = document.createElement("div");
@@ -67,6 +69,8 @@ describe("volume automation lane chrome", () => {
               openVolumeLaneIds={opts.open}
               onToggleVolumeLane={opts.onToggle ?? (() => undefined)}
               onAddVolumeAutomationPoint={opts.onAdd}
+              volumeWriteArmedIds={opts.writeArmed}
+              onToggleVolumeWriteArm={opts.onToggleWrite}
             />
             <Mixer
               project={project}
@@ -78,6 +82,8 @@ describe("volume automation lane chrome", () => {
               onToggleMute={noop}
               onToggleSolo={noop}
               playing={opts.playing}
+              volumeWriteArmedIds={opts.writeArmed}
+              onToggleVolumeWriteArm={opts.onToggleWrite}
             />
           </div>
         </div>,
@@ -135,5 +141,31 @@ describe("volume automation lane chrome", () => {
     expect(host!.querySelector('[data-testid="mix-db-A1"]')?.textContent).toMatch(/0\.0 dB/);
     expect(host!.querySelector('[data-testid="mix-auto-db-A1"]')?.textContent).toMatch(/dB/);
     expect(host!.querySelector('[data-testid="mix-auto-ghost-A1"]')).toBeTruthy();
+  });
+
+  it("W sits with M/S/VOL and shows armed state without a mixer redesign", () => {
+    const armed: TrackId[] = [];
+    mount(createEmptyProject(), {
+      writeArmed: [],
+      onToggleWrite: (id) => armed.push(id),
+    });
+    const laneW = host!.querySelector('[data-testid="write-arm-A1"]') as HTMLButtonElement;
+    const mixW = host!.querySelector('[data-testid="mix-write-A1"]') as HTMLButtonElement;
+    expect(laneW?.textContent).toBe("W");
+    expect(mixW?.textContent).toBe("W");
+    expect(host!.querySelector('[data-testid="write-arm-V1"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="mix-write-master"]')).toBeNull();
+    expect(host!.querySelector('[data-testid="mute-A1"]')).toBeTruthy();
+    expect(host!.querySelector('[data-testid="volume-lane-toggle-A1"]')?.textContent).toBe("VOL");
+    act(() => {
+      laneW.click();
+      mixW.click();
+    });
+    expect(armed).toEqual(["A1", "A1"]);
+
+    mount(createEmptyProject(), { writeArmed: ["A1"], onToggleWrite: () => undefined });
+    expect(host!.querySelector('[data-testid="write-arm-A1"]')?.className).toMatch(/active/);
+    expect(host!.querySelector('[data-testid="mix-A1"]')?.getAttribute("data-write-armed")).toBe("true");
+    expect(host!.querySelector('[data-testid="mix-db-A1"]')?.textContent).toMatch(/0\.0 dB/);
   });
 });

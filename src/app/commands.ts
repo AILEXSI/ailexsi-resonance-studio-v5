@@ -62,6 +62,7 @@ import {
   applyMoveVolumeAutomationPoint,
   applySelectVolumeAutomationPoint,
   applySetVolumeAutomationEnabled,
+  applyToggleVolumeWriteArm,
   applyToggleMute,
   applyToggleSolo,
   applyTrim,
@@ -110,6 +111,7 @@ export type EditorCommand =
   | { type: "createTrackGroup"; name?: string; trackIds?: readonly TrackId[] }
   | { type: "assignTracksToGroup"; trackIds: readonly TrackId[]; groupId: string | null }
   | { type: "renameTrackGroup"; groupId: string; name: string }
+  | { type: "toggleVolumeWriteArm"; trackId: TrackId }
   | { type: "setVolumeAutomationEnabled"; trackId: TrackId; enabled: boolean }
   | { type: "addVolumeAutomationPoint"; trackId: TrackId; timeMs: number; value: number }
   | { type: "deleteVolumeAutomationPoint"; trackId: TrackId; timeMs: number }
@@ -228,6 +230,8 @@ export function applyCommand(session: Session, command: EditorCommand): Session 
       return applyAssignTracksToGroup(session, command.trackIds, command.groupId);
     case "renameTrackGroup":
       return applyRenameTrackGroup(session, command.groupId, command.name);
+    case "toggleVolumeWriteArm":
+      return applyToggleVolumeWriteArm(session, command.trackId);
     case "setVolumeAutomationEnabled":
       return applySetVolumeAutomationEnabled(session, command.trackId, command.enabled);
     case "addVolumeAutomationPoint":
