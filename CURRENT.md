@@ -162,7 +162,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 
 ### What shipped
 
-- Compact per-track **W** next to M / S / VOL (Timeline + Mixer). Audio tracks only. Independent arm per track. No gang write. No Touch / Latch / Trim.
+- Compact per-track **W** next to M / S / VOL (Timeline + Mixer). Audio tracks only. Independent arm per track. No gang write. No Touch / Latch / Trim. Bare keyboard **W** is the same arm (focused/selected audio track; no-op if none). It does **not** ripple-trim. Ripple trim out is **Alt+W**. Split **S** and **Ctrl+X** unchanged.
 - W OFF: fader = static `Track.volume`. G plays normally. No overwrite of automation.
 - W ON alone, opening VOL, selecting a track, or playback without a fader move = **no points**.
 - W ON + forward playback + meaningful fader movement → capture at `project.playheadMs` and punch into `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }`.
@@ -203,9 +203,9 @@ Duplicate timestamps: last sample wins. Invalid (NaN / Infinity / negative time)
 ### Files
 
 - `src/core/volume-write.ts` — capture, coalesce/simplify, punch into G
-- `src/app/session.ts` / `src/app/commands.ts` / `src/app/App.tsx`
-- `src/ui/mixer/Mixer.tsx` / `src/ui/timeline/Timeline.tsx` / `src/styles.css`
-- Tests: `tests/core/volume-write.test.ts`, W chrome in `tests/layout/volume-automation.test.tsx`
+- `src/app/session.ts` / `src/app/commands.ts` / `src/app/keys.ts` / `src/app/App.tsx`
+- `src/ui/mixer/Mixer.tsx` / `src/ui/timeline/Timeline.tsx` / `src/ui/shortcuts/labels.ts` / `src/styles.css`
+- Tests: `tests/core/volume-write.test.ts`, W chrome in `tests/layout/volume-automation.test.tsx`, shortcut dispatch in `tests/app/keys.test.ts`
 
 ### Persistence
 
@@ -232,6 +232,7 @@ Do **not** stamp H HUMAN-PROVEN from this branch. Operator builds the Windows EX
 12. Speichern / reopen — points return; **W is off**.
 13. Repeat write on A3+ (dynamic track). Collapse the Chapter group — lanes hide; playback / envelope values do not change.
 14. Confirm Speichern / `.vN` / Export `.vN` / mixer resize / AUTO still as before.
+15. Keyboard **W** arms/disarms Write on the selected audio track (same as the W button) and must **not** shorten the song. **Alt+W** still ripple-trims out to playhead. **S** and **Ctrl+X** unchanged.
 
 STOP — no Touch/Latch/Trim, no Pan/EQ/FX/VST/MIDI, no Chapter bus, no mixer redesign, no second engine, no I+.
 

@@ -116,7 +116,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ripple trim in to playhead");
     expect(text).toContain("Ripple trim out to playhead");
     expect(text).toContain("Q");
-    expect(text).toContain("W");
+    expect(text).toContain("Alt+W");
+    expect(CLIP_MENU_SHORTCUTS.rippleTrimOutToPlayhead).toBe("Alt+W");
     expect(menu!.querySelector('[data-testid="clip-menu-ripple-trim-in"]')).toBeTruthy();
     expect(menu!.querySelector('[data-testid="clip-menu-ripple-trim-out"]')).toBeTruthy();
     expect(text).toContain(CLIP_MENU_SHORTCUTS.liftRange);
@@ -171,7 +172,8 @@ describe("clip-menu shortcut labels", () => {
     expect(text).toContain("Ripple trim in to playhead");
     expect(text).toContain("Ripple trim out to playhead");
     expect(text).toContain("Q");
-    expect(text).toContain("W");
+    expect(text).toContain("Alt+W");
+    expect(text).toContain("Arm / disarm volume write");
     expect(text).not.toContain("Cut is V");
     expect(text).not.toContain("Split is V");
   });

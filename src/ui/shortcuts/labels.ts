@@ -14,7 +14,7 @@ export const CLIP_MENU_SHORTCUTS = {
   extractRange: "'",
   closeGap: "G",
   rippleTrimInToPlayhead: "Q",
-  rippleTrimOutToPlayhead: "W",
+  rippleTrimOutToPlayhead: "Alt+W",
   selectAll: "Ctrl+A",
   selectAllOnTrack: "Ctrl+Shift+A",
 } as const;
@@ -45,6 +45,7 @@ export const SHORTCUT_ROWS: { key: string; action: string }[] = [
   { key: CLIP_MENU_SHORTCUTS.closeGap, action: "Close gap under playhead (one track)" },
   { key: CLIP_MENU_SHORTCUTS.rippleTrimInToPlayhead, action: "Ripple trim in to playhead" },
   { key: CLIP_MENU_SHORTCUTS.rippleTrimOutToPlayhead, action: "Ripple trim out to playhead" },
+  { key: "W", action: "Arm / disarm volume write (selected audio track; same as the W button)" },
   { key: "Ctrl+S", action: "Save project" },
   { key: "Ctrl+Shift+S", action: "Save project as" },
   { key: "Ctrl+Z", action: "Undo" },

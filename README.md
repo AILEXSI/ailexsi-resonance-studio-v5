@@ -139,7 +139,7 @@ Production Pass **D**: HUMAN-PROVEN in EXE (dynamic audio, 64 cap, last-lane `+/
 Production Pass **E**: HUMAN-PROVEN in EXE (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Prefix `groupId` maps into F groups.
 Production Pass **F**: HUMAN-PROVEN in EXE (chapter/track groups, collapse UI only, no group bus; create / assign / collapse / rename).
 Production Pass **G**: HUMAN-PROVEN in EXE (volume automation, VOL lane — label **VOL** not V, linear points, clip gain ≠ static fader ≠ automation).
-Production Pass **H**: IMPLEMENTED / AUTOMATED-TESTED (Write Volume **W** into the existing G envelope). Not HUMAN-PROVEN.
+Production Pass **H**: IMPLEMENTED / AUTOMATED-TESTED (Write Volume **W** into the existing G envelope; keyboard **W** arms Write, **Alt+W** ripple-trims out). Not HUMAN-PROVEN.
 I–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**, Relink filename assist): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
 Nächster Slice: Production Pass I (44-Track). Future UI zettel is **not** the next slice. STOP — no I+.
 MODE A = FAST / HUMAN ITERATION (browser/tauri dev). MODE B = PRECISION / ACCEPTANCE (named-SHA EXE). HUMAN-PROVEN only from MODE B operator list.

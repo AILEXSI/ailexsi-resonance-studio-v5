@@ -2,7 +2,7 @@ import { firstClipIdWithLivingMate } from "../core/link";
 import { FRAME_MS, projectDurationMs } from "../core/models";
 import { isSlideBlock } from "../core/timeline";
 import { applyCommand, type EditorCommand } from "./commands";
-import { applyPlayhead, selectionOf, type Session } from "./session";
+import { applyPlayhead, selectionOf, volumeWriteArmTarget, type Session } from "./session";
 
 export interface EditorKeyEvent {
   key: string;
@@ -71,7 +71,12 @@ function commandFromKey(
   if (letter === "s") return { type: "split" };
   if (letter === "g") return { type: "closeGap" };
   if (letter === "q") return { type: "rippleTrimToPlayhead", edge: "in" };
-  if (letter === "w") return { type: "rippleTrimToPlayhead", edge: "out" };
+  if (letter === "w") {
+    if (e.altKey) return { type: "rippleTrimToPlayhead", edge: "out" };
+    if (e.shiftKey) return null;
+    const trackId = volumeWriteArmTarget(session);
+    return trackId ? { type: "toggleVolumeWriteArm", trackId } : null;
+  }
   if (letter === "m") return { type: "addMarker" };
   if (letter === "x" || (letter === "i" && e.shiftKey)) return { type: "clearInOut" };
   if (letter === "i") return { type: "markIn" };
@@ -101,6 +106,7 @@ function commandFromKey(
 /**
  * Editor key routing. Modifier chords run before bare letters.
  * Split is S (not V). Ctrl+S / Cmd+S saves. Ctrl+Shift+S save-as. Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
+ * Bare W arms volume write on the focused/selected audio track (no-op if none — never trims). Alt+W ripple-trims out.
  * Home/End seek start/duration. Shift+Home/End seek IN/OUT (no-op if unset).
  * Shift+I still clears marks — do not steal I/O.
  * All mutations go through `applyCommand` except playhead seeks (`applyPlayhead`).
@@ -174,6 +180,7 @@ export function dispatchEditorKey(
     command.type === "gotoPrevEdit" ||
     command.type === "closeGap" ||
     command.type === "rippleTrimToPlayhead" ||
+    command.type === "toggleVolumeWriteArm" ||
     command.type === "selectAll" ||
     command.type === "selectAllOnTrack";
   return {

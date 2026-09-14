@@ -584,7 +584,7 @@ describe("editor keys", () => {
     expect(start.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(2000);
   });
 
-  it("Q / W ripple-trim to playhead; form focus does not; G/S/Tab stay bound", () => {
+  it("Q / Alt+W ripple-trim to playhead; bare W does not trim; form focus does not; G/S/Tab stay bound", () => {
     const va = asset({ id: "va", kind: "video", durationMs: 4000 });
     const start: Session = {
       ...createSession(createMemoryBlobStore()),
@@ -622,14 +622,18 @@ describe("editor keys", () => {
     expect(q.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
     expect(q.project.clips.find((c) => c.id === "c1")!.sourceInMs).toBe(200);
     expect(q.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
-    const w = sessionOf(
-      dispatchEditorKey({ ...start, project: { ...start.project, playheadMs: 800 } }, false, { key: "w" }),
-    );
+    const wAtPlayhead = { ...start, project: { ...start.project, playheadMs: 800 } };
+    const bareW = dispatchEditorKey(wAtPlayhead, false, { key: "w" });
+    expect(bareW.type).toBe("none");
+    expect(wAtPlayhead.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(1000);
+    expect(wAtPlayhead.project.clips.find((c) => c.id === "c2")!.startMs).toBe(1000);
+    const w = sessionOf(dispatchEditorKey(wAtPlayhead, false, { key: "w", altKey: true }));
     expect(w.project.clips.find((c) => c.id === "c1")!.durationMs).toBe(800);
     expect(w.project.clips.find((c) => c.id === "c1")!.sourceOutMs).toBe(800);
     expect(w.project.clips.find((c) => c.id === "c2")!.startMs).toBe(800);
     expect(dispatchEditorKey(start, false, { key: "q", formFocus: true }).type).toBe("none");
     expect(dispatchEditorKey(start, false, { key: "w", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: "w", altKey: true, formFocus: true }).type).toBe("none");
     expect(dispatchEditorKey(clipSession(), false, { key: "s" }).type).toBe("session");
     expect(dispatchEditorKey(clipSession(), false, { key: "Tab" })).toEqual({
       type: "cycleScreen",
@@ -653,5 +657,60 @@ describe("editor keys", () => {
     };
     const g = sessionOf(dispatchEditorKey(gapStart, false, { key: "g" }));
     expect(g.project.clips.find((c) => c.id === "v1b")!.startMs).toBe(1000);
+  });
+
+  it("bare W arms volume write on the selected audio track and never trims", () => {
+    const start = clipSession();
+    expect(start.project.clips[0]!.durationMs).toBe(2000);
+    const armed = dispatchEditorKey(start, false, { key: "w" });
+    expect(armed.type).toBe("session");
+    if (armed.type !== "session") throw new Error("expected session action");
+    expect(armed.preventDefault).toBe(true);
+    expect(armed.session.volumeWriteArmedIds).toEqual(["A1"]);
+    expect(armed.session.status).toBe("Write armed");
+    expect(armed.session.project.clips).toHaveLength(1);
+    expect(armed.session.project.clips[0]!.durationMs).toBe(2000);
+    expect(armed.session.project.clips[0]!.startMs).toBe(0);
+
+    const off = sessionOf(dispatchEditorKey(armed.session, false, { key: "w" }));
+    expect(off.volumeWriteArmedIds).toEqual([]);
+    expect(off.status).toBe("Write off");
+    expect(off.project.clips[0]!.durationMs).toBe(2000);
+
+    const videoOnly: Session = {
+      ...start,
+      selectedClipId: null,
+      selectedClipIds: [],
+      targetTrackId: "V1",
+      selectedTrackIds: ["V1"],
+    };
+    expect(dispatchEditorKey(videoOnly, false, { key: "w" }).type).toBe("none");
+    expect(videoOnly.project.clips[0]!.durationMs).toBe(2000);
+
+    const lane: Session = {
+      ...createSession(createMemoryBlobStore()),
+      targetTrackId: "A1",
+      selectedTrackIds: ["A1"],
+      selectedClipId: null,
+      selectedClipIds: [],
+    };
+    const laneArmed = sessionOf(dispatchEditorKey(lane, false, { key: "w" }));
+    expect(laneArmed.volumeWriteArmedIds).toEqual(["A1"]);
+    expect(laneArmed.status).toBe("Write armed");
+
+    const shiftW = dispatchEditorKey(start, false, { key: "w", shiftKey: true });
+    expect(shiftW.type).toBe("none");
+    expect(start.project.clips[0]!.durationMs).toBe(2000);
+
+    expect(dispatchEditorKey(start, false, { key: "w", ctrlKey: true }).type).toBe("none");
+
+    const trimmed = sessionOf(dispatchEditorKey(start, false, { key: "w", altKey: true }));
+    expect(trimmed.project.clips[0]!.durationMs).toBe(1000);
+    expect(trimmed.volumeWriteArmedIds ?? []).not.toContain("A1");
+
+    expect(dispatchEditorKey(start, false, { key: "s" }).type).toBe("session");
+    const cut = sessionOf(dispatchEditorKey(start, false, { key: "x", ctrlKey: true }));
+    expect(cut.project.clips).toHaveLength(0);
+    expect(cut.clipboard[0]?.id).toBe("c1");
   });
 });

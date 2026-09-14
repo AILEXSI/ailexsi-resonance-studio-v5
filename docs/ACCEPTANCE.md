@@ -61,7 +61,7 @@ F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR *
 
 G is **not** in the `234a781` EXE (that SHA predates G). Operator MODE B on PR **#18** feature tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`: **G HUMAN-PROVEN** — VOL lane works well; Volume Automation accepted. This docs stamp is not the G EXE SHA.
 
-H is **not** HUMAN-PROVEN. Code on the H branch is **IMPLEMENTED / AUTOMATED-TESTED** only (Write Volume **W** into G). Operator must MODE B a named SHA before any H HUMAN-PROVEN stamp. Linux VM does not produce the Windows EXE.
+H is **not** HUMAN-PROVEN. Code on the H branch is **IMPLEMENTED / AUTOMATED-TESTED** only (Write Volume **W** into G; keyboard **W** arms Write, **Alt+W** ripple-trims out). Operator must MODE B a named SHA before any H HUMAN-PROVEN stamp. Linux VM does not produce the Windows EXE.
 
 Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 

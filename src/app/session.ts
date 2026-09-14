@@ -1585,6 +1585,11 @@ export function volumeWriteCanCapture(session: Session, trackId: TrackId): boole
   return Number.isFinite(session.project.playheadMs);
 }
 
+/** Focused/selected audio track for bare W. Video/VIS-only = none — never trim. */
+export function volumeWriteArmTarget(session: Session): TrackId | null {
+  return activeEditTrackIds(session).find((id) => kindOfTrack(id) === "audio") ?? null;
+}
+
 export function applyToggleVolumeWriteArm(session: Session, trackId: TrackId): Session {
   if (kindOfTrack(trackId) !== "audio" || !trackById(session.project, trackId)) return session;
   if (session.volumeWriteArmedIds.includes(trackId)) {
