@@ -95,4 +95,72 @@ describe("arrange overflow", () => {
     const lanesOverflow = lanes.style.overflowY || getComputedStyle(lanes).overflowY;
     expect(lanesOverflow === "auto" || lanesOverflow === "scroll").toBe(true);
   });
+
+  it("short Arrange does not crush the time ruler (H lane lock must not steal ruler height)", () => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => {
+      root!.render(
+        <div className="lower-stage" style={{ height: 120 }}>
+          <div
+            className="arrange-row"
+            data-testid="arrange-row"
+            style={{ height: 120, minHeight: 0, overflow: "hidden" }}
+          >
+            <Timeline
+              project={createEmptyProject()}
+              selectedClipId={null}
+              onSelect={noop}
+              onPlayhead={noopMs}
+              onMoveLive={(_id: string, _start: number, _track?: TrackId) => {}}
+              onMoveCommit={noop}
+              onTrimLive={(_id: string, _edge: "in" | "out", _ms: number) => {}}
+              onTrimCommit={noop}
+              onToggleMute={noop}
+              onToggleSolo={noop}
+              onToggleVisualizerMute={noop}
+              onCycleVisualizerScene={noop}
+              onSplitHere={noop}
+              onCut={noop}
+              onCopy={noop}
+              onPaste={noop}
+              onDelete={noop}
+              onZoom={noop}
+              onFit={noopMs}
+              onScroll={noopMs}
+              onLoopClick={noopMs}
+              onLoopInLive={noopMs}
+              onLoopOutLive={noopMs}
+              onLoopMoveLive={noopMs}
+              onLoopCommit={noop}
+            />
+            <Mixer
+              project={createEmptyProject()}
+              selectedTrackId="A1"
+              peaks={silentPeaks}
+              onSelectTrack={noop}
+              onVolume={noop}
+              onMasterVolume={noop}
+              onToggleMute={noop}
+              onToggleSolo={noop}
+            />
+          </div>
+        </div>,
+      );
+    });
+    const chrome = host.querySelector(".ruler") as HTMLElement;
+    const tools = host.querySelector(".timeline-tools") as HTMLElement;
+    const lanes = host.querySelector('[data-testid="timeline-lanes"]') as HTMLElement;
+    expect(chrome && tools && lanes).toBeTruthy();
+    const rulerStyle = getComputedStyle(chrome);
+    expect(parseFloat(rulerStyle.minHeight)).toBeGreaterThanOrEqual(26);
+    expect(parseFloat(rulerStyle.maxHeight)).toBeGreaterThanOrEqual(26);
+    expect(rulerStyle.flexShrink === "0" || rulerStyle.flexGrow === "0" || parseFloat(rulerStyle.minHeight) >= 26).toBe(
+      true,
+    );
+    expect(parseFloat(getComputedStyle(tools).minHeight) >= 0).toBe(true);
+    expect(lanes.contains(chrome)).toBe(false);
+    expect(lanes.contains(tools)).toBe(false);
+  });
 });

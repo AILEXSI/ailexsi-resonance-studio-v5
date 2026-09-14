@@ -534,7 +534,7 @@ body.media-asset-dragging .project-overlay-drawer {
   overflow: hidden;
 }
 .timeline-lanes {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: scroll;
@@ -550,12 +550,19 @@ body.media-asset-dragging .project-overlay-drawer {
   position: sticky;
   top: 0;
   z-index: 3;
+  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 .timeline-zoom { color: var(--muted); }
 .ruler {
   display: grid;
   grid-template-columns: var(--lane-label-px) 1fr;
+  box-sizing: border-box;
   height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  flex: 0 0 26px;
+  flex-shrink: 0;
   background: #121821;
   border-bottom: 1px solid var(--line);
 }
