@@ -3,7 +3,9 @@ import {
   PRODUCTION_SCREENS,
   cycleProductionScreen,
   editorFormFocus,
+  editorTextEditFocus,
   isFormFocus,
+  isTextEditFocus,
   tracksForScreen,
 } from "../../src/app/screens";
 
@@ -50,5 +52,32 @@ describe("production screens", () => {
     input.blur();
     input.remove();
     expect(editorFormFocus(document.body)).toBe(false);
+  });
+
+  it("isTextEditFocus is true for typed fields and false for mixer range / checkbox / button", () => {
+    const text = document.createElement("input");
+    text.type = "text";
+    const number = document.createElement("input");
+    number.type = "number";
+    const range = document.createElement("input");
+    range.type = "range";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    const button = document.createElement("button");
+    button.type = "button";
+    const textarea = document.createElement("textarea");
+    expect(isTextEditFocus(text)).toBe(true);
+    expect(isTextEditFocus(number)).toBe(true);
+    expect(isTextEditFocus(textarea)).toBe(true);
+    expect(isTextEditFocus(range)).toBe(false);
+    expect(isTextEditFocus(checkbox)).toBe(false);
+    expect(isTextEditFocus(button)).toBe(false);
+    expect(isFormFocus(range)).toBe(true);
+    document.body.appendChild(range);
+    range.focus();
+    expect(editorFormFocus(document.body)).toBe(true);
+    expect(editorTextEditFocus(document.body)).toBe(false);
+    range.blur();
+    range.remove();
   });
 });

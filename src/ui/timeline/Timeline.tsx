@@ -1618,6 +1618,7 @@ export function Timeline({
                   onClick={(e) => {
                     e.stopPropagation();
                     onToggleVolumeWriteArm(id);
+                    if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur();
                   }}
                 >
                   W

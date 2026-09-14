@@ -13,6 +13,8 @@ export interface EditorKeyEvent {
   altKey?: boolean;
   /** True when focus is an input/textarea/select/contenteditable/spinbutton. */
   formFocus?: boolean;
+  /** True when typing in a real text/number field. Space still plays on range/button. */
+  textEditFocus?: boolean;
 }
 
 export type EditorKeyAction =
@@ -107,10 +109,15 @@ function commandFromKey(
  * Editor key routing. Modifier chords run before bare letters.
  * Split is S (not V). Ctrl+S / Cmd+S saves. Ctrl+Shift+S save-as. Ctrl+V pastes. Ctrl+X cuts. Bare X clears IN/OUT.
  * Bare W arms volume write on the focused/selected audio track (no-op if none — never trims). Alt+W ripple-trims out.
+ * Space play/pauses unless a real text field is focused (mixer fader / W / VOL do not swallow Space).
  * Home/End seek start/duration. Shift+Home/End seek IN/OUT (no-op if unset).
  * Shift+I still clears marks — do not steal I/O.
  * All mutations go through `applyCommand` except playhead seeks (`applyPlayhead`).
  */
+export function isTransportSpaceKey(e: Pick<EditorKeyEvent, "key" | "code">): boolean {
+  return e.code === "Space" || e.key === " ";
+}
+
 export function dispatchEditorKey(
   session: Session,
   _playing: boolean,
@@ -128,7 +135,10 @@ export function dispatchEditorKey(
   if (mod && saveLetter === "s" && e.shiftKey) {
     return { type: "saveAs", preventDefault: true };
   }
-  if (e.formFocus) return { type: "none" };
+  if (e.formFocus) {
+    const spaceOk = isTransportSpaceKey(e) && !e.textEditFocus && !mod;
+    if (!spaceOk) return { type: "none" };
+  }
   if (!mod && (e.key === "Home" || e.code === "Home")) {
     if (e.shiftKey) {
       if (session.project.inPointMs == null) return { type: "none" };

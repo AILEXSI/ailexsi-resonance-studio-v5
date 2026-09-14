@@ -143,6 +143,7 @@ export function VolumeAutomationLane(props: {
       window.removeEventListener("pointercancel", up);
       dragFromRef.current = null;
       props.onPointCommit();
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -169,7 +170,10 @@ export function VolumeAutomationLane(props: {
             checked={automation.enabled}
             data-testid={`volume-lane-enabled-${props.trackId}`}
             aria-label={`${track?.name ?? props.trackId} volume automation`}
-            onChange={(e) => props.onSetEnabled(e.target.checked)}
+            onChange={(e) => {
+              props.onSetEnabled(e.target.checked);
+              e.target.blur();
+            }}
           />
           On
         </label>

@@ -153,7 +153,8 @@ describe("Transport jump-to-time (P47)", () => {
       selectedClipId: "c1",
     };
     expect(dispatchEditorKey(start, false, { key: "s", formFocus: true }).type).toBe("none");
-    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true, textEditFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true }).type).toBe("session");
     expect(dispatchEditorKey(start, false, { key: "s" }).type).toBe("session");
   });
 

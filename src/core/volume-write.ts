@@ -31,6 +31,8 @@ import {
 
 export type { VolumeAutomationPoint };
 
+/** Minimum playhead gap before storing another raw sample (live value still updates). */
+export const WRITE_CAPTURE_MIN_MS = 40;
 /** Stop moving the fader → end the write gesture after this idle. */
 export const WRITE_IDLE_END_MS = 280;
 /** Pointer-up may commit slightly sooner than mid-drag idle. */
@@ -62,10 +64,37 @@ export interface VolumeWriteGesture {
   startMs: number;
   endMs: number;
   samples: VolumeAutomationPoint[];
+  /** Latest fader linear — audible immediately; not punched until commit. */
+  liveValue: number;
   /** Envelope before this gesture — undo / abort / punch source. */
   before: VolumeAutomation;
   /** Wall clock of the last captured sample (idle / punch boundary). */
   lastSampleAtMs: number;
+}
+
+/** Live write overrides G at the playhead for the writing track only. */
+export function liveWriteAutomationValue(
+  trackId: string,
+  envelope: VolumeAutomation | undefined | null,
+  playheadMs: number,
+  liveTrackId?: string | null,
+  liveValue?: number | null,
+): number {
+  if (liveTrackId === trackId && liveValue != null && Number.isFinite(liveValue)) {
+    return clampAutomationValue(liveValue) ?? liveValue;
+  }
+  return automationValueAt(envelope, playheadMs);
+}
+
+/** Samples actually punched on gesture end (includes trailing live value). */
+export function gestureSamplesForCommit(
+  gesture: VolumeWriteGesture,
+  playheadMs: number,
+): VolumeAutomationPoint[] {
+  const live = clampAutomationValue(gesture.liveValue);
+  const t = clampAutomationTimeMs(Math.max(playheadMs, gesture.endMs));
+  if (live == null || t == null) return coalesceWriteSamples(gesture.samples);
+  return coalesceWriteSamples([...gesture.samples, { timeMs: t, value: live }]);
 }
 
 export function isMeaningfulWriteMove(from: number, to: number): boolean {
@@ -279,6 +308,7 @@ export function appendWriteSample(
         startMs: point.timeMs,
         endMs: point.timeMs,
         samples: [point],
+        liveValue: point.value,
         before,
         lastSampleAtMs: nowMs,
       },
@@ -292,7 +322,21 @@ export function appendWriteSample(
   if (last && last.timeMs === point.timeMs) {
     samples[samples.length - 1] = point;
   } else if (last && point.timeMs < last.timeMs) {
-    return { gesture, started: false, wrapped: false };
+    return {
+      gesture: { ...gesture, liveValue: point.value, lastSampleAtMs: nowMs },
+      started: false,
+      wrapped: false,
+    };
+  } else if (
+    last &&
+    point.timeMs - last.timeMs < WRITE_CAPTURE_MIN_MS &&
+    valuesNearlyEqual(last.value, point.value)
+  ) {
+    return {
+      gesture: { ...gesture, liveValue: point.value, lastSampleAtMs: nowMs },
+      started: false,
+      wrapped: false,
+    };
   } else {
     samples.push(point);
   }
@@ -301,6 +345,7 @@ export function appendWriteSample(
       ...gesture,
       endMs: Math.max(gesture.endMs, point.timeMs),
       samples,
+      liveValue: point.value,
       lastSampleAtMs: nowMs,
     },
     started: false,

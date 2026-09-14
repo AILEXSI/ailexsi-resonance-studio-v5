@@ -534,7 +534,8 @@ describe("editor keys", () => {
     const space = dispatchEditorKey(start, false, { key: " " });
     expect(space.type).toBe("session");
     if (space.type === "session") expect(space.session.playing).toBe(true);
-    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true }).type).toBe("none");
+    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true }).type).toBe("session");
+    expect(dispatchEditorKey(start, false, { key: " ", formFocus: true, textEditFocus: true }).type).toBe("none");
     expect(dispatchEditorKey(start, false, { key: "s", formFocus: true }).type).toBe("none");
   });
 

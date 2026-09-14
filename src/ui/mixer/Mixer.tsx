@@ -1,5 +1,9 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { kindOfTrack, trackById, type Project, type TrackId } from "../../core/models";
+
+function blurChrome(target: EventTarget | null): void {
+  if (target instanceof HTMLElement) target.blur();
+}
 import { arrangeRows } from "../../core/track-groups";
 import {
   clampLinearVolume,
@@ -134,7 +138,10 @@ function Strip(props: {
           title={dbLabel}
           data-testid={`mix-fader-${props.id}`}
           onClick={(e) => e.stopPropagation()}
-          onPointerUp={() => props.onVolumeWritePointerUp?.()}
+          onPointerUp={(e) => {
+            props.onVolumeWritePointerUp?.();
+            blurChrome(e.currentTarget);
+          }}
           onChange={(e) => props.onVolume(dbToLinear(faderToDb(Number(e.target.value))))}
         />
       </div>
@@ -157,6 +164,7 @@ function Strip(props: {
             onClick={(e) => {
               e.stopPropagation();
               props.onMute?.();
+              blurChrome(e.currentTarget);
             }}
           >
             M
@@ -170,6 +178,7 @@ function Strip(props: {
               onClick={(e) => {
                 e.stopPropagation();
                 props.onSolo?.();
+                blurChrome(e.currentTarget);
               }}
             >
               S
@@ -186,6 +195,7 @@ function Strip(props: {
               onClick={(e) => {
                 e.stopPropagation();
                 props.onToggleWrite?.();
+                blurChrome(e.currentTarget);
               }}
             >
               W

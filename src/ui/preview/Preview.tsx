@@ -27,7 +27,8 @@ import {
   transitionAudioGain,
 } from "../../core/transition";
 import { mixLinearGain } from "../../core/volume";
-import { automationValueAt, volumeAutomationOf } from "../../core/volume-automation";
+import { volumeAutomationOf } from "../../core/volume-automation";
+import { liveWriteAutomationValue } from "../../core/volume-write";
 
 export { compositeVideoAt as previewComposite } from "../../core/transition";
 import type { MixPeaks } from "../mixer/Mixer";
@@ -45,10 +46,19 @@ import { loadStill, paintStill } from "../../core/still";
 interface Props {
   project: Project;
   playing: boolean;
+  liveWriteTrackId?: string | null;
+  liveWriteValue?: number | null;
   onLevels?: (peaks: MixPeaks) => void;
 }
 
-export function Preview({ project, playing, onLevels }: Props) {
+/** Track-id key only — automation / volume edits must not rebuild the graph. */
+export function previewAudioGraphKey(project: Project): string {
+  return audioTracksOf(project)
+    .map((t) => t.id)
+    .join("|");
+}
+
+export function Preview({ project, playing, liveWriteTrackId = null, liveWriteValue = null, onLevels }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const stillRef = useRef<HTMLCanvasElement>(null);
   const v1Ref = useRef<HTMLAudioElement>(null);
@@ -83,6 +93,7 @@ export function Preview({ project, playing, onLevels }: Props) {
   const analysisUrl = analysisAsset?.objectUrl;
   const audioLoaded = projectHasMixAudio(project);
   const hasClipAtPlayhead = mixClips.length > 0 || Boolean(analysisClip);
+  const audioGraphKey = previewAudioGraphKey(project);
 
   useEffect(() => {
     if (!analysisUrl || !isPlayableSource(analysisUrl)) {
@@ -176,7 +187,13 @@ export function Preview({ project, playing, onLevels }: Props) {
           trackVolumeOf(project, trackId),
           project.masterVolume ?? 1,
           !isTrackAudible(project, trackId),
-          automationValueAt(volumeAutomationOf(project.tracks.find((t) => t.id === trackId)), project.playheadMs),
+          liveWriteAutomationValue(
+            trackId,
+            volumeAutomationOf(project.tracks.find((t) => t.id === trackId)),
+            project.playheadMs,
+            liveWriteTrackId,
+            liveWriteValue,
+          ),
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project);
       const tap = tapRef.current;
       if (tap) {
@@ -195,7 +212,16 @@ export function Preview({ project, playing, onLevels }: Props) {
     for (const track of audioTracksOf(project)) {
       bind(audioRefs.current[track.id] ?? null, track.id);
     }
-  }, [mixClips, playing, project.assets, project.playheadMs, project.tracks, project.masterVolume]);
+  }, [
+    mixClips,
+    playing,
+    project.assets,
+    project.playheadMs,
+    audioGraphKey,
+    project.masterVolume,
+    liveWriteTrackId,
+    liveWriteValue,
+  ]);
 
   useEffect(() => {
     if (tapRef.current) return;
@@ -222,7 +248,7 @@ export function Preview({ project, playing, onLevels }: Props) {
     for (const track of audioTracksOf(project)) {
       tap.connect(track.id, audioRefs.current[track.id] ?? null);
     }
-  }, [project.tracks]);
+  }, [audioGraphKey]);
 
   useEffect(() => {
     if (playing) tapRef.current?.resume();
@@ -241,7 +267,13 @@ export function Preview({ project, playing, onLevels }: Props) {
           trackVolumeOf(project, trackId),
           1,
           false,
-          automationValueAt(volumeAutomationOf(project.tracks.find((t) => t.id === trackId)), project.playheadMs),
+          liveWriteAutomationValue(
+            trackId,
+            volumeAutomationOf(project.tracks.find((t) => t.id === trackId)),
+            project.playheadMs,
+            liveWriteTrackId,
+            liveWriteValue,
+          ),
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project)
       );
     };
@@ -263,7 +295,7 @@ export function Preview({ project, playing, onLevels }: Props) {
       A1pan: pans.A1,
       A2pan: pans.A2,
     });
-  }, [mixClips, project]);
+  }, [mixClips, project, liveWriteTrackId, liveWriteValue]);
 
   useEffect(() => {
     if (!playing || !onLevels) return;

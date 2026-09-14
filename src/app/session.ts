@@ -148,6 +148,7 @@ import {
 } from "../core/volume-automation";
 import {
   appendWriteSample,
+  gestureSamplesForCommit,
   isMeaningfulWriteMove,
   punchVolumeWrite,
   writeGestureIsIdle,
@@ -1610,24 +1611,21 @@ export function applyToggleVolumeWriteArm(session: Session, trackId: TrackId): S
 }
 
 export function applyAbortVolumeWrite(session: Session): Session {
-  const gesture = session.volumeWriteGesture;
-  if (!gesture) {
-    return session.volumeWriteGesture === null ? session : { ...session, volumeWriteGesture: null };
-  }
-  const restored = setTrackVolumeAutomation(session.project, gesture.trackId, gesture.before);
-  return { ...session, project: restored, volumeWriteGesture: null };
+  if (!session.volumeWriteGesture) return session;
+  return { ...session, volumeWriteGesture: null };
 }
 
 export function applyCommitVolumeWrite(session: Session): Session {
   const gesture = session.volumeWriteGesture;
   if (!gesture) return session.volumeWriteGesture ? { ...session, volumeWriteGesture: null } : session;
-  if (gesture.samples.length === 0) return { ...session, volumeWriteGesture: null };
-  const punched = punchVolumeWrite(gesture.before, gesture.samples);
-  const pre = setTrackVolumeAutomation(session.project, gesture.trackId, gesture.before);
+  const samples = gestureSamplesForCommit(gesture, session.project.playheadMs);
+  if (samples.length === 0) return { ...session, volumeWriteGesture: null };
+  const punched = punchVolumeWrite(gesture.before, samples);
+  const pre = session.project;
   const final = setTrackVolumeAutomation(pre, gesture.trackId, punched);
-  if (final === pre) return { ...session, project: pre, volumeWriteGesture: null };
+  if (final === pre) return { ...session, volumeWriteGesture: null };
   return {
-    ...withHistory({ ...session, project: pre, volumeWriteGesture: null }, final, "Volume write"),
+    ...withHistory({ ...session, volumeWriteGesture: null }, final, "Volume write"),
     volumeWriteGesture: null,
   };
 }
@@ -1689,10 +1687,9 @@ export function applyVolumeWriteSample(
     return applyVolumeWriteSample(committed, trackId, timeMs, value, nowMs);
   }
 
-  const punched = punchVolumeWrite(appended.gesture.before, appended.gesture.samples);
   return {
     ...working,
-    project: setTrackVolumeAutomation(working.project, trackId, punched),
+    project: working.project,
     volumeWriteGesture: appended.gesture,
     status: "Writing volume",
     error: null,

@@ -113,10 +113,11 @@ import {
 } from "./session";
 import { applyCommand, type EditorCommand } from "./commands";
 import { WRITE_IDLE_END_MS, WRITE_POINTER_UP_MS } from "../core/volume-write";
-import { dispatchEditorKey } from "./keys";
+import { dispatchEditorKey, isTransportSpaceKey } from "./keys";
 import {
   cycleProductionScreen,
   editorFormFocus,
+  editorTextEditFocus,
   tracksForScreen,
   type ProductionScreen,
 } from "./screens";
@@ -410,8 +411,11 @@ export function App() {
         return;
       }
       const formFocus = editorFormFocus(e.target);
+      const textEditFocus = editorTextEditFocus(e.target);
       const chord = (e.ctrlKey || e.metaKey) && e.key.length === 1 && e.key.toLowerCase() === "s";
-      if (formFocus && e.key !== "Tab" && !chord) return;
+      if (formFocus && e.key !== "Tab" && !chord) {
+        if (!isTransportSpaceKey(e) || textEditFocus) return;
+      }
       const s = sessionRef.current;
       const action = dispatchEditorKey(s, s.playing, {
         key: e.key,
@@ -421,6 +425,7 @@ export function App() {
         shiftKey: e.shiftKey,
         altKey: e.altKey,
         formFocus,
+        textEditFocus,
       });
       if (action.type === "none") return;
       if ("preventDefault" in action && action.preventDefault) e.preventDefault();
@@ -1431,7 +1436,13 @@ export function App() {
           data-testid="workspace-preview"
           style={{ flex: `${hSplitRatio} 1 ${PREVIEW_H_MIN_PX}px` }}
         >
-          <Preview project={session.project} playing={session.playing} onLevels={setMixPeaks} />
+          <Preview
+            project={session.project}
+            playing={session.playing}
+            liveWriteTrackId={session.volumeWriteGesture?.trackId ?? null}
+            liveWriteValue={session.volumeWriteGesture?.liveValue ?? null}
+            onLevels={setMixPeaks}
+          />
         </div>
         <div
           className="layout-split-v"
@@ -1692,11 +1703,7 @@ export function App() {
         playing={session.playing}
         volumeWriteArmedIds={session.volumeWriteArmedIds}
         volumeWriteTrackId={session.volumeWriteGesture?.trackId ?? null}
-        volumeWriteValue={
-          session.volumeWriteGesture
-            ? session.volumeWriteGesture.samples[session.volumeWriteGesture.samples.length - 1]?.value ?? null
-            : null
-        }
+        volumeWriteValue={session.volumeWriteGesture?.liveValue ?? null}
         onToggleVolumeWriteArm={(id) => runCommand({ type: "toggleVolumeWriteArm", trackId: id })}
         onVolumeWritePointerUp={() => {
           window.setTimeout(() => {

@@ -165,15 +165,17 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 - Compact per-track **W** next to M / S / VOL (Timeline + Mixer). Audio tracks only. Independent arm per track. No gang write. No Touch / Latch / Trim. Bare keyboard **W** is the same arm (focused/selected audio track; no-op if none). It does **not** ripple-trim. Ripple trim out is **Alt+W**. Split **S** and **Ctrl+X** unchanged.
 - W OFF: fader = static `Track.volume`. G plays normally. No overwrite of automation.
 - W ON alone, opening VOL, selecting a track, or playback without a fader move = **no points**.
-- W ON + forward playback + meaningful fader movement → capture at `project.playheadMs` and punch into `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }`.
-- After the gesture: ordinary G points. Edit on the existing VOL lane. Immediate playback via existing G (live punch while writing; one undo on commit).
-- Static vs automation unchanged: `effective = clipGain × staticTrackVolume × automationValueAt(t)`. Arming W does not permanently overwrite static.
+- W ON + forward playback + meaningful fader movement → lightweight in-memory gesture buffer at `project.playheadMs`. Live fader value feeds audible gain immediately. **No** project / history / G punch per pointer event.
+- Gesture end (idle / pointer-up / STOP / PAUSE / SEEK) simplifies once and punches into `Track.volumeAutomation = { enabled, points: [{ timeMs, value }] }`. One undo per gesture.
+- After the gesture: ordinary G points. Edit on the existing VOL lane. Immediate playback via existing G (live write during the gesture; clean handoff at commit).
+- Static vs automation unchanged: `effective = clipGain × staticTrackVolume × automationValueAt(t)` (live write value replaces automation for that track while the gesture is open). Arming W does not permanently overwrite static.
+- Space play/pauses with normal UI focus, including after mixer fader / W / VOL chrome. Real text/number fields still swallow Space.
 
 ### Fader ↔ automation mapping
 
 - Mixer fader range is the G range: **+6 … −∞ dB**; linear = `10^(dB/20)`; **1 = 0 dB**.
 - W OFF, or W ON without an active write gesture: fader reads/writes **static** `Track.volume`.
-- During an active write gesture: fader linear **is** the G automation `value` being written (not static ÷ something, not a second gain model).
+- During an active write gesture: fader linear **is** the live write value (same G automation range). It is not punched into the project until the gesture ends.
 - If static is not 0 dB, effective ≠ fader (G mixer still shows static vs effective).
 - After the gesture the fader returns to static; ghost / cyan readout follow the persisted envelope.
 
@@ -196,16 +198,17 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 | `WRITE_PEAK_LINEAR` | 0.02 | Re-keep local extrema |
 | `WRITE_IDENTITY_HOLD_MS` | 1 | Unity hold before first punch on an empty envelope |
 | `WRITE_LOOP_WRAP_MS` | 80 | Treat a backward jump as a loop wrap |
+| `WRITE_CAPTURE_MIN_MS` | 40 | Minimum playhead gap to store another raw sample (live value still updates) |
 | `WRITE_IDLE_END_MS` / `WRITE_POINTER_UP_MS` | 280 / 80 | Gesture boundary |
 
 Duplicate timestamps: last sample wins. Invalid (NaN / Infinity / negative time) samples are dropped; existing envelopes are never wiped as recovery.
 
 ### Files
 
-- `src/core/volume-write.ts` — capture, coalesce/simplify, punch into G
-- `src/app/session.ts` / `src/app/commands.ts` / `src/app/keys.ts` / `src/app/App.tsx`
-- `src/ui/mixer/Mixer.tsx` / `src/ui/timeline/Timeline.tsx` / `src/ui/shortcuts/labels.ts` / `src/styles.css`
-- Tests: `tests/core/volume-write.test.ts`, W chrome in `tests/layout/volume-automation.test.tsx`, shortcut dispatch in `tests/app/keys.test.ts`
+- `src/core/volume-write.ts` — capture, coalesce/simplify, punch into G (commit only)
+- `src/app/session.ts` / `src/app/commands.ts` / `src/app/keys.ts` / `src/app/screens.ts` / `src/app/App.tsx`
+- `src/ui/mixer/Mixer.tsx` / `src/ui/timeline/Timeline.tsx` / `src/ui/preview/Preview.tsx` / `src/ui/shortcuts/labels.ts` / `src/styles.css`
+- Tests: `tests/core/volume-write.test.ts`, `tests/app/write-runtime.test.ts`, W chrome in `tests/layout/volume-automation.test.tsx`, shortcut dispatch in `tests/app/keys.test.ts`
 
 ### Persistence
 
@@ -233,6 +236,7 @@ Do **not** stamp H HUMAN-PROVEN from this branch. Operator builds the Windows EX
 13. Repeat write on A3+ (dynamic track). Collapse the Chapter group — lanes hide; playback / envelope values do not change.
 14. Confirm Speichern / `.vN` / Export `.vN` / mixer resize / AUTO still as before.
 15. Keyboard **W** arms/disarms Write on the selected audio track (same as the W button) and must **not** shorten the song. **Alt+W** still ripple-trims out to playhead. **S** and **Ctrl+X** unchanged.
+16. **W + play + 10–20s continuous fader move** stays smooth (no audio stutter). Space pause/resume works before, during, and after Write. Curve appears after the gesture; one Undo removes it.
 
 STOP — no Touch/Latch/Trim, no Pan/EQ/FX/VST/MIDI, no Chapter bus, no mixer redesign, no second engine, no I+.
 
