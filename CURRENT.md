@@ -158,7 +158,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 
 ## H Evidence Report
 
-**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **883 / 99**; vite 7.3.6, 197 modules, version 5.0.0.
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **887 / 99**. Not HUMAN-PROVEN.
 
 ### What shipped
 
@@ -184,7 +184,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 - STOP / PAUSE / SEEK / reverse shuttle / disarm W / remove that track → clean terminate (commit if samples exist).
 - PAUSE: no writing while time is stationary. SEEK alone invents no point at the destination.
 - Loop wrap uses real project time (playhead jump backward ends the gesture). No hidden monotonic write clock.
-- Punch replaces only `[firstWritten, lastWritten]`. Points strictly before/after stay. Empty identity envelopes get a 1 ms unity hold so a late punch does not flood t < t0.
+- Punch replaces only `[firstWritten, lastWritten]`. Points strictly before/after stay. Empty identity envelopes get a 1 ms hold of the **prior** value (unity) before t0 **and after t1** so a write cannot silence the rest of the song (G hold-after-last would otherwise keep the last written gain forever).
 
 ### Simplification thresholds (deterministic)
 

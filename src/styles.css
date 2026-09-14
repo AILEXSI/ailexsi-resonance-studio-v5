@@ -520,6 +520,8 @@ body.media-asset-dragging .project-overlay-drawer {
   --lane-height-vis: 52px;
   --lane-height-video: 52px;
   --lane-height-audio: 52px;
+  --lane-height-volume: 48px;
+  --lane-height-group: 28px;
   background: #0c1016;
   border-top: none;
   user-select: none;
@@ -590,16 +592,31 @@ body.media-asset-dragging .project-overlay-drawer {
 .lane {
   display: grid;
   grid-template-columns: var(--lane-label-px) 1fr;
+  box-sizing: border-box;
   height: var(--lane-height-video);
+  min-height: var(--lane-height-video);
+  max-height: var(--lane-height-video);
+  overflow: hidden;
+  flex: 0 0 auto;
   border-bottom: 1px solid var(--line);
   position: relative;
   container-type: size;
   container-name: lane;
 }
-.lane.vis-lane { height: var(--lane-height-vis); }
-.lane.audio-lane { height: var(--lane-height-audio); }
+.lane.vis-lane {
+  height: var(--lane-height-vis);
+  min-height: var(--lane-height-vis);
+  max-height: var(--lane-height-vis);
+}
+.lane.audio-lane {
+  height: var(--lane-height-audio);
+  min-height: var(--lane-height-audio);
+  max-height: var(--lane-height-audio);
+}
 .lane.volume-lane {
-  height: 48px;
+  height: var(--lane-height-volume);
+  min-height: var(--lane-height-volume);
+  max-height: var(--lane-height-volume);
   background: #10161e;
 }
 .lane.volume-lane .lane-label {
@@ -686,7 +703,9 @@ body.media-asset-dragging .project-overlay-drawer {
   color: #10161e;
   background: #7ec8e3;
 }
-.write-arm-btn {
+/* Write arm only — not VIS scene WAVE (`.scene-btn`). */
+.lane-ms .write-arm-btn,
+.mix-ms .write-arm-btn {
   min-width: 16px;
   padding: 0 4px;
   font-size: 10px;
@@ -697,7 +716,8 @@ body.media-asset-dragging .project-overlay-drawer {
   border: 1px solid rgba(224, 161, 90, 0.35);
   border-radius: 3px;
 }
-.write-arm-btn.active {
+.lane-ms .write-arm-btn.active,
+.mix-ms .write-arm-btn.active {
   color: #10161e;
   background: #e0a15a;
 }
@@ -705,7 +725,10 @@ body.media-asset-dragging .project-overlay-drawer {
   box-shadow: inset 0 0 0 1px rgba(224, 161, 90, 0.55);
 }
 .lane.group-lane {
-  height: 28px;
+  height: var(--lane-height-group);
+  min-height: var(--lane-height-group);
+  max-height: var(--lane-height-group);
+  overflow: hidden;
   grid-template-columns: var(--lane-label-px) 1fr;
   background: #141a24;
 }
@@ -790,7 +813,9 @@ body.media-asset-dragging .project-overlay-drawer {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
   background: var(--panel-2);
   font-size: 14px;
   color: var(--muted);
@@ -871,7 +896,7 @@ body.media-asset-dragging .project-overlay-drawer {
 .lane.muted .lane-label { color: var(--danger); }
 .lane.muted.audio-lane .lane-body,
 .lane.vis-lane.muted .lane-body { opacity: 0.45; }
-.lane-body { position: relative; overflow: hidden; }
+.lane-body { position: relative; overflow: hidden; min-height: 0; min-width: 0; }
 .clip {
   position: absolute;
   top: 4px;
@@ -943,11 +968,14 @@ body.media-asset-dragging .project-overlay-drawer {
   position: absolute;
   inset: 0;
   display: flex;
+  max-height: 100%;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0.9;
 }
 .clip-filmstrip img {
   height: 100%;
+  max-height: 100%;
   width: 48px;
   object-fit: cover;
   flex-shrink: 0;
@@ -984,6 +1012,36 @@ body.media-asset-dragging .project-overlay-drawer {
 .fade-handle.out {
   right: 8px;
   cursor: e-resize;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  justify-items: center;
+  align-items: center;
+  gap: 2px 3px;
+  padding: 2px 3px;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-label > span {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-group-assign {
+  grid-column: 2;
+  grid-row: 1;
+  max-width: 44px;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-ms {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-label:has(.lane-audio-count) .lane-ms {
+  grid-column: 1;
+}
+.lane.audio-lane:not(.lane-header-compact) .lane-audio-count {
+  grid-column: 2;
+  grid-row: 2;
 }
 .lane-ms {
   display: flex;

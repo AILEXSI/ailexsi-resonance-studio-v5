@@ -17,6 +17,7 @@
 import type { VolumeAutomation } from "./models";
 import { linearToDb } from "./volume";
 import {
+  automationValueAt,
   clampAutomationTimeMs,
   clampAutomationValue,
   defaultVolumeAutomation,
@@ -47,8 +48,10 @@ export const WRITE_RDP_EPSILON = 0.02;
 /** Local extremum kept if it sticks out by at least this linear amount. */
 export const WRITE_PEAK_LINEAR = 0.02;
 /**
- * Empty / identity envelopes hold unity until just before the first written
- * time so a punch does not paint the whole timeline with the written value.
+ * Empty / identity envelopes hold the prior value until just before the first
+ * written time, and again just after the last, so a punch does not flood the
+ * whole timeline (H5). G hold-after-last would otherwise silence the rest of
+ * the song if the gesture ended below unity.
  */
 export const WRITE_IDENTITY_HOLD_MS = 1;
 /** Playhead jump backward larger than this ends the current gesture (loop wrap). */
@@ -208,9 +211,20 @@ function identityHoldPrefix(t0: number): VolumeAutomationPoint[] {
   return points;
 }
 
+/** Prior envelope value just after t1 — identity when the curve was empty/disabled. */
+function restoreAfterPoint(existing: VolumeAutomation, t1: number): VolumeAutomationPoint | null {
+  const restoreAt = t1 + WRITE_IDENTITY_HOLD_MS;
+  const t = clampAutomationTimeMs(restoreAt);
+  if (t == null) return null;
+  const raw = automationValueAt({ ...existing, enabled: true }, t);
+  const value = clampAutomationValue(raw) ?? VOLUME_AUTOMATION_UNITY;
+  return { timeMs: t, value };
+}
+
 /**
  * Replace only [firstWritten, lastWritten]. Preserve points strictly before/after.
- * Empty identity envelopes get a unity hold so the punch does not flood t < t0.
+ * Empty identity envelopes get a unity hold before t0 and after t1 so the punch
+ * does not flood the rest of the track (no whole-song silence / 0-gain hold).
  * Always returns a sanitized G envelope. Never wipes the existing curve on failure.
  */
 export function punchVolumeWrite(
@@ -228,9 +242,10 @@ export function punchVolumeWrite(
   const after = current.points.filter((p) => p.timeMs > t1);
   const seeded =
     before.length === 0 && !volumeAutomationIsActive(current) ? identityHoldPrefix(t0) : before;
+  const restore = restoreAfterPoint(current, t1);
   return {
     enabled: true,
-    points: sortVolumeAutomationPoints([...seeded, ...written, ...after]),
+    points: sortVolumeAutomationPoints([...seeded, ...written, ...(restore ? [restore] : []), ...after]),
   };
 }
 

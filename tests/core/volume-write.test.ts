@@ -105,6 +105,7 @@ describe("H write into G", () => {
     expect(env.points[0]!.timeMs).toBe(0);
     expect(env.points.some((p) => p.timeMs === 200 || p.timeMs === 600)).toBe(true);
     expect(automationValueAt(env, 600)).toBeCloseTo(0.2, 5);
+    expect(automationValueAt(env, 1200)).toBeCloseTo(1, 5);
     expect(session.project.tracks.find((t) => t.id === "A1")!.volume).toBe(1);
   });
 
@@ -141,9 +142,10 @@ describe("H punch / preserve / transport", () => {
     expect(punched.points.some((p) => p.timeMs === 1000)).toBe(true);
     expect(punched.points.some((p) => p.timeMs === 2000)).toBe(true);
     expect(punched.points.some((p) => p.timeMs === 3000 && p.value === 0.25)).toBe(true);
-    expect(punched.points.filter((p) => p.timeMs > 1000 && p.timeMs < 2000).every((p) => p.value <= 0.12 + 1e-9)).toBe(
+    expect(punched.points.filter((p) => p.timeMs > 1000 && p.timeMs < 2000 && p.timeMs <= 1600).every((p) => p.value <= 0.12 + 1e-9)).toBe(
       true,
     );
+    expect(automationValueAt(punched, 2500)).toBeCloseTo(0.625, 2);
     expect(punched.points).toHaveLength(punched.points.filter((p, i, all) => all.findIndex((q) => q.timeMs === p.timeMs) === i).length);
   });
 
@@ -320,6 +322,8 @@ describe("H tracks / chapters / G still works / regression", () => {
     expect(seeded.points[0]).toEqual({ timeMs: 0, value: 1 });
     expect(seeded.points.some((p) => p.timeMs === 2000 - WRITE_IDENTITY_HOLD_MS && p.value === 1)).toBe(true);
     expect(automationValueAt(seeded, 100)).toBeCloseTo(1, 8);
+    expect(automationValueAt(seeded, 2100)).toBeCloseTo(0.275, 5);
+    expect(automationValueAt(seeded, 4000)).toBeCloseTo(1, 8);
 
     let session = createSession(createMemoryBlobStore());
     session.project = {
@@ -331,6 +335,32 @@ describe("H tracks / chapters / G still works / regression", () => {
     expect(volumeAutomationOf(session.project.tracks.find((t) => t.id === "A1")).points[0]?.value).toBeCloseTo(0.5, 8);
     session = applyCommand(session, { type: "createTrackGroup", name: "Ch", trackIds: ["A1"] });
     expect(session.project.groups?.length).toBeGreaterThan(0);
+  });
+
+  it("punch does not hold written gain across the rest of the track", () => {
+    const punched = punchVolumeWrite(undefined, [
+      { timeMs: 2000, value: 0 },
+      { timeMs: 2300, value: 0 },
+    ]);
+    expect(automationValueAt(punched, 500)).toBeCloseTo(1, 8);
+    expect(automationValueAt(punched, 2000)).toBeCloseTo(0, 8);
+    expect(automationValueAt(punched, 5000)).toBeCloseTo(1, 8);
+  });
+
+  it("W ON without a fader move does not mute, truncate clips, or write", () => {
+    let session = createSession(createMemoryBlobStore());
+    session.project = {
+      ...session.project,
+      assets: [asset({ id: "aa", kind: "audio", durationMs: 8000 })],
+      clips: [clip({ id: "c1", assetId: "aa", trackId: "A1", startMs: 0, durationMs: 8000 })],
+    };
+    session = applyToggleVolumeWriteArm(session, "A1");
+    session = applyCommand(session, { type: "play" });
+    session = applyPlayhead(session, 1500, "transport");
+    expect(session.project.clips[0]?.durationMs).toBe(8000);
+    expect(volumeAutomationOf(session.project.tracks.find((t) => t.id === "A1")).points).toEqual([]);
+    expect(session.project.tracks.find((t) => t.id === "A1")!.volume).toBe(1);
+    expect(session.project.tracks.find((t) => t.id === "A1")!.name).not.toBe("W");
   });
 
   it("invalid samples do not erase an existing envelope", () => {

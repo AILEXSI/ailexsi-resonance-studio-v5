@@ -34,6 +34,14 @@ export const GROUP_COLLAPSED_KEY = "resonance-studio-v5-group-collapsed";
 export const VOLUME_LANE_OPEN_KEY = "resonance-studio-v5-volume-lane-open";
 /** Extra Volume sub-lane height. Clip lanes stay at their existing height. */
 export const VOLUME_LANE_HEIGHT_PX = 48;
+/** Chapter/group header row. Collapse UI only — not a clip lane. */
+export const GROUP_LANE_HEIGHT_PX = 28;
+
+/** Inline box lock so content (filmstrip / W+VOL chrome) cannot stretch a lane. */
+export function fixedLaneBoxStyle(px: number): { height: number; minHeight: number; maxHeight: number } {
+  const h = Number.isFinite(px) ? Math.max(1, Math.round(px)) : DEFAULT_LANE_HEIGHT_PX;
+  return { height: h, minHeight: h, maxHeight: h };
+}
 export const MIXER_WIDTH_KEY = "resonance-studio-v5-mixer-width";
 export const MIXER_EXPANDED_PX = 228;
 export const MIXER_COLLAPSED_PX = 56;

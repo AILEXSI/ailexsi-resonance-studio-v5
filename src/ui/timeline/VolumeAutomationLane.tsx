@@ -1,5 +1,5 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { VOLUME_LANE_HEIGHT_PX } from "../../core/layout-prefs";
+import { VOLUME_LANE_HEIGHT_PX, fixedLaneBoxStyle } from "../../core/layout-prefs";
 import type { Project, TrackId, VolumeAutomation } from "../../core/models";
 import { RULER_PAD_PX } from "../../core/zoom";
 import {
@@ -159,7 +159,7 @@ export function VolumeAutomationLane(props: {
       className="lane volume-lane"
       data-testid={`volume-lane-${props.trackId}`}
       data-enabled={automation.enabled ? "true" : "false"}
-      style={{ height }}
+      style={fixedLaneBoxStyle(height)}
     >
       <div className="lane-label volume-lane-label" data-testid={`volume-lane-label-${props.trackId}`}>
         <span>VOL</span>

@@ -28,8 +28,11 @@ import { abuttingNeighbor, collectSnapTargets, isSlideBlock, snapPlayheadSeek, s
 import {
   DEFAULT_LANE_HEIGHT_PX,
   DEFAULT_LANE_LABEL_PX,
+  GROUP_LANE_HEIGHT_PX,
+  VOLUME_LANE_HEIGHT_PX,
   clampLaneHeightPx,
   clampLaneLabelPx,
+  fixedLaneBoxStyle,
   heightGroupOfLane,
   laneHeaderPacksInline,
   type LaneHeightGroup,
@@ -1168,6 +1171,8 @@ export function Timeline({
           "--lane-height-vis": `${heights.vis}px`,
           "--lane-height-video": `${heights.video}px`,
           "--lane-height-audio": `${heights.audio}px`,
+          "--lane-height-volume": `${VOLUME_LANE_HEIGHT_PX}px`,
+          "--lane-height-group": `${GROUP_LANE_HEIGHT_PX}px`,
         } as CSSProperties
       }
     >
@@ -1275,7 +1280,7 @@ export function Timeline({
         className={`lane vis-lane${project.visualizer.muted || !project.visualizer.enabled ? " muted" : ""}${selectedVis || selectedVisEventId || (selectedVisEventIds && selectedVisEventIds.length > 0) ? " track-selected" : ""}${visHeaderInline ? " lane-header-compact" : ""}`}
         data-testid="lane-VIS"
         data-header-pack={visHeaderInline ? "inline" : "stack"}
-        style={{ height: heights.vis }}
+        style={fixedLaneBoxStyle(heights.vis)}
       >
         <div
           className="lane-label"
@@ -1445,6 +1450,7 @@ export function Timeline({
               key={`group:${row.group.id}`}
               data-testid={`lane-group-${row.group.id}`}
               data-collapsed={row.collapsed ? "true" : "false"}
+              style={fixedLaneBoxStyle(GROUP_LANE_HEIGHT_PX)}
             >
               <div className="lane-label" data-testid={`lane-group-label-${row.group.id}`}>
                 {laneLabelSplitter}
@@ -1539,7 +1545,7 @@ export function Timeline({
             key={id}
             data-testid={`lane-${id}`}
             data-header-pack={headerInline ? "inline" : "stack"}
-            style={{ height: heights[group] }}
+            style={fixedLaneBoxStyle(heights[group])}
           >
             <div
               className="lane-label"
