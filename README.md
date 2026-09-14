@@ -9,14 +9,15 @@ Quelle der Wahrheit für diesen Stand: `CURRENT.md`.
 - D / mixer / save / `.vN` / export / **E Stem Import**: PR #15 tip `234a781` — do not treat a later docs commit as that EXE SHA.
 - **F Track/Chapter Groups** (create / assign / collapse / rename): PR #17 feature tip `c4391cb` — this docs stamp is not the F EXE SHA.
 - **G Volume Automation** (VOL lane): PR #18 feature tip `896b640` — this docs stamp is not the G EXE SHA.
+- **H Write Volume** (W into G; ruler flex pin; VOL header pack; write-buffer / Space harden): PR #19 tip `24f4337` — owner confirmed local Vite + Root-Exe.
 
 Also on the `234a781` EXE: app startup/runtime; Arrange; dynamic audio create/remove + vertical lane scroll; dynamic mixer + horizontal scroll + resize/divider; track/mixer sync; Speichern / Speichern unter + project `.vN`; Export `.vN` + successful MP4 (`Untitled_Resonance.v1.mp4`, status `Exported … bytes`); existing playback / timeline remained functional. Version chip **5.0.0**.
 
 Earlier HUMAN-PROVEN on main (exe `0df5da1` / PR #9): A Follow, B audio VIS + silence gate, C Loop-off.
 
-**E Stem Import:** HUMAN-PROVEN in EXE (alongside D / mixer / save / `.vN` / export). **F Track/Chapter Groups:** HUMAN-PROVEN in EXE (create / assign / collapse / rename; collapse UI only, no group bus). **G Volume Automation:** HUMAN-PROVEN in EXE (VOL lane works well; Volume Automation accepted). **H–N + zettel:** PLANNED / NOT IMPLEMENTED (incl. Track/Mixer Rename, Track Color, Distribute Colors, Relink filename assist — Future UI in `CURRENT.md`, not next slice).
+**E Stem Import:** HUMAN-PROVEN in EXE (alongside D / mixer / save / `.vN` / export). **F Track/Chapter Groups:** HUMAN-PROVEN in EXE (create / assign / collapse / rename; collapse UI only, no group bus). **G Volume Automation:** HUMAN-PROVEN in EXE (VOL lane works well; Volume Automation accepted). **H Write Volume:** HUMAN-PROVEN in local Vite + Root-Exe `24f4337`. **I–N + zettel:** PLANNED / NOT IMPLEMENTED (incl. Track/Mixer Rename, Track Color, Distribute Colors, Relink filename assist — Future UI in `CURRENT.md`, not next slice).
 
-`origin/main` is still `9ceb9bd` (docs stamp of `0cdcadf`). Stack D→D.1→E→Speichern→Export `.vN` is **not** merged to main. Open PR chain #10–#15; later heads supersede earlier D/E/export-only PRs. Kein Force-Push auf `main`. AUTO und Icons unangetastet.
+PR **#19** merges H tip `24f4337` (D–H stack) onto `main` (was `9ceb9bd`). Kein Force-Push auf `main`. AUTO und Icons unangetastet.
 
 MODE A chrome (Vite `127.0.0.1:1421`, 2026-09-13) — not EXE acceptance:
 
@@ -129,7 +130,7 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 
 ## Fuer Bots
 
-Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). H writes onto G docs tip `9099f6a` (new branch — not the G branch). This docs stamp is not a G/H EXE SHA. `origin/main` @ `9ceb9bd` (stamp of `0cdcadf`; PR #9 merge `c0392f0`). Version 5.0.0.
+Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). H EXE = PR #19 tip `24f4337` (`cursor/volume-write-automation-6676`, owner Vite + Root-Exe). Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (HUMAN-PROVEN earlier). VIS-Lane-Klick seekt wie V/A. Speichern unter picker + `.vN`.
 A Follow: HUMAN-PROVEN — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
@@ -139,7 +140,7 @@ Production Pass **D**: HUMAN-PROVEN in EXE (dynamic audio, 64 cap, last-lane `+/
 Production Pass **E**: HUMAN-PROVEN in EXE (multi-WAV stem import, same start, filename labels, ZIP in-memory, cap skip in status). Prefix `groupId` maps into F groups.
 Production Pass **F**: HUMAN-PROVEN in EXE (chapter/track groups, collapse UI only, no group bus; create / assign / collapse / rename).
 Production Pass **G**: HUMAN-PROVEN in EXE (volume automation, VOL lane — label **VOL** not V, linear points, clip gain ≠ static fader ≠ automation).
-Production Pass **H**: IMPLEMENTED / AUTOMATED-TESTED (Write Volume **W** into the existing G envelope; keyboard **W** arms Write, **Alt+W** ripple-trims out). Not HUMAN-PROVEN.
+Production Pass **H**: HUMAN-PROVEN in local Vite + Root-Exe `24f4337` (Write Volume **W** into the existing G envelope; keyboard **W** arms Write, **Alt+W** ripple-trims out; write-buffer + Space harden; short-Arrange ruler flex-fixed; VOL header two-row pack).
 I–N + zettel (Preview Zoom, mixer EQ/FX, **Track/Mixer Rename**, **Track Color**, **Distribute Colors**, Relink filename assist): **PLANNED / NOT IMPLEMENTED** — Details in `CURRENT.md` Future UI. VIS-Ausbau-Intent = K–N dort.
 Nächster Slice: Production Pass I (44-Track). Future UI zettel is **not** the next slice. STOP — no I+.
 MODE A = FAST / HUMAN ITERATION (browser/tauri dev). MODE B = PRECISION / ACCEPTANCE (named-SHA EXE). HUMAN-PROVEN only from MODE B operator list.

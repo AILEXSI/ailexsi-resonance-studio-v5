@@ -61,15 +61,14 @@ F is **not** in the `234a781` EXE (that SHA predates F). Operator MODE B on PR *
 
 G is **not** in the `234a781` EXE (that SHA predates G). Operator MODE B on PR **#18** feature tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`: **G HUMAN-PROVEN** — VOL lane works well; Volume Automation accepted. This docs stamp is not the G EXE SHA.
 
-H is **not** HUMAN-PROVEN. Code on the H branch is **IMPLEMENTED / AUTOMATED-TESTED** only (Write Volume **W** into G; keyboard **W** arms Write, **Alt+W** ripple-trims out). Operator must MODE B a named SHA before any H HUMAN-PROVEN stamp. Linux VM does not produce the Windows EXE.
+H is **not** in the `234a781` EXE (that SHA predates H). Owner MODE B on PR **#19** tip `24f43377569dae333aa5f7efdfe68a303805d2a8`: **H HUMAN-PROVEN** — local Vite + Root-Exe. Write Volume **W** into G; write-buffer + Space/first-move harden; short-Arrange ruler flex-fixed; VOL header two-row pack.
 
 Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 
-- H Write Volume (implemented in code; not operator-proven)
 - I–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors; Relink filename assist (see `CURRENT.md` Future UI — not next slice)
 
-`origin/main` was not this EXE. Main tip at audit time: `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`.
+PR **#19** merges H tip `24f4337` onto `main` (was `9ceb9bd` / PR #9).
 
 ## Build / test (MODE A, last measured on the accepted EXE SHA)
 
@@ -85,6 +84,6 @@ F branch (MODE A): tsc exit 0; vitest **841 passed / 96 files**; vite 7.3.6, 194
 
 G branch (MODE A): tsc exit 0; vitest **862 passed / 98 files**; vite 7.3.6, 196 modules, version 5.0.0. **G HUMAN-PROVEN** in EXE (`896b640`). This docs stamp is not the EXE SHA.
 
-H branch (MODE A): tsc exit 0; vitest **883 passed / 99 files**; vite 7.3.6, 197 modules, version 5.0.0. **H is not HUMAN-PROVEN.** Linux VM does not claim a Windows EXE.
+H tip `24f4337` (MODE A): tsc exit 0; vitest **906 passed / 101 files**; vite 7.3.6, 197 modules, version 5.0.0. **H HUMAN-PROVEN** in local Vite + Root-Exe (`24f4337`).
 
 Targeted suites for the stacked slices: `tests/core/audio-tracks.test.ts`, `tests/core/track-groups.test.ts`, `tests/layout/dynamic-audio-lanes.test.tsx`, `tests/layout/mixer-resize.test.tsx`, `tests/layout/track-groups.test.tsx`, `tests/media/stem-import.test.ts`, `tests/media/zip-audio.test.ts`, persistence last-project / project-file (Speichern vs Speichern unter + `lastPath`), filename-version / export-name `.vN`.

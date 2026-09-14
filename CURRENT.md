@@ -10,9 +10,9 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Datum | 2026-09-14 |
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | **5.0.0** (package / tauri / Cargo / toolbar chip). JSON `schemaVersion` **5**. |
-| main | `origin/main` @ `9ceb9bd` (docs stamp of `0cdcadf`). Last feature merge on main: PR #9 `c0392f0`. **Stack not merged to main.** |
-| Lineage | D/E/save/export EXE: PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320`. **F HUMAN-PROVEN** in EXE from PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43` (`cursor/track-chapter-groups-6442` onto docs PR #16). This docs stamp is not the F EXE SHA. **G HUMAN-PROVEN** in EXE from PR **#18** tip `896b64083f541d013b289de0e1eb98cfe3dcfb06` (`cursor/volume-automation-e329` onto F). This docs stamp is not the G EXE SHA. Open PR chain **#10–#18**; later heads supersede earlier D/E/export-only PRs. Stack not merged to main. |
-| Base | `main` after PR #9, plus unmerged stack D→D.1→E→Speichern→Export `.vN`. |
+| main | PR **#19** merges H tip `24f4337` onto `main` (was `9ceb9bd` / PR #9). Post-merge stamp records the main HEAD. |
+| Lineage | D/E/save/export EXE: PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320`. **F HUMAN-PROVEN** in EXE from PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43`. **G HUMAN-PROVEN** in EXE from PR **#18** tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`. **H HUMAN-PROVEN** in local Vite + Root-Exe from PR **#19** tip `24f43377569dae333aa5f7efdfe68a303805d2a8` (`cursor/volume-write-automation-6676`). Owner confirmed that SHA. |
+| Base | `main` after PR #19 (D→H stack). |
 | Live-UI | Chrome chrome still `docs/ui-2026-09-13.png` (Vite `127.0.0.1:1421`, MODE A). **EXE HUMAN-PROVEN** 2026-09-13: `docs/exe-acceptance-2026-09-13.png` (Task Manager + Export Fertig). See `docs/ACCEPTANCE.md`. |
 | App icon | 愛 — Tauri icons in `src-tauri/icons/` (PR-#5-Icon-Base). `docs/ailexsi-app-icon.png` is referenced historically and is **not** in this tree. Icons nicht anfassen. |
 | Start Dev | MODE A: `npm run web:dev` **oder** `npx tauri dev` auf `127.0.0.1:1421` (`beforeDevCommand` = `web:dev`) |
@@ -32,14 +32,14 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Stem import | **E HUMAN-PROVEN in EXE.** Import picker is multi-select (browser + Tauri). Two or more audio files in one action → each file one MediaAsset + one audio track (empty lanes first, then `addAudioTrack`). Clips share one start (playhead if >0 / snap, else 0). Labels from filename (extension stripped). Status reports cap skips (`audio track limit 64`). ZIP of WAVs expands in-memory (store + deflate, no new deps). Single-file Import still appends. Optional `groupId` when filenames share a prefix — F maps that into `Project.groups`. Remaining E refinements: Suno naming normalize, single-vs-multi placement polish — **PLANNED**. |
 | Track / chapter groups | **F HUMAN-PROVEN in EXE.** Collapse UI only (no group bus). Operator confirmed create / assign / collapse / rename. Timeline + Mixer show the same groups; collapse hides child lanes/channels. Membership + display name persist in project JSON; collapse ids in `resonance-studio-v5-group-collapsed`. Stem prefix `groupId` maps into `Project.groups`. `+/−` last-lane UX kept. |
 | Volume automation | **G HUMAN-PROVEN in EXE.** VOL-Lane (label **VOL**, not V). Operator: VOL lane works well; Volume Automation accepted. Clip gain ≠ static track fader ≠ automation. Linear points. |
-| Write volume | **H IMPLEMENTED / AUTOMATED-TESTED** (not HUMAN-PROVEN). Compact **W** on audio tracks. Writes into the existing G envelope during playback. |
+| Write volume | **H HUMAN-PROVEN in EXE.** Compact **W** on audio tracks. Writes into the existing G envelope during playback. Owner: local Vite + Root-Exe `24f4337`. Ruler flex-shrink + VOL header polish included. |
 | VIS click-seek | Klick in die VIS-Lane (leer oder Event-Fill) setzt den Playhead — gleicher Snap-Seek wie V1/V2/A-Lane-Body. |
 | AUTO | Video zuerst, VIS nur in der Lücke (AUTO-Zeile unangetastet) |
 | Export | **HUMAN-PROVEN** in EXE. Toolbar **Export** → H.264-MP4-Dialog. Default-Name immer `Stem.vN.ext` (screenshot: `Untitled_Resonance.v1.mp4` / status `Exported … bytes`). Empty folder → `.v1`; unversioned sibling occupies v1 → `.v2`. Dedicated **Export WAV**-Button ist weg. `startExport("wav")` existiert intern (Tests/Code), **kein UI-Weg**. |
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
-| Nächster Slice | Production Pass **I** (44-Track Acceptance) — **PLANNED / NOT IMPLEMENTED**. D + E + F + **G** stay HUMAN-PROVEN. **H** is IMPLEMENTED / AUTOMATED-TESTED only — operator must MODE B before HUMAN-PROVEN. Future UI zettel is **not** I. STOP — no I+. |
-| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H IMPLEMENTED / AUTOMATED-TESTED** (Write Volume **W** — not HUMAN-PROVEN). **I–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
+| Nächster Slice | Production Pass **I** (44-Track Acceptance) — **PLANNED / NOT IMPLEMENTED**. D + E + F + G + **H** stay HUMAN-PROVEN. Future UI zettel is **not** I. STOP — no I+. |
+| Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H HUMAN-PROVEN** (Write Volume **W** — Vite + Root-Exe `24f4337`). **I–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
 ## Verification paths
 
@@ -50,9 +50,9 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + chip **5.0.0** + dynamic tracks/mixer visible. Details: `docs/ACCEPTANCE.md`.
 
-## Production Pass (D + E + F + G HUMAN-PROVEN · H automated · I–N planned)
+## Production Pass (D + E + F + G + H HUMAN-PROVEN · I–N planned)
 
-**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). **G Volume Automation** is in App-Code and **HUMAN-PROVEN** in EXE (operator: VOL lane works well; Volume Automation accepted). **H Write Volume** is in App-Code and **IMPLEMENTED / AUTOMATED-TESTED** only — do **not** treat H as HUMAN-PROVEN until a MODE B operator EXE pass. I–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
+**D** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (dynamic lanes + mixer resize/scroll/sync). **E Stem Import** is in App-Code and **HUMAN-PROVEN** in the accepted EXE (operator correction). **F Track/Chapter Groups** is in App-Code and **HUMAN-PROVEN** in EXE (operator: create / assign / collapse / rename). **G Volume Automation** is in App-Code and **HUMAN-PROVEN** in EXE (operator: VOL lane works well; Volume Automation accepted). **H Write Volume** is in App-Code and **HUMAN-PROVEN** in local Vite + Root-Exe tip `24f4337` (owner). I–N remain docs-only. AUTO unangetastet. Version bleibt **5.0.0**.
 
 **Ziel:** vierteiliges Werk + bis 11 Suno-Stems × 4 Kapitel. Kein Cubase-Klon. **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code.
 
@@ -65,7 +65,7 @@ This 2026-09-13 pass is **MODE B**. Screenshot: Task Manager `AILEXSI Resonance 
 | E+ | E refinements: Suno filename normalize; single-vs-multi placement polish (code already: 2+ same start / 1 appends) | **PLANNED** (do not implement here) |
 | F | Track/Chapter Groups — Collapse nur UI, kein Group-Bus | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
 | G | Volume Automation — VOL-Lane, Punkte, linear; Clip-Gain ≠ Static Vol ≠ Automation | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE) |
-| H | Write Automation **W** — Volume only während Playback; writes into G envelope | **IMPLEMENTED / AUTOMATED-TESTED** (not HUMAN-PROVEN) |
+| H | Write Automation **W** — Volume only während Playback; writes into G envelope | **IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (EXE `24f4337`) |
 | I | 44-Track Acceptance — 4×11 | **PLANNED / NOT IMPLEMENTED** |
 | J | Four Chapters — echte Produktion: **01** A Signal in the Dark · **02** The Living Seal · **03** Neverland: The Flight · **04** New Reality: Beyond the Code | **PLANNED / NOT IMPLEMENTED** |
 | K | VIS Library — bestehende Szenen = feste **BASICS**-Gruppe; Klassifikation `basics` \| `audioReactive` | **PLANNED / NOT IMPLEMENTED** |
@@ -158,7 +158,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 
 ## H Evidence Report
 
-**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **906 / 101**; vite build 5.0.0, 197 modules. Not HUMAN-PROVEN. Bare **W** arms Write; **Alt+W** ripple-trims out. Write is buffered (live gain, punch at gesture end). Space stays transport except in real text fields.
+**IMPLEMENTED / AUTOMATED-TESTED / HUMAN-PROVEN** (local Vite + Root-Exe). Owner confirmed tip `24f4337`. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on the EXE tip: tsc exit 0; vitest **906 / 101**; vite build 5.0.0, 197 modules. Bare **W** arms Write; **Alt+W** ripple-trims out. Write is buffered (live gain, punch at gesture end). Space stays transport except in real text fields. Ruler stays readable on a short Arrange (flex-fixed 26px). VOL sub-lane header is a two-row pack.
 
 ### What shipped
 
@@ -220,9 +220,9 @@ Duplicate timestamps: last sample wins. Invalid (NaN / Infinity / negative time)
 | Written points (`volumeAutomation`) | Project JSON (`schemaVersion` 5) | **Yes** (Speichern) — same as G |
 | W armed | Session only | **No** — defaults OFF on reopen |
 
-### Human acceptance (MODE B — operator EXE, not yet run)
+### Human acceptance (MODE B — owner Vite + Root-Exe PASS)
 
-Do **not** stamp H HUMAN-PROVEN from this branch. Operator builds the Windows EXE locally.
+Owner confirmed H on tip `24f4337` (local Vite + Root-Exe). This docs stamp records that SHA. Proven on that tip: Write Volume **W**, short-Arrange ruler (flex-shrink pin), VOL header polish, write-buffer + Space/first-move harden. Checklist that passed:
 
 1. Import a WAV onto an audio track (or stem-import). Confirm D / E / F / G still behave as proven.
 2. Arm **W** on that track. Do not play. Move the mixer fader — only static volume changes; VOL lane gains no points.
