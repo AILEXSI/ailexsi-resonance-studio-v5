@@ -36,7 +36,7 @@ HUMAN-PROVEN (do not downgrade):
 
 I–N + zettel: **PLANNED / NOT IMPLEMENTED** — Preview Zoom; mixer EQ/FX; **Track / Mixer Channel Rename** (one shared display name, stable id, Enter/Esc, persists); **Track Color** (one property, Timeline + Mixer + clips + automation lanes); **Distribute Colors** (selection or Chapter group, sequential palette, then individually editable); Relink filename assist (picker should prefer expected filename). Not next slice except I. See `CURRENT.md` Future UI.
 
-PR **#19** merges H tip `24f4337` onto `main` (was `9ceb9bd` / PR #9). D–H stack lands on main.
+`origin/main` is PR **#19** merge `0936da7` (H HUMAN-PROVEN tip `24f4337`). Was `9ceb9bd` / PR #9. D–H stack is on main.
 
 Automated last measured on `234a781` (PR #15): tsc exit 0; vitest **831 passed / 94 files**; vite build 5.0.0.
 

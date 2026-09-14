@@ -68,7 +68,7 @@ Not in the HUMAN-PROVEN list (still PLANNED / NOT IMPLEMENTED unless noted):
 - I–N production-pass items
 - zettel: Preview Zoom; audio channel strip EQ / FX; Track / Mixer Channel Rename; Track Color; Distribute Colors; Relink filename assist (see `CURRENT.md` Future UI — not next slice)
 
-PR **#19** merges H tip `24f4337` onto `main` (was `9ceb9bd` / PR #9).
+`origin/main` is PR **#19** merge `0936da7` (H HUMAN-PROVEN tip `24f4337`). Was `9ceb9bd` / PR #9.
 
 ## Build / test (MODE A, last measured on the accepted EXE SHA)
 

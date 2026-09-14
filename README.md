@@ -17,7 +17,7 @@ Earlier HUMAN-PROVEN on main (exe `0df5da1` / PR #9): A Follow, B audio VIS + si
 
 **E Stem Import:** HUMAN-PROVEN in EXE (alongside D / mixer / save / `.vN` / export). **F Track/Chapter Groups:** HUMAN-PROVEN in EXE (create / assign / collapse / rename; collapse UI only, no group bus). **G Volume Automation:** HUMAN-PROVEN in EXE (VOL lane works well; Volume Automation accepted). **H Write Volume:** HUMAN-PROVEN in local Vite + Root-Exe `24f4337`. **I–N + zettel:** PLANNED / NOT IMPLEMENTED (incl. Track/Mixer Rename, Track Color, Distribute Colors, Relink filename assist — Future UI in `CURRENT.md`, not next slice).
 
-PR **#19** merges H tip `24f4337` (D–H stack) onto `main` (was `9ceb9bd`). Kein Force-Push auf `main`. AUTO und Icons unangetastet.
+`origin/main` is PR **#19** merge `0936da7` (H HUMAN-PROVEN tip `24f4337`; D–H stack). Was `9ceb9bd` / PR #9. Kein Force-Push auf `main`. AUTO und Icons unangetastet.
 
 MODE A chrome (Vite `127.0.0.1:1421`, 2026-09-13) — not EXE acceptance:
 
@@ -130,7 +130,7 @@ Kurze Lanes (`< 46px`): VIS packt `VIS [M] [Scene]` in eine Zeile; V/A packt `V1
 
 ## Fuer Bots
 
-Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). H EXE = PR #19 tip `24f4337` (`cursor/volume-write-automation-6676`, owner Vite + Root-Exe). Version 5.0.0.
+Lineage: D/E/save/export EXE = PR #15 tip `234a781` on `cursor/stack-export-vn-1787` (onto PR #14). F EXE = PR #17 feature tip `c4391cb` (`cursor/track-chapter-groups-6442`). G EXE = PR #18 feature tip `896b640` (`cursor/volume-automation-e329`). H EXE = PR #19 tip `24f4337` (merged to `main` as `0936da7`, owner Vite + Root-Exe). Version 5.0.0.
 Kein Force-Push auf `main`. AUTO-Zeile nicht ändern. Export-Encoder nicht anfassen. Icons nicht anfassen.
 Chrome: Top bar File \| Import \| Export \| [ARRANGE] \| [CUTTER]; Help auf Transport; Help-Sheet 2-col + Scroll; compact headers VIS+V/A; S nur aktive/selektierte Tracks inkl. VIS (HUMAN-PROVEN earlier). VIS-Lane-Klick seekt wie V/A. Speichern unter picker + `.vN`.
 A Follow: HUMAN-PROVEN — 65%-Anchor + shared `scrollMs`; Follow OFF kein Force-Scroll.
