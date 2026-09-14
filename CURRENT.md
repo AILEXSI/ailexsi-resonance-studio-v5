@@ -172,6 +172,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 - Space play/pauses with normal UI focus, including after mixer fader / W / VOL chrome. Real text/number fields still swallow Space.
 - First armed fader move (the EXE 1565c2c failure boundary): does **not** punch G, clone `project.tracks`, push history, or rebind/seek media. Live write is a session buffer + Preview `setGains` only. Mixer range blurs on pointerdown; Space is handled in capture so the focused fader cannot swallow it.
 - Short Arrange must not crush the time ruler. Tools + ruler are flex-fixed (26px ruler); locked H lanes scroll inside `.timeline-lanes`.
+- VOL sub-lane header packs title + close on one row and On + dB on the next (48px height unchanged). M/S/W/VOL chip row uses a 3px gap.
 
 ### Fader ↔ automation mapping
 

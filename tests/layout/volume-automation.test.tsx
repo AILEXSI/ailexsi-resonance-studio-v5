@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -9,6 +12,11 @@ import { Mixer } from "../../src/ui/mixer/Mixer";
 import { Timeline } from "../../src/ui/timeline/Timeline";
 import type { TrackId } from "../../src/core/models";
 import "../../src/styles.css";
+
+const stylesCss = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "../../src/styles.css"),
+  "utf8",
+);
 
 const silentPeaks = { V1: 0, V2: 0, A1: 0, A2: 0, master: 0 };
 const noop = () => {};
@@ -206,6 +214,21 @@ describe("volume automation lane chrome", () => {
     mount(createEmptyProject());
     expect(host!.querySelector('[data-testid="volume-lane-A1"]')).toBeNull();
     expect((host!.querySelector('[data-testid="lane-A1"]') as HTMLElement).style.height).toBe(closedA1);
+  });
+
+  it("VOL sub-lane header packs title/close and On/dB without changing the 48px lock", () => {
+    mount(createEmptyProject(), { open: ["A1"] });
+    const label = host!.querySelector('[data-testid="volume-lane-label-A1"]') as HTMLElement;
+    const vol = host!.querySelector('[data-testid="volume-lane-A1"]') as HTMLElement;
+    expect(label.getAttribute("data-header-pack")).toBe("pack");
+    expect(label.querySelector(".volume-lane-head")?.querySelector(".volume-lane-title")?.textContent).toBe("VOL");
+    expect(label.querySelector(".volume-lane-head")?.querySelector(".volume-lane-close")).toBeTruthy();
+    expect(label.querySelector(".volume-lane-meta")?.querySelector(".volume-lane-enable")).toBeTruthy();
+    expect(label.querySelector(".volume-lane-meta")?.querySelector(".volume-lane-db")).toBeTruthy();
+    expect(vol.style.height).toBe(`${VOLUME_LANE_HEIGHT_PX}px`);
+    expect(stylesCss).toMatch(/\.volume-lane-head\s*,\s*\n\.volume-lane-meta/);
+    expect(stylesCss).toMatch(/\.lane-ms \{[\s\S]*?gap:\s*3px/);
+    expect(stylesCss).toMatch(/\.ruler \{[\s\S]*?flex:\s*0 0 26px/);
   });
 
   it("chapter group rows use a fixed height and do not stretch clip lanes", () => {

@@ -162,36 +162,44 @@ export function VolumeAutomationLane(props: {
       data-enabled={automation.enabled ? "true" : "false"}
       style={fixedLaneBoxStyle(height)}
     >
-      <div className="lane-label volume-lane-label" data-testid={`volume-lane-label-${props.trackId}`}>
-        <span>VOL</span>
-        <label className="volume-lane-enable">
-          <input
-            type="checkbox"
-            checked={automation.enabled}
-            data-testid={`volume-lane-enabled-${props.trackId}`}
-            aria-label={`${track?.name ?? props.trackId} volume automation`}
-            onChange={(e) => {
-              props.onSetEnabled(e.target.checked);
-              e.target.blur();
+      <div
+        className="lane-label volume-lane-label"
+        data-testid={`volume-lane-label-${props.trackId}`}
+        data-header-pack="pack"
+      >
+        <div className="volume-lane-head">
+          <span className="volume-lane-title">VOL</span>
+          <button
+            type="button"
+            className="volume-lane-close"
+            data-testid={`volume-lane-close-${props.trackId}`}
+            title="Hide volume lane"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onToggle();
             }}
-          />
-          On
-        </label>
-        <span className="volume-lane-db" data-testid={`volume-lane-db-${props.trackId}`}>
-          {selectedDb}
-        </span>
-        <button
-          type="button"
-          className="volume-lane-close"
-          data-testid={`volume-lane-close-${props.trackId}`}
-          title="Hide volume lane"
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onToggle();
-          }}
-        >
-          ×
-        </button>
+          >
+            ×
+          </button>
+        </div>
+        <div className="volume-lane-meta">
+          <label className="volume-lane-enable">
+            <input
+              type="checkbox"
+              checked={automation.enabled}
+              data-testid={`volume-lane-enabled-${props.trackId}`}
+              aria-label={`${track?.name ?? props.trackId} volume automation`}
+              onChange={(e) => {
+                props.onSetEnabled(e.target.checked);
+                e.target.blur();
+              }}
+            />
+            On
+          </label>
+          <span className="volume-lane-db" data-testid={`volume-lane-db-${props.trackId}`}>
+            {selectedDb}
+          </span>
+        </div>
       </div>
       <div
         ref={bodyRef}
