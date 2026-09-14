@@ -170,6 +170,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 - After the gesture: ordinary G points. Edit on the existing VOL lane. Immediate playback via existing G (live write during the gesture; clean handoff at commit).
 - Static vs automation unchanged: `effective = clipGain × staticTrackVolume × automationValueAt(t)` (live write value replaces automation for that track while the gesture is open). Arming W does not permanently overwrite static.
 - Space play/pauses with normal UI focus, including after mixer fader / W / VOL chrome. Real text/number fields still swallow Space.
+- First armed fader move (the EXE 1565c2c failure boundary): does **not** punch G, clone `project.tracks`, push history, or rebind/seek media. Live write is a session buffer + Preview `setGains` only. Mixer range blurs on pointerdown; Space is handled in capture so the focused fader cannot swallow it.
 
 ### Fader ↔ automation mapping
 

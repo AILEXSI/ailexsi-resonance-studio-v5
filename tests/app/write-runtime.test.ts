@@ -11,6 +11,7 @@ import {
 import { editorFormFocus, editorTextEditFocus, isTextEditFocus } from "../../src/app/screens";
 import { audioTracksOf } from "../../src/core/models";
 import { createMemoryBlobStore } from "../../src/core/persistence";
+import { previewAudioGraphKey, previewMediaBindKey } from "../../src/ui/preview/Preview";
 import {
   liveWriteAutomationValue,
   WRITE_CAPTURE_MIN_MS,
@@ -28,6 +29,37 @@ function armedPlaying(trackId = "A1") {
 }
 
 describe("H write buffering / Space (runtime)", () => {
+  it("first armed fader move does not clone project, history, or media-bind identity", () => {
+    let session = armedPlaying();
+    const project = session.project;
+    const tracks = session.project.tracks;
+    const past = session.history.past.length;
+    const future = session.history.future.length;
+    const envelope = volumeAutomationOf(tracks.find((t) => t.id === "A1"));
+    const bindBefore = previewMediaBindKey({
+      playheadMs: session.project.playheadMs,
+      playing: session.playing,
+      audioGraphKey: previewAudioGraphKey(session.project),
+      masterVolume: session.project.masterVolume ?? 1,
+    });
+    session = applyMixerVolume(session, "A1", 0.4);
+    expect(session.volumeWriteGesture).not.toBeNull();
+    expect(session.volumeWriteGesture?.liveValue).toBeCloseTo(0.4, 5);
+    expect(session.project).toBe(project);
+    expect(session.project.tracks).toBe(tracks);
+    expect(session.history.past.length).toBe(past);
+    expect(session.history.future.length).toBe(future);
+    expect(volumeAutomationOf(session.project.tracks.find((t) => t.id === "A1")).points).toEqual(envelope.points);
+    const bindAfter = previewMediaBindKey({
+      playheadMs: session.project.playheadMs,
+      playing: session.playing,
+      audioGraphKey: previewAudioGraphKey(session.project),
+      masterVolume: session.project.masterVolume ?? 1,
+    });
+    expect(bindAfter).toBe(bindBefore);
+    expect(bindAfter).not.toContain("0.4");
+  });
+
   it("1 write still works: commit punches G after the gesture", () => {
     let session = armedPlaying();
     session = applyVolumeWriteSample(session, "A1", 200, 0.5, 1000);

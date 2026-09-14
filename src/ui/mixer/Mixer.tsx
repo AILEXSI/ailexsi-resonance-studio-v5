@@ -138,9 +138,16 @@ function Strip(props: {
           title={dbLabel}
           data-testid={`mix-fader-${props.id}`}
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            blurChrome(e.currentTarget);
+          }}
           onPointerUp={(e) => {
             props.onVolumeWritePointerUp?.();
             blurChrome(e.currentTarget);
+          }}
+          onKeyDown={(e) => {
+            if (e.code === "Space" || e.key === " ") e.preventDefault();
           }}
           onChange={(e) => props.onVolume(dbToLinear(faderToDb(Number(e.target.value))))}
         />

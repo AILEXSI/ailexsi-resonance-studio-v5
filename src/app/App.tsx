@@ -390,13 +390,14 @@ export function App() {
     return () => cancelAnimationFrame(raf);
   }, [session.playing, session.shuttleRate]);
 
+  const writeGestureOpen = session.volumeWriteGesture != null;
   useEffect(() => {
-    if (!session.volumeWriteGesture) return;
+    if (!writeGestureOpen) return;
     const id = window.setInterval(() => {
       setSession((s) => applyCommitVolumeWriteIfIdle(s, Date.now(), WRITE_IDLE_END_MS));
     }, 50);
     return () => window.clearInterval(id);
-  }, [session.volumeWriteGesture]);
+  }, [writeGestureOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -447,8 +448,8 @@ export function App() {
       }
       setSession(action.session);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
   useEffect(() => {

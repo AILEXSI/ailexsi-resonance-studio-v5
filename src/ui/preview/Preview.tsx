@@ -58,8 +58,21 @@ export function previewAudioGraphKey(project: Project): string {
     .join("|");
 }
 
+/** Media bind identity. Live write must not appear here — first fader move must not seek. */
+export function previewMediaBindKey(input: {
+  playheadMs: number;
+  playing: boolean;
+  audioGraphKey: string;
+  masterVolume: number;
+  assetGen?: number;
+}): string {
+  return `${input.audioGraphKey}|${input.playheadMs}|${input.playing ? 1 : 0}|${input.masterVolume}|${input.assetGen ?? 0}`;
+}
+
 export function Preview({ project, playing, liveWriteTrackId = null, liveWriteValue = null, onLevels }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const liveWriteRef = useRef({ trackId: liveWriteTrackId, value: liveWriteValue });
+  liveWriteRef.current = { trackId: liveWriteTrackId, value: liveWriteValue };
   const stillRef = useRef<HTMLCanvasElement>(null);
   const v1Ref = useRef<HTMLAudioElement>(null);
   const v2Ref = useRef<HTMLAudioElement>(null);
@@ -181,6 +194,7 @@ export function Preview({ project, playing, liveWriteTrackId = null, liveWriteVa
         return;
       }
       if (el.src !== asset.objectUrl) el.src = asset.objectUrl;
+      const live = liveWriteRef.current;
       const mix =
         mixLinearGain(
           gainAtClipTime(clip, project.playheadMs - clip.startMs),
@@ -191,8 +205,8 @@ export function Preview({ project, playing, liveWriteTrackId = null, liveWriteVa
             trackId,
             volumeAutomationOf(project.tracks.find((t) => t.id === trackId)),
             project.playheadMs,
-            liveWriteTrackId,
-            liveWriteValue,
+            live.trackId,
+            live.value,
           ),
         ) * transitionAudioGain(project.transitions ?? [], clip.id, project.playheadMs, project);
       const tap = tapRef.current;
@@ -212,16 +226,7 @@ export function Preview({ project, playing, liveWriteTrackId = null, liveWriteVa
     for (const track of audioTracksOf(project)) {
       bind(audioRefs.current[track.id] ?? null, track.id);
     }
-  }, [
-    mixClips,
-    playing,
-    project.assets,
-    project.playheadMs,
-    audioGraphKey,
-    project.masterVolume,
-    liveWriteTrackId,
-    liveWriteValue,
-  ]);
+  }, [mixClips, playing, project.assets, project.playheadMs, audioGraphKey, project.masterVolume]);
 
   useEffect(() => {
     if (tapRef.current) return;

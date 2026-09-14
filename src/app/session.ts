@@ -1640,6 +1640,11 @@ export function applyCommitVolumeWriteIfIdle(
   return applyCommitVolumeWrite(session);
 }
 
+/**
+ * First / later fader samples: session chrome only.
+ * Must not clone `project`, push history, persist, or punch G.
+ * Live audible gain is `gesture.liveValue` — Preview must not rebind media.
+ */
 export function applyVolumeWriteSample(
   session: Session,
   trackId: TrackId,
