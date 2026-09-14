@@ -158,7 +158,7 @@ STOP — no I / EQ / FX / Pan automation / Chapter bus / mixer redesign / second
 
 ## H Evidence Report
 
-**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **887 / 99**. Not HUMAN-PROVEN.
+**IMPLEMENTED / AUTOMATED-TESTED.** Not HUMAN-PROVEN. Writes into the existing G model only. Stacked on G tip `9099f6a` (PR #18 docs stamp of HUMAN-PROVEN G). Version **5.0.0**. AUTO unangetastet. W is session chrome — defaults **OFF** on New / Open / reopen. Envelope data persists; arm does not. MODE A on this tip: tsc exit 0; vitest **888 / 99**. Not HUMAN-PROVEN. Bare **W** arms Write; **Alt+W** ripple-trims out.
 
 ### What shipped
 
