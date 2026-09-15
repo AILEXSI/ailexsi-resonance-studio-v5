@@ -194,6 +194,16 @@ export class AfeScheduler {
           this.decoder.beginStream(span.needed, span.decodeStart);
           pump(idx);
         }
+        // WebCodecs may hold the last submitted sample until another decode()
+        // or flush(). Mid-GOP starts (hard cut / Source In) used to submit
+        // exactly through the first needed index and then wait forever.
+        if (this.nextDecode === idx + 1 && this.nextDecode <= last) {
+          const extra = this.movie.samples[this.nextDecode];
+          if (extra) {
+            this.decoder.submitEncoded(extra, signal);
+            this.nextDecode += 1;
+          }
+        }
         let frame = this.decoder.takeReady(idx);
         if (frame) {
           afePerfCount("readyImmediate");
