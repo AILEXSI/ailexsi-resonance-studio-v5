@@ -84,10 +84,9 @@ export class AfeVideoDecoder {
     }
     const timestamp = this.chunkTimestampUs(sample);
     const read0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
-    const data = sampleBytes(this.movie, sample).slice();
+    const data = sampleBytes(this.movie, sample);
     if (afePerfEnabled()) {
       afePerfAdd("encodedSampleRead", performance.now() - read0);
-      afePerfCount("sampleByteSlices");
       afePerfMarkDecoded(sample.index);
     }
     const chunk = new EncodedVideoChunk({
