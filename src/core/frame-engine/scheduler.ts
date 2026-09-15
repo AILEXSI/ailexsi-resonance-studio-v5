@@ -6,7 +6,7 @@ import { afePerfAdd, afePerfCount, afePerfEnabled } from "./perf";
 import type { AfeMemoryStats, AfeMovie, AfeSample, DrawableFrame } from "./types";
 
 /** Encoded samples submitted ahead of the next yield so encode can overlap decode. */
-const PREFETCH = 8;
+const PREFETCH = 16;
 
 export class AfeDrawable implements DrawableFrame {
   constructor(
