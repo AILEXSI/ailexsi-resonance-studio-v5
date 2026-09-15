@@ -76,7 +76,7 @@ NODE_ENV= npx --yes @cyclonedx/cyclonedx-npm@4.1.2 \
 | cargo / rustc | 1.85.0 (check/fetch); env default was 1.83.0 | `rustup toolchain install 1.85.0` | `Cargo.lock` already updated by `cargo fetch` on 1.83 before 1.85 was used for `--locked` verify |
 | cargo metadata | 1.85.0 | rustup toolchain | no further lock change |
 
-Host `cargo 1.83.0` **cannot** parse some already-locked crates that declare `edition2024` (observed: `dlopen2_derive 0.4.3`). `cargo +1.85.0 fetch --locked` succeeded on the updated lockfile.
+Host `cargo 1.83.0` **cannot** parse some already-locked crates that declare `edition2024` (observed: `dlopen2_derive 0.4.3`). `cargo +1.85.0 fetch --locked` succeeded on the updated lockfile. Crate `rust-version` fields already in this lock (e.g. `icu_*`, `time`, `darling`) require **rustc 1.88+**. `cargo +1.88.0 check --locked --target x86_64-pc-windows-msvc` compiled `tauri-plugin-fs 2.5.2` and `tauri-plugin-dialog 2.7.3`; the workspace build script then failed (`tauri-winres` / missing `llvm-rc` on this Linux VM). Host Linux check needs GTK `gdk-3.0` (not installed here). No Windows EXE was produced in this environment.
 
 ## Known limitations
 
