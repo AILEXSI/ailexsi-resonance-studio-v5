@@ -99,7 +99,9 @@ function spawnVite() {
 }
 
 function spawnChrome() {
-  const url = `http://127.0.0.1:${PORT}/scripts/afe-frame-harness.html?${HARNESS_QS}`;
+  const qs = new URLSearchParams(HARNESS_QS);
+  if (!qs.has("receive")) qs.set("receive", String(RECEIVE));
+  const url = `http://127.0.0.1:${PORT}/scripts/afe-frame-harness.html?${qs.toString()}`;
   const bin = process.env.CHROME_BIN || "google-chrome";
   return spawn(
     bin,
