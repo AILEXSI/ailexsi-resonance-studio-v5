@@ -711,10 +711,34 @@
           if (SKIP_AJ) {
             show("skip A-J mode=" + MODE);
           }
+          const randomRawPass = async (identity, url, times, width, height) => {
+            installWebCodecsProbe();
+            beginAfePerf(identity);
+            const tAll = performance.now();
+            const opened = await createFrameSourceBackend(identity).open(url);
+            const canvas = makeCanvas(width, height);
+            const ctx = canvas.getContext("2d");
+            const t0 = performance.now();
+            for (let i = 0; i < times.length; i++) {
+              if (i === 0 || i % 8 === 0) show("bench C " + identity + " " + i + "/" + times.length);
+              const sample = await opened.getFrameAt(times[i]);
+              if (!sample) continue;
+              sample.draw(ctx, 0, 0, width, height);
+              sample.close();
+            }
+            const decodeWall = performance.now() - t0;
+            const snap = endAfePerf();
+            opened.close();
+            return { wall: performance.now() - tAll, decodeWall, snap, n: times.length, cold: true };
+          };
           const makeAj = async (id, title, raw, job) => {
             show("bench " + id + " " + title);
-            const mbRaw = await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false);
-            const afeRaw = await rawDecodePass("ailexsi", raw.url, raw.times, raw.w, raw.h, false);
+            const mbRaw = id === "C"
+              ? await randomRawPass("mediabunny", raw.url, raw.times, raw.w, raw.h)
+              : await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false);
+            const afeRaw = id === "C"
+              ? await randomRawPass("ailexsi", raw.url, raw.times, raw.w, raw.h)
+              : await rawDecodePass("ailexsi", raw.url, raw.times, raw.w, raw.h, false);
             let exp = null;
             if (job) {
               const mbE = await repeatExport("mediabunny", job, AJ_WARMUP, AJ_MEASURED);
