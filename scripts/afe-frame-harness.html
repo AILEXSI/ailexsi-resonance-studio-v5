@@ -1,6 +1,6 @@
 <!doctype html>
 <html>
-  <!-- AFE-02 harness. Dev-only. Not under public/; Vite does not copy this into dist / Tauri. -->
+  <!-- AFE-03 harness. Dev-only. Not under public/; Vite does not copy this into dist / Tauri. -->
   <head>
     <meta charset="utf-8" />
     <title>AFE frame harness pending</title>
@@ -25,8 +25,10 @@
         beginAfePerf,
         createFrameSourceBackend,
         endAfePerf,
+        getAfeSequentialPrefetch,
         installWebCodecsProbe,
         isAfeError,
+        setAfeSequentialPrefetch,
         summarizePhases,
       } from "/src/core/frame-engine/index.ts";
       import {
@@ -242,10 +244,19 @@
       }
 
       const qs = new URLSearchParams(location.search);
+      const MODE = qs.get("mode") || "full";
       const WARMUP_N = Math.max(0, Number(qs.get("warmup") ?? 10));
-      const MEASURED_N = Math.max(1, Number(qs.get("measured") ?? 30));
+      const MEASURED_N = Math.max(1, Number(qs.get("measured") ?? 50));
       const AJ_WARMUP = Math.max(0, Number(qs.get("ajWarmup") ?? 2));
       const AJ_MEASURED = Math.max(1, Number(qs.get("ajMeasured") ?? 3));
+      const LONG_SECONDS = Math.max(0, Number(qs.get("longSeconds") ?? 30));
+      const LONG_WARMUP = Math.max(0, Number(qs.get("longWarmup") ?? 10));
+      const LONG_MEASURED = Math.max(1, Number(qs.get("longMeasured") ?? 12));
+      const SWEEP = qs.get("sweep") === "1";
+      const SKIP_PIXELS = MODE === "export" || MODE === "quick" || qs.get("skipPixels") === "1";
+      const SKIP_AJ = MODE === "quick" || qs.get("skipAj") === "1";
+      const PREFETCH_LOCK = qs.get("prefetch");
+      if (PREFETCH_LOCK) setAfeSequentialPrefetch(Number(PREFETCH_LOCK));
 
       async function timedExport(identity, job) {
         installWebCodecsProbe();
@@ -266,26 +277,75 @@
         };
       }
 
+      async function runOneExport(identity, job, i) {
+        setFrameSourceBackend(identity);
+        clearFrameSources();
+        const t0 = performance.now();
+        const out = await exportWithWebCodecs({ ...job, fileName: `${job.fileName}-${identity}-${i}` });
+        const ms = performance.now() - t0;
+        resetFrameSourceBackend();
+        clearFrameSources();
+        return { ok: out.success, error: out.error, ms };
+      }
+
       async function repeatExport(identity, job, warmup, measured) {
         const warm = [];
         const measuredMs = [];
         for (let i = 0; i < warmup + measured; i++) {
-          setFrameSourceBackend(identity);
-          clearFrameSources();
-          const t0 = performance.now();
-          const out = await exportWithWebCodecs({ ...job, fileName: `${job.fileName}-${identity}-${i}` });
-          const ms = performance.now() - t0;
-          if (!out.success) {
-            resetFrameSourceBackend();
-            clearFrameSources();
+          const out = await runOneExport(identity, job, i);
+          if (!out.ok) {
             return { error: out.error, warmup: wallStats(warm), measured: wallStats(measuredMs) };
           }
-          if (i < warmup) warm.push(ms);
-          else measuredMs.push(ms);
-          resetFrameSourceBackend();
-          clearFrameSources();
+          if (i < warmup) warm.push(out.ms);
+          else measuredMs.push(out.ms);
         }
         return { warmup: wallStats(warm), measured: wallStats(measuredMs), rawWarm: warm, rawMeasured: measuredMs };
+      }
+
+      /** Alternate backends each trial so order does not favor the first identity. */
+      async function repeatExportBoth(job, warmup, measured, seed = 0xafe03) {
+        let a = seed >>> 0;
+        const rand = () => {
+          a += 0x6d2b79f5;
+          let t = a;
+          t = Math.imul(t ^ (t >>> 15), t | 1);
+          t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+        const mbW = [];
+        const afeW = [];
+        const mbM = [];
+        const afeM = [];
+        const order = [];
+        for (let i = 0; i < warmup + measured; i++) {
+          const afeFirst = i % 2 === 0 ? rand() < 0.5 : !order[i - 1];
+          order.push(afeFirst);
+          const first = afeFirst ? "ailexsi" : "mediabunny";
+          const second = afeFirst ? "mediabunny" : "ailexsi";
+          const a = await runOneExport(first, job, i * 2);
+          const b = await runOneExport(second, job, i * 2 + 1);
+          if (!a.ok) {
+            return { error: `${first}: ${a.error}`, mediabunny: { warmup: wallStats(mbW), measured: wallStats(mbM) }, afe: { warmup: wallStats(afeW), measured: wallStats(afeM) } };
+          }
+          if (!b.ok) {
+            return { error: `${second}: ${b.error}`, mediabunny: { warmup: wallStats(mbW), measured: wallStats(mbM) }, afe: { warmup: wallStats(afeW), measured: wallStats(afeM) } };
+          }
+          const pair = { mediabunny: first === "mediabunny" ? a.ms : b.ms, afe: first === "ailexsi" ? a.ms : b.ms };
+          if (i < warmup) {
+            mbW.push(pair.mediabunny);
+            afeW.push(pair.afe);
+          } else {
+            mbM.push(pair.mediabunny);
+            afeM.push(pair.afe);
+          }
+        }
+        return {
+          alternated: true,
+          warmupN: warmup,
+          measuredN: measured,
+          mediabunny: { warmup: wallStats(mbW), measured: wallStats(mbM), rawWarm: mbW, rawMeasured: mbM },
+          afe: { warmup: wallStats(afeW), measured: wallStats(afeM), rawWarm: afeW, rawMeasured: afeM },
+        };
       }
 
       async function rawDecodePass(identity, url, times, width, height, reuseOpened) {
@@ -329,7 +389,11 @@
         let randMb = { totalMs: 0, n: 0, worstMs: 0 };
         let randAfe = { totalMs: 0, n: 0, worstMs: 0 };
 
-        for (const file of decodeFiles) {
+        if (SKIP_PIXELS) {
+          show("skip pixels mode=" + MODE);
+        }
+
+        for (const file of SKIP_PIXELS ? [] : decodeFiles) {
           const url = new URL("/" + file.path, location.origin).href;
           const w = file.width ?? AFE_WIDTH;
           const h = file.height ?? AFE_HEIGHT;
@@ -521,6 +585,9 @@
         let exportRepeats = { ran: false };
         let raw720 = { ran: false };
         let benches = [];
+        let prefetchSweep = { ran: false };
+        let longExport = { ran: false };
+        let productionExport = { ran: false };
         if (wide && typeof VideoEncoder !== "undefined") {
           installWebCodecsProbe();
           const srcUrl = new URL("/" + wide.path, location.origin).href;
@@ -555,19 +622,94 @@
             warm: { mediabunny: mbWarm, afe: afeWarm },
           };
 
-          show("repeat 720p30 warmup=" + WARMUP_N + " measured=" + MEASURED_N);
-          const mbRep = await repeatExport("mediabunny", jobA, WARMUP_N, MEASURED_N);
-          const afeRep = await repeatExport("ailexsi", jobA, WARMUP_N, MEASURED_N);
+          show("repeat 720p30 alternate warmup=" + WARMUP_N + " measured=" + MEASURED_N);
+          const bothRep = await repeatExportBoth(jobA, WARMUP_N, MEASURED_N);
           exportRepeats = {
             ran: true,
             warmupN: WARMUP_N,
             measuredN: MEASURED_N,
-            mediabunny: mbRep,
-            afe: afeRep,
+            alternated: true,
+            prefetch: getAfeSequentialPrefetch(),
+            mediabunny: bothRep.mediabunny,
+            afe: bothRep.afe,
+            error: bothRep.error || null,
           };
+
+          if (SWEEP) {
+            show("prefetch sweep");
+            const saved = getAfeSequentialPrefetch();
+            const sweep = [];
+            for (const n of [2, 4, 6, 8, 12]) {
+              setAfeSequentialPrefetch(n);
+              const both = await repeatExportBoth(jobA, 4, 8, 0xafe03 + n);
+              sweep.push({
+                prefetch: n,
+                mediabunny: both.mediabunny.measured,
+                afe: both.afe.measured,
+              });
+            }
+            setAfeSequentialPrefetch(saved);
+            prefetchSweep = { ran: true, sweep };
+          }
+
+          function longTimelineJob(url, seconds) {
+            const clipMs = 2000;
+            const n = Math.max(1, Math.round((seconds * 1000) / clipMs));
+            const clips = [];
+            for (let i = 0; i < n; i++) {
+              clips.push(
+                clipOf(`L${i}`, url, i * clipMs, (i + 1) * clipMs, {
+                  sourceInMs: 0,
+                  sourceOutMs: clipMs,
+                  label: `rep-${i}`,
+                }),
+              );
+            }
+            return jobOf(`long-${seconds}s`, url, 1280, 720, n * clipMs, 30, clips);
+          }
+
+          const productionJob = jobOf(
+            "prod-like",
+            srcUrl,
+            1280,
+            720,
+            5000,
+            30,
+            [
+              clipOf("p1", srcUrl, 0, 1500, { sourceInMs: 0, sourceOutMs: 1500, label: "head" }),
+              clipOf("p2", srcUrl, 1500, 2800, { sourceInMs: 400, sourceOutMs: 1700, label: "cut" }),
+              clipOf("p3", srcUrl, 2500, 4000, { sourceInMs: 0, sourceOutMs: 1500, label: "xfade" }),
+              clipOf("p4", srcUrl, 4000, 5000, { sourceInMs: 0, sourceOutMs: 1000, rate: 1, label: "repeat" }),
+            ],
+            {
+              transitions: [
+                {
+                  id: "xf",
+                  type: "crossfade",
+                  startMs: 2500,
+                  durationMs: 300,
+                  sourceAClipId: "p2",
+                  sourceBClipId: "p3",
+                  audio: "cut",
+                  audioMode: "cut",
+                  audioDurationMs: 0,
+                },
+              ],
+            },
+          );
+
+          if (LONG_SECONDS > 0) {
+            show("long export " + LONG_SECONDS + "s + production-like");
+            const longJob = longTimelineJob(srcUrl, LONG_SECONDS);
+            longExport = { ran: true, seconds: LONG_SECONDS, frames: Math.round(LONG_SECONDS * 30), ...(await repeatExportBoth(longJob, LONG_WARMUP, LONG_MEASURED, 0x30e03)) };
+            productionExport = { ran: true, ...(await repeatExportBoth(productionJob, 6, 12, 0xprod03)) };
+          }
 
           const smallUrl = new URL("/" + g1.path, location.origin).href;
           const longUrl = new URL("/" + g250.path, location.origin).href;
+          if (SKIP_AJ) {
+            show("skip A-J mode=" + MODE);
+          }
           const makeAj = async (id, title, raw, job) => {
             show("bench " + id + " " + title);
             const mbRaw = await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false);
@@ -586,6 +728,7 @@
             };
           };
 
+          if (!SKIP_AJ) {
           benches.push(
             await makeAj("A", "sequential one-source 720p30", { url: srcUrl, times: seq720, w: 1280, h: 720 }, jobA),
           );
@@ -703,6 +846,7 @@
             jRaw.push({ file: file.id, fps: file.fps, mediabunny: mb.wall, afe: afe.wall });
           }
           benches.push({ id: "J", title: "multiple fps raw", rawByFps: jRaw, export: null });
+          }
         }
 
         const mbRows = comparisons.map((c) => c.mediabunny);
@@ -765,10 +909,15 @@
           phaseExport,
           exportRepeats,
           raw720,
+          longExport,
+          productionExport,
+          prefetchSweep,
           benches,
-          afe02: {
+          afe03: {
             warmupN: WARMUP_N,
             measuredN: MEASURED_N,
+            prefetch: getAfeSequentialPrefetch(),
+            mode: MODE,
           },
           semantics: {
             sourceTimeSecRate2: sourceTimeSec(

@@ -23,6 +23,7 @@
     "tests/media/user-fixtures.test.ts",
     "tests/export/afe-parser.test.ts",
     "tests/export/afe-oracle.test.ts",
-    "tests/export/afe-cache-abort.test.ts"
+    "tests/export/afe-cache-abort.test.ts",
+    "tests/export/afe-stream-plan.test.ts"
   ]
 }

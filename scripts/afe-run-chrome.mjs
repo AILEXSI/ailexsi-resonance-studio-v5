@@ -12,7 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.AFE_VITE_PORT || 1423);
 const RECEIVE = Number(process.env.AFE_RECEIVE_PORT || 18767);
 const OUT = process.env.AFE_EVIDENCE || join(root, "docs", "compliance", "afe-evidence.json");
-const TIMEOUT_MS = Number(process.env.AFE_TIMEOUT_MS || 900000);
+const TIMEOUT_MS = Number(process.env.AFE_TIMEOUT_MS || 1800000);
+const HARNESS_QS = process.env.AFE_HARNESS_QS || "warmup=10&measured=50";
 
 mkdirSync(dirname(OUT), { recursive: true });
 
@@ -83,7 +84,7 @@ function spawnVite() {
 }
 
 function spawnChrome() {
-  const url = `http://127.0.0.1:${PORT}/scripts/afe-frame-harness.html`;
+  const url = `http://127.0.0.1:${PORT}/scripts/afe-frame-harness.html?${HARNESS_QS}`;
   const bin = process.env.CHROME_BIN || "google-chrome";
   return spawn(
     bin,
@@ -127,8 +128,27 @@ try {
     console.log("exportRepeats", JSON.stringify({
       warmupN: result.exportRepeats?.warmupN,
       measuredN: result.exportRepeats?.measuredN,
+      alternated: result.exportRepeats?.alternated,
+      prefetch: result.exportRepeats?.prefetch,
       mediabunny: result.exportRepeats?.mediabunny?.measured,
       afe: result.exportRepeats?.afe?.measured,
+    }));
+    console.log("longExport", JSON.stringify({
+      seconds: result.longExport?.seconds,
+      mediabunny: result.longExport?.mediabunny?.measured,
+      afe: result.longExport?.afe?.measured,
+    }));
+    console.log("productionExport", JSON.stringify({
+      mediabunny: result.productionExport?.mediabunny?.measured,
+      afe: result.productionExport?.afe?.measured,
+    }));
+    console.log("deliveryAFE", JSON.stringify({
+      readyImmediate: result.phaseExport?.afe?.snap?.counts?.readyImmediate,
+      framePromiseWaits: result.phaseExport?.afe?.snap?.counts?.framePromiseWaits,
+      streamPathFrames: result.phaseExport?.afe?.snap?.counts?.streamPathFrames,
+      inFlightPeak: result.phaseExport?.afe?.snap?.counts?.inFlightPeak,
+      prefetchWindow: result.phaseExport?.afe?.snap?.counts?.prefetchWindow,
+      sampleIndexLookups: result.phaseExport?.afe?.snap?.counts?.sampleIndexLookups,
     }));
     console.log("phaseMB", JSON.stringify(result.phaseExport?.mediabunny?.phases?.slice(0, 8)));
     console.log("phaseAFE", JSON.stringify(result.phaseExport?.afe?.phases?.slice(0, 8)));
@@ -156,6 +176,9 @@ try {
       random: result.random,
       export720: result.export720,
       exportRepeats: result.exportRepeats,
+      longExport: result.longExport,
+      productionExport: result.productionExport,
+      prefetchSweep: result.prefetchSweep,
       phaseExport: result.phaseExport,
       raw720: result.raw720,
       benches: (result.benches || []).map((b) => ({
@@ -171,7 +194,7 @@ try {
       fallback: result.fallbackTest,
       memory: result.memory,
     };
-    const sumPath = OUT.replace(/afe-evidence\.json$/, "afe-02-evidence-summary.json");
+    const sumPath = OUT.replace(/afe-evidence\.json$/, "afe-03-evidence-summary.json");
     writeFileSync(sumPath, JSON.stringify(summary, null, 2) + "\n");
     console.log("wrote", sumPath);
   }

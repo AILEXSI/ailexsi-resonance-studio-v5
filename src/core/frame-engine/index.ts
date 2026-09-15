@@ -11,7 +11,9 @@ export {
 export { parseAvcC, decoderConfigOf } from "./avc-config";
 export { buildSampleTable } from "./sample-table";
 export { DecodedFrameCache } from "./cache";
-export { AfeScheduler, AfeDrawable } from "./scheduler";
+export { AfeScheduler, AfeDrawable, getAfeSequentialPrefetch, setAfeSequentialPrefetch } from "./scheduler";
+export { planSampleIndexes, planDecodeSpan, isMonotonicRun } from "./plan";
+export type { AfeDecodeSpan } from "./plan";
 export {
   AilexsiFrameSourceBackend,
   MediabunnyFrameSourceBackend,
@@ -24,6 +26,7 @@ export {
   AFE_PERF_PHASES,
   afePerfAdd,
   afePerfCount,
+  afePerfMax,
   afePerfEnabled,
   afePerfProbeInstalled,
   afePerfTime,
