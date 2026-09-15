@@ -6,8 +6,10 @@ import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfMax } from "./perf";
 import { isMonotonicRun, planDecodeSpan, planSampleIndexes } from "./plan";
 import type { AfeMemoryStats, AfeMovie, AfeSample, DrawableFrame } from "./types";
 
-/** Encoded samples submitted ahead of the next yield so encode can overlap decode. */
-let PREFETCH = 8;
+/** Encoded samples submitted ahead of the next yield so encode can overlap decode.
+ * AFE-02 kept 8 (16 slower). After the stream/ready-queue path, 4 measured
+ * faster than 2/8 on 720p30 full export; 6 was close but noisier. */
+let PREFETCH = 4;
 
 export function getAfeSequentialPrefetch(): number {
   return PREFETCH;

@@ -103,6 +103,8 @@ function spawnChrome() {
   if (!qs.has("receive")) qs.set("receive", String(RECEIVE));
   const url = `http://127.0.0.1:${PORT}/scripts/afe-frame-harness.html?${qs.toString()}`;
   const bin = process.env.CHROME_BIN || "google-chrome";
+  const profile = process.env.AFE_CHROME_PROFILE || "/tmp/afe-chrome-profile";
+  console.log("chrome", bin, url);
   return spawn(
     bin,
     [
@@ -110,10 +112,14 @@ function spawnChrome() {
       "--no-sandbox",
       "--disable-gpu",
       "--disable-dev-shm-usage",
+      "--disable-extensions",
+      "--no-first-run",
+      "--no-default-browser-check",
+      `--user-data-dir=${profile}`,
       "--autoplay-policy=no-user-gesture-required",
       "--use-gl=angle",
       "--use-angle=swiftshader-webgl",
-      `--window-size=900,700`,
+      "--window-size=900,700",
       url,
     ],
     { stdio: ["ignore", "pipe", "pipe"] },

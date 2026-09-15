@@ -1,0 +1,649 @@
+{
+  "environment": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+    "webCodecs": true,
+    "videoEncoder": true,
+    "platform": "Linux x86_64"
+  },
+  "prefetch": 4,
+  "abort": {
+    "ok": true,
+    "error": "AFE_ABORTED: signal is aborted without reason"
+  },
+  "fallback": {
+    "ok": true,
+    "code": "AFE_UNSUPPORTED_CONTAINER"
+  },
+  "phaseExport": {
+    "ran": true,
+    "mediabunny": {
+      "result": {
+        "success": true,
+        "bytes": 20145
+      },
+      "wall": 233.59999999962747,
+      "snap": {
+        "backend": "mediabunny",
+        "enabled": true,
+        "wallMs": 233.6999999997206,
+        "phasesMs": {
+          "sourceOpen": 0.19999999972060323,
+          "containerParse": 7,
+          "sampleTableBuild": 0,
+          "keyframeLookup": 0,
+          "decoderCreate": 0.09999999962747097,
+          "decoderConfigure": 0.3000000002793968,
+          "encodedSampleRead": 0,
+          "videoDecode": 0.2999999998137355,
+          "decodeQueueWait": 227.59999999776483,
+          "frameCacheLookup": 0,
+          "videoFrameHandoff": 0,
+          "frameCopyClone": 0,
+          "canvasDraw": 178.50000000279397,
+          "frameClose": 0.40000000037252903,
+          "schedulerOverhead": 0,
+          "exportLoopOverhead": 2.1000000000931323,
+          "videoEncoderWait": 0.7000000001862645,
+          "mux": 0.7999999998137355,
+          "cleanup": 0.10000000009313226
+        },
+        "counts": {
+          "decoderCreates": 1,
+          "decoderConfigures": 1,
+          "decoderResets": 0,
+          "decoderFlushes": 2,
+          "encodedSamplesRead": 0,
+          "encodedChunksSubmitted": 60,
+          "framesDecoded": 60,
+          "framesYielded": 60,
+          "decodeSpanCalls": 0,
+          "cacheLookups": 0,
+          "cacheHits": 0,
+          "cacheMisses": 0,
+          "cacheEvictions": 0,
+          "duplicateDecodes": 0,
+          "videoFrameClones": 0,
+          "videoFrameCreates": 0,
+          "framesClosed": 60,
+          "keyframeLookups": 0,
+          "sampleIndexLookups": 0,
+          "sampleByteSlices": 0,
+          "readyImmediate": 0,
+          "framePromiseWaits": 0,
+          "streamPathFrames": 0,
+          "randomPathFrames": 0,
+          "inFlightPeak": 0,
+          "prefetchWindow": 0
+        }
+      },
+      "phases": [
+        {
+          "phase": "decodeQueueWait",
+          "ms": 227.59999999776483,
+          "pct": 54.43673762197098
+        },
+        {
+          "phase": "canvasDraw",
+          "ms": 178.50000000279397,
+          "pct": 42.69313561410079
+        },
+        {
+          "phase": "containerParse",
+          "ms": 7,
+          "pct": 1.6742406122914721
+        },
+        {
+          "phase": "exportLoopOverhead",
+          "ms": 2.1000000000931323,
+          "pct": 0.5022721837097167
+        },
+        {
+          "phase": "mux",
+          "ms": 0.7999999998137355,
+          "pct": 0.19134178421733228
+        },
+        {
+          "phase": "videoEncoderWait",
+          "ms": 0.7000000001862645,
+          "pct": 0.1674240612736974
+        },
+        {
+          "phase": "frameClose",
+          "ms": 0.40000000037252903,
+          "pct": 0.09567089222004171
+        },
+        {
+          "phase": "decoderConfigure",
+          "ms": 0.3000000002793968,
+          "pct": 0.07175316916503129
+        },
+        {
+          "phase": "videoDecode",
+          "ms": 0.2999999998137355,
+          "pct": 0.07175316905365572
+        },
+        {
+          "phase": "sourceOpen",
+          "ms": 0.19999999972060323,
+          "pct": 0.04783544599864528
+        },
+        {
+          "phase": "cleanup",
+          "ms": 0.10000000009313226,
+          "pct": 0.02391772305501043
+        },
+        {
+          "phase": "decoderCreate",
+          "ms": 0.09999999962747097,
+          "pct": 0.023917722943634853
+        },
+        {
+          "phase": "sampleTableBuild",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "keyframeLookup",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "encodedSampleRead",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "frameCacheLookup",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "videoFrameHandoff",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "frameCopyClone",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "schedulerOverhead",
+          "ms": 0,
+          "pct": 0
+        }
+      ]
+    },
+    "afe": {
+      "result": {
+        "success": true,
+        "bytes": 20157
+      },
+      "wall": 213.39999999990687,
+      "snap": {
+        "backend": "ailexsi",
+        "enabled": true,
+        "wallMs": 213.5,
+        "phasesMs": {
+          "sourceOpen": 1.8000000002793968,
+          "containerParse": 0.19999999972060323,
+          "sampleTableBuild": 0,
+          "keyframeLookup": 0,
+          "decoderCreate": 0,
+          "decoderConfigure": 0,
+          "encodedSampleRead": 0.3000000002793968,
+          "videoDecode": 0.6999999992549419,
+          "decodeQueueWait": 16.09999999916181,
+          "frameCacheLookup": 0,
+          "videoFrameHandoff": 0.19999999972060323,
+          "frameCopyClone": 0,
+          "canvasDraw": 175.20000000158325,
+          "frameClose": 0.20000000018626451,
+          "schedulerOverhead": 0.10000000009313226,
+          "exportLoopOverhead": 2.1999999997206032,
+          "videoEncoderWait": 1.3999999999068677,
+          "mux": 0.10000000009313226,
+          "cleanup": 0.19999999972060323
+        },
+        "counts": {
+          "decoderCreates": 1,
+          "decoderConfigures": 1,
+          "decoderResets": 0,
+          "decoderFlushes": 1,
+          "encodedSamplesRead": 60,
+          "encodedChunksSubmitted": 60,
+          "framesDecoded": 60,
+          "framesYielded": 60,
+          "decodeSpanCalls": 0,
+          "cacheLookups": 0,
+          "cacheHits": 0,
+          "cacheMisses": 0,
+          "cacheEvictions": 0,
+          "duplicateDecodes": 0,
+          "videoFrameClones": 0,
+          "videoFrameCreates": 60,
+          "framesClosed": 60,
+          "keyframeLookups": 2,
+          "sampleIndexLookups": 60,
+          "sampleByteSlices": 0,
+          "readyImmediate": 0,
+          "framePromiseWaits": 60,
+          "streamPathFrames": 60,
+          "randomPathFrames": 0,
+          "inFlightPeak": 4,
+          "prefetchWindow": 4
+        }
+      },
+      "phases": [
+        {
+          "phase": "canvasDraw",
+          "ms": 175.20000000158325,
+          "pct": 88.17312531546533
+        },
+        {
+          "phase": "decodeQueueWait",
+          "ms": 16.09999999916181,
+          "pct": 8.102667337284574
+        },
+        {
+          "phase": "exportLoopOverhead",
+          "ms": 2.1999999997206032,
+          "pct": 1.1071967789248598
+        },
+        {
+          "phase": "sourceOpen",
+          "ms": 1.8000000002793968,
+          "pct": 0.9058882739214534
+        },
+        {
+          "phase": "videoEncoderWait",
+          "ms": 1.3999999999068677,
+          "pct": 0.7045797684493389
+        },
+        {
+          "phase": "videoDecode",
+          "ms": 0.6999999992549419,
+          "pct": 0.35228988387313853
+        },
+        {
+          "phase": "encodedSampleRead",
+          "ms": 0.3000000002793968,
+          "pct": 0.15098137910408588
+        },
+        {
+          "phase": "frameClose",
+          "ms": 0.20000000018626451,
+          "pct": 0.10065425273605723
+        },
+        {
+          "phase": "containerParse",
+          "ms": 0.19999999972060323,
+          "pct": 0.10065425250170329
+        },
+        {
+          "phase": "videoFrameHandoff",
+          "ms": 0.19999999972060323,
+          "pct": 0.10065425250170329
+        },
+        {
+          "phase": "cleanup",
+          "ms": 0.19999999972060323,
+          "pct": 0.10065425250170329
+        },
+        {
+          "phase": "schedulerOverhead",
+          "ms": 0.10000000009313226,
+          "pct": 0.050327126368028614
+        },
+        {
+          "phase": "mux",
+          "ms": 0.10000000009313226,
+          "pct": 0.050327126368028614
+        },
+        {
+          "phase": "sampleTableBuild",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "keyframeLookup",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "decoderCreate",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "decoderConfigure",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "frameCacheLookup",
+          "ms": 0,
+          "pct": 0
+        },
+        {
+          "phase": "frameCopyClone",
+          "ms": 0,
+          "pct": 0
+        }
+      ]
+    },
+    "bothOk": true
+  },
+  "raw720": {
+    "ran": true,
+    "mediabunny": {
+      "wall": 233.3000000002794,
+      "decodeWall": 230.90000000037253,
+      "snap": {
+        "backend": "mediabunny",
+        "enabled": true,
+        "wallMs": 233.3000000002794,
+        "phasesMs": {
+          "sourceOpen": 0,
+          "containerParse": 2.3000000002793968,
+          "sampleTableBuild": 0,
+          "keyframeLookup": 0,
+          "decoderCreate": 0.10000000009313226,
+          "decoderConfigure": 0.19999999972060323,
+          "encodedSampleRead": 0,
+          "videoDecode": 0.09999999962747097,
+          "decodeQueueWait": 250.59999999729916,
+          "frameCacheLookup": 0,
+          "videoFrameHandoff": 0.10000000009313226,
+          "frameCopyClone": 0,
+          "canvasDraw": 208.10000000335276,
+          "frameClose": 0.5999999991618097,
+          "schedulerOverhead": 0,
+          "exportLoopOverhead": 0,
+          "videoEncoderWait": 0,
+          "mux": 0,
+          "cleanup": 0
+        },
+        "counts": {
+          "decoderCreates": 1,
+          "decoderConfigures": 1,
+          "decoderResets": 0,
+          "decoderFlushes": 2,
+          "encodedSamplesRead": 0,
+          "encodedChunksSubmitted": 60,
+          "framesDecoded": 60,
+          "framesYielded": 60,
+          "decodeSpanCalls": 0,
+          "cacheLookups": 0,
+          "cacheHits": 0,
+          "cacheMisses": 0,
+          "cacheEvictions": 0,
+          "duplicateDecodes": 0,
+          "videoFrameClones": 0,
+          "videoFrameCreates": 0,
+          "framesClosed": 60,
+          "keyframeLookups": 0,
+          "sampleIndexLookups": 0,
+          "sampleByteSlices": 0,
+          "readyImmediate": 0,
+          "framePromiseWaits": 0,
+          "streamPathFrames": 0,
+          "randomPathFrames": 0,
+          "inFlightPeak": 0,
+          "prefetchWindow": 0
+        }
+      },
+      "n": 60
+    },
+    "afe": {
+      "wall": 247.8000000002794,
+      "decodeWall": 245.39999999990687,
+      "snap": {
+        "backend": "ailexsi",
+        "enabled": true,
+        "wallMs": 247.60000000009313,
+        "phasesMs": {
+          "sourceOpen": 2.1000000000931323,
+          "containerParse": 0,
+          "sampleTableBuild": 0,
+          "keyframeLookup": 0,
+          "decoderCreate": 0,
+          "decoderConfigure": 0.09999999962747097,
+          "encodedSampleRead": 0.10000000009313226,
+          "videoDecode": 0.3000000002793968,
+          "decodeQueueWait": 18.90000000083819,
+          "frameCacheLookup": 0,
+          "videoFrameHandoff": 0,
+          "frameCopyClone": 0,
+          "canvasDraw": 226.1999999997206,
+          "frameClose": 0.19999999972060323,
+          "schedulerOverhead": 0.10000000009313226,
+          "exportLoopOverhead": 0,
+          "videoEncoderWait": 0,
+          "mux": 0,
+          "cleanup": 0
+        },
+        "counts": {
+          "decoderCreates": 1,
+          "decoderConfigures": 1,
+          "decoderResets": 0,
+          "decoderFlushes": 1,
+          "encodedSamplesRead": 60,
+          "encodedChunksSubmitted": 60,
+          "framesDecoded": 60,
+          "framesYielded": 60,
+          "decodeSpanCalls": 0,
+          "cacheLookups": 0,
+          "cacheHits": 0,
+          "cacheMisses": 0,
+          "cacheEvictions": 0,
+          "duplicateDecodes": 0,
+          "videoFrameClones": 0,
+          "videoFrameCreates": 60,
+          "framesClosed": 60,
+          "keyframeLookups": 2,
+          "sampleIndexLookups": 60,
+          "sampleByteSlices": 0,
+          "readyImmediate": 0,
+          "framePromiseWaits": 60,
+          "streamPathFrames": 60,
+          "randomPathFrames": 0,
+          "inFlightPeak": 4,
+          "prefetchWindow": 4
+        }
+      },
+      "n": 60
+    }
+  },
+  "exportRepeats": {
+    "ran": true,
+    "alternated": true,
+    "warmupN": 10,
+    "measuredN": 50,
+    "mediabunny": {
+      "warmup": {
+        "n": 10,
+        "mean": 253.02000000006518,
+        "median": 251.6500000001397,
+        "p50": 251.6500000001397,
+        "p95": 260.09999999962747,
+        "worst": 260.09999999962747,
+        "min": 249.8000000002794,
+        "stddev": 3.036708744479739
+      },
+      "measured": {
+        "n": 50,
+        "mean": 257.2280000000261,
+        "median": 256.5500000002794,
+        "p50": 256.5500000002794,
+        "p95": 269.5,
+        "worst": 276.29999999981374,
+        "min": 246.60000000009313,
+        "stddev": 6.206771785665582
+      },
+      "rawWarm": [
+        249.8000000002794,
+        255.5,
+        250.3000000002794,
+        251.60000000009313,
+        251.20000000018626,
+        254.20000000018626,
+        255.09999999962747,
+        260.09999999962747,
+        251.70000000018626,
+        250.70000000018626
+      ],
+      "rawMeasured": [
+        254,
+        256.39999999990687,
+        255.5,
+        249.90000000037253,
+        249.3000000002794,
+        252.5,
+        252.8000000002794,
+        248.6999999997206,
+        255.5,
+        253.20000000018626,
+        249.3000000002794,
+        246.79999999981374,
+        256.29999999981374,
+        246.90000000037253,
+        256.70000000018626,
+        253.90000000037253,
+        246.60000000009313,
+        253.5,
+        261.20000000018626,
+        250.8000000002794,
+        252.79999999981374,
+        253.20000000018626,
+        261.39999999990687,
+        269.5,
+        263,
+        276.29999999981374,
+        263.29999999981374,
+        257.10000000009313,
+        255.10000000009313,
+        271.8000000002794,
+        266.39999999990687,
+        261.79999999981374,
+        258.89999999990687,
+        251.29999999981374,
+        257.1999999997206,
+        255.60000000009313,
+        256.89999999990687,
+        258.5,
+        262.60000000009313,
+        254.20000000018626,
+        259.10000000009313,
+        261,
+        260.6999999997206,
+        262.10000000009313,
+        260.1999999997206,
+        264.89999999990687,
+        260.5,
+        259.5,
+        260.29999999981374,
+        256.40000000037253
+      ]
+    },
+    "afe": {
+      "warmup": {
+        "n": 10,
+        "mean": 251.99999999995345,
+        "median": 252.55000000004657,
+        "p50": 252.55000000004657,
+        "p95": 256.29999999981374,
+        "worst": 256.29999999981374,
+        "min": 245.6999999997206,
+        "stddev": 3.2177631982811197
+      },
+      "measured": {
+        "n": 50,
+        "mean": 256.2719999999832,
+        "median": 255.69999999995343,
+        "p50": 255.69999999995343,
+        "p95": 269.5,
+        "worst": 274.20000000018626,
+        "min": 241.70000000018626,
+        "stddev": 7.27640130831215
+      },
+      "rawWarm": [
+        255.6999999997206,
+        256.29999999981374,
+        248.39999999990687,
+        251.70000000018626,
+        245.6999999997206,
+        250.60000000009313,
+        253.90000000037253,
+        254.5,
+        249.79999999981374,
+        253.39999999990687
+      ],
+      "rawMeasured": [
+        248.70000000018626,
+        251.5,
+        269.1999999997206,
+        254,
+        244.79999999981374,
+        241.70000000018626,
+        249.5,
+        249.90000000037253,
+        242,
+        250.39999999990687,
+        252.1999999997206,
+        250.40000000037253,
+        250.5,
+        252.29999999981374,
+        250,
+        250,
+        257.29999999981374,
+        245.59999999962747,
+        260.1999999997206,
+        255.60000000009313,
+        258.60000000009313,
+        259.39999999990687,
+        260.79999999981374,
+        269.5,
+        264.09999999962747,
+        267.10000000009313,
+        274.20000000018626,
+        264.70000000018626,
+        263.29999999981374,
+        256.5,
+        262,
+        257,
+        251.70000000018626,
+        252,
+        251.40000000037253,
+        250.89999999990687,
+        261,
+        249.40000000037253,
+        260.79999999981374,
+        265.29999999981374,
+        256.29999999981374,
+        255.79999999981374,
+        254.39999999990687,
+        252.79999999981374,
+        261.70000000018626,
+        261.79999999981374,
+        269.5,
+        261.8000000002794,
+        255.20000000018626,
+        258.79999999981374
+      ]
+    }
+  },
+  "longExport": {
+    "ran": false
+  },
+  "productionExport": {
+    "ran": false
+  },
+  "totals": {
+    "compared": 0,
+    "agree": 0,
+    "mediabunny": {},
+    "afe": {}
+  },
+  "mismatchCount": 0
+}

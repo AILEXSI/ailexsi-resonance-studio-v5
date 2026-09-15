@@ -703,7 +703,7 @@
             show("long export " + LONG_SECONDS + "s + production-like");
             const longJob = longTimelineJob(srcUrl, LONG_SECONDS);
             longExport = { ran: true, seconds: LONG_SECONDS, frames: Math.round(LONG_SECONDS * 30), ...(await repeatExportBoth(longJob, LONG_WARMUP, LONG_MEASURED, 0x30e03)) };
-            productionExport = { ran: true, ...(await repeatExportBoth(productionJob, 6, 12, 0xprod03)) };
+            productionExport = { ran: true, ...(await repeatExportBoth(productionJob, 6, 12, 0x70d03)) };
           }
 
           const smallUrl = new URL("/" + g1.path, location.origin).href;
