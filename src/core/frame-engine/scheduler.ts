@@ -5,7 +5,8 @@ import { keyframeAtOrBefore, sampleIndexAtTime } from "./mp4-reader";
 import { afePerfAdd, afePerfCount, afePerfEnabled } from "./perf";
 import type { AfeMemoryStats, AfeMovie, AfeSample, DrawableFrame } from "./types";
 
-const BATCH_SPAN = 24;
+/** Encoded samples submitted ahead of the next yield so encode can overlap decode. */
+const PREFETCH = 8;
 
 export class AfeDrawable implements DrawableFrame {
   constructor(
@@ -111,33 +112,75 @@ export class AfeScheduler {
       }
       let last = index;
       let j = i + 1;
-      while (j < timesSec.length && j - i < BATCH_SPAN) {
+      while (j < timesSec.length) {
         const nxt = sampleIndexAtTime(this.movie, timesSec[j]!);
         if (nxt == null || nxt < last) break;
         last = nxt;
         j += 1;
       }
-      const produced = await this.decodeSpan(index, last, signal, true);
+      await this.ensureForward(index, signal);
+      const pending = new Map<number, Promise<VideoFrame>>();
+      const submitThrough = async (upto: number) => {
+        if (this.nextDecode > upto) return;
+        afePerfCount("decodeSpanCalls");
+        await this.decoder.ensure(signal);
+        for (let s = this.nextDecode; s <= upto; s++) {
+          const sample = this.movie.samples[s];
+          if (!sample) throw new AfeError("AFE_DECODE_FAILED", `missing sample ${s}`);
+          pending.set(s, this.decoder.enqueueSample(sample, signal));
+        }
+        this.nextDecode = upto + 1;
+      };
       for (let k = i; k < j; k++) {
+        throwIfAborted(signal);
         const idx = sampleIndexAtTime(this.movie, timesSec[k]!);
         if (idx == null) {
           yield null;
           continue;
         }
-        let frame = produced.get(idx);
-        if (frame) produced.delete(idx);
-        else frame = this.cache.takeClone(idx) ?? undefined;
-        if (!frame) {
+        if (idx < this.nextDecode && !pending.has(idx)) {
+          const cached = this.cache.takeClone(idx) ?? (await this.decodeTo(idx, signal));
+          yield this.wrap(cached, this.movie.samples[idx]!);
+          continue;
+        }
+        const prefetch = Math.min(last, idx + PREFETCH);
+        try {
+          await submitThrough(prefetch);
+        } catch (e) {
+          if (!isAfeError(e) || !/key frame/i.test(e.message)) throw e;
+          await this.decoder.reset(signal);
+          this.nextDecode = keyframeAtOrBefore(this.movie, idx);
+          this.warm = true;
+          pending.clear();
+          await submitThrough(prefetch);
+        }
+        const promise = pending.get(idx);
+        pending.delete(idx);
+        if (!promise) {
           yield null;
           continue;
         }
-        yield this.wrap(frame, this.movie.samples[idx]!);
+        if (idx === last) await this.decoder.releaseHeld(signal);
+        yield this.wrap(await promise, this.movie.samples[idx]!);
       }
-      for (const [idx, frame] of produced) {
-        this.cache.put(idx, frame);
+      for (const [idx, promise] of pending) {
+        try {
+          this.cache.put(idx, await promise);
+        } catch {
+          /* reset/abort */
+        }
       }
       i = j;
     }
+  }
+
+  private async ensureForward(start: number, signal?: AbortSignal): Promise<void> {
+    const key = keyframeAtOrBefore(this.movie, start);
+    const canContinue = this.warm && !this.decoder.needsKeyframe && this.nextDecode <= start;
+    if (canContinue) return;
+    await this.decoder.reset(signal);
+    this.nextDecode = key;
+    this.warm = true;
   }
 
   private wrap(frame: VideoFrame, sample: AfeSample): AfeDrawable {
