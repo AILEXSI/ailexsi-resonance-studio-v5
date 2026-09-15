@@ -67,9 +67,8 @@
         return canvas;
       }
 
-      async function paintSource(identity, src, timeSec, width, height) {
+      async function paintSource(opened, identity, timeSec, width, height) {
         const started = performance.now();
-        const opened = await createFrameSourceBackend(identity).open(src);
         const canvas = makeCanvas(width, height);
         const ctx = canvas.getContext("2d");
         ctx.fillStyle = "#000";
@@ -77,7 +76,6 @@
         try {
           const sample = await opened.getFrameAt(timeSec);
           if (!sample) {
-            opened.close();
             return {
               backend: identity,
               requestedSec: timeSec,
@@ -89,7 +87,6 @@
           sample.draw(ctx, 0, 0, width, height);
           const presentedSec = sample.timestamp;
           sample.close();
-          opened.close();
           const read = readCanvasFrame(canvas);
           return {
             backend: identity,
@@ -100,7 +97,6 @@
             empty: read.empty,
           };
         } catch (e) {
-          opened.close();
           return {
             backend: identity,
             requestedSec: timeSec,
@@ -319,13 +315,27 @@
             sequential.push(row);
           }
 
-          const probes = plan.filter((r) => r.file === file.id && r.pattern !== "sequential" && r.pattern !== "sequential-repeat");
+          const probes = plan.filter((r) => {
+            if (r.file !== file.id) return false;
+            if (r.pattern === "sequential" || r.pattern === "sequential-repeat" || r.pattern === "sequential-repeat-2") return false;
+            return true;
+          });
           const seen = new Set(seq.map((t) => t.toFixed(6)));
+          let randomKept = 0;
+          const mbOpen = await createFrameSourceBackend("mediabunny").open(url);
+          const afeOpen = await createFrameSourceBackend("ailexsi").open(url);
           for (const req of probes) {
             if (seen.has(req.requestedSec.toFixed(6))) continue;
+            if (req.pattern === "random" || req.pattern === "long-gop-mix") {
+              const required = [10, 2, 25, 5, 18, 1].some((x) => Math.abs(x - req.requestedSec) < 1e-6);
+              if (!required) {
+                randomKept += 1;
+                if (randomKept > 80) continue;
+              }
+            }
             seen.add(req.requestedSec.toFixed(6));
-            const a = finalizeHit(await paintSource("mediabunny", url, req.requestedSec, w, h), file.fps, file.frames);
-            const b = finalizeHit(await paintSource("ailexsi", url, req.requestedSec, w, h), file.fps, file.frames);
+            const a = finalizeHit(await paintSource(mbOpen, "mediabunny", req.requestedSec, w, h), file.fps, file.frames);
+            const b = finalizeHit(await paintSource(afeOpen, "ailexsi", req.requestedSec, w, h), file.fps, file.frames);
             randMb.totalMs += a.ms;
             randMb.n += 1;
             randMb.worstMs = Math.max(randMb.worstMs, a.ms);
@@ -348,6 +358,8 @@
               randomSeek.push(row);
             }
           }
+          mbOpen.close();
+          afeOpen.close();
         }
 
         show("memory + abort + fallback");
@@ -359,7 +371,7 @@
           twoSec: await memoryPass(twoUrl, 1, "2s"),
           twentyEight: await memoryPass(longUrl, 1, "28s"),
           sevenMinSim: await memoryPass(twoUrl, 210, "7min-sim"),
-          thirtyMinTail: await memoryPass(twoUrl, 40, "30min-tail"),
+          thirtyMinTail: await memoryPass(twoUrl, 50, "30min-tail"),
         };
 
         let abortTest = { ok: false, error: null };

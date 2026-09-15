@@ -38,8 +38,8 @@ export class DecodedFrameCache {
     if (pos >= 0) this.lru.splice(pos, 1);
     this.lru.push(index);
     this.frameBytes += this.estimate(frame);
-    this.peak = Math.max(this.peak, this.frames.size);
     this.evict();
+    this.peak = Math.max(this.peak, this.frames.size);
   }
 
   takeClone(index: number): VideoFrame | null {

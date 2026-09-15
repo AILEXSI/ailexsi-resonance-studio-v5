@@ -179,11 +179,12 @@ export function buildRequestPlan(manifest: AfeManifest): AfeRequestRow[] {
     push(file, sourceInOutTimes(file), "source-in-out");
     push(file, clipRateTimes(file), "clip-rate");
     push(file, repeatedSegmentTimes(file), "repeated-segment");
-    push(file, randomTimes(file, file.seconds >= 20 ? 400 : 180, 0xafe01 + file.frames), "random");
+    push(file, randomTimes(file, file.seconds >= 20 ? 900 : 280, 0xafe01 + file.frames), "random");
   }
 
-  for (const file of files.filter((f) => f.seconds <= 3)) {
+  for (const file of files.filter((f) => f.seconds <= 8)) {
     push(file, sequentialTimes(file), "sequential-repeat");
+    push(file, sequentialTimes(file), "sequential-repeat-2");
   }
 
   const longGop = files.find((f) => f.gop >= 250);
@@ -194,11 +195,11 @@ export function buildRequestPlan(manifest: AfeManifest): AfeRequestRow[] {
     }
     extra.push(10, 2, 25, 5, 18, 1);
     const rand = mulberry32(0x25060);
-    for (let i = 0; i < 800; i++) extra.push(rand() * (longGop.seconds - 1 / longGop.fps));
-    push(longGop, uniqueTimes(extra.filter((t) => t >= 0 && t < longGop.seconds - 1e-6)), "long-gop-mix");
+    for (let i = 0; i < 1800; i++) extra.push(rand() * (longGop.seconds - 1 / longGop.fps));
+    push(longGop, extra.filter((t) => t >= 0 && t < longGop.seconds - 1e-6), "long-gop-mix");
   }
 
-  for (const sec of [0, 0.1, 0.333, 0.5, 1, 1.5]) {
+  for (const sec of [0, 0.05, 0.1, 0.2, 0.333, 0.5, 0.75, 1, 1.25, 1.5]) {
     for (const file of files) {
       push(file, [sec], "mixed-fps");
     }
