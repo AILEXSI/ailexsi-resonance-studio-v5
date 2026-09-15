@@ -19,5 +19,5 @@
     "types": ["vite/client"]
   },
   "include": ["src", "tests"],
-  "exclude": ["tests/media/user-fixtures.test.ts"]
+  "exclude": ["tests/media/user-fixtures.test.ts", "tests/export/mbr-frame-accuracy.test.ts"]
 }

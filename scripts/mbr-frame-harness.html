@@ -284,7 +284,7 @@
         const semantics = [];
 
         for (const file of manifest.files) {
-          const url = "/" + file.path;
+          const url = new URL("/" + file.path, location.origin).href;
           resetFrameSourceBackend();
           clearFrameSources();
           clearMediaCache();

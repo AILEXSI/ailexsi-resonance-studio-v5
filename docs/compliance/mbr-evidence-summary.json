@@ -1,0 +1,934 @@
+{
+  "environment": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+    "webCodecs": true,
+    "rvfc": true,
+    "platform": "Linux x86_64"
+  },
+  "totals": {
+    "mediabunny": {
+      "EXACT": 840,
+      "WITHIN 1 FRAME": 0,
+      ">1 FRAME ERROR": 0,
+      "FAILED SEEK": 0,
+      "TIMEOUT": 0,
+      "WRONG FRAME": 0,
+      "UNKNOWN": 0
+    },
+    "htmlvideo": {
+      "EXACT": 800,
+      "WITHIN 1 FRAME": 40,
+      ">1 FRAME ERROR": 0,
+      "FAILED SEEK": 0,
+      "TIMEOUT": 0,
+      "WRONG FRAME": 0,
+      "UNKNOWN": 0
+    },
+    "compared": 840,
+    "agree": 800
+  },
+  "performance": {
+    "mediabunny": {
+      "n": 840,
+      "counts": {
+        "EXACT": 840,
+        "WITHIN 1 FRAME": 0,
+        ">1 FRAME ERROR": 0,
+        "FAILED SEEK": 0,
+        "TIMEOUT": 0,
+        "WRONG FRAME": 0,
+        "UNKNOWN": 0
+      },
+      "totalMs": 3016.7000000002445,
+      "avgMs": 3.591309523809815,
+      "worstMs": 33.100000000034925
+    },
+    "htmlvideo": {
+      "n": 840,
+      "counts": {
+        "EXACT": 800,
+        "WITHIN 1 FRAME": 40,
+        ">1 FRAME ERROR": 0,
+        "FAILED SEEK": 0,
+        "TIMEOUT": 0,
+        "WRONG FRAME": 0,
+        "UNKNOWN": 0
+      },
+      "totalMs": 209999.59999999963,
+      "avgMs": 249.99952380952337,
+      "worstMs": 276.6000000000349
+    }
+  },
+  "randomSeek": [
+    {
+      "requestedSec": 25,
+      "expectedFrame": 750,
+      "a": {
+        "actualFrame": 750,
+        "class": "EXACT",
+        "ms": 2.2999999999883585
+      },
+      "b": {
+        "actualFrame": 750,
+        "class": "EXACT",
+        "ms": 251.5,
+        "frameDelta": 0
+      }
+    },
+    {
+      "requestedSec": 10,
+      "expectedFrame": 300,
+      "a": {
+        "actualFrame": 300,
+        "class": "EXACT",
+        "ms": 5
+      },
+      "b": {
+        "actualFrame": 300,
+        "class": "EXACT",
+        "ms": 252.20000000001164,
+        "frameDelta": 0
+      }
+    },
+    {
+      "requestedSec": 2,
+      "expectedFrame": 60,
+      "a": {
+        "actualFrame": 60,
+        "class": "EXACT",
+        "ms": 4.399999999965075
+      },
+      "b": {
+        "actualFrame": 60,
+        "class": "EXACT",
+        "ms": 252.29999999998836,
+        "frameDelta": 0
+      }
+    },
+    {
+      "requestedSec": 5,
+      "expectedFrame": 150,
+      "a": {
+        "actualFrame": 150,
+        "class": "EXACT",
+        "ms": 7.2999999999883585
+      },
+      "b": {
+        "actualFrame": 150,
+        "class": "EXACT",
+        "ms": 254.5,
+        "frameDelta": 0
+      }
+    },
+    {
+      "requestedSec": 18,
+      "expectedFrame": 540,
+      "a": {
+        "actualFrame": 540,
+        "class": "EXACT",
+        "ms": 4.400000000023283
+      },
+      "b": {
+        "actualFrame": 540,
+        "class": "EXACT",
+        "ms": 251.90000000002328,
+        "frameDelta": 0
+      }
+    },
+    {
+      "requestedSec": 1,
+      "expectedFrame": 30,
+      "a": {
+        "actualFrame": 30,
+        "class": "EXACT",
+        "ms": 4.2999999999883585
+      },
+      "b": {
+        "actualFrame": 30,
+        "class": "EXACT",
+        "ms": 252.10000000003492,
+        "frameDelta": 0
+      }
+    }
+  ],
+  "semantics": [
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "timelineMs": 0,
+      "sourceSec": 2.0166666666666666,
+      "a": {
+        "actualFrame": 60,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 60,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "timelineMs": 250,
+      "sourceSec": 2.5166666666666666,
+      "a": {
+        "actualFrame": 75,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 75,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "timelineMs": 500,
+      "sourceSec": 3.0166666666666666,
+      "a": {
+        "actualFrame": 90,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 90,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "timelineMs": 1000,
+      "sourceSec": 3.999,
+      "a": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "timelineMs": 0,
+      "sourceSec": 2.0166666666666666,
+      "a": {
+        "actualFrame": 60,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 60,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "timelineMs": 250,
+      "sourceSec": 2.5166666666666666,
+      "a": {
+        "actualFrame": 75,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 75,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "timelineMs": 500,
+      "sourceSec": 3.0166666666666666,
+      "a": {
+        "actualFrame": 90,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 90,
+        "class": "EXACT"
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "timelineMs": 1000,
+      "sourceSec": 3.999,
+      "a": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      }
+    }
+  ],
+  "nonExact": [
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.06666633333333333,
+      "expectedFrame": 1,
+      "a": {
+        "actualFrame": 1,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 2,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.066666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.16666633333333333,
+      "expectedFrame": 4,
+      "a": {
+        "actualFrame": 4,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 5,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.166666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.26666633333333334,
+      "expectedFrame": 7,
+      "a": {
+        "actualFrame": 7,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 8,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.266666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.3666663333333333,
+      "expectedFrame": 10,
+      "a": {
+        "actualFrame": 10,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 11,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.366666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.46666633333333335,
+      "expectedFrame": 13,
+      "a": {
+        "actualFrame": 13,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 14,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.466666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.5666663333333333,
+      "expectedFrame": 16,
+      "a": {
+        "actualFrame": 16,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 17,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.566666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.6666663333333334,
+      "expectedFrame": 19,
+      "a": {
+        "actualFrame": 19,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 20,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.666666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.7666663333333333,
+      "expectedFrame": 22,
+      "a": {
+        "actualFrame": 22,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 23,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.766666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.8666663333333333,
+      "expectedFrame": 25,
+      "a": {
+        "actualFrame": 25,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 26,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.866666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 0.9666663333333333,
+      "expectedFrame": 28,
+      "a": {
+        "actualFrame": 28,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 29,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 0.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.0666663333333335,
+      "expectedFrame": 31,
+      "a": {
+        "actualFrame": 31,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 32,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.066666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.1666663333333334,
+      "expectedFrame": 34,
+      "a": {
+        "actualFrame": 34,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 35,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.166666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.2666663333333334,
+      "expectedFrame": 37,
+      "a": {
+        "actualFrame": 37,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 38,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.266666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.3666663333333335,
+      "expectedFrame": 40,
+      "a": {
+        "actualFrame": 40,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 41,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.366666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.4666663333333334,
+      "expectedFrame": 43,
+      "a": {
+        "actualFrame": 43,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 44,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.466666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.5666663333333335,
+      "expectedFrame": 46,
+      "a": {
+        "actualFrame": 46,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 47,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.566666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.6666663333333334,
+      "expectedFrame": 49,
+      "a": {
+        "actualFrame": 49,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 50,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.666666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.7666663333333334,
+      "expectedFrame": 52,
+      "a": {
+        "actualFrame": 52,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 53,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.766666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.8666663333333335,
+      "expectedFrame": 55,
+      "a": {
+        "actualFrame": 55,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 56,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.866666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g1-2s",
+      "requestedSec": 1.9666663333333334,
+      "expectedFrame": 58,
+      "a": {
+        "actualFrame": 58,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 59,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 1.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g30-2s",
+      "requestedSec": 0.9666666666666667,
+      "expectedFrame": 29,
+      "a": {
+        "actualFrame": 29,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 28,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 0.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g30-2s",
+      "requestedSec": 1.9666666666666666,
+      "expectedFrame": 59,
+      "a": {
+        "actualFrame": 59,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 58,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "requestedSec": 1.9666666666666666,
+      "expectedFrame": 59,
+      "a": {
+        "actualFrame": 59,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 58,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "requestedSec": 2.033333333333333,
+      "expectedFrame": 61,
+      "a": {
+        "actualFrame": 61,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 60,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 2.033332
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "requestedSec": 3.966666666666667,
+      "expectedFrame": 119,
+      "a": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 118,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 3.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "requestedSec": 5.966666666666667,
+      "expectedFrame": 179,
+      "a": {
+        "actualFrame": 179,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 178,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 5.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g60-8s",
+      "requestedSec": 7.966666666666667,
+      "expectedFrame": 239,
+      "a": {
+        "actualFrame": 239,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 238,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 7.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "requestedSec": 8.333333,
+      "expectedFrame": 249,
+      "a": {
+        "actualFrame": 249,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 250,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": 1,
+        "presentedSec": 8.333333
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "requestedSec": 24.966666666666665,
+      "expectedFrame": 749,
+      "a": {
+        "actualFrame": 749,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 748,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 24.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-30-g250-28s",
+      "requestedSec": 27.966666666666665,
+      "expectedFrame": 839,
+      "a": {
+        "actualFrame": 839,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 838,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 27.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-24-g24-2s",
+      "requestedSec": 0.041666666666666664,
+      "expectedFrame": 1,
+      "a": {
+        "actualFrame": 1,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 0,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 0.041666
+      }
+    },
+    {
+      "file": "mbr-cfr-24-g24-2s",
+      "requestedSec": 0.9583333333333334,
+      "expectedFrame": 23,
+      "a": {
+        "actualFrame": 23,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 22,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 0.958333
+      }
+    },
+    {
+      "file": "mbr-cfr-24-g24-2s",
+      "requestedSec": 1.0416666666666667,
+      "expectedFrame": 25,
+      "a": {
+        "actualFrame": 25,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 24,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.041666
+      }
+    },
+    {
+      "file": "mbr-cfr-24-g24-2s",
+      "requestedSec": 1.9166666666666667,
+      "expectedFrame": 46,
+      "a": {
+        "actualFrame": 46,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 45,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.916666
+      }
+    },
+    {
+      "file": "mbr-cfr-24-g24-2s",
+      "requestedSec": 1.9583333333333333,
+      "expectedFrame": 47,
+      "a": {
+        "actualFrame": 47,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 46,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.958333
+      }
+    },
+    {
+      "file": "mbr-cfr-60-g60-2s",
+      "requestedSec": 0.016666666666666666,
+      "expectedFrame": 1,
+      "a": {
+        "actualFrame": 1,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 0,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 0.016666
+      }
+    },
+    {
+      "file": "mbr-cfr-60-g60-2s",
+      "requestedSec": 0.9833333333333333,
+      "expectedFrame": 59,
+      "a": {
+        "actualFrame": 59,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 58,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 0.983333
+      }
+    },
+    {
+      "file": "mbr-cfr-60-g60-2s",
+      "requestedSec": 1.0166666666666666,
+      "expectedFrame": 61,
+      "a": {
+        "actualFrame": 61,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 60,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.016666
+      }
+    },
+    {
+      "file": "mbr-cfr-60-g60-2s",
+      "requestedSec": 1.9666666666666666,
+      "expectedFrame": 118,
+      "a": {
+        "actualFrame": 118,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 117,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.966666
+      }
+    },
+    {
+      "file": "mbr-cfr-60-g60-2s",
+      "requestedSec": 1.9833333333333334,
+      "expectedFrame": 119,
+      "a": {
+        "actualFrame": 119,
+        "class": "EXACT"
+      },
+      "b": {
+        "actualFrame": 118,
+        "class": "WITHIN 1 FRAME",
+        "frameDelta": -1,
+        "presentedSec": 1.983333
+      }
+    }
+  ],
+  "byFile": {
+    "mbr-cfr-30-g1-2s": {
+      "a": {
+        "EXACT": 120
+      },
+      "b": {
+        "EXACT": 100,
+        "WITHIN 1 FRAME": 20
+      }
+    },
+    "mbr-cfr-30-g30-2s": {
+      "a": {
+        "EXACT": 68
+      },
+      "b": {
+        "EXACT": 66,
+        "WITHIN 1 FRAME": 2
+      }
+    },
+    "mbr-cfr-30-g60-8s": {
+      "a": {
+        "EXACT": 256
+      },
+      "b": {
+        "EXACT": 251,
+        "WITHIN 1 FRAME": 5
+      }
+    },
+    "mbr-cfr-30-g250-28s": {
+      "a": {
+        "EXACT": 47
+      },
+      "b": {
+        "EXACT": 44,
+        "WITHIN 1 FRAME": 3
+      }
+    },
+    "mbr-cfr-24-g24-2s": {
+      "a": {
+        "EXACT": 56
+      },
+      "b": {
+        "EXACT": 51,
+        "WITHIN 1 FRAME": 5
+      }
+    },
+    "mbr-cfr-25-g25-2s": {
+      "a": {
+        "EXACT": 57
+      },
+      "b": {
+        "EXACT": 57
+      }
+    },
+    "mbr-cfr-50-g50-2s": {
+      "a": {
+        "EXACT": 108
+      },
+      "b": {
+        "EXACT": 108
+      }
+    },
+    "mbr-cfr-60-g60-2s": {
+      "a": {
+        "EXACT": 128
+      },
+      "b": {
+        "EXACT": 123,
+        "WITHIN 1 FRAME": 5
+      }
+    }
+  }
+}
