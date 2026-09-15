@@ -41,6 +41,11 @@ function waitForResult() {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
             if (body?.text) console.log("progress", String(body.text).slice(0, 160));
+            if (body?.checkpoint) {
+              const cp = OUT.replace(/\.json$/, "-checkpoint.json");
+              writeFileSync(cp, JSON.stringify(body.checkpoint, null, 2) + "\n");
+              console.log("checkpoint", cp);
+            }
           } catch {
             /* */
           }

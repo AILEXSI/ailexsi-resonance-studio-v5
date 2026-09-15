@@ -292,7 +292,9 @@
       async function repeatExport(identity, job, warmup, measured) {
         const warm = [];
         const measuredMs = [];
-        for (let i = 0; i < warmup + measured; i++) {
+        const total = warmup + measured;
+        for (let i = 0; i < total; i++) {
+          show("export " + identity + " " + (job.fileName || "?") + " " + (i + 1) + "/" + total);
           const out = await runOneExport(identity, job, i);
           if (!out.ok) {
             return { error: out.error, warmup: wallStats(warm), measured: wallStats(measuredMs) };
@@ -362,7 +364,10 @@
         const canvas = makeCanvas(width, height);
         const ctx = canvas.getContext("2d");
         const t0 = performance.now();
+        let n = 0;
         for await (const sample of opened.getFramesAt(times)) {
+          n += 1;
+          if (n === 1 || n % 20 === 0) show("raw " + identity + " " + n + "/" + times.length);
           if (!sample) continue;
           sample.draw(ctx, 0, 0, width, height);
           sample.close();
@@ -636,6 +641,46 @@
             error: bothRep.error || null,
           };
 
+          {
+            const mbRowsCp = comparisons.map((c) => c.mediabunny);
+            const afeRowsCp = comparisons.map((c) => c.afe);
+            const checkpoint = {
+              environment: {
+                userAgent: navigator.userAgent,
+                webCodecs: typeof VideoDecoder !== "undefined",
+                videoEncoder: typeof VideoEncoder !== "undefined",
+                platform: navigator.platform,
+              },
+              totals: {
+                mediabunny: summarize(mbRowsCp).counts,
+                afe: summarize(afeRowsCp).counts,
+                compared: comparisons.length,
+                agree: comparisons.filter((c) => c.match).length,
+              },
+              mismatchCount: comparisons.filter((c) => !c.match).length,
+              sequentialBatch: {
+                mediabunny: { ...seqMb, avgMs: seqMb.n ? seqMb.totalMs / seqMb.n : 0 },
+                afe: { ...seqAfe, avgMs: seqAfe.n ? seqAfe.totalMs / seqAfe.n : 0 },
+              },
+              random: {
+                mediabunny: { ...randMb, avgMs: randMb.n ? randMb.totalMs / randMb.n : 0 },
+                afe: { ...randAfe, avgMs: randAfe.n ? randAfe.totalMs / randAfe.n : 0 },
+              },
+              memory,
+              abortTest,
+              abortOpen,
+              abortRandom,
+              abortExport,
+              fallbackTest,
+              export720,
+              phaseExport,
+              exportRepeats,
+              raw720,
+            };
+            show("checkpoint pixels=" + checkpoint.totals.compared + " agree=" + checkpoint.totals.agree);
+            await report("/afe-progress", { text: "checkpoint core evidence", checkpoint });
+          }
+
           if (SWEEP) {
             show("prefetch sweep");
             const saved = getAfeSequentialPrefetch();
@@ -711,7 +756,7 @@
           if (SKIP_AJ) {
             show("skip A-J mode=" + MODE);
           }
-          const randomRawPass = async (identity, url, times, width, height) => {
+          const seekRawPass = async (label, identity, url, times, width, height) => {
             installWebCodecsProbe();
             beginAfePerf(identity);
             const tAll = performance.now();
@@ -720,7 +765,7 @@
             const ctx = canvas.getContext("2d");
             const t0 = performance.now();
             for (let i = 0; i < times.length; i++) {
-              if (i === 0 || i % 8 === 0) show("bench C " + identity + " " + i + "/" + times.length);
+              if (i === 0 || i % 8 === 0) show("bench " + label + " raw " + identity + " " + i + "/" + times.length);
               const sample = await opened.getFrameAt(times[i]);
               if (!sample) continue;
               sample.draw(ctx, 0, 0, width, height);
@@ -731,14 +776,19 @@
             opened.close();
             return { wall: performance.now() - tAll, decodeWall, snap, n: times.length, cold: true };
           };
+          const timesAreMonotonic = (times) => {
+            for (let i = 1; i < times.length; i++) if (times[i] < times[i - 1]) return false;
+            return true;
+          };
           const makeAj = async (id, title, raw, job) => {
             show("bench " + id + " " + title);
-            const mbRaw = id === "C"
-              ? await randomRawPass("mediabunny", raw.url, raw.times, raw.w, raw.h)
-              : await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false);
-            const afeRaw = id === "C"
-              ? await randomRawPass("ailexsi", raw.url, raw.times, raw.w, raw.h)
-              : await rawDecodePass("ailexsi", raw.url, raw.times, raw.w, raw.h, false);
+            const sequentialRaw = timesAreMonotonic(raw.times);
+            const mbRaw = sequentialRaw
+              ? await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false)
+              : await seekRawPass(id, "mediabunny", raw.url, raw.times, raw.w, raw.h);
+            const afeRaw = sequentialRaw
+              ? await rawDecodePass("ailexsi", raw.url, raw.times, raw.w, raw.h, false)
+              : await seekRawPass(id, "ailexsi", raw.url, raw.times, raw.w, raw.h);
             let exp = null;
             if (job) {
               const mbE = await repeatExport("mediabunny", job, AJ_WARMUP, AJ_MEASURED);
