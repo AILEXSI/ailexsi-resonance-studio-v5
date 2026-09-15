@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fixtures": "node scripts/generate-fixtures.mjs",
+    "afe:media": "node scripts/generate-afe-media.mjs",
+    "afe:chrome": "node scripts/afe-run-chrome.mjs",
     "tauri": "tauri",
     "tauri:exe": "tauri build && powershell -ExecutionPolicy Bypass -File scripts/copy-exe.ps1"
   },
