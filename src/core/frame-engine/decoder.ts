@@ -10,6 +10,8 @@ export class AfeVideoDecoder {
   private closed = false;
   private lastError: Error | null = null;
   private configured = false;
+  /** WebCodecs requires a key chunk after configure() or flush(). */
+  needsKeyframe = true;
 
   constructor(private readonly movie: AfeMovie) {}
 
@@ -38,6 +40,7 @@ export class AfeVideoDecoder {
       }
       this.decoder.configure(config);
       this.configured = true;
+      this.needsKeyframe = true;
     } catch (e) {
       this.teardown();
       if (e instanceof AfeError) throw e;
@@ -52,6 +55,7 @@ export class AfeVideoDecoder {
       try {
         this.decoder.reset();
         this.decoder.configure(decoderConfigOf(this.movie.avc));
+        this.needsKeyframe = true;
       } catch (e) {
         this.teardown();
         throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
@@ -66,8 +70,8 @@ export class AfeVideoDecoder {
   }
 
   /**
-   * Decode `samples` in order (must start at a keyframe after reset).
-   * One flush at the end so intermediates are not individually flushed.
+   * Decode `samples` in order. Do not flush between sequential calls — flush()
+   * forces the next chunk to be a keyframe and destroys forward state.
    */
   async decodeRange(samples: AfeSample[], signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
     throwIfAborted(signal);
@@ -75,6 +79,9 @@ export class AfeVideoDecoder {
     if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
     if (this.lastError) throw this.lastError;
     if (samples.length === 0) return new Map();
+    if (this.needsKeyframe && !samples[0]!.isKeyframe) {
+      throw new AfeError("AFE_DECODE_FAILED", "key frame required after configure/flush", false);
+    }
 
     const gen = this.generation;
     const pending: { index: number; timestamp: number; promise: Promise<VideoFrame> }[] = [];
@@ -109,17 +116,26 @@ export class AfeVideoDecoder {
       pending.push({ index: sample.index, timestamp, promise });
       try {
         this.decoder.decode(chunk);
+        if (sample.isKeyframe) this.needsKeyframe = false;
       } catch (e) {
         this.waiters.delete(timestamp);
         throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
       }
     }
 
-    try {
-      await this.decoder.flush();
-    } catch (e) {
-      if (signal?.aborted) throw abortedError(signal);
-      throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+    if (this.waiters.size > 0) {
+      await new Promise<void>((r) => {
+        queueMicrotask(r);
+      });
+    }
+    if (this.waiters.size > 0) {
+      try {
+        await this.decoder.flush();
+        this.needsKeyframe = true;
+      } catch (e) {
+        if (signal?.aborted) throw abortedError(signal);
+        throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+      }
     }
 
     const out = new Map<number, VideoFrame>();
@@ -157,7 +173,6 @@ export class AfeVideoDecoder {
       waiter.resolve(frame);
       return;
     }
-    // Timestamp mismatch: attach to the nearest pending waiter.
     let best: number | undefined;
     let bestDelta = Infinity;
     for (const ts of this.waiters.keys()) {
@@ -190,6 +205,7 @@ export class AfeVideoDecoder {
 
   private teardown(): void {
     this.configured = false;
+    this.needsKeyframe = true;
     if (this.decoder) {
       try {
         this.decoder.close();

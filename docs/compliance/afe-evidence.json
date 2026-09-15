@@ -1,0 +1,411 @@
+{
+  "environment": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
+    "webCodecs": true,
+    "videoEncoder": true,
+    "platform": "Linux x86_64"
+  },
+  "plan": {
+    "total": 10228,
+    "byPattern": {
+      "sequential": 1728,
+      "keyframe-boundary": 228,
+      "source-in-out": 99,
+      "clip-rate": 660,
+      "repeated-segment": 88,
+      "random": 3700,
+      "sequential-repeat": 888,
+      "sequential-repeat-2": 888,
+      "long-gop-mix": 1831,
+      "mixed-fps": 110,
+      "export-720p-sample": 8
+    },
+    "byFile": {
+      "afe-cfr-30-g1-2s": 666,
+      "afe-cfr-30-g24-2s": 559,
+      "afe-cfr-30-g25-2s": 559,
+      "afe-cfr-30-g30-2s": 555,
+      "afe-cfr-30-g50-3s": 645,
+      "afe-cfr-30-g60-8s": 1103,
+      "afe-cfr-30-g250-28s": 3679,
+      "afe-cfr-24-g24-2s": 519,
+      "afe-cfr-25-g25-2s": 525,
+      "afe-cfr-50-g50-2s": 675,
+      "afe-cfr-60-g60-2s": 735,
+      "afe-cfr-30-g30-720p-2s": 8
+    }
+  },
+  "decoded": 2960,
+  "sequentialBatch": {
+    "mediabunny": {
+      "totalMs": 452.0999999999767,
+      "n": 1728,
+      "worstMs": 0,
+      "avgMs": 0.261631944444431
+    },
+    "afe": {
+      "totalMs": 518.1999999999534,
+      "n": 1728,
+      "worstMs": 0,
+      "avgMs": 0.2998842592592323
+    }
+  },
+  "random": {
+    "mediabunny": {
+      "totalMs": 1969.099999996717,
+      "n": 1232,
+      "worstMs": 25.5,
+      "avgMs": 1.5982954545427899
+    },
+    "afe": {
+      "totalMs": 2018.8000000026077,
+      "n": 1232,
+      "worstMs": 23.400000000023283,
+      "avgMs": 1.6386363636384802
+    }
+  },
+  "performance": {
+    "mediabunny": {
+      "n": 2960,
+      "counts": {
+        "EXACT": 2960,
+        "WITHIN 1 FRAME": 0,
+        ">1 FRAME ERROR": 0,
+        "FAILED SEEK": 0,
+        "TIMEOUT": 0,
+        "WRONG FRAME": 0,
+        "UNKNOWN": 0
+      },
+      "totalMs": 2421.19999999662,
+      "avgMs": 0.8179729729718311,
+      "worstMs": 25.5
+    },
+    "afe": {
+      "n": 2960,
+      "counts": {
+        "EXACT": 2960,
+        "WITHIN 1 FRAME": 0,
+        ">1 FRAME ERROR": 0,
+        "FAILED SEEK": 0,
+        "TIMEOUT": 0,
+        "WRONG FRAME": 0,
+        "UNKNOWN": 0
+      },
+      "totalMs": 2537.0000000025298,
+      "avgMs": 0.8570945945954492,
+      "worstMs": 23.400000000023283
+    }
+  },
+  "totals": {
+    "mediabunny": {
+      "EXACT": 2960,
+      "WITHIN 1 FRAME": 0,
+      ">1 FRAME ERROR": 0,
+      "FAILED SEEK": 0,
+      "TIMEOUT": 0,
+      "WRONG FRAME": 0,
+      "UNKNOWN": 0
+    },
+    "afe": {
+      "EXACT": 2960,
+      "WITHIN 1 FRAME": 0,
+      ">1 FRAME ERROR": 0,
+      "FAILED SEEK": 0,
+      "TIMEOUT": 0,
+      "WRONG FRAME": 0,
+      "UNKNOWN": 0
+    },
+    "compared": 2960,
+    "agree": 2960
+  },
+  "randomSeek": [
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 25,
+      "expectedFrame": 750,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 25,
+        "presentedSec": 25,
+        "actualFrame": 750,
+        "ms": 0.8000000000465661,
+        "empty": false,
+        "expectedFrame": 750,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 25,
+        "presentedSec": 25,
+        "actualFrame": 750,
+        "ms": 1,
+        "empty": false,
+        "expectedFrame": 750,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    },
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 10,
+      "expectedFrame": 300,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 10,
+        "presentedSec": 10,
+        "actualFrame": 300,
+        "ms": 2.5,
+        "empty": false,
+        "expectedFrame": 300,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 10,
+        "presentedSec": 10,
+        "actualFrame": 300,
+        "ms": 2.400000000023283,
+        "empty": false,
+        "expectedFrame": 300,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    },
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 2,
+      "expectedFrame": 60,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 2,
+        "presentedSec": 2,
+        "actualFrame": 60,
+        "ms": 3,
+        "empty": false,
+        "expectedFrame": 60,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 2,
+        "presentedSec": 2,
+        "actualFrame": 60,
+        "ms": 3,
+        "empty": false,
+        "expectedFrame": 60,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    },
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 5,
+      "expectedFrame": 150,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 5,
+        "presentedSec": 5,
+        "actualFrame": 150,
+        "ms": 5.399999999906868,
+        "empty": false,
+        "expectedFrame": 150,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 5,
+        "presentedSec": 5,
+        "actualFrame": 150,
+        "ms": 6.200000000069849,
+        "empty": false,
+        "expectedFrame": 150,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    },
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 18,
+      "expectedFrame": 540,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 18,
+        "presentedSec": 18,
+        "actualFrame": 540,
+        "ms": 1.7999999999301508,
+        "empty": false,
+        "expectedFrame": 540,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 18,
+        "presentedSec": 18,
+        "actualFrame": 540,
+        "ms": 2.300000000046566,
+        "empty": false,
+        "expectedFrame": 540,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    },
+    {
+      "file": "afe-cfr-30-g250-28s",
+      "fps": 30,
+      "gop": 250,
+      "requestedSec": 1,
+      "expectedFrame": 30,
+      "pattern": "keyframe-boundary",
+      "mediabunny": {
+        "backend": "mediabunny",
+        "requestedSec": 1,
+        "presentedSec": 1,
+        "actualFrame": 30,
+        "ms": 1.400000000023283,
+        "empty": false,
+        "expectedFrame": 30,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "afe": {
+        "backend": "ailexsi",
+        "requestedSec": 1,
+        "presentedSec": 1,
+        "actualFrame": 30,
+        "ms": 2,
+        "empty": false,
+        "expectedFrame": 30,
+        "class": "EXACT",
+        "frameDelta": 0,
+        "timeDelta": 0
+      },
+      "match": true
+    }
+  ],
+  "mismatches": [],
+  "mismatchCount": 0,
+  "memory": {
+    "twoSec": {
+      "label": "2s",
+      "loops": 1,
+      "last": {
+        "loop": 0,
+        "decodedCached": 0,
+        "maxDecodedCached": 12,
+        "approxBytes": 0,
+        "peakDecodedCached": 0
+      },
+      "peakDecoded": 0,
+      "peakBytes": 0,
+      "stabilized": false
+    },
+    "twentyEight": {
+      "label": "28s",
+      "loops": 1,
+      "last": {
+        "loop": 0,
+        "decodedCached": 12,
+        "maxDecodedCached": 12,
+        "approxBytes": 752640,
+        "peakDecodedCached": 12
+      },
+      "peakDecoded": 12,
+      "peakBytes": 752640,
+      "stabilized": false
+    },
+    "sevenMinSim": {
+      "label": "7min-sim",
+      "loops": 210,
+      "last": {
+        "loop": 209,
+        "decodedCached": 0,
+        "maxDecodedCached": 12,
+        "approxBytes": 0,
+        "peakDecodedCached": 0
+      },
+      "peakDecoded": 0,
+      "peakBytes": 0,
+      "stabilized": true
+    },
+    "thirtyMinTail": {
+      "label": "30min-tail",
+      "loops": 50,
+      "last": {
+        "loop": 49,
+        "decodedCached": 0,
+        "maxDecodedCached": 12,
+        "approxBytes": 0,
+        "peakDecodedCached": 0
+      },
+      "peakDecoded": 0,
+      "peakBytes": 0,
+      "stabilized": true
+    }
+  },
+  "abortTest": {
+    "ok": true,
+    "code": "AFE_ABORTED",
+    "late": 0,
+    "error": "AFE_ABORTED: signal is aborted without reason"
+  },
+  "fallbackTest": {
+    "ok": true,
+    "code": "AFE_UNSUPPORTED_CONTAINER",
+    "error": "AFE_UNSUPPORTED_CONTAINER: invalid box size for E fr"
+  },
+  "export720": {
+    "ran": true,
+    "mediabunny": {
+      "success": true,
+      "bytes": 20106,
+      "ms": 282.9000000000233,
+      "audio": "none"
+    },
+    "afe": {
+      "success": true,
+      "bytes": 20141,
+      "ms": 650.1999999999534,
+      "audio": "none"
+    },
+    "bothOk": true
+  },
+  "semantics": {
+    "sourceTimeSecRate2": 2.5166666666666666
+  }
+}

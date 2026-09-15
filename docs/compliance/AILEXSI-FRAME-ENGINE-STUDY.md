@@ -188,10 +188,113 @@ Only **AFE-SUPERIOR** is eligible for a later production-default **trial**. Even
 
 ## Measurements
 
-Filled after vitest oracle + Chrome harness on this agent. Linux Chrome ≠ WebView2.
+Inspected on this branch after `npx tsc --noEmit`, targeted vitest, full suite, `npm run build`, and `node scripts/afe-run-chrome.mjs`.
 
-See `docs/compliance/afe-oracle-summary.json` and `docs/compliance/afe-evidence.json` when present.
+Environment: **AGENT/BROWSER VERIFIED** — HeadlessChrome/148.0.0.0, Linux x86_64, `VideoDecoder` + `VideoEncoder` present. Not Windows WebView2.
+
+### Packet oracle (jsdom / Mediabunny demux)
+
+`EncodedPacketSink.getPacket` vs AFE `sampleIndexAtTime` on the full plan (`tests/export/afe-oracle.test.ts`).
+
+| | |
+| --- | --- |
+| TOTAL FRAME REQUESTS | **10228** |
+| MEDIABUNNY EXACT (packet PTS) | **10228** |
+| AFE EXACT | **10228** |
+| AFE MISMATCHES | **0** |
+
+Plan mix: sequential 1728, sequential-repeat 1776, random 3700, long-GOP mix 1831, clip-rate 660, keyframe-boundary 228, mixed-fps 110, source-in-out 99, repeated-segment 88, 720p sample 8.
+
+### Pixel oracle (Chrome 148)
+
+Same identity barcodes. Sequential used `getFramesAt`; random used reused `getFrameAt`.
+
+| Backend | EXACT | WITHIN 1 | >1 | FAILED | UNKNOWN |
+| --- | --- | --- | --- | --- | --- |
+| Mediabunny | **2960** | 0 | 0 | 0 | 0 |
+| AILEXSI | **2960** | 0 | 0 | 0 | 0 |
+
+Compared 2960 painted timestamps. A/B same presented index: 2960/2960.
+
+Required random 10s / 2s / 25s / 5s / 18s / 1s on GOP-250 28s: **6/6 EXACT on both** (frames 300, 60, 750, 150, 540, 30).
+
+### Performance (Chrome 148, real parse+decode)
+
+| | Mediabunny | AILEXSI | Winner |
+| --- | --- | --- | --- |
+| Sequential batch (n=1728) avg | **0.262 ms** | 0.300 ms | **MEDIABUNNY** |
+| Sequential batch total | 452 ms | 518 ms | MEDIABUNNY |
+| Random (n=1232) avg | **1.598 ms** | 1.639 ms | **MEDIABUNNY** |
+| Worst random | 25.5 ms | **23.4 ms** | AILEXSI (small) |
+| All pixel retrievals avg | **0.818 ms** | 0.857 ms | MEDIABUNNY |
+| 720p30 export wall | **283 ms** | 650 ms | MEDIABUNNY |
+
+Study Mediabunny baseline on PR #22 (840 timestamps, different harness): avg ≈ 3.59 ms, total ≈ 3.02 s, worst ≈ 33.1 ms. This pass is a different request mix and reuses an opened source, so averages are not directly comparable to that 3.59 ms figure. Relative A vs AFE on **this** harness is the measurement that matters.
+
+### Memory
+
+AFE cache max = 12 decoded frames. 28s GOP-250 pass peaked at **12 frames / 752640 bytes** (~0.72 MiB RGBA estimate) and did not grow past the cap. 7min-sim (210 loops of the 2s all-intra file) and 30min-tail (50 more loops) ended at 0 cached frames (ownership transferred and `close()`d each yield) with `stabilized: true`. No unbounded growth observed. Mediabunny’s internal decoder cache was not instrumented the same way.
+
+### Abort / fallback
+
+| Test | Result |
+| --- | --- |
+| AbortSignal mid-`getFramesAt` | **AFE_ABORTED**, 0 late frames |
+| Non-MP4 (`README.md`) | **AFE_UNSUPPORTED_CONTAINER** (fallback-safe) |
+
+### Resonance semantics
+
+Planner/compositor tests (`afe-semantics.test.ts`) unchanged across `mediabunny` / `ailexsi` / `htmlvideo`. Chrome recorded `sourceTimeSec` rate-2 + Source In 2000 at timeline 250 ms = **2.5166… s** (same formula as production).
+
+### 720p30 export
+
+SOURCE → backend → existing canvas → existing `VideoEncoder` `avc1.42001f` → existing `muxAvcToMp4`.
+
+| | success | bytes | wall |
+| --- | --- | --- | --- |
+| Mediabunny | yes | 20106 | 283 ms |
+| AILEXSI | yes | 20141 | 650 ms |
+
+Both OK. Downstream encode/mux not changed. 1080p not used.
 
 ## Decision
 
-Pending measurements on this branch. Default remains Mediabunny. AFE is a review-only challenger. **Do not merge as a production-default change.**
+**AFE-COMPETITIVE.**
+
+Not AFE-FAIL: 0 packet mismatches, 0 pixel mismatches, 0 ±1, 0 GOP snap, abort and unsupported-container behave.
+
+Not AFE-SUPERIOR: sequential batch and random averages and 720p export wall time belong to **Mediabunny** on Chrome 148 Linux. Windows WebView2 is unverified.
+
+AFE-COMPETITIVE because AFE is exact against the oracle, memory is capped, worst random was slightly lower here, and throughput is in the same band (about 15% slower sequential, about 3% slower random) — some metrics win, the ones that matter for beating Mediabunny do not.
+
+**Production default stays Mediabunny.** AFE is a review-only challenger. Do not crown a winner. Do not merge as a default change.
+
+```
+INITIAL MAIN SHA: a922c6eb77cb68494fbde9bd222a16b46ad00b32
+AFE IMPLEMENTED: YES
+MEDIABUNNY BASELINE: 1.55.3; PR #22 study 840/840 EXACT, avg ≈ 3.59 ms (different mix)
+CORRECTNESS TESTS: packet 10228/10228; pixels 2960/2960
+TOTAL FRAME REQUESTS: 10228 (oracle) + 2960 (Chrome pixels)
+MEDIABUNNY EXACT: 10228 packet / 2960 pixel
+AFE EXACT: 10228 packet / 2960 pixel
+AFE MISMATCHES: 0
+SEQUENTIAL: MEDIABUNNY 0.262 ms / AFE 0.300 ms / WINNER MEDIABUNNY
+RANDOM: MEDIABUNNY 1.598 ms / AFE 1.639 ms / WINNER MEDIABUNNY
+WORST LATENCY: MEDIABUNNY 25.5 ms / AFE 23.4 ms
+MEMORY: AFE cap 12 frames / 0.72 MiB peak on 28s; Mediabunny not equivalently metered
+ABORT TEST: PASS (AFE_ABORTED, late=0)
+FALLBACK TEST: PASS (AFE_UNSUPPORTED_CONTAINER)
+FULL 720P30 EXPORT: both success
+TYPECHECK: npx tsc --noEmit exit 0
+TARGETED TESTS: 63 tests passed in 8 files
+FULL SUITE: 932 tests passed in 107 files
+BUILD: vite 7.3.6, 206 modules, version 5.0.0
+WINDOWS WEBVIEW2 VERIFIED: NO
+WINDOWS HUMAN TEST REQUIRED: YES
+CLASSIFICATION: AFE-COMPETITIVE
+PRODUCTION DEFAULT CHANGED: NO
+MEDIABUNNY REMOVED: NO
+PACKAGE LOCK REMOVAL: NO
+LICENSE CHANGED: NO
+```
+

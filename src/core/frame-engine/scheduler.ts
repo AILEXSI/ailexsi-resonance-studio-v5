@@ -1,8 +1,10 @@
 import { DecodedFrameCache } from "./cache";
 import { AfeVideoDecoder } from "./decoder";
-import { AfeError, throwIfAborted } from "./errors";
+import { AfeError, isAfeError, throwIfAborted } from "./errors";
 import { keyframeAtOrBefore, sampleIndexAtTime } from "./mp4-reader";
 import type { AfeMemoryStats, AfeMovie, AfeSample, DrawableFrame } from "./types";
+
+const BATCH_SPAN = 24;
 
 export class AfeDrawable implements DrawableFrame {
   constructor(
@@ -81,9 +83,43 @@ export class AfeScheduler {
   async *getFramesAt(timesSec: readonly number[], signal?: AbortSignal): AsyncIterable<DrawableFrame | null> {
     throwIfAborted(signal);
     if (this.closed) throw new AfeError("AFE_DECODE_FAILED", "scheduler closed", false);
-    for (const t of timesSec) {
+    let i = 0;
+    while (i < timesSec.length) {
       throwIfAborted(signal);
-      yield await this.getFrameAt(t, signal);
+      const index = sampleIndexAtTime(this.movie, timesSec[i]!);
+      if (index == null) {
+        yield null;
+        i += 1;
+        continue;
+      }
+      let last = index;
+      let j = i + 1;
+      while (j < timesSec.length && j - i < BATCH_SPAN) {
+        const nxt = sampleIndexAtTime(this.movie, timesSec[j]!);
+        if (nxt == null || nxt < last) break;
+        last = nxt;
+        j += 1;
+      }
+      const produced = await this.decodeSpan(index, last, signal);
+      for (let k = i; k < j; k++) {
+        const idx = sampleIndexAtTime(this.movie, timesSec[k]!);
+        if (idx == null) {
+          yield null;
+          continue;
+        }
+        let frame = produced.get(idx);
+        if (frame) produced.delete(idx);
+        else frame = this.cache.takeClone(idx) ?? undefined;
+        if (!frame) {
+          yield null;
+          continue;
+        }
+        yield this.wrap(frame, this.movie.samples[idx]!);
+      }
+      for (const [idx, frame] of produced) {
+        this.cache.put(idx, frame);
+      }
+      i = j;
     }
   }
 
@@ -96,41 +132,55 @@ export class AfeScheduler {
   private async decodeTo(target: number, signal?: AbortSignal): Promise<VideoFrame> {
     const cached = this.cache.takeClone(target);
     if (cached) return cached;
+    const produced = await this.decodeSpan(target, target, signal);
+    const wanted = produced.get(target);
+    for (const [index, frame] of produced) {
+      if (index === target) continue;
+      this.cache.put(index, frame);
+    }
+    if (wanted) {
+      this.cache.put(target, wanted);
+      return wanted.clone();
+    }
+    const again = this.cache.takeClone(target);
+    if (!again) throw new AfeError("AFE_DECODE_FAILED", `no output for sample ${target}`);
+    return again;
+  }
 
-    const key = keyframeAtOrBefore(this.movie, target);
-    const canContinue = this.warm && this.nextDecode <= target && this.nextDecode > key;
+  private async decodeSpan(from: number, to: number, signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
+    const start = Math.min(from, to);
+    const end = Math.max(from, to);
+    const key = keyframeAtOrBefore(this.movie, start);
+    const canContinue = this.warm && !this.decoder.needsKeyframe && this.nextDecode <= start;
     if (!canContinue) {
       await this.decoder.reset(signal);
       this.nextDecode = key;
       this.warm = true;
     }
 
-    if (this.nextDecode > target) {
-      const again = this.cache.takeClone(target);
-      if (again) return again;
-    }
+    if (this.nextDecode > end) return new Map();
 
     const run: AfeSample[] = [];
-    for (let i = this.nextDecode; i <= target; i++) {
+    for (let i = this.nextDecode; i <= end; i++) {
       const sample = this.movie.samples[i];
       if (!sample) throw new AfeError("AFE_DECODE_FAILED", `missing sample ${i}`);
       run.push(sample);
     }
+    if (run.length === 0) return new Map();
 
-    if (run.length === 0) {
-      const again = this.cache.takeClone(target);
-      if (!again) throw new AfeError("AFE_DECODE_FAILED", `no sample path to ${target}`);
-      return again;
+    let frames: Map<number, VideoFrame>;
+    try {
+      frames = await this.decoder.decodeRange(run, signal);
+    } catch (e) {
+      if (!isAfeError(e) || !/key frame/i.test(e.message)) throw e;
+      await this.decoder.reset(signal);
+      this.nextDecode = key;
+      this.warm = true;
+      const retry: AfeSample[] = [];
+      for (let i = key; i <= end; i++) retry.push(this.movie.samples[i]!);
+      frames = await this.decoder.decodeRange(retry, signal);
     }
-
-    const frames = await this.decoder.decodeRange(run, signal);
-    for (const [index, frame] of frames) {
-      this.cache.put(index, frame);
-    }
-    this.nextDecode = target + 1;
-
-    const wanted = this.cache.takeClone(target);
-    if (!wanted) throw new AfeError("AFE_DECODE_FAILED", `no output for sample ${target}`);
-    return wanted;
+    this.nextDecode = end + 1;
+    return frames;
   }
 }
