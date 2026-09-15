@@ -1,6 +1,6 @@
 <!doctype html>
 <html>
-  <!-- AFE-01 harness. Dev-only. Not under public/; Vite does not copy this into dist / Tauri. -->
+  <!-- AFE-02 harness. Dev-only. Not under public/; Vite does not copy this into dist / Tauri. -->
   <head>
     <meta charset="utf-8" />
     <title>AFE frame harness pending</title>
@@ -21,7 +21,14 @@
         sourceTimeSec,
       } from "/src/core/exporter/frame-source.ts";
       import { exportWithWebCodecs } from "/src/core/exporter/webcodecs.ts";
-      import { createFrameSourceBackend, isAfeError } from "/src/core/frame-engine/index.ts";
+      import {
+        beginAfePerf,
+        createFrameSourceBackend,
+        endAfePerf,
+        installWebCodecsProbe,
+        isAfeError,
+        summarizePhases,
+      } from "/src/core/frame-engine/index.ts";
       import {
         classifyFrameHit,
         expectedFrameAtSec,
@@ -29,7 +36,8 @@
         AFE_WIDTH,
         readBarcodeFromImageData,
       } from "/scripts/afe-shared.mjs";
-      import { buildRequestPlan, sequentialTimes, summarizePlan } from "/tests/export/afe-plan.ts";
+      import { clipOf, jobOf, wallStats } from "/scripts/afe-bench.ts";
+      import { buildRequestPlan, randomTimes, sequentialTimes, summarizePlan } from "/tests/export/afe-plan.ts";
 
       const out = document.getElementById("out");
       const RECEIVE = "http://127.0.0.1:18767";
@@ -228,44 +236,81 @@
       }
 
       function exportJob(url, width, height, durationMs, fps) {
+        return jobOf("afe-720", url, width, height, durationMs, fps, [
+          clipOf("c1", url, 0, durationMs, { sourceInMs: 0, sourceOutMs: durationMs, label: "720p" }),
+        ]);
+      }
+
+      const qs = new URLSearchParams(location.search);
+      const WARMUP_N = Math.max(0, Number(qs.get("warmup") ?? 10));
+      const MEASURED_N = Math.max(1, Number(qs.get("measured") ?? 30));
+      const AJ_WARMUP = Math.max(0, Number(qs.get("ajWarmup") ?? 2));
+      const AJ_MEASURED = Math.max(1, Number(qs.get("ajMeasured") ?? 3));
+
+      async function timedExport(identity, job) {
+        installWebCodecsProbe();
+        beginAfePerf(identity);
+        setFrameSourceBackend(identity);
+        clearFrameSources();
+        const t0 = performance.now();
+        const out = await exportWithWebCodecs(job);
+        const wall = performance.now() - t0;
+        const snap = endAfePerf();
+        resetFrameSourceBackend();
+        clearFrameSources();
         return {
-          id: "afe-720",
-          projectId: "p",
-          projectName: "afe",
-          startMs: 0,
-          endMs: durationMs,
-          durationMs,
-          width,
-          height,
-          fps,
-          fileName: "afe-720p30.mp4",
-          tracks: [
-            {
-              id: "V1",
-              kind: "video",
-              pan: 0,
-              clips: [
-                {
-                  id: "c1",
-                  trackId: "V1",
-                  kind: "video",
-                  startMs: 0,
-                  endMs: durationMs,
-                  sourceUrl: url,
-                  sourceInMs: 0,
-                  sourceOutMs: durationMs,
-                  gain: 1,
-                  fadeInMs: 0,
-                  fadeOutMs: 0,
-                  rate: 1,
-                  missing: false,
-                  label: "720p",
-                },
-              ],
-            },
-          ],
-          visualizer: { enabled: false, muted: true, sceneId: "spectrum-bars" },
+          result: { success: out.success, error: out.error, bytes: out.fileSizeBytes, audio: out.audio },
+          wall,
+          snap,
+          phases: snap ? summarizePhases(snap) : [],
         };
+      }
+
+      async function repeatExport(identity, job, warmup, measured) {
+        const warm = [];
+        const measuredMs = [];
+        for (let i = 0; i < warmup + measured; i++) {
+          setFrameSourceBackend(identity);
+          clearFrameSources();
+          const t0 = performance.now();
+          const out = await exportWithWebCodecs({ ...job, fileName: `${job.fileName}-${identity}-${i}` });
+          const ms = performance.now() - t0;
+          if (!out.success) {
+            resetFrameSourceBackend();
+            clearFrameSources();
+            return { error: out.error, warmup: wallStats(warm), measured: wallStats(measuredMs) };
+          }
+          if (i < warmup) warm.push(ms);
+          else measuredMs.push(ms);
+          resetFrameSourceBackend();
+          clearFrameSources();
+        }
+        return { warmup: wallStats(warm), measured: wallStats(measuredMs), rawWarm: warm, rawMeasured: measuredMs };
+      }
+
+      async function rawDecodePass(identity, url, times, width, height, reuseOpened) {
+        installWebCodecsProbe();
+        beginAfePerf(identity);
+        const tAll = performance.now();
+        const opened = await createFrameSourceBackend(identity).open(url);
+        if (reuseOpened) {
+          for await (const sample of opened.getFramesAt(times)) sample?.close();
+          endAfePerf();
+          beginAfePerf(identity);
+        }
+        const canvas = makeCanvas(width, height);
+        const ctx = canvas.getContext("2d");
+        const t0 = performance.now();
+        for await (const sample of opened.getFramesAt(times)) {
+          if (!sample) continue;
+          sample.draw(ctx, 0, 0, width, height);
+          sample.close();
+        }
+        const decodeWall = performance.now() - t0;
+        const wall = reuseOpened ? decodeWall : performance.now() - tAll;
+        const snap = endAfePerf();
+        opened.close();
+        return { wall, decodeWall, snap, n: times.length, cold: !reuseOpened };
       }
 
       try {
@@ -401,6 +446,59 @@
           opened.close();
         }
 
+        let abortOpen = { ok: false };
+        {
+          const ac = new AbortController();
+          ac.abort();
+          try {
+            await createFrameSourceBackend("ailexsi").open(new URL("/" + decodeFiles[0].path, location.origin).href, ac.signal);
+            abortOpen = { ok: false, error: "open ignored abort" };
+          } catch (e) {
+            abortOpen = {
+              ok: isAfeError(e) && e.code === "AFE_ABORTED",
+              code: isAfeError(e) ? e.code : null,
+              error: e instanceof Error ? e.message : String(e),
+            };
+          }
+        }
+
+        let abortRandom = { ok: false };
+        {
+          const opened = await createFrameSourceBackend("ailexsi").open(new URL("/" + decodeFiles[0].path, location.origin).href);
+          const ac = new AbortController();
+          ac.abort();
+          try {
+            await opened.getFrameAt(0.4, ac.signal);
+            abortRandom = { ok: false, error: "getFrameAt ignored abort" };
+          } catch (e) {
+            abortRandom = {
+              ok: isAfeError(e) && e.code === "AFE_ABORTED",
+              code: isAfeError(e) ? e.code : null,
+              error: e instanceof Error ? e.message : String(e),
+            };
+          }
+          opened.close();
+        }
+
+        let abortExport = { ok: false };
+        if (typeof VideoEncoder !== "undefined") {
+          const url = new URL("/" + decodeFiles[0].path, location.origin).href;
+          const ac = new AbortController();
+          setFrameSourceBackend("ailexsi");
+          clearFrameSources();
+          const job = exportJob(url, 160, 90, 2000, 30);
+          const p = exportWithWebCodecs(job, { signal: ac.signal });
+          ac.abort();
+          const out = await p;
+          abortExport = {
+            ok: Boolean(out.aborted || /abort/i.test(out.error || "")),
+            aborted: out.aborted,
+            error: out.error || null,
+          };
+          resetFrameSourceBackend();
+          clearFrameSources();
+        }
+
         let fallbackTest = { ok: false };
         try {
           await createFrameSourceBackend("ailexsi").open(new URL("/tests/fixtures/afe/README.md", location.origin).href);
@@ -413,30 +511,198 @@
           };
         }
 
-        show("720p30 export");
+        show("720p30 export + AFE-02 phases");
         const wide = manifest.files.find((f) => (f.width ?? 0) >= 1280);
+        const g1 = decodeFiles.find((f) => f.id === "afe-cfr-30-g1-2s");
+        const g250 = decodeFiles.find((f) => f.id.includes("g250"));
+        const fpsFiles = decodeFiles.filter((f) => [24, 25, 50, 60].includes(f.fps));
         let export720 = { ran: false };
+        let phaseExport = { ran: false };
+        let exportRepeats = { ran: false };
+        let raw720 = { ran: false };
+        let benches = [];
         if (wide && typeof VideoEncoder !== "undefined") {
+          installWebCodecsProbe();
           const srcUrl = new URL("/" + wide.path, location.origin).href;
           const jobA = exportJob(srcUrl, 1280, 720, 2000, 30);
-          resetFrameSourceBackend();
-          clearFrameSources();
-          const t0 = performance.now();
-          const a = await exportWithWebCodecs(jobA);
-          const mbMs = performance.now() - t0;
-          setFrameSourceBackend("ailexsi");
-          clearFrameSources();
-          const t1 = performance.now();
-          const b = await exportWithWebCodecs({ ...jobA, fileName: "afe-720p30-ailexsi.mp4" });
-          const afeMs = performance.now() - t1;
-          resetFrameSourceBackend();
-          clearFrameSources();
+          const seq720 = sequentialTimes(wide);
+
+          show("phase export mediabunny");
+          const mbPhase = await timedExport("mediabunny", { ...jobA, fileName: "afe-720p30-mb-phase.mp4" });
+          show("phase export ailexsi");
+          const afePhase = await timedExport("ailexsi", { ...jobA, fileName: "afe-720p30-afe-phase.mp4" });
+          phaseExport = {
+            ran: true,
+            mediabunny: mbPhase,
+            afe: afePhase,
+            bothOk: Boolean(mbPhase.result.success && afePhase.result.success),
+          };
           export720 = {
             ran: true,
-            mediabunny: { success: a.success, error: a.error, bytes: a.fileSizeBytes, ms: mbMs, audio: a.audio },
-            afe: { success: b.success, error: b.error, bytes: b.fileSizeBytes, ms: afeMs, audio: b.audio },
-            bothOk: Boolean(a.success && b.success),
+            mediabunny: { ...mbPhase.result, ms: mbPhase.wall },
+            afe: { ...afePhase.result, ms: afePhase.wall },
+            bothOk: phaseExport.bothOk,
           };
+
+          show("raw 720 COLD/WARM");
+          const mbCold = await rawDecodePass("mediabunny", srcUrl, seq720, 1280, 720, false);
+          const afeCold = await rawDecodePass("ailexsi", srcUrl, seq720, 1280, 720, false);
+          const mbWarm = await rawDecodePass("mediabunny", srcUrl, seq720, 1280, 720, true);
+          const afeWarm = await rawDecodePass("ailexsi", srcUrl, seq720, 1280, 720, true);
+          raw720 = {
+            ran: true,
+            cold: { mediabunny: mbCold, afe: afeCold },
+            warm: { mediabunny: mbWarm, afe: afeWarm },
+          };
+
+          show("repeat 720p30 warmup=" + WARMUP_N + " measured=" + MEASURED_N);
+          const mbRep = await repeatExport("mediabunny", jobA, WARMUP_N, MEASURED_N);
+          const afeRep = await repeatExport("ailexsi", jobA, WARMUP_N, MEASURED_N);
+          exportRepeats = {
+            ran: true,
+            warmupN: WARMUP_N,
+            measuredN: MEASURED_N,
+            mediabunny: mbRep,
+            afe: afeRep,
+          };
+
+          const smallUrl = new URL("/" + g1.path, location.origin).href;
+          const longUrl = new URL("/" + g250.path, location.origin).href;
+          const makeAj = async (id, title, raw, job) => {
+            show("bench " + id + " " + title);
+            const mbRaw = await rawDecodePass("mediabunny", raw.url, raw.times, raw.w, raw.h, false);
+            const afeRaw = await rawDecodePass("ailexsi", raw.url, raw.times, raw.w, raw.h, false);
+            let exp = null;
+            if (job) {
+              const mbE = await repeatExport("mediabunny", job, AJ_WARMUP, AJ_MEASURED);
+              const afeE = await repeatExport("ailexsi", job, AJ_WARMUP, AJ_MEASURED);
+              exp = { mediabunny: mbE, afe: afeE };
+            }
+            return {
+              id,
+              title,
+              raw: { mediabunny: { wall: mbRaw.wall, snap: mbRaw.snap }, afe: { wall: afeRaw.wall, snap: afeRaw.snap } },
+              export: exp,
+            };
+          };
+
+          benches.push(
+            await makeAj("A", "sequential one-source 720p30", { url: srcUrl, times: seq720, w: 1280, h: 720 }, jobA),
+          );
+          const repTimes = [];
+          for (let k = 0; k < 2; k++) {
+            for (let i = 0; i < 15; i++) repTimes.push((i + 0.5) / 30);
+          }
+          benches.push(
+            await makeAj(
+              "B",
+              "repeated segments",
+              { url: srcUrl, times: repTimes, w: 1280, h: 720 },
+              jobOf("B", srcUrl, 1280, 720, 1000, 30, [
+                clipOf("b1", srcUrl, 0, 500, { sourceInMs: 0, sourceOutMs: 500 }),
+                clipOf("b2", srcUrl, 500, 1000, { sourceInMs: 0, sourceOutMs: 500 }),
+              ]),
+            ),
+          );
+          benches.push(
+            await makeAj("C", "random", { url: srcUrl, times: randomTimes(wide, 40, 0xafe02), w: 1280, h: 720 }, null),
+          );
+          benches.push(
+            await makeAj(
+              "D",
+              "hard cuts",
+              { url: srcUrl, times: [...sequentialTimes({ ...wide, frames: 15, fps: 30 }), ...sequentialTimes({ ...wide, frames: 15, fps: 30 })] , w: 1280, h: 720 },
+              jobOf("D", srcUrl, 1280, 720, 2000, 30, [
+                clipOf("d1", srcUrl, 0, 1000, { sourceInMs: 0, sourceOutMs: 1000 }),
+                clipOf("d2", srcUrl, 1000, 2000, { sourceInMs: 500, sourceOutMs: 1500 }),
+              ]),
+            ),
+          );
+          benches.push(
+            await makeAj(
+              "E",
+              "crossfade",
+              { url: srcUrl, times: sequentialTimes({ ...wide, frames: 30, fps: 30 }), w: 1280, h: 720 },
+              jobOf(
+                "E",
+                srcUrl,
+                1280,
+                720,
+                1500,
+                30,
+                [
+                  clipOf("e1", srcUrl, 0, 900, { sourceInMs: 0, sourceOutMs: 900 }),
+                  clipOf("e2", srcUrl, 600, 1500, { sourceInMs: 200, sourceOutMs: 1100 }),
+                ],
+                {
+                  transitions: [
+                    {
+                      id: "xf",
+                      type: "crossfade",
+                      startMs: 600,
+                      durationMs: 300,
+                      sourceAClipId: "e1",
+                      sourceBClipId: "e2",
+                      audio: "cut",
+                      audioMode: "cut",
+                      audioDurationMs: 0,
+                    },
+                  ],
+                },
+              ),
+            ),
+          );
+          benches.push(
+            await makeAj(
+              "F",
+              "Source In",
+              { url: srcUrl, times: sequentialTimes({ ...wide, frames: 30, fps: 30 }).map((t) => t + 0.5), w: 1280, h: 720 },
+              jobOf("F", srcUrl, 1280, 720, 1000, 30, [
+                clipOf("f1", srcUrl, 0, 1000, { sourceInMs: 500, sourceOutMs: 1500 }),
+              ]),
+            ),
+          );
+          benches.push(
+            await makeAj(
+              "G",
+              "clip rate 2",
+              { url: srcUrl, times: sequentialTimes({ ...wide, frames: 30, fps: 30 }).map((t) => t * 2), w: 1280, h: 720 },
+              jobOf("G", srcUrl, 1280, 720, 1000, 30, [
+                clipOf("g1", srcUrl, 0, 1000, { sourceInMs: 0, sourceOutMs: 2000, rate: 2 }),
+              ]),
+            ),
+          );
+          const longTimes = sequentialTimes({ ...g250, frames: 60, fps: 30 });
+          benches.push(
+            await makeAj(
+              "H",
+              "long GOP 250",
+              { url: longUrl, times: longTimes, w: g250.width ?? 160, h: g250.height ?? 90 },
+              jobOf("H", longUrl, 160, 90, 2000, 30, [
+                clipOf("h1", longUrl, 0, 2000, { sourceInMs: 0, sourceOutMs: 2000 }),
+              ]),
+            ),
+          );
+          const intraTimes = sequentialTimes(g1);
+          benches.push(
+            await makeAj(
+              "I",
+              "short GOP / all-intra",
+              { url: smallUrl, times: intraTimes, w: g1.width ?? 160, h: g1.height ?? 90 },
+              jobOf("I", smallUrl, 160, 90, 2000, 30, [
+                clipOf("i1", smallUrl, 0, 2000, { sourceInMs: 0, sourceOutMs: 2000 }),
+              ]),
+            ),
+          );
+          const jRaw = [];
+          for (const file of fpsFiles) {
+            const url = new URL("/" + file.path, location.origin).href;
+            const times = sequentialTimes(file);
+            const mb = await rawDecodePass("mediabunny", url, times, file.width ?? 160, file.height ?? 90, false);
+            const afe = await rawDecodePass("ailexsi", url, times, file.width ?? 160, file.height ?? 90, false);
+            jRaw.push({ file: file.id, fps: file.fps, mediabunny: mb.wall, afe: afe.wall });
+          }
+          benches.push({ id: "J", title: "multiple fps raw", rawByFps: jRaw, export: null });
         }
 
         const mbRows = comparisons.map((c) => c.mediabunny);
@@ -491,8 +757,19 @@
           mismatchCount: mismatches.length,
           memory,
           abortTest,
+          abortOpen,
+          abortRandom,
+          abortExport,
           fallbackTest,
           export720,
+          phaseExport,
+          exportRepeats,
+          raw720,
+          benches,
+          afe02: {
+            warmupN: WARMUP_N,
+            measuredN: MEASURED_N,
+          },
           semantics: {
             sourceTimeSecRate2: sourceTimeSec(
               {

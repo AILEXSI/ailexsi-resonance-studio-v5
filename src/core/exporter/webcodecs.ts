@@ -1,5 +1,6 @@
 import { encodeAac, mixJobAudio, probeAac, withTimeout, type AacProbe } from "./audio";
 import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./frame-source";
+import { afePerfAdd, afePerfEnabled, afePerfTimeAsync } from "../frame-engine/perf";
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
@@ -297,6 +298,21 @@ export async function exportWithWebCodecs(
   const runs = groupFrameRuns(job, frameCount, job.fps);
 
   const waitForQueue = async () => {
+    if (!afePerfEnabled()) {
+      while (encoder.encodeQueueSize > 8) {
+        await new Promise<void>((resolve) => {
+          const done = () => {
+            encoder.removeEventListener("dequeue", done);
+            window.clearTimeout(timer);
+            resolve();
+          };
+          const timer = window.setTimeout(done, 200);
+          encoder.addEventListener("dequeue", done);
+        });
+      }
+      return;
+    }
+    const t0 = performance.now();
     while (encoder.encodeQueueSize > 8) {
       await new Promise<void>((resolve) => {
         const done = () => {
@@ -308,6 +324,7 @@ export async function exportWithWebCodecs(
         encoder.addEventListener("dequeue", done);
       });
     }
+    afePerfAdd("videoEncoderWait", performance.now() - t0);
   };
 
   const encodeCanvas = async (i: number) => {
@@ -388,7 +405,9 @@ export async function exportWithWebCodecs(
               currentTimeMs: (i / job.fps) * 1000,
             });
             const timeMs = (i / job.fps) * 1000;
+            const loop0 = afePerfEnabled() ? performance.now() : 0;
             beginExportFrame(ctx, width, height, job, timeMs);
+            if (loop0) afePerfAdd("exportLoopOverhead", performance.now() - loop0);
             if (sample) {
               withVideoClipAlpha(ctx, job, clip, timeMs, () => {
                 sample.drawWithFit(ctx, { fit: "contain" });
@@ -465,7 +484,7 @@ export async function exportWithWebCodecs(
       }
     }
 
-    await encoder.flush();
+    await afePerfTimeAsync("videoEncoderWait", () => encoder.flush());
     encoder.close();
   } catch (e) {
     try {
@@ -515,6 +534,7 @@ export async function exportWithWebCodecs(
   hooks.onProgress?.({ percent: 95, stage: "Muxing MP4" });
   let bytes: Uint8Array;
   try {
+    const mux0 = afePerfEnabled() ? performance.now() : 0;
     bytes = muxAvcToMp4({
       width,
       height,
@@ -523,6 +543,7 @@ export async function exportWithWebCodecs(
       samples,
       audio: audioTrack,
     });
+    if (mux0) afePerfAdd("mux", performance.now() - mux0);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return fail(job, `FAIL: mux ${msg}`);

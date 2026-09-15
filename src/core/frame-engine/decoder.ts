@@ -1,5 +1,6 @@
 import { decoderConfigOf } from "./avc-config";
 import { AfeError, abortedError, throwIfAborted } from "./errors";
+import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfMarkDecoded, afePerfProbeInstalled } from "./perf";
 import type { AfeMovie, AfeSample } from "./types";
 import { sampleBytes } from "./mp4-reader";
 
@@ -30,6 +31,7 @@ export class AfeVideoDecoder {
       output: (frame) => this.onOutput(frame),
       error: (e) => this.onError(e),
     });
+    if (!afePerfProbeInstalled()) afePerfCount("decoderCreates");
     try {
       const config = decoderConfigOf(this.movie.avc);
       const support = await VideoDecoder.isConfigSupported(config);
@@ -41,6 +43,7 @@ export class AfeVideoDecoder {
       this.decoder.configure(config);
       this.configured = true;
       this.needsKeyframe = true;
+      if (!afePerfProbeInstalled()) afePerfCount("decoderConfigures");
     } catch (e) {
       this.teardown();
       if (e instanceof AfeError) throw e;
@@ -54,8 +57,10 @@ export class AfeVideoDecoder {
     if (this.decoder && this.configured) {
       try {
         this.decoder.reset();
+        if (!afePerfProbeInstalled()) afePerfCount("decoderResets");
         this.decoder.configure(decoderConfigOf(this.movie.avc));
         this.needsKeyframe = true;
+        if (!afePerfProbeInstalled()) afePerfCount("decoderConfigures");
       } catch (e) {
         this.teardown();
         throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
@@ -89,7 +94,13 @@ export class AfeVideoDecoder {
     for (const sample of samples) {
       throwIfAborted(signal);
       const timestamp = this.chunkTimestampUs(sample);
+      const read0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
       const data = sampleBytes(this.movie, sample).slice();
+      if (afePerfEnabled()) {
+        afePerfAdd("encodedSampleRead", performance.now() - read0);
+        afePerfCount("sampleByteSlices");
+        afePerfMarkDecoded(sample.index);
+      }
       const chunk = new EncodedVideoChunk({
         type: sample.isKeyframe ? "key" : "delta",
         timestamp,
@@ -131,6 +142,7 @@ export class AfeVideoDecoder {
     if (this.waiters.size > 0) {
       try {
         await this.decoder.flush();
+        if (!afePerfProbeInstalled()) afePerfCount("decoderFlushes");
         this.needsKeyframe = true;
       } catch (e) {
         if (signal?.aborted) throw abortedError(signal);
@@ -163,6 +175,7 @@ export class AfeVideoDecoder {
   }
 
   private onOutput(frame: VideoFrame): void {
+    afePerfCount("framesDecoded");
     if (this.closed) {
       frame.close();
       return;

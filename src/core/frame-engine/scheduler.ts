@@ -2,6 +2,7 @@ import { DecodedFrameCache } from "./cache";
 import { AfeVideoDecoder } from "./decoder";
 import { AfeError, isAfeError, throwIfAborted } from "./errors";
 import { keyframeAtOrBefore, sampleIndexAtTime } from "./mp4-reader";
+import { afePerfAdd, afePerfCount, afePerfEnabled } from "./perf";
 import type { AfeMemoryStats, AfeMovie, AfeSample, DrawableFrame } from "./types";
 
 const BATCH_SPAN = 24;
@@ -22,7 +23,13 @@ export class AfeDrawable implements DrawableFrame {
   }
 
   draw(ctx: CanvasRenderingContext2D, dx: number, dy: number, dw: number, dh: number): void {
+    if (!afePerfEnabled()) {
+      ctx.drawImage(this.frame, dx, dy, dw, dh);
+      return;
+    }
+    const t0 = performance.now();
     ctx.drawImage(this.frame, dx, dy, dw, dh);
+    afePerfAdd("canvasDraw", performance.now() - t0);
   }
 
   drawWithFit(ctx: CanvasRenderingContext2D, _opts: { fit: "contain" }): void {
@@ -33,15 +40,25 @@ export class AfeDrawable implements DrawableFrame {
     const scale = Math.min(canvas.width / srcW, canvas.height / srcH);
     const w = srcW * scale;
     const h = srcH * scale;
-    ctx.drawImage(this.frame, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    const draw = () => ctx.drawImage(this.frame, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    if (!afePerfEnabled()) {
+      draw();
+      return;
+    }
+    const t0 = performance.now();
+    draw();
+    afePerfAdd("canvasDraw", performance.now() - t0);
   }
 
   close(): void {
+    const t0 = afePerfEnabled() ? performance.now() : 0;
     try {
       this.frame.close();
     } catch {
       /* already closed */
     }
+    afePerfCount("framesClosed");
+    if (t0) afePerfAdd("frameClose", performance.now() - t0);
   }
 }
 
@@ -124,9 +141,14 @@ export class AfeScheduler {
   }
 
   private wrap(frame: VideoFrame, sample: AfeSample): AfeDrawable {
+    const t0 = afePerfEnabled() ? performance.now() : 0;
     const timestamp = sample.ptsTimescale / this.movie.timescale;
     const duration = sample.durationTimescale / this.movie.timescale;
-    return new AfeDrawable(frame, timestamp, duration);
+    const drawable = new AfeDrawable(frame, timestamp, duration);
+    afePerfCount("framesYielded");
+    afePerfCount("videoFrameCreates");
+    if (t0) afePerfAdd("videoFrameHandoff", performance.now() - t0);
+    return drawable;
   }
 
   private async decodeTo(target: number, signal?: AbortSignal): Promise<VideoFrame> {
@@ -148,6 +170,7 @@ export class AfeScheduler {
   }
 
   private async decodeSpan(from: number, to: number, signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
+    afePerfCount("decodeSpanCalls");
     const start = Math.min(from, to);
     const end = Math.max(from, to);
     const key = keyframeAtOrBefore(this.movie, start);

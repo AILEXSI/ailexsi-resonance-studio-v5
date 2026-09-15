@@ -1,6 +1,7 @@
 import { AfeError } from "./errors";
 import type { AfeAvcConfig, AfeMovie, AfeSample } from "./types";
 import { parseAvcC } from "./avc-config";
+import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfTime, peekAfePerf } from "./perf";
 import { buildSampleTable } from "./sample-table";
 
 export interface ParsedBox {
@@ -353,7 +354,7 @@ function parseVideoTrack(bytes: Uint8Array, trak: ParsedBox): Omit<AfeMovie, "by
     syncSamples: stssBox ? parseStss(bytes, stssBox) : null,
   };
 
-  const samples = buildSampleTable(tables);
+  const samples = afePerfTime("sampleTableBuild", () => buildSampleTable(tables));
   const presentation = samples.slice().sort((a, b) => {
     if (a.ptsTimescale !== b.ptsTimescale) return a.ptsTimescale - b.ptsTimescale;
     return a.index - b.index;
@@ -382,6 +383,19 @@ function parseVideoTrack(bytes: Uint8Array, trak: ParsedBox): Omit<AfeMovie, "by
 
 /** Parse a complete (non-fragmented) MP4 with one primary H.264 video track. */
 export function parseIsoBmff(bytes: Uint8Array): AfeMovie {
+  if (!afePerfEnabled()) return parseIsoBmffUnmetered(bytes);
+  const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const tableBefore = peekAfePerf()?.phasesMs.sampleTableBuild ?? 0;
+  try {
+    return parseIsoBmffUnmetered(bytes);
+  } finally {
+    const dt = (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0;
+    const tableDelta = (peekAfePerf()?.phasesMs.sampleTableBuild ?? 0) - tableBefore;
+    afePerfAdd("containerParse", Math.max(0, dt - tableDelta));
+  }
+}
+
+function parseIsoBmffUnmetered(bytes: Uint8Array): AfeMovie {
   if (bytes.length < 16) {
     throw new AfeError("AFE_UNSUPPORTED_CONTAINER", "file too small");
   }
@@ -416,6 +430,7 @@ export function sampleBytes(movie: AfeMovie, sample: AfeSample): Uint8Array {
   if (sample.byteOffset < 0 || end > movie.bytes.length) {
     throw new AfeError("AFE_DECODE_FAILED", `sample ${sample.index} outside file`);
   }
+  afePerfCount("encodedSamplesRead");
   return movie.bytes.subarray(sample.byteOffset, end);
 }
 
@@ -430,6 +445,19 @@ export function mapTimestampIntoTimescale(timeSec: number, timescale: number, ed
 
 /** Last sample in presentation order whose PTS ≤ request. Null if before the first sample. */
 export function sampleIndexAtTime(movie: AfeMovie, timeSec: number): number | null {
+  afePerfCount("sampleIndexLookups");
+  if (afePerfEnabled()) {
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+    try {
+      return sampleIndexAtTimeUnmetered(movie, timeSec);
+    } finally {
+      afePerfAdd("schedulerOverhead", (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0);
+    }
+  }
+  return sampleIndexAtTimeUnmetered(movie, timeSec);
+}
+
+function sampleIndexAtTimeUnmetered(movie: AfeMovie, timeSec: number): number | null {
   const t = mapTimestampIntoTimescale(timeSec, movie.timescale, movie.editListOffset);
   const pts = movie.presentation;
   let lo = 0;
@@ -449,6 +477,19 @@ export function sampleIndexAtTime(movie: AfeMovie, timeSec: number): number | nu
 }
 
 export function keyframeAtOrBefore(movie: AfeMovie, decodeIndex: number): number {
+  afePerfCount("keyframeLookups");
+  if (afePerfEnabled()) {
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+    try {
+      return keyframeAtOrBeforeUnmetered(movie, decodeIndex);
+    } finally {
+      afePerfAdd("keyframeLookup", (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0);
+    }
+  }
+  return keyframeAtOrBeforeUnmetered(movie, decodeIndex);
+}
+
+function keyframeAtOrBeforeUnmetered(movie: AfeMovie, decodeIndex: number): number {
   const keys = movie.keyframeIndices;
   let lo = 0;
   let hi = keys.length - 1;

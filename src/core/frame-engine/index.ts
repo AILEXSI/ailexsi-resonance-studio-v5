@@ -19,6 +19,23 @@ export {
   createFrameSourceBackend,
   openFrameSource,
 } from "./backend";
+export {
+  AFE_PERF_COUNTS,
+  AFE_PERF_PHASES,
+  afePerfAdd,
+  afePerfCount,
+  afePerfEnabled,
+  afePerfProbeInstalled,
+  afePerfTime,
+  afePerfTimeAsync,
+  beginAfePerf,
+  endAfePerf,
+  installWebCodecsProbe,
+  peekAfePerf,
+  summarizePhases,
+  uninstallWebCodecsProbe,
+} from "./perf";
+export type { AfePerfBackend, AfePerfCount, AfePerfPhase, AfePerfSnapshot } from "./perf";
 export type {
   AfeAvcConfig,
   AfeErrorCode,
