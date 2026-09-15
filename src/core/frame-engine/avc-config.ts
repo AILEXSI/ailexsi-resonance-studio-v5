@@ -40,6 +40,6 @@ export function decoderConfigOf(avc: AfeAvcConfig): VideoDecoderConfig {
     codedWidth: avc.width,
     codedHeight: avc.height,
     description: avc.description,
-    optimizeForLatency: true,
+    optimizeForLatency: false,
   };
 }
