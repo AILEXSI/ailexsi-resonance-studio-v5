@@ -13,6 +13,14 @@ Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5. COMPLETE: NO. Vers
 
 MODE A on this cleanup: `tsc --noEmit` exit 0; vitest **906 passed / 101 files** (targeted user-fixtures + export: 85 / 10); `npm run build` 5.0.0, 197 modules. `dist/` contains only `index.html` + `assets/*` — no `user-video.mp4`, `user-audio.mp3`, `export-check.html`, or `fixtures/`. Vite-dev `GET /fixtures/user-video.mp4` (and the mp3) is the SPA HTML fallback (569 B `text/html`), not media. `GET /tests/fixtures/user-video.mp4` / `user-audio.mp3` still serve the test copies for `export-check.html`.
 
+### Dependency state + SBOM (2026-09-15, licensing pass 02)
+
+Engineering pass only. Base SHA `26f4d42` (PR #20). **FACT:** `src-tauri/Cargo.toml` and `src-tauri/src/lib.rs` declared/used `tauri-plugin-fs` / `tauri-plugin-dialog`, but `Cargo.lock` root deps were only `serde`, `serde_json`, `tauri`, `tauri-build` — `cargo metadata --locked` failed. **RESULT:** `cargo fetch` added the two plugins and their new transitive crates only (no existing crate version bumps). Resolved: **tauri-plugin-fs 2.5.2**, **tauri-plugin-dialog 2.7.3** (npm lock already had `@tauri-apps/plugin-fs@2.5.2` / `@tauri-apps/plugin-dialog@2.7.3`). `cargo +1.85.0 fetch --locked` succeeds. Host cargo 1.83.0 cannot parse `edition2024` crates already in the lock (`dlopen2_derive 0.4.3`).
+
+npm: `npm ci --ignore-scripts` left `package-lock.json` SHA-256 unchanged (`95a4e370adf7e76692ccd8faa4511c7596e14f4c4be50d8f91d493bca2a1f181`). Reproducible.
+
+SBOMs (CycloneDX, not a legal certificate): `docs/compliance/sbom-npm.cdx.json` (147 components, cyclonedx-npm 4.1.2); `docs/compliance/sbom-cargo.cdx.json` (443 crates, Syft 1.51.1 + cargo-metadata licenses). Inventory: `docs/compliance/LICENSE-INVENTORY.md`. mediabunny **1.55.3** MPL-2.0 (runtime import, Vite-bundled JS, source not modified). Rust MPL-2.0: cssparser 0.36.0, cssparser-macros 0.6.1, dtoa-short 0.3.5, selectors 0.36.1, option-ext 0.2.0 (Windows-target tree via tauri-utils / dirs). No LICENSE / THIRD_PARTY_NOTICES created. Licensing **not HUMAN-PROVEN**.
+
 ## 2026-09-13 MODE B EXE acceptance (operator PASS)
 
 Accepted local EXE built from PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320` (`cursor/stack-export-vn-1787` onto PR #14). Screenshot `docs/exe-acceptance-2026-09-13.png`: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + version chip **5.0.0** + dynamic tracks/mixer visible.
