@@ -2,6 +2,7 @@ import { ALL_FORMATS, BlobSource, Input, UrlSource, VideoSampleSink, type VideoS
 import { isPlayableSource, loadVideo, seekVideo } from "../exporter/media";
 import { AfeError, throwIfAborted } from "./errors";
 import { parseIsoBmff } from "./mp4-reader";
+import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfTime, afePerfTimeAsync } from "./perf";
 import { AfeScheduler } from "./scheduler";
 import type {
   AfeMemoryStats,
@@ -23,9 +24,11 @@ async function loadSourceBytes(src: string, signal?: AbortSignal): Promise<Uint8
   if (!isPlayableSource(src)) {
     throw new AfeError("AFE_UNSUPPORTED_CONTAINER", "blocked or unreadable source");
   }
-  const res = await fetch(src, { signal });
-  if (!res.ok) throw new AfeError("AFE_DECODE_FAILED", `Failed to read media (${res.status})`);
-  return new Uint8Array(await res.arrayBuffer());
+  return afePerfTimeAsync("sourceOpen", async () => {
+    const res = await fetch(src, { signal });
+    if (!res.ok) throw new AfeError("AFE_DECODE_FAILED", `Failed to read media (${res.status})`);
+    return new Uint8Array(await res.arrayBuffer());
+  });
 }
 
 async function mediabunnySource(src: string) {
@@ -57,15 +60,30 @@ class SampleDrawable implements DrawableFrame {
   }
 
   draw(ctx: CanvasRenderingContext2D, dx: number, dy: number, dw: number, dh: number): void {
+    if (!afePerfEnabled()) {
+      this.sample.draw(ctx, dx, dy, dw, dh);
+      return;
+    }
+    const t0 = performance.now();
     this.sample.draw(ctx, dx, dy, dw, dh);
+    afePerfAdd("canvasDraw", performance.now() - t0);
   }
 
   drawWithFit(ctx: CanvasRenderingContext2D, opts: { fit: "contain" }): void {
+    if (!afePerfEnabled()) {
+      this.sample.drawWithFit(ctx, opts);
+      return;
+    }
+    const t0 = performance.now();
     this.sample.drawWithFit(ctx, opts);
+    afePerfAdd("canvasDraw", performance.now() - t0);
   }
 
   close(): void {
+    const t0 = afePerfEnabled() ? performance.now() : 0;
     this.sample.close();
+    afePerfCount("framesClosed");
+    if (t0) afePerfAdd("frameClose", performance.now() - t0);
   }
 }
 
@@ -124,7 +142,9 @@ class AilexsiOpened implements OpenedFrameSource {
   }
 
   close(): void {
-    this.scheduler.close();
+    afePerfTime("cleanup", () => {
+      this.scheduler.close();
+    });
   }
 
   memoryStats() {
@@ -142,24 +162,43 @@ class MediabunnyOpened implements OpenedFrameSource {
 
   async getFrameAt(timeSec: number, signal?: AbortSignal): Promise<DrawableFrame | null> {
     throwIfAborted(signal);
-    const sample = await this.sink.getSample(timeSec);
-    return sample ? new SampleDrawable(sample) : null;
+    const sample = await afePerfTimeAsync("decodeQueueWait", () => this.sink.getSample(timeSec));
+    if (!sample) return null;
+    afePerfCount("framesDecoded");
+    return afePerfTime("videoFrameHandoff", () => {
+      afePerfCount("framesYielded");
+      return new SampleDrawable(sample);
+    });
   }
 
   async *getFramesAt(timesSec: readonly number[], signal?: AbortSignal): AsyncIterable<DrawableFrame | null> {
     throwIfAborted(signal);
-    for await (const sample of this.sink.samplesAtTimestamps(timesSec)) {
+    const iter = this.sink.samplesAtTimestamps(timesSec);
+    for (;;) {
       throwIfAborted(signal);
-      yield sample ? new SampleDrawable(sample) : null;
+      const step = await afePerfTimeAsync("decodeQueueWait", () => iter.next());
+      if (step.done) break;
+      const sample = step.value;
+      if (!sample) {
+        yield null;
+        continue;
+      }
+      afePerfCount("framesDecoded");
+      yield afePerfTime("videoFrameHandoff", () => {
+        afePerfCount("framesYielded");
+        return new SampleDrawable(sample);
+      });
     }
   }
 
   close(): void {
-    try {
-      this.input.dispose();
-    } catch {
-      /* already gone */
-    }
+    afePerfTime("cleanup", () => {
+      try {
+        this.input.dispose();
+      } catch {
+        /* already gone */
+      }
+    });
   }
 
   memoryStats(): AfeMemoryStats {
@@ -216,22 +255,23 @@ export class MediabunnyFrameSourceBackend implements FrameSourceBackend {
     if (!isPlayableSource(src)) {
       throw new AfeError("AFE_UNSUPPORTED_CONTAINER", "blocked source");
     }
+    const source = await afePerfTimeAsync("sourceOpen", () => mediabunnySource(src));
     const input = new Input({
-      source: await mediabunnySource(src),
+      source,
       formats: ALL_FORMATS,
     });
     try {
-      const track = await input.getPrimaryVideoTrack();
+      const track = await afePerfTimeAsync("containerParse", () => input.getPrimaryVideoTrack());
       if (!track) {
         input.dispose();
         throw new AfeError("AFE_UNSUPPORTED_CODEC", "no video track");
       }
-      if (!(await track.canDecode())) {
+      if (!(await afePerfTimeAsync("decoderConfigure", () => track.canDecode()))) {
         input.dispose();
         throw new AfeError("AFE_DECODE_CONFIG_FAILED", "track cannot decode");
       }
       throwIfAborted(signal);
-      return new MediabunnyOpened(input, new VideoSampleSink(track));
+      return afePerfTime("decoderCreate", () => new MediabunnyOpened(input, new VideoSampleSink(track)));
     } catch (e) {
       try {
         input.dispose();

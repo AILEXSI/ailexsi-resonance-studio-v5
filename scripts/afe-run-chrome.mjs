@@ -124,8 +124,56 @@ try {
     console.log("seq", JSON.stringify(result.sequentialBatch));
     console.log("rand", JSON.stringify(result.random));
     console.log("export720", JSON.stringify(result.export720));
+    console.log("exportRepeats", JSON.stringify({
+      warmupN: result.exportRepeats?.warmupN,
+      measuredN: result.exportRepeats?.measuredN,
+      mediabunny: result.exportRepeats?.mediabunny?.measured,
+      afe: result.exportRepeats?.afe?.measured,
+    }));
+    console.log("phaseMB", JSON.stringify(result.phaseExport?.mediabunny?.phases?.slice(0, 8)));
+    console.log("phaseAFE", JSON.stringify(result.phaseExport?.afe?.phases?.slice(0, 8)));
+    console.log("phaseCountsMB", JSON.stringify(result.phaseExport?.mediabunny?.snap?.counts));
+    console.log("phaseCountsAFE", JSON.stringify(result.phaseExport?.afe?.snap?.counts));
+    console.log("raw720", JSON.stringify({
+      cold: {
+        mb: result.raw720?.cold?.mediabunny?.wall,
+        afe: result.raw720?.cold?.afe?.wall,
+      },
+      warm: {
+        mb: result.raw720?.warm?.mediabunny?.wall,
+        afe: result.raw720?.warm?.afe?.wall,
+      },
+    }));
     console.log("abort", JSON.stringify(result.abortTest));
+    console.log("abortOpen", JSON.stringify(result.abortOpen));
+    console.log("abortRandom", JSON.stringify(result.abortRandom));
+    console.log("abortExport", JSON.stringify(result.abortExport));
     console.log("fallback", JSON.stringify(result.fallbackTest));
+    const summary = {
+      environment: result.environment,
+      pixels: result.totals,
+      sequential: result.sequentialBatch,
+      random: result.random,
+      export720: result.export720,
+      exportRepeats: result.exportRepeats,
+      phaseExport: result.phaseExport,
+      raw720: result.raw720,
+      benches: (result.benches || []).map((b) => ({
+        id: b.id,
+        title: b.title,
+        rawMb: b.raw?.mediabunny?.wall,
+        rawAfe: b.raw?.afe?.wall,
+        exportMb: b.export?.mediabunny?.measured,
+        exportAfe: b.export?.afe?.measured,
+        rawByFps: b.rawByFps,
+      })),
+      abort: { batch: result.abortTest, open: result.abortOpen, random: result.abortRandom, export: result.abortExport },
+      fallback: result.fallbackTest,
+      memory: result.memory,
+    };
+    const sumPath = OUT.replace(/afe-evidence\.json$/, "afe-02-evidence-summary.json");
+    writeFileSync(sumPath, JSON.stringify(summary, null, 2) + "\n");
+    console.log("wrote", sumPath);
   }
 } catch (e) {
   console.error(e);

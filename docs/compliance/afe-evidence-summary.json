@@ -1,5 +1,6 @@
 {
-  "initialMainSha": "a922c6eb77cb68494fbde9bd222a16b46ad00b32",
+  "pass": "AFE-02",
+  "startingRef": "0d366163e9ce6a15ae6ec053f45c6185b113cbbb",
   "environment": {
     "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36",
     "webCodecs": true,
@@ -22,42 +23,45 @@
     "unknown": { "mediabunny": 0, "afe": 0 },
     "agree": 2960
   },
-  "randomSeekRequired": [
-    { "t": 10, "expected": 300, "mediabunny": 300, "afe": 300 },
-    { "t": 2, "expected": 60, "mediabunny": 60, "afe": 60 },
-    { "t": 25, "expected": 750, "mediabunny": 750, "afe": 750 },
-    { "t": 5, "expected": 150, "mediabunny": 150, "afe": 150 },
-    { "t": 18, "expected": 540, "mediabunny": 540, "afe": 540 },
-    { "t": 1, "expected": 30, "mediabunny": 30, "afe": 30 }
-  ],
   "sequential": {
     "n": 1728,
-    "mediabunnyAvgMs": 0.2616,
-    "afeAvgMs": 0.2999,
-    "winner": "MEDIABUNNY"
+    "mediabunnyAvgMs": 0.2444,
+    "afeAvgMs": 0.1712,
+    "winner": "AILEXSI"
   },
   "random": {
     "n": 1232,
-    "mediabunnyAvgMs": 1.5983,
-    "afeAvgMs": 1.6386,
-    "mediabunnyWorstMs": 25.5,
-    "afeWorstMs": 23.4,
+    "mediabunnyAvgMs": 1.5534,
+    "afeAvgMs": 1.6433,
+    "mediabunnyWorstMs": 22.5,
+    "afeWorstMs": 10.4,
     "avgWinner": "MEDIABUNNY",
     "worstWinner": "AILEXSI"
   },
+  "exportRepeats": {
+    "warmupN": 10,
+    "measuredN": 30,
+    "mediabunnyMedianMs": 253.9,
+    "afeMedianMs": 264.4,
+    "mediabunnyMeanMs": 254.0,
+    "afeMeanMs": 264.8,
+    "winner": "MEDIABUNNY"
+  },
+  "baselinePreOpt": {
+    "afeChunks": 102,
+    "afeDuplicateDecodes": 42,
+    "afeResets": 2,
+    "exportMedianAfeMs": 392.4,
+    "exportMedianMbMs": 254.5
+  },
   "memory": {
     "afeMaxDecoded": 12,
-    "afePeakBytesOn28s": 752640,
+    "prefetchInFlight": 8,
     "sevenMinSimStabilized": true,
     "thirtyMinTailStabilized": true
   },
-  "abortTest": { "ok": true, "code": "AFE_ABORTED", "late": 0 },
+  "abortTest": { "ok": true, "open": true, "batch": true, "random": true, "export": true },
   "fallbackTest": { "ok": true, "code": "AFE_UNSUPPORTED_CONTAINER" },
-  "export720p30": {
-    "bothOk": true,
-    "mediabunny": { "success": true, "bytes": 20106, "ms": 282.9 },
-    "afe": { "success": true, "bytes": 20141, "ms": 650.2 }
-  },
   "classification": "AFE-COMPETITIVE",
   "productionDefaultChanged": false,
   "mediabunnyRemoved": false

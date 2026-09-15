@@ -1,3 +1,4 @@
+import { afePerfAdd, afePerfCount, afePerfEnabled } from "./perf";
 import type { AfeMemoryStats } from "./types";
 
 const DEFAULT_MAX_DECODED = 12;
@@ -14,11 +15,19 @@ export class DecodedFrameCache {
   }
 
   get(index: number): VideoFrame | undefined {
+    const t0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
+    afePerfCount("cacheLookups");
     const hit = this.frames.get(index);
-    if (!hit) return undefined;
+    if (!hit) {
+      afePerfCount("cacheMisses");
+      if (t0) afePerfAdd("frameCacheLookup", performance.now() - t0);
+      return undefined;
+    }
+    afePerfCount("cacheHits");
     const pos = this.lru.indexOf(index);
     if (pos >= 0) this.lru.splice(pos, 1);
     this.lru.push(index);
+    if (t0) afePerfAdd("frameCacheLookup", performance.now() - t0);
     return hit;
   }
 
@@ -84,6 +93,7 @@ export class DecodedFrameCache {
       if (!frame) continue;
       this.frames.delete(oldest);
       this.frameBytes -= this.estimate(frame);
+      afePerfCount("cacheEvictions");
       try {
         frame.close();
       } catch {

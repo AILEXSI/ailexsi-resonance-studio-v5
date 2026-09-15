@@ -298,3 +298,233 @@ PACKAGE LOCK REMOVAL: NO
 LICENSE CHANGED: NO
 ```
 
+# AFE-02 Performance Pass
+
+Child of AFE-01 (PR #23 / `cursor/ailexsi-frame-engine-0260` @ `0d366163e9ce6a15ae6ec053f45c6185b113cbbb`). This pass **measured first**, then changed one bottleneck at a time. Production default remains Mediabunny. Output codec / mux / AAC / `avc1.42001f` untouched. schemaVersion **5** / app **5.0.0** / AUTO `resolvePictureSource` untouched.
+
+| Item | Value |
+| --- | --- |
+| Starting ref | `0d366163e9ce6a15ae6ec053f45c6185b113cbbb` (PR #23 tip) |
+| AFE-02 branch | `cursor/ailexsi-frame-engine-afe-02-3e21` |
+| Mediabunny | **1.55.3** (unchanged) |
+| Production default | Mediabunny |
+| Evidence | `docs/compliance/afe-02-evidence-summary.json`, `docs/compliance/afe-02-baseline-preopt.json` |
+
+## Instrumentation
+
+Local-only `AfePerfStats` (`src/core/frame-engine/perf.ts`). Disabled unless `beginAfePerf()`. Not user telemetry.
+
+Phases (exclusive where possible): SOURCE OPEN, CONTAINER PARSE, SAMPLE TABLE BUILD, KEYFRAME LOOKUP, DECODER CREATE, DECODER CONFIGURE, ENCODED SAMPLE READ, VIDEO DECODE, DECODE QUEUE WAIT, FRAME CACHE LOOKUP, VIDEOFRAME HANDOFF, FRAME COPY/CLONE, CANVAS DRAW, FRAME CLOSE, SCHEDULER OVERHEAD, EXPORT LOOP OVERHEAD, VIDEOENCODER WAIT, MUX, CLEANUP.
+
+Shared `VideoDecoder` probe so Mediabunny and AFE report the same create / configure / reset / flush / decode counts.
+
+## Phase timings (720p30 full export, Chrome 148)
+
+**AFE-01 unexplained gap:** raw sequential only ~15% slower, full export ~2× slower. Measured AFE-01-equivalent baseline on this harness (pre-opt, same jobs):
+
+| Count | Mediabunny | AFE baseline |
+| --- | --- | --- |
+| decoderCreates | 1 | 1 |
+| decoderConfigures | 1 | **3** |
+| decoderResets | 0 | **2** |
+| decoderFlushes | 2 | **3** |
+| encodedChunksSubmitted | 60 | **102** |
+| framesDecoded | 60 | **102** |
+| duplicateDecodes | 0 | **42** |
+| framesYielded | 60 | 60 |
+
+Cause (not a guess): `decodeRange` flushed after one microtask (`needsKeyframe = true`). `BATCH_SPAN = 24` on GOP-30 then reset to keyframe 0 and re-decoded the prefix. 24+48+30 = 102. Export also waited for each 24-frame span before the encoder ran.
+
+Post-opt instrumented export (same probe):
+
+| Count | Mediabunny | AFE |
+| --- | --- | --- |
+| decoderCreates | 1 | 1 |
+| decoderConfigures | 1 | 1 |
+| decoderResets | 0 | 0 |
+| decoderFlushes | 2 | 1 |
+| encodedChunksSubmitted | 60 | 60 |
+| framesDecoded | 60 | 60 |
+| duplicateDecodes | 0 | 0 |
+
+AFE phases (wall 217 ms this run): canvasDraw 180, videoEncoderWait 1.9, sourceOpen 1.8, exportLoop 1.7, decodeQueueWait 0.8. Parse / sample-table / keyframe lookup / clones are noise.
+
+Mediabunny phases (wall 228 ms): decodeQueueWait 232 (public sink await; overlaps probe flush), canvasDraw 181. Same draw/encode/mux path.
+
+## 720p30 repeated (10 warmup + 30 measured, COLD each — exporter clears sources)
+
+| | Mediabunny | AILEXSI |
+| --- | --- | --- |
+| warmup median | 250.3 ms (AFE-02 final run uses latest 10+30) | — |
+| **measured mean** | **254.0 ms** | **264.8 ms** |
+| **measured median** | **253.9 ms** | **264.4 ms** |
+| p95 | 263.6 ms | 276.1 ms |
+| worst | 264.4 ms | 283.1 ms |
+| min | 246.2 ms | 251.7 ms |
+
+AFE median is **~4% slower**, not ≤ Mediabunny. Preferred ≥10% faster: **not met**.
+
+AFE-01 single-shot wall was 650 vs 283. AFE-02 measured median is 264 vs 254.
+
+## Fairness
+
+Same 720p30 fixture, timestamps, project, canvas, compositor, `VideoEncoder` `avc1.42001f`, muxer, no audio, 1280×720, 30 fps. AFE does not skip Mediabunny work. COLD = new open per export (production `clearFrameSources`). WARM raw = reuse opened source.
+
+## Decoder lifecycle
+
+Sequential export after opts: **OPEN ONCE, PARSE ONCE, CONFIGURE ONCE, DECODE FORWARD, CLOSE ONCE**. Resets 0, extra configures 0. One flush at end of run if the last frame is held. Random `getFrameAt` still flushes immediately after the queue drains (measured 40 ms no-flush stall had regressed random).
+
+## Frame handoff / copy
+
+Path is Decoder → `VideoFrame` → `drawImage` / `drawWithFit` → `close()`. No `VideoFrame.clone` on the export path (`videoFrameClones: 0`). Dropped `Uint8Array.slice()` of mapped sample bytes — `EncodedVideoChunk` copies on construct. No ImageBitmap / RGBA / Canvas intermediate. No unsafe lifetime reuse.
+
+## Cache (cap 12)
+
+Sequential export: hit 0 / miss 0 / evictions 0 — frames are yielded, not cached. Random still uses LRU. Policy unchanged. Duplicate decode 0 after the flush fix (was 42 from GOP restart leftovers dumped into the LRU).
+
+## Scheduler
+
+Binary search (`sampleIndexAtTime`, `keyframeAtOrBefore`) is microseconds. Per-frame Promise churn remains (one waiter per submitted sample). Not the export gap after the flush/batch fix. `PREFETCH = 8` (16 measured worse).
+
+## Batch decode
+
+Monotonic `getFramesAt`: submit up to 8 samples ahead, yield each requested frame as it arrives, no per-timestamp seek. Grouped clips still open the source once via `getDecoder`. Source In/Out unchanged (`sourceTimeSec`).
+
+## Source reuse
+
+`getDecoder` still keys `${backend}:${src}`. Same file in multiple clips reuses the opened parse / sample table / avcC / decoder. Mapped bytes live on `AfeMovie.bytes`. Decoded-frame cache stays capped at 12.
+
+## Memory vs speed
+
+| Sim | peak cached | stabilized |
+| --- | --- | --- |
+| 2s | 0 (yield+close) | n/a (1 loop) |
+| 28s GOP-250 | 0 | n/a (1 loop) |
+| 7 min (210× 2s) | 0 | **true** |
+| 30 min tail (50×) | 0 | **true** |
+
+In-flight decoded frames ≤ prefetch 8 + one yielded. Cache cap still 12. No unbounded growth. Explicit `VideoFrame.close()` on yield. PREFETCH=16 kept more live frames and **slowed** export — reverted.
+
+## Correctness hard gate
+
+Packet oracle unchanged: **10228 / 10228 EXACT, 0 mismatches** (`tests/export/afe-oracle.test.ts`).
+
+Chrome pixels: **2960 / 2960 EXACT** both backends, 0 ±1, 0 GOP snap, 0 substitution.
+
+## Benchmarks A–J
+
+Raw decode separate from full export. A–I export n=3 after 2 warmup (except C random = raw only). 720p unless noted.
+
+| | Raw MB | Raw AFE | Export median MB | Export median AFE |
+| --- | --- | --- | --- | --- |
+| A sequential 720p30 | 245 | 250 | 257.9 | 265.7 |
+| B repeated segments | 135 | **124** | 148.2 | **144.5** |
+| C random 720p | **300** | 365 | — | — |
+| D hard cuts | 133 | **127** | 273.1 | **272.1** |
+| E crossfade | 126 | 127 | 225.8 | **220.7** |
+| F Source In | **131** | 134 | **144.8** | 149.1 |
+| G clip rate 2 | **132** | 151 | **155.2** | 163.6 |
+| H long GOP 250 (160p) | 13.5 | **10.3** | 14.3 | **13.7** |
+| I all-intra (160p) | 24.3 | **11.0** | 25.6 | **11.5** |
+| J 24/25/50/60 raw | MB 7.6/8.9/13.9/17.4 | AFE **6.6/7.1/11.7/14.5** | — | — |
+
+## Full export target
+
+AFE measured median **264.4 ms** vs Mediabunny **253.9 ms**. Target “AFE median ≤ MB median” **missed by ~4%**. Sequential raw now wins. Microbenchmarks are not used to claim superiority.
+
+## Output codec
+
+Not touched. `webcodecs.ts` still `avc1.42001f`, 3 Mbps, AAC probe, `muxAvcToMp4`. Only optional `AfePerfStats` timing around wait/mux.
+
+## Fallback
+
+Fragmented / non-MP4 / unsupported codec / ctts / decoder fail still throw typed `AfeError` with `fallbackSafe`. Production `getDecoder("ailexsi")` still opens Mediabunny. Harness: `README.md` → `AFE_UNSUPPORTED_CONTAINER`.
+
+## Abort
+
+Retested after opts:
+
+| Path | Result |
+| --- | --- |
+| open | `AFE_ABORTED` |
+| getFramesAt batch | `AFE_ABORTED`, late=0 |
+| getFrameAt random | `AFE_ABORTED` |
+| full export | `aborted: true` |
+
+Resources closed; no post-abort mutation observed.
+
+## Windows
+
+**WINDOWS WEBVIEW2 VERIFIED: NO**  
+**WINDOWS HUMAN TEST REQUIRED: YES**  
+Max class without that evidence: not AFE-SUPERIOR. This pass is not a superior-candidate (export median still Mediabunny).
+
+### Windows human benchmark procedure (AFE-02)
+
+Same project and fixtures as Linux. Do not change the production default.
+
+1. Check out `cursor/ailexsi-frame-engine-afe-02-3e21`. `npm ci`.
+2. Record WebView2 / Edge version. Run `npx tauri dev` (or Root-Exe) **and** `npm run web:dev`.
+3. Open `http://127.0.0.1:1421/scripts/afe-frame-harness.html` (Vite; not in `public/` / `dist`).
+4. Wait for `AFE_DONE`. Save `window.__AFE_RESULT` (or `npm run afe:chrome` if Chrome exists).
+5. Compare to this section:
+   - Any AFE pixel/packet mismatch → **AFE-FAIL**. Keep Mediabunny default.
+   - Exact, but 720p30 **measured median** (10 warmup + 30 measured) slower than Mediabunny → **AFE-CORRECT** or **AFE-COMPETITIVE**.
+   - Exact and AFE median full-export ≤ Mediabunny on **this** WebView2 host → may raise to **AFE-SUPERIOR** only with that human evidence.
+6. Required numbers from this Windows host: `exportRepeats.mediabunny.measured` vs `exportRepeats.afe.measured` (mean/median/p95/worst), `phaseExport` counts, abort/fallback, Task Manager + in-app Export Fertig.
+
+## Keep / revert log
+
+| Change | Evidence | Keep? |
+| --- | --- | --- |
+| Instrument only | phases + counts | keep |
+| Settle outputs without flush on sequential | 102→60 chunks, 2→0 resets | **keep** |
+| Flush immediately on random `getFrameAt` | random 2.13→1.52 ms after stall regression | **keep** |
+| Prefetch 8 + yield-as-ready | export median 371→279 ms | **keep** |
+| Drop `sampleBytes().slice()` | small; clones 0 | **keep** |
+| PREFETCH 16 | median 277→281 ms | **revert** |
+| `optimizeForLatency: false` | median 277→264 ms; pixels exact | **keep** |
+
+## Classification
+
+**AFE-COMPETITIVE.**
+
+Not AFE-FAIL: 0 packet / 0 pixel mismatches, abort + fallback pass, memory bounded.
+
+Not AFE-SUPERIOR / not AFE-SUPERIOR-CANDIDATE: full-export **median** still belongs to Mediabunny (~4%). Windows unverified.
+
+AFE-COMPETITIVE because sequential batch now wins, worst random wins, several A–J export medians win, the 2× export mystery is closed and repaired, and the remaining full-export gap is small and measured — not a hidden extra decode.
+
+**Production default stays Mediabunny.** Review-only. Do not merge as a default change.
+
+```
+BASE BRANCH: cursor/ailexsi-frame-engine-0260
+BASE SHA: 0d366163e9ce6a15ae6ec053f45c6185b113cbbb
+AFE-02 BRANCH: cursor/ailexsi-frame-engine-afe-02-3e21
+AFE IMPLEMENTED: YES (AFE-01 + AFE-02 opts)
+MEDIABUNNY BASELINE: 1.55.3
+CORRECTNESS TESTS: packet 10228/10228; pixels 2960/2960
+TOTAL FRAME REQUESTS: 10228 (oracle) + 2960 (Chrome pixels)
+MEDIABUNNY EXACT: 10228 packet / 2960 pixel
+AFE EXACT: 10228 packet / 2960 pixel
+AFE MISMATCHES: 0
+SEQUENTIAL: MEDIABUNNY 0.244 ms / AFE 0.171 ms / WINNER AILEXSI
+RANDOM: MEDIABUNNY 1.553 ms / AFE 1.643 ms / WINNER MEDIABUNNY
+WORST LATENCY: MEDIABUNNY 22.5 ms / AFE 10.4 ms
+MEMORY: cache cap 12; sequential peak cached 0; in-flight ≤ 8; 7min/30min sim stabilized
+ABORT TEST: PASS (open / batch / random / export)
+FALLBACK TEST: PASS (AFE_UNSUPPORTED_CONTAINER)
+FULL 720P30 EXPORT: both success; measured n=30 median MB 253.9 / AFE 264.4
+TYPECHECK: npx tsc --noEmit exit 0
+TARGETED TESTS: 29 tests passed in 7 files
+FULL SUITE: 935 tests passed in 108 files
+BUILD: vite 7.3.6, 207 modules, version 5.0.0
+WINDOWS WEBVIEW2 VERIFIED: NO
+WINDOWS HUMAN TEST REQUIRED: YES
+CLASSIFICATION: AFE-COMPETITIVE
+PRODUCTION DEFAULT CHANGED: NO
+MEDIABUNNY REMOVED: NO
+PACKAGE LOCK REMOVAL: NO
+LICENSE CHANGED: NO
+```
+

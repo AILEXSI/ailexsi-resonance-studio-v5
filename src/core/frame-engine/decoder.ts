@@ -1,5 +1,6 @@
 import { decoderConfigOf } from "./avc-config";
 import { AfeError, abortedError, throwIfAborted } from "./errors";
+import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfMarkDecoded, afePerfProbeInstalled } from "./perf";
 import type { AfeMovie, AfeSample } from "./types";
 import { sampleBytes } from "./mp4-reader";
 
@@ -30,6 +31,7 @@ export class AfeVideoDecoder {
       output: (frame) => this.onOutput(frame),
       error: (e) => this.onError(e),
     });
+    if (!afePerfProbeInstalled()) afePerfCount("decoderCreates");
     try {
       const config = decoderConfigOf(this.movie.avc);
       const support = await VideoDecoder.isConfigSupported(config);
@@ -41,6 +43,7 @@ export class AfeVideoDecoder {
       this.decoder.configure(config);
       this.configured = true;
       this.needsKeyframe = true;
+      if (!afePerfProbeInstalled()) afePerfCount("decoderConfigures");
     } catch (e) {
       this.teardown();
       if (e instanceof AfeError) throw e;
@@ -54,8 +57,10 @@ export class AfeVideoDecoder {
     if (this.decoder && this.configured) {
       try {
         this.decoder.reset();
+        if (!afePerfProbeInstalled()) afePerfCount("decoderResets");
         this.decoder.configure(decoderConfigOf(this.movie.avc));
         this.needsKeyframe = true;
+        if (!afePerfProbeInstalled()) afePerfCount("decoderConfigures");
       } catch (e) {
         this.teardown();
         throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
@@ -69,75 +74,81 @@ export class AfeVideoDecoder {
     return Math.round((sample.ptsTimescale / this.movie.timescale) * 1_000_000);
   }
 
+  /** Submit one sample after ensure(). Decode order is the call order. Does not flush. */
+  enqueueSample(sample: AfeSample, signal?: AbortSignal): Promise<VideoFrame> {
+    throwIfAborted(signal);
+    if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
+    if (this.lastError) throw this.lastError;
+    if (this.needsKeyframe && !sample.isKeyframe) {
+      throw new AfeError("AFE_DECODE_FAILED", "key frame required after configure/flush", false);
+    }
+    const timestamp = this.chunkTimestampUs(sample);
+    const read0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
+    const data = sampleBytes(this.movie, sample);
+    if (afePerfEnabled()) {
+      afePerfAdd("encodedSampleRead", performance.now() - read0);
+      afePerfMarkDecoded(sample.index);
+    }
+    const chunk = new EncodedVideoChunk({
+      type: sample.isKeyframe ? "key" : "delta",
+      timestamp,
+      duration: Math.max(1, Math.round((sample.durationTimescale / this.movie.timescale) * 1_000_000)),
+      data,
+    });
+    const promise = new Promise<VideoFrame>((resolve, reject) => {
+      const onAbort = () => {
+        this.waiters.delete(timestamp);
+        reject(abortedError(signal));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.waiters.set(timestamp, {
+        resolve: (f) => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve(f);
+        },
+        reject: (e) => {
+          signal?.removeEventListener("abort", onAbort);
+          reject(e);
+        },
+      });
+    });
+    try {
+      this.decoder.decode(chunk);
+      if (sample.isKeyframe) this.needsKeyframe = false;
+    } catch (e) {
+      this.waiters.delete(timestamp);
+      throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+    }
+    return promise;
+  }
+
+  async submitSample(sample: AfeSample, signal?: AbortSignal): Promise<VideoFrame> {
+    await this.ensure(signal);
+    return this.enqueueSample(sample, signal);
+  }
+
+  async releaseHeld(signal?: AbortSignal): Promise<void> {
+    await this.settleOutputs(signal, false);
+  }
+
   /**
    * Decode `samples` in order. Do not flush between sequential calls — flush()
    * forces the next chunk to be a keyframe and destroys forward state.
    */
-  async decodeRange(samples: AfeSample[], signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
+  async decodeRange(
+    samples: AfeSample[],
+    signal?: AbortSignal,
+    persist = false,
+  ): Promise<Map<number, VideoFrame>> {
     throwIfAborted(signal);
-    await this.ensure(signal);
-    if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
-    if (this.lastError) throw this.lastError;
     if (samples.length === 0) return new Map();
-    if (this.needsKeyframe && !samples[0]!.isKeyframe) {
-      throw new AfeError("AFE_DECODE_FAILED", "key frame required after configure/flush", false);
-    }
-
+    await this.ensure(signal);
     const gen = this.generation;
-    const pending: { index: number; timestamp: number; promise: Promise<VideoFrame> }[] = [];
-
+    const pending: { index: number; promise: Promise<VideoFrame> }[] = [];
     for (const sample of samples) {
-      throwIfAborted(signal);
-      const timestamp = this.chunkTimestampUs(sample);
-      const data = sampleBytes(this.movie, sample).slice();
-      const chunk = new EncodedVideoChunk({
-        type: sample.isKeyframe ? "key" : "delta",
-        timestamp,
-        duration: Math.max(1, Math.round((sample.durationTimescale / this.movie.timescale) * 1_000_000)),
-        data,
-      });
-      const promise = new Promise<VideoFrame>((resolve, reject) => {
-        const onAbort = () => {
-          this.waiters.delete(timestamp);
-          reject(abortedError(signal));
-        };
-        signal?.addEventListener("abort", onAbort, { once: true });
-        this.waiters.set(timestamp, {
-          resolve: (f) => {
-            signal?.removeEventListener("abort", onAbort);
-            resolve(f);
-          },
-          reject: (e) => {
-            signal?.removeEventListener("abort", onAbort);
-            reject(e);
-          },
-        });
-      });
-      pending.push({ index: sample.index, timestamp, promise });
-      try {
-        this.decoder.decode(chunk);
-        if (sample.isKeyframe) this.needsKeyframe = false;
-      } catch (e) {
-        this.waiters.delete(timestamp);
-        throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
-      }
+      pending.push({ index: sample.index, promise: this.enqueueSample(sample, signal) });
     }
-
-    if (this.waiters.size > 0) {
-      await new Promise<void>((r) => {
-        queueMicrotask(r);
-      });
-    }
-    if (this.waiters.size > 0) {
-      try {
-        await this.decoder.flush();
-        this.needsKeyframe = true;
-      } catch (e) {
-        if (signal?.aborted) throw abortedError(signal);
-        throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
-      }
-    }
-
+    await this.settleOutputs(signal, persist);
     const out = new Map<number, VideoFrame>();
     for (const item of pending) {
       const frame = await item.promise;
@@ -155,6 +166,58 @@ export class AfeVideoDecoder {
     return out;
   }
 
+  /**
+   * Wait for VideoDecoder outputs without flush() when possible.
+   * flush() forces the next chunk to be a keyframe and makes the scheduler
+   * restart the GOP — measured AFE-02 baseline: 102 chunks for 60 frames.
+   */
+  private async settleOutputs(signal?: AbortSignal, persist = false): Promise<void> {
+    const dec = this.decoder;
+    if (!dec || this.waiters.size === 0) return;
+
+    const waitDequeue = () =>
+      new Promise<void>((resolve) => {
+        const done = () => {
+          dec.removeEventListener("dequeue", done);
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(done, 16);
+        dec.addEventListener("dequeue", done);
+      });
+
+    while (dec.decodeQueueSize > 0) {
+      throwIfAborted(signal);
+      await waitDequeue();
+    }
+
+    if (persist && this.waiters.size > 0) {
+      const stallMs = 40;
+      let lastSize = this.waiters.size;
+      let lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+      while (this.waiters.size > 0) {
+        throwIfAborted(signal);
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (now - lastChange >= stallMs) break;
+        await new Promise<void>((r) => setTimeout(r, 0));
+        if (this.waiters.size < lastSize) {
+          lastSize = this.waiters.size;
+          lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+        }
+      }
+    }
+
+    if (this.waiters.size === 0) return;
+    try {
+      await dec.flush();
+      if (!afePerfProbeInstalled()) afePerfCount("decoderFlushes");
+      this.needsKeyframe = true;
+    } catch (e) {
+      if (signal?.aborted) throw abortedError(signal);
+      throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+    }
+  }
+
   close(): void {
     this.closed = true;
     this.generation += 1;
@@ -163,6 +226,7 @@ export class AfeVideoDecoder {
   }
 
   private onOutput(frame: VideoFrame): void {
+    afePerfCount("framesDecoded");
     if (this.closed) {
       frame.close();
       return;
