@@ -7,12 +7,12 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 
 | Feld | Stand |
 | --- | --- |
-| Datum | 2026-09-14 |
+| Datum | 2026-09-15 |
 | Ordner | `C:\\Users\\marti\\ResonanceStudio-V5` |
 | Version | **5.0.0** (package / tauri / Cargo / toolbar chip). JSON `schemaVersion` **5**. |
-| main | `origin/main` after PR **#19** (this stamp of merge `0936da7`). Last feature merge: PR #19. H HUMAN-PROVEN EXE tip `24f4337`. D–H stack is on main. |
+| main | `origin/main` after PR **#20** (`26f4d42`). Last feature merge: PR #19. H HUMAN-PROVEN EXE tip `24f4337`. D–H stack is on main. Fixture cleanup is PR #20. Dependency/SBOM pass is engineering-only (see below). |
 | Lineage | D/E/save/export EXE: PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320`. **F HUMAN-PROVEN** in EXE from PR **#17** feature tip `c4391cbf74edefcd5d37ba5e77af05ff91e58c43`. **G HUMAN-PROVEN** in EXE from PR **#18** tip `896b64083f541d013b289de0e1eb98cfe3dcfb06`. **H HUMAN-PROVEN** in local Vite + Root-Exe from PR **#19** tip `24f43377569dae333aa5f7efdfe68a303805d2a8` (merged to main as `0936da7`). Owner confirmed `24f4337`. |
-| Base | `main` after PR #19 (D→H stack). |
+| Base | `main` after PR #20 fixture cleanup (`26f4d42`). D→H stack unchanged. |
 | Live-UI | Chrome chrome still `docs/ui-2026-09-13.png` (Vite `127.0.0.1:1421`, MODE A). **EXE HUMAN-PROVEN** 2026-09-13: `docs/exe-acceptance-2026-09-13.png` (Task Manager + Export Fertig). See `docs/ACCEPTANCE.md`. |
 | App icon | 愛 — Tauri icons in `src-tauri/icons/` (PR-#5-Icon-Base). `docs/ailexsi-app-icon.png` is referenced historically and is **not** in this tree. Icons nicht anfassen. |
 | Start Dev | MODE A: `npm run web:dev` **oder** `npx tauri dev` auf `127.0.0.1:1421` (`beforeDevCommand` = `web:dev`) |
@@ -39,6 +39,7 @@ Evidence: **IMPLEMENTED** | **AUTOMATED-TESTED** | **HUMAN-PROVEN** | **PLANNED*
 | Visualizer | **HUMAN-PROVEN** (earlier). Canvas-Modi unverändert. Geladenes first-audible-audio / Mix-PCM treibt Onset/Energy. Silence gate (`rms < 0.02 && bass < 0.03`). Beat = audio-derived onset/energy — **kein** DAW Beat-Grid-Lock. |
 | Persistenz | `last-project.json` in AppData (Pfad-String). Exe: Save/Open über Tauri-Dialog; nach Speichern/Öffnen merkt das File-Panel den Pfad. Browser: Chrome FSA; Firefox Download. Medien: Exe-IDB-Blob → sonst `sourcePath` auf Disk → sonst missing + Relink. Chrome-Projekte erscheinen **nicht** magisch in der Exe. JSON `schemaVersion` **5**. App/Tauri/Cargo **5.0.0**. |
 | Dev/test fixtures | `tests/fixtures/user-video.mp4` + `user-audio.mp3` only. Owner-provided development/test fixture supplied specifically for internal Grok VM testing during remote development. Not intended for product distribution. **NOT DISTRIBUTED / TEST-ONLY** — removed from `public/fixtures/` so Vite/`dist`/Tauri cannot copy them. `export-check.html` is repo-root / Vite-dev only (not under `public/`). This note is provenance of presence, **not** a copyright-ownership or commercial-clearance claim. |
+| Deps / SBOM | Cargo.toml + `lib.rs` + capabilities use `tauri-plugin-fs` / `tauri-plugin-dialog`. Lockfile now resolves **fs 2.5.2** and **dialog 2.7.3** (same versions as the npm plugins). CycloneDX SBOMs + inventory: `docs/compliance/`. MODE A on this pass: tsc exit 0; vitest **906 tests passed in 101 files**; vite build 5.0.0, 197 modules. **No LICENSE. No THIRD_PARTY_NOTICES. Licensing is not HUMAN-PROVEN.** |
 | Nächster Slice | Production Pass **I** (44-Track Acceptance) — **PLANNED / NOT IMPLEMENTED**. D + E + F + G + **H** stay HUMAN-PROVEN. Future UI zettel is **not** I. STOP — no I+. |
 | Production Pass | **D HUMAN-PROVEN** (incl. mixer resize/scroll). **E HUMAN-PROVEN** (Stem Import). **F HUMAN-PROVEN** (Track/Chapter Groups collapse UI — create / assign / collapse / rename). **G HUMAN-PROVEN** (Volume Automation — VOL lane). **H HUMAN-PROVEN** (Write Volume **W** — Vite + Root-Exe `24f4337`). **I–N + zettel PLANNED / NOT IMPLEMENTED**. Four Chapters + bis 11 Suno-Stems × 4. Kein Cubase-Klon. VIS-Ausbau-Intent = K–N. Version 5.0.0. AUTO unangetastet. |
 
