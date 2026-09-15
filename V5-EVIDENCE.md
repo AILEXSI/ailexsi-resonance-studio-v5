@@ -11,6 +11,8 @@ Repo: https://github.com/AILEXSI/ailexsi-resonance-studio-v5. COMPLETE: NO. Vers
 
 `user-video.mp4` and `user-audio.mp3` are owner-provided development/test fixtures supplied specifically for internal Grok VM testing during remote development. Not intended for product distribution. They live under `tests/fixtures/` for automated tests only. Copies were removed from `public/fixtures/` so they are **NOT DISTRIBUTED / TEST-ONLY** (`dist` / Tauri frontendDist do not include them). `export-check.html` stays developer/Vite-dev only (no longer under `public/`). This note records why the files are/were present. It is **not** a copyright-ownership or commercial-clearance claim. No LICENSE / THIRD_PARTY_NOTICES in this pass. Licensing pass is **not** HUMAN-PROVEN.
 
+MODE A on this cleanup: `tsc --noEmit` exit 0; vitest **906 passed / 101 files** (targeted user-fixtures + export: 85 / 10); `npm run build` 5.0.0, 197 modules. `dist/` contains only `index.html` + `assets/*` — no `user-video.mp4`, `user-audio.mp3`, `export-check.html`, or `fixtures/`.
+
 ## 2026-09-13 MODE B EXE acceptance (operator PASS)
 
 Accepted local EXE built from PR **#15** tip `234a7810a569f741ab2c9f4dd680ed21efae8320` (`cursor/stack-export-vn-1787` onto PR #14). Screenshot `docs/exe-acceptance-2026-09-13.png`: Task Manager `AILEXSI Resonance Studio V5` + Export Fertig `Untitled_Resonance.v1.mp4` + status `Exported … bytes` + version chip **5.0.0** + dynamic tracks/mixer visible.
