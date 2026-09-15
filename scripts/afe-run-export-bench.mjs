@@ -200,7 +200,7 @@ try {
       mb: result.raw720?.mediabunny?.wall,
       afe: result.raw720?.afe?.wall,
     }));
-    const sumPath = join(root, "docs", "compliance", "afe-03-evidence-summary.json");
+    const sumPath = OUT.replace(/\.json$/, "-summary.json");
     writeFileSync(sumPath, JSON.stringify({
       environment: result.environment,
       exportRepeats: result.exportRepeats,

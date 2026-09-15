@@ -528,3 +528,190 @@ PACKAGE LOCK REMOVAL: NO
 LICENSE CHANGED: NO
 ```
 
+# AFE-03 Equal-or-better pass
+
+Child of AFE-02 (PR #24 / `cursor/ailexsi-frame-engine-afe-02-3e21` @ `e19b47b713f9a278023fab1bb2531114ccc47b3a`). Performance-gap closure only. Production default remains Mediabunny. Output codec / mux / AAC / `avc1.42001f` untouched. schemaVersion **5** / app **5.0.0** / AUTO `resolvePictureSource` untouched.
+
+| Item | Value |
+| --- | --- |
+| Starting ref | `e19b47b713f9a278023fab1bb2531114ccc47b3a` (PR #24 tip) |
+| AFE-03 branch | `cursor/ailexsi-frame-engine-afe-03-9b96` |
+| Mediabunny | **1.55.3** (unchanged) |
+| Production default | Mediabunny |
+| Evidence | `docs/compliance/afe-03-evidence-summary.json`, `afe-03-export-50.json`, `afe-03-long30.json`, `afe-03-pixels-checkpoint.json`, `afe-03-aj.json` |
+
+AFE-02 left AFE-COMPETITIVE: full-export median MB 253.9 / AFE 264.4 (~4% / ~10.5 ms). This pass closed that gate.
+
+## What changed (input path only)
+
+| Change | Why | Keep? |
+| --- | --- | --- |
+| Precomputed sequential plan (`plan.ts`) | One sample-index + bounded GOP membership pass | **keep** |
+| Monotonic `streamFramesAt` + ready queue | Decoder output → ordered ready map; consumer pulls next; yield as soon as requested frame is ready | **keep** |
+| Sequential `submitEncoded` (no per-frame Promise until wait) | Cuts lookup/resolver Map churn on the export path | **keep** |
+| PREFETCH 4 (was 8) | After stream path, 2/4/6/8 sweep: 4 beat 8 on 720p30 full export; 6 noisier | **keep** |
+| FIFO submit-order output assign | Timestamp nearest-match could close a mid-GOP needed frame | **keep** |
+| Extra sample when first needed is last submitted | WebCodecs holds last `decode()`; hard-cut / Source In stalled `waitReady` | **keep** |
+| Random still flushes immediately | AFE-02 winner for random | **keep** |
+| `optimizeForLatency: false` | AFE-02 keep | **keep** |
+
+Not undone: no export-path frame cache, no `VideoFrame.clone` on yield, no `sampleBytes.slice()`, one create/configure, zero sequential resets, 60 chunks / 60 frames.
+
+## Instrumentation (AFE-03 counters)
+
+`readyImmediate`, `framePromiseWaits`, `streamPathFrames`, `randomPathFrames`, `inFlightPeak`, `prefetchWindow`. Sequential 720p30 export: streamPathFrames 60, framePromiseWaits 60, readyImmediate 0, inFlightPeak 4, prefetchWindow 4, sampleIndexLookups 60 (was 120), resets 0, duplicateDecodes 0, clones 0.
+
+Canvas draw still dominates wall (~87% of AFE exclusive phases). Remaining decode-queue wait ~19 ms vs Mediabunny’s public-sink await (overlaps draw).
+
+## Hard gate — 720p30 full export (10 warmup + 50 measured, alternated)
+
+Same source, timestamps, compositor, canvas, `VideoEncoder` `avc1.42001f`, muxer, no audio, 1280×720, 30 fps, COLD open per trial (`clearFrameSources`). Chrome 148 Linux headless / SwiftShader. Isolated profile.
+
+**Official isolated run (after FIFO + mid-GOP extra-sample):**
+
+| | Mediabunny | AILEXSI |
+| --- | --- | --- |
+| **measured mean** | **263.812 ms** | **263.018 ms** |
+| **measured median / p50** | **262.900 ms** | **261.200 ms** |
+| p95 | 273.900 ms | 275.700 ms |
+| worst | 303.300 ms | 293.900 ms |
+| min | 250.800 ms | 255.200 ms |
+| stddev | 7.837 ms | 6.896 ms |
+
+AFE median **≤** Mediabunny median. AFE mean **≤** Mediabunny mean. Gap ~1.7 ms median / ~0.8 ms mean vs ~7 ms stddev → **within noise**. Not a superior-candidate claim.
+
+First 10+50 (stream + prefetch 4, before mid-GOP extra-sample; sequential 0-start path unchanged): MB 256.55 / AFE **255.70** (mean 257.23 / **256.27**, stddev 6.21 / 7.28). Same gate.
+
+A contended rerun on a hot host (stddev ~40 ms) was MB 272.35 / AFE 272.50 — indistinguishable; not used to claim a miss.
+
+## Longer export — 30s 720p30 (4 warmup + 8 measured)
+
+Repeated 2s source clips. Post-fix:
+
+| | Mediabunny | AILEXSI |
+| --- | --- | --- |
+| mean | 3775.9 ms | **3726.7 ms** |
+| median | 3784.4 ms | **3713.3 ms** |
+| stddev | 37.7 ms | 53.4 ms |
+
+AFE median **≤** MB. First 30s run (pre extra-sample): MB 3665.6 / AFE **3636.0**.
+
+## Production-like (A–J, still 720p30)
+
+A–I export n=3 after 2 warmup (C random = raw only). Hard cuts, crossfade, Source In, rate 2, repeated source, long GOP.
+
+| | Raw MB | Raw AFE | Export median MB | Export median AFE |
+| --- | --- | --- | --- | --- |
+| A sequential 720p30 | 255.3 | **248.1** | 265.6 | **264.9** |
+| B repeated segments | 236.0 | **229.5** | **144.3** | 146.9 |
+| C random 720p | 420.2 | **339.5** | — | — |
+| D hard cuts | 230.3 | **222.0** | 304.2 | **294.1** |
+| E crossfade | 127.8 | 127.8 | 243.9 | **232.3** |
+| F Source In | 137.0 | **127.6** | 160.4 | **156.3** |
+| G clip rate 2 | **139.6** | 140.5 | 168.5 | **166.6** |
+| H long GOP 250 (160p) | 15.6 | **14.4** | 15.1 | **15.0** |
+| I all-intra (160p) | 32.5 | **12.9** | 30.0 | **13.6** |
+| J 24/25/50/60 raw | MB 11.5/11.7/18.4/35.7 | AFE **9.7/9.7/15.9/20.6** | — | — |
+
+D/E/F/G (the required multi-clip set) are AFE median **≤** MB. B’s 2.6 ms export miss is inside n=3 noise.
+
+Mid-GOP start used to stall AFE export (WebCodecs held the last submitted sample). Extra-sample fix unblocked D/F; do not flush the sequential GOP to get that frame.
+
+## Sequential / random / worst (pixel-file batch)
+
+| | Mediabunny | AILEXSI | Winner |
+| --- | --- | --- | --- |
+| Sequential avg (n=1728) | 0.264 ms | **0.198 ms** | AILEXSI |
+| Random avg (n=1232) | **3.164 ms** | 3.255 ms | Mediabunny |
+| Worst random | **40.3 ms** | 47.7 ms | Mediabunny |
+
+AFE-02 on a quieter host: seq 0.244 / 0.171, random 1.553 / 1.643, worst 22.5 / **10.4**. This host inflated **both** backends ~2× on random; the AFE−MB average gap is still ~0.09 ms/frame. Not a material AFE-only random regression. Immediate flush on `getFrameAt` retained.
+
+## Correctness
+
+Packet oracle: **10228 / 10228 EXACT, 0 mismatches**.
+
+Chrome pixels: **2960 / 2960 EXACT** both backends, 0 ±1, 0 GOP snap, 0 substitution.
+
+No timestamp semantics change. Fallback codes unchanged.
+
+## Memory
+
+Cache cap 12. Sequential export peak cached **0**. In-flight ≤ prefetch 4 + one extra + one yielded. 7 min sim (210× 2s) **stabilized**. 30 min tail (50×) **stabilized**. Explicit `VideoFrame.close()` on yield. No half-movie cache.
+
+## Abort / fallback
+
+| Path | Result |
+| --- | --- |
+| open | `AFE_ABORTED` |
+| getFramesAt batch | `AFE_ABORTED`, late=0 |
+| getFrameAt random | `AFE_ABORTED` |
+| full export | `aborted: true` |
+| README.md | `AFE_UNSUPPORTED_CONTAINER` |
+
+No post-abort mutation. Production `getDecoder("ailexsi")` still opens Mediabunny on fallback-safe errors.
+
+## Output codec / Mediabunny
+
+Untouched. Mediabunny **stays**. package.json / lock / SBOM / license inventory unchanged.
+
+## Windows
+
+**WINDOWS WEBVIEW2 VERIFIED: NO**  
+**WINDOWS HUMAN TEST REQUIRED: YES** — Linux automated gate is **AFE-EQUAL**, so Windows/WebView2 human testing is now allowed. Do not change the production default until that human pass.
+
+### Windows human benchmark procedure (AFE-03)
+
+Same project and fixtures as Linux.
+
+1. Check out `cursor/ailexsi-frame-engine-afe-03-9b96`. `npm ci`.
+2. Record WebView2 / Edge version. Run `npx tauri dev` **and** `npm run web:dev`.
+3. Open `http://127.0.0.1:1421/scripts/afe-frame-harness.html?warmup=10&measured=50`.
+4. Wait for `AFE_DONE`. Save `window.__AFE_RESULT`.
+5. Require: 0 packet/pixel mismatches; 720p30 measured **median** AFE ≤ Mediabunny (10+50, same host); no abort/fallback/memory fail.
+6. If Windows median misses, keep Mediabunny default. Linux EQUAL does not override a Windows miss.
+
+## Classification
+
+**AFE-EQUAL.**
+
+Not AFE-FAIL: 0 packet / 0 pixel mismatches, abort + fallback pass, memory bounded.
+
+Not AFE-COMPETITIVE: full-export **median** is no longer Mediabunny’s (AFE ≤ MB on the official 10+50 and on 30s).
+
+Not AFE-SUPERIOR-CANDIDATE: the 2s median/mean gaps are inside run-to-run noise (~7 ms stddev). Do not call 1–2 ms superior.
+
+**Production default stays Mediabunny.** Review-only. Do not merge as a default change. Do not merge #23, #24, or this PR automatically.
+
+```
+BASE HEAD: e19b47b713f9a278023fab1bb2531114ccc47b3a
+BASE BRANCH: cursor/ailexsi-frame-engine-afe-02-3e21
+AFE-03 BRANCH: cursor/ailexsi-frame-engine-afe-03-9b96
+AFE IMPLEMENTED: YES (AFE-01 + AFE-02 + AFE-03 opts)
+MEDIABUNNY BASELINE: 1.55.3
+CORRECTNESS TESTS: packet 10228/10228; pixels 2960/2960
+TOTAL FRAME REQUESTS: 10228 (oracle) + 2960 (Chrome pixels)
+MEDIABUNNY EXACT: 10228 packet / 2960 pixel
+AFE EXACT: 10228 packet / 2960 pixel
+AFE MISMATCHES: 0
+SEQUENTIAL: MEDIABUNNY 0.264 ms / AFE 0.198 ms / WINNER AILEXSI
+RANDOM: MEDIABUNNY 3.164 ms / AFE 3.255 ms / WINNER MEDIABUNNY
+WORST LATENCY: MEDIABUNNY 40.3 ms / AFE 47.7 ms
+MEMORY: cache cap 12; sequential peak cached 0; in-flight ≤ 4+1; 7min/30min sim stabilized
+ABORT TEST: PASS (open / batch / random / export)
+FALLBACK TEST: PASS (AFE_UNSUPPORTED_CONTAINER)
+FULL 720P30 EXPORT: both success; measured n=50 median MB 262.900 / AFE 261.200; mean MB 263.812 / AFE 263.018
+LONG 30S 720P30: measured n=8 median MB 3784.4 / AFE 3713.3
+TYPECHECK: npx tsc --noEmit exit 0
+TARGETED TESTS: 27 tests passed in 7 files
+FULL SUITE: 939 tests passed in 109 files
+BUILD: vite 7.3.6, 208 modules, version 5.0.0
+WINDOWS WEBVIEW2 VERIFIED: NO
+WINDOWS HUMAN TEST REQUIRED: YES
+CLASSIFICATION: AFE-EQUAL
+PRODUCTION DEFAULT CHANGED: NO
+MEDIABUNNY REMOVED: NO
+PACKAGE LOCK REMOVAL: NO
+LICENSE CHANGED: NO
+```
+
