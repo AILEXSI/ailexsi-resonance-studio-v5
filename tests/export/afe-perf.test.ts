@@ -48,13 +48,15 @@ describe("AfePerfStats local telemetry", () => {
     expect(ranked[0]!.phase).toBe("containerParse");
   });
 
-  it("wallStats reports median / mean / p95 / worst", () => {
+  it("wallStats reports median / mean / p50 / p95 / worst / stddev", () => {
     const s = wallStats([10, 20, 30, 40, 100]);
     expect(s.n).toBe(5);
     expect(s.median).toBe(30);
+    expect(s.p50).toBe(30);
     expect(s.mean).toBe(40);
     expect(s.worst).toBe(100);
     expect(s.min).toBe(10);
     expect(s.p95).toBe(100);
+    expect(s.stddev).toBeCloseTo(Math.sqrt(1000), 8);
   });
 });

@@ -50,6 +50,12 @@ export const AFE_PERF_COUNTS = [
   "keyframeLookups",
   "sampleIndexLookups",
   "sampleByteSlices",
+  "readyImmediate",
+  "framePromiseWaits",
+  "streamPathFrames",
+  "randomPathFrames",
+  "inFlightPeak",
+  "prefetchWindow",
 ] as const;
 
 export type AfePerfCount = (typeof AFE_PERF_COUNTS)[number];
@@ -111,6 +117,12 @@ function emptyCounts(): AfePerfCounts {
     keyframeLookups: 0,
     sampleIndexLookups: 0,
     sampleByteSlices: 0,
+    readyImmediate: 0,
+    framePromiseWaits: 0,
+    streamPathFrames: 0,
+    randomPathFrames: 0,
+    inFlightPeak: 0,
+    prefetchWindow: 0,
   };
 }
 
@@ -184,6 +196,11 @@ export function afePerfAdd(phase: AfePerfPhase, ms: number): void {
 export function afePerfCount(field: AfePerfCount, n = 1): void {
   if (!session || n === 0) return;
   session.counts[field] += n;
+}
+
+export function afePerfMax(field: AfePerfCount, n: number): void {
+  if (!session) return;
+  if (n > session.counts[field]) session.counts[field] = n;
 }
 
 export function afePerfMarkDecoded(sampleIndex: number): void {

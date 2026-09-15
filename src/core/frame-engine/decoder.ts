@@ -1,12 +1,14 @@
 import { decoderConfigOf } from "./avc-config";
 import { AfeError, abortedError, throwIfAborted } from "./errors";
-import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfMarkDecoded, afePerfProbeInstalled } from "./perf";
+import { afePerfAdd, afePerfCount, afePerfEnabled, afePerfMarkDecoded, afePerfMax, afePerfProbeInstalled } from "./perf";
 import type { AfeMovie, AfeSample } from "./types";
 import { sampleBytes } from "./mp4-reader";
 
+type FrameWaiter = { resolve: (frame: VideoFrame) => void; reject: (e: Error) => void };
+
 export class AfeVideoDecoder {
   private decoder: VideoDecoder | null = null;
-  private waiters = new Map<number, { resolve: (frame: VideoFrame) => void; reject: (e: Error) => void }>();
+  private waiters = new Map<number, FrameWaiter>();
   private generation = 0;
   private closed = false;
   private lastError: Error | null = null;
@@ -14,10 +16,28 @@ export class AfeVideoDecoder {
   /** WebCodecs requires a key chunk after configure() or flush(). */
   needsKeyframe = true;
 
+  /** Sequential stream: timestamp(us) → sample index for in-flight encoded chunks. */
+  private streamTs = new Map<number, number>();
+  /** Submit order for no-B-frame streams (output order == decode order). */
+  private streamOrder: number[] = [];
+  private streamReady = new Map<number, VideoFrame>();
+  private streamWaiter: (FrameWaiter & { index: number }) | null = null;
+  private streamNeeded: Uint8Array | null = null;
+  private streamDecodeStart = 0;
+  private streamMode = false;
+
   constructor(private readonly movie: AfeMovie) {}
 
   get isOpen(): boolean {
     return this.decoder != null && this.configured && !this.closed;
+  }
+
+  get readySize(): number {
+    return this.streamReady.size;
+  }
+
+  get pendingOutputCount(): number {
+    return this.streamTs.size + this.streamReady.size;
   }
 
   async ensure(signal?: AbortSignal): Promise<void> {
@@ -53,6 +73,8 @@ export class AfeVideoDecoder {
 
   async reset(signal?: AbortSignal): Promise<void> {
     throwIfAborted(signal);
+    this.streamMode = false;
+    this.streamNeeded = null;
     this.rejectWaiters(new AfeError("AFE_DECODE_FAILED", "decoder reset", false));
     if (this.decoder && this.configured) {
       try {
@@ -74,27 +96,101 @@ export class AfeVideoDecoder {
     return Math.round((sample.ptsTimescale / this.movie.timescale) * 1_000_000);
   }
 
+  beginStream(needed: Uint8Array, decodeStart: number): void {
+    this.closeStreamFrames();
+    this.streamTs.clear();
+    this.streamOrder.length = 0;
+    this.streamMode = true;
+    this.streamNeeded = needed;
+    this.streamDecodeStart = decodeStart;
+  }
+
+  endStream(): void {
+    this.streamMode = false;
+    this.streamNeeded = null;
+    this.closeStreamFrames();
+    this.streamTs.clear();
+    this.streamOrder.length = 0;
+    if (this.streamWaiter) {
+      const w = this.streamWaiter;
+      this.streamWaiter = null;
+      w.reject(new AfeError("AFE_DECODE_FAILED", "stream ended", false));
+    }
+  }
+
+  drainStream(put: (index: number, frame: VideoFrame) => void): void {
+    for (const [index, frame] of this.streamReady) {
+      put(index, frame);
+    }
+    this.streamReady.clear();
+  }
+
+  knowsSample(index: number): boolean {
+    if (this.streamReady.has(index) || this.streamWaiter?.index === index) return true;
+    return this.streamOrder.includes(index);
+  }
+
+  takeReady(index: number): VideoFrame | null {
+    const frame = this.streamReady.get(index);
+    if (!frame) return null;
+    this.streamReady.delete(index);
+    return frame;
+  }
+
+  waitReady(index: number, signal?: AbortSignal): Promise<VideoFrame> {
+    const hit = this.takeReady(index);
+    if (hit) return Promise.resolve(hit);
+    throwIfAborted(signal);
+    if (this.lastError) return Promise.reject(this.lastError);
+    if (this.closed) return Promise.reject(new AfeError("AFE_DECODE_FAILED", "decoder closed", false));
+    return new Promise<VideoFrame>((resolve, reject) => {
+      const onAbort = () => {
+        if (this.streamWaiter?.index === index) this.streamWaiter = null;
+        reject(abortedError(signal));
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.streamWaiter = {
+        index,
+        resolve: (f) => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve(f);
+        },
+        reject: (e) => {
+          signal?.removeEventListener("abort", onAbort);
+          reject(e);
+        },
+      };
+    });
+  }
+
+  /**
+   * Submit one sample after ensure(). No Promise — output lands on the ready queue.
+   * Sequential export uses this so the consumer can pull without per-frame resolvers.
+   */
+  submitEncoded(sample: AfeSample, signal?: AbortSignal): void {
+    throwIfAborted(signal);
+    if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
+    if (this.lastError) throw this.lastError;
+    const { timestamp, chunk } = this.makeChunk(sample);
+    this.streamTs.set(timestamp, sample.index);
+    this.streamOrder.push(sample.index);
+    try {
+      this.decoder.decode(chunk);
+      if (sample.isKeyframe) this.needsKeyframe = false;
+    } catch (e) {
+      this.streamTs.delete(timestamp);
+      if (this.streamOrder[this.streamOrder.length - 1] === sample.index) this.streamOrder.pop();
+      throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+    }
+    afePerfMax("inFlightPeak", this.pendingOutputCount);
+  }
+
   /** Submit one sample after ensure(). Decode order is the call order. Does not flush. */
   enqueueSample(sample: AfeSample, signal?: AbortSignal): Promise<VideoFrame> {
     throwIfAborted(signal);
     if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
     if (this.lastError) throw this.lastError;
-    if (this.needsKeyframe && !sample.isKeyframe) {
-      throw new AfeError("AFE_DECODE_FAILED", "key frame required after configure/flush", false);
-    }
-    const timestamp = this.chunkTimestampUs(sample);
-    const read0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
-    const data = sampleBytes(this.movie, sample);
-    if (afePerfEnabled()) {
-      afePerfAdd("encodedSampleRead", performance.now() - read0);
-      afePerfMarkDecoded(sample.index);
-    }
-    const chunk = new EncodedVideoChunk({
-      type: sample.isKeyframe ? "key" : "delta",
-      timestamp,
-      duration: Math.max(1, Math.round((sample.durationTimescale / this.movie.timescale) * 1_000_000)),
-      data,
-    });
+    const { timestamp, chunk } = this.makeChunk(sample);
     const promise = new Promise<VideoFrame>((resolve, reject) => {
       const onAbort = () => {
         this.waiters.delete(timestamp);
@@ -173,7 +269,8 @@ export class AfeVideoDecoder {
    */
   private async settleOutputs(signal?: AbortSignal, persist = false): Promise<void> {
     const dec = this.decoder;
-    if (!dec || this.waiters.size === 0) return;
+    if (!dec) return;
+    if (this.waiters.size === 0 && this.streamTs.size === 0 && !this.streamWaiter) return;
 
     const waitDequeue = () =>
       new Promise<void>((resolve) => {
@@ -191,23 +288,24 @@ export class AfeVideoDecoder {
       await waitDequeue();
     }
 
-    if (persist && this.waiters.size > 0) {
+    if (persist && (this.waiters.size > 0 || this.streamTs.size > 0 || this.streamWaiter)) {
       const stallMs = 40;
-      let lastSize = this.waiters.size;
+      let lastSize = this.waiters.size + this.streamTs.size;
       let lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
-      while (this.waiters.size > 0) {
+      while (this.waiters.size > 0 || this.streamTs.size > 0 || this.streamWaiter) {
         throwIfAborted(signal);
         const now = typeof performance !== "undefined" ? performance.now() : Date.now();
         if (now - lastChange >= stallMs) break;
         await new Promise<void>((r) => setTimeout(r, 0));
-        if (this.waiters.size < lastSize) {
-          lastSize = this.waiters.size;
+        const size = this.waiters.size + this.streamTs.size;
+        if (size < lastSize) {
+          lastSize = size;
           lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
         }
       }
     }
 
-    if (this.waiters.size === 0) return;
+    if (this.waiters.size === 0 && this.streamTs.size === 0 && !this.streamWaiter) return;
     try {
       await dec.flush();
       if (!afePerfProbeInstalled()) afePerfCount("decoderFlushes");
@@ -225,11 +323,98 @@ export class AfeVideoDecoder {
     this.teardown();
   }
 
+  private isNeeded(index: number): boolean {
+    if (!this.streamNeeded) return true;
+    const i = index - this.streamDecodeStart;
+    return i >= 0 && i < this.streamNeeded.length && this.streamNeeded[i] === 1;
+  }
+
+  private makeChunk(sample: AfeSample): { timestamp: number; chunk: EncodedVideoChunk } {
+    if (this.needsKeyframe && !sample.isKeyframe) {
+      throw new AfeError("AFE_DECODE_FAILED", "key frame required after configure/flush", false);
+    }
+    const timestamp = this.chunkTimestampUs(sample);
+    const read0 = afePerfEnabled() && typeof performance !== "undefined" ? performance.now() : 0;
+    const data = sampleBytes(this.movie, sample);
+    if (afePerfEnabled()) {
+      afePerfAdd("encodedSampleRead", performance.now() - read0);
+      afePerfMarkDecoded(sample.index);
+    }
+    return {
+      timestamp,
+      chunk: new EncodedVideoChunk({
+        type: sample.isKeyframe ? "key" : "delta",
+        timestamp,
+        duration: Math.max(1, Math.round((sample.durationTimescale / this.movie.timescale) * 1_000_000)),
+        data,
+      }),
+    };
+  }
+
+  private resolveStream(index: number, frame: VideoFrame): boolean {
+    if (this.streamWaiter?.index === index) {
+      const w = this.streamWaiter;
+      this.streamWaiter = null;
+      w.resolve(frame);
+      return true;
+    }
+    const prev = this.streamReady.get(index);
+    if (prev && prev !== frame) {
+      try {
+        prev.close();
+      } catch {
+        /* */
+      }
+    }
+    this.streamReady.set(index, frame);
+    afePerfMax("inFlightPeak", this.pendingOutputCount);
+    return true;
+  }
+
+  /**
+   * AFE rejects B-frames (varying ctts), so output order equals submit/decode
+   * order. Assign FIFO first — timestamp nearest-match was observed to drop a
+   * mid-GOP requested frame (hard-cut / Source In) and stall waitReady forever.
+   */
+  private matchStreamIndex(timestamp: number): number | undefined {
+    const fifo = this.streamOrder.shift();
+    if (fifo != null) {
+      const mapped = this.streamTs.get(timestamp);
+      if (mapped === fifo) this.streamTs.delete(timestamp);
+      else {
+        for (const [ts, idx] of this.streamTs) {
+          if (idx === fifo) {
+            this.streamTs.delete(ts);
+            break;
+          }
+        }
+      }
+      return fifo;
+    }
+    const exact = this.streamTs.get(timestamp);
+    if (exact != null) {
+      this.streamTs.delete(timestamp);
+      return exact;
+    }
+    return undefined;
+  }
+
   private onOutput(frame: VideoFrame): void {
     afePerfCount("framesDecoded");
     if (this.closed) {
       frame.close();
       return;
+    }
+    if (this.streamMode) {
+      const idx = this.matchStreamIndex(frame.timestamp);
+      if (idx != null) {
+        if (!this.isNeeded(idx)) {
+          frame.close();
+          return;
+        }
+        this.resolveStream(idx, frame);
+        return;
+      }
     }
     const waiter = this.waiters.get(frame.timestamp);
     if (waiter) {
@@ -265,11 +450,35 @@ export class AfeVideoDecoder {
     const pending = [...this.waiters.values()];
     this.waiters.clear();
     for (const w of pending) w.reject(err);
+    if (this.streamWaiter) {
+      const w = this.streamWaiter;
+      this.streamWaiter = null;
+      w.reject(err);
+    }
+    this.closeStreamFrames();
+    this.streamTs.clear();
+    this.streamOrder.length = 0;
+  }
+
+  private closeStreamFrames(): void {
+    for (const frame of this.streamReady.values()) {
+      try {
+        frame.close();
+      } catch {
+        /* already closed */
+      }
+    }
+    this.streamReady.clear();
   }
 
   private teardown(): void {
     this.configured = false;
     this.needsKeyframe = true;
+    this.closeStreamFrames();
+    this.streamTs.clear();
+    this.streamOrder.length = 0;
+    this.streamMode = false;
+    this.streamNeeded = null;
     if (this.decoder) {
       try {
         this.decoder.close();

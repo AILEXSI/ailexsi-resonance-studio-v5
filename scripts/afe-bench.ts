@@ -1,22 +1,28 @@
-/** AFE-02 local benchmark helpers. Not shipped. */
+/** AFE-03 local benchmark helpers. Not shipped. */
 
 export type WallStats = {
   n: number;
   mean: number;
   median: number;
+  p50: number;
   p95: number;
   worst: number;
   min: number;
+  stddev: number;
 };
 
 export function wallStats(values: number[]): WallStats {
   const s = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
   const n = s.length;
-  if (n === 0) return { n: 0, mean: 0, median: 0, p95: 0, worst: 0, min: 0 };
+  if (n === 0) return { n: 0, mean: 0, median: 0, p50: 0, p95: 0, worst: 0, min: 0, stddev: 0 };
   const sum = s.reduce((a, b) => a + b, 0);
+  const mean = sum / n;
   const median = n % 2 === 1 ? s[(n - 1) >> 1]! : (s[n / 2 - 1]! + s[n / 2]!) / 2;
   const p95 = s[Math.min(n - 1, Math.max(0, Math.ceil(n * 0.95) - 1))]!;
-  return { n, mean: sum / n, median, p95, worst: s[n - 1]!, min: s[0]! };
+  let varSum = 0;
+  for (const v of s) varSum += (v - mean) * (v - mean);
+  const stddev = Math.sqrt(varSum / n);
+  return { n, mean, median, p50: median, p95, worst: s[n - 1]!, min: s[0]!, stddev };
 }
 
 export function clipOf(
@@ -58,7 +64,7 @@ export function jobOf(
   return {
     id,
     projectId: "p",
-    projectName: "afe-02",
+    projectName: "afe-03",
     startMs: 0,
     endMs: durationMs,
     durationMs,
