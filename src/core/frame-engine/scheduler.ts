@@ -200,8 +200,11 @@ export class AfeScheduler {
         } else {
           afePerfCount("framePromiseWaits");
           const t0 = afePerfEnabled() ? performance.now() : 0;
-          if (idx === last) await this.decoder.releaseHeld(signal);
-          frame = this.decoder.takeReady(idx) ?? (await this.decoder.waitReady(idx, signal));
+          if (idx === last || this.decoder.pendingOutputCount === 0) {
+            await this.decoder.releaseHeld(signal);
+            frame = this.decoder.takeReady(idx);
+          }
+          if (!frame) frame = await this.decoder.waitReady(idx, signal);
           if (t0) afePerfAdd("decodeQueueWait", performance.now() - t0);
         }
         if (idx === last && this.decoder.pendingOutputCount > 0) {

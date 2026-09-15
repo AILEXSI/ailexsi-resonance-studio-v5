@@ -73,6 +73,8 @@ export class AfeVideoDecoder {
 
   async reset(signal?: AbortSignal): Promise<void> {
     throwIfAborted(signal);
+    this.streamMode = false;
+    this.streamNeeded = null;
     this.rejectWaiters(new AfeError("AFE_DECODE_FAILED", "decoder reset", false));
     if (this.decoder && this.configured) {
       try {
@@ -369,40 +371,30 @@ export class AfeVideoDecoder {
     return true;
   }
 
+  /**
+   * AFE rejects B-frames (varying ctts), so output order equals submit/decode
+   * order. Assign FIFO first — timestamp nearest-match was observed to drop a
+   * mid-GOP requested frame (hard-cut / Source In) and stall waitReady forever.
+   */
   private matchStreamIndex(timestamp: number): number | undefined {
-    const exact = this.streamTs.get(timestamp);
-    if (exact != null) {
-      this.streamTs.delete(timestamp);
-      const pos = this.streamOrder.indexOf(exact);
-      if (pos >= 0) this.streamOrder.splice(pos, 1);
-      return exact;
-    }
-    let best: number | undefined;
-    let bestTs: number | undefined;
-    let bestDelta = Infinity;
-    for (const [ts, idx] of this.streamTs) {
-      const d = Math.abs(ts - timestamp);
-      if (d < bestDelta) {
-        bestDelta = d;
-        best = idx;
-        bestTs = ts;
-      }
-    }
-    if (best != null && bestTs != null && bestDelta < 2) {
-      this.streamTs.delete(bestTs);
-      const pos = this.streamOrder.indexOf(best);
-      if (pos >= 0) this.streamOrder.splice(pos, 1);
-      return best;
-    }
     const fifo = this.streamOrder.shift();
     if (fifo != null) {
-      for (const [ts, idx] of this.streamTs) {
-        if (idx === fifo) {
-          this.streamTs.delete(ts);
-          break;
+      const mapped = this.streamTs.get(timestamp);
+      if (mapped === fifo) this.streamTs.delete(timestamp);
+      else {
+        for (const [ts, idx] of this.streamTs) {
+          if (idx === fifo) {
+            this.streamTs.delete(ts);
+            break;
+          }
         }
       }
       return fifo;
+    }
+    const exact = this.streamTs.get(timestamp);
+    if (exact != null) {
+      this.streamTs.delete(timestamp);
+      return exact;
     }
     return undefined;
   }
