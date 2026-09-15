@@ -9,3 +9,4 @@ target/
 
 artifacts/
 fixtures/user-provided.mp4
+public/fixtures/

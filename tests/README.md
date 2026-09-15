@@ -5,7 +5,7 @@ Vitest under `tests/`. Last full count on the accepted EXE SHA `234a781` (PR #15
 Suites by area:
 
 - foundation / models
-- media (import, still, user-fixtures, **stem-import**, **zip-audio**)
+- media (import, still, user-fixtures from `tests/fixtures/` only — not `public/`, **stem-import**, **zip-audio**)
 - timeline (edit, zoom, markers, clip preview)
 - persistence (project-file, last-project, Speichern vs Speichern unter + Tauri `lastPath`)
 - preview / playback

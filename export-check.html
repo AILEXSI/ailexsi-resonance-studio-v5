@@ -1,5 +1,6 @@
 <!doctype html>
 <html>
+  <!-- Developer/test-only diagnostic. Not under public/; Vite does not copy this into dist / Tauri. -->
   <head><meta charset="utf-8" /><title>export-check pending</title></head>
   <body>
     <pre id="out">starting</pre>
@@ -34,8 +35,8 @@
       }
 
       try {
-        const videoFile = await loadFile("/fixtures/user-video.mp4", "user-video.mp4", "video/mp4");
-        const audioFile = await loadFile("/fixtures/user-audio.mp3", "user-audio.mp3", "audio/mpeg");
+        const videoFile = await loadFile("/tests/fixtures/user-video.mp4", "user-video.mp4", "video/mp4");
+        const audioFile = await loadFile("/tests/fixtures/user-audio.mp3", "user-audio.mp3", "audio/mpeg");
         const videoAsset = await importMediaFile(videoFile);
         const audioAsset = await importMediaFile(audioFile);
         let project = createEmptyProject("UserExport");
