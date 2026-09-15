@@ -117,7 +117,7 @@ export class AfeScheduler {
         last = nxt;
         j += 1;
       }
-      const produced = await this.decodeSpan(index, last, signal);
+      const produced = await this.decodeSpan(index, last, signal, true);
       for (let k = i; k < j; k++) {
         const idx = sampleIndexAtTime(this.movie, timesSec[k]!);
         if (idx == null) {
@@ -154,7 +154,7 @@ export class AfeScheduler {
   private async decodeTo(target: number, signal?: AbortSignal): Promise<VideoFrame> {
     const cached = this.cache.takeClone(target);
     if (cached) return cached;
-    const produced = await this.decodeSpan(target, target, signal);
+    const produced = await this.decodeSpan(target, target, signal, false);
     const wanted = produced.get(target);
     for (const [index, frame] of produced) {
       if (index === target) continue;
@@ -169,7 +169,12 @@ export class AfeScheduler {
     return again;
   }
 
-  private async decodeSpan(from: number, to: number, signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
+  private async decodeSpan(
+    from: number,
+    to: number,
+    signal?: AbortSignal,
+    persist = false,
+  ): Promise<Map<number, VideoFrame>> {
     afePerfCount("decodeSpanCalls");
     const start = Math.min(from, to);
     const end = Math.max(from, to);
@@ -193,7 +198,7 @@ export class AfeScheduler {
 
     let frames: Map<number, VideoFrame>;
     try {
-      frames = await this.decoder.decodeRange(run, signal);
+      frames = await this.decoder.decodeRange(run, signal, persist);
     } catch (e) {
       if (!isAfeError(e) || !/key frame/i.test(e.message)) throw e;
       await this.decoder.reset(signal);
@@ -201,7 +206,7 @@ export class AfeScheduler {
       this.warm = true;
       const retry: AfeSample[] = [];
       for (let i = key; i <= end; i++) retry.push(this.movie.samples[i]!);
-      frames = await this.decoder.decodeRange(retry, signal);
+      frames = await this.decoder.decodeRange(retry, signal, persist);
     }
     this.nextDecode = end + 1;
     return frames;

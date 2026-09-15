@@ -78,7 +78,11 @@ export class AfeVideoDecoder {
    * Decode `samples` in order. Do not flush between sequential calls — flush()
    * forces the next chunk to be a keyframe and destroys forward state.
    */
-  async decodeRange(samples: AfeSample[], signal?: AbortSignal): Promise<Map<number, VideoFrame>> {
+  async decodeRange(
+    samples: AfeSample[],
+    signal?: AbortSignal,
+    persist = false,
+  ): Promise<Map<number, VideoFrame>> {
     throwIfAborted(signal);
     await this.ensure(signal);
     if (!this.decoder) throw new AfeError("AFE_DECODE_FAILED", "decoder missing");
@@ -134,7 +138,7 @@ export class AfeVideoDecoder {
       }
     }
 
-    await this.settleOutputs(signal);
+    await this.settleOutputs(signal, persist);
 
     const out = new Map<number, VideoFrame>();
     for (const item of pending) {
@@ -158,7 +162,7 @@ export class AfeVideoDecoder {
    * flush() forces the next chunk to be a keyframe and makes the scheduler
    * restart the GOP — measured AFE-02 baseline: 102 chunks for 60 frames.
    */
-  private async settleOutputs(signal?: AbortSignal): Promise<void> {
+  private async settleOutputs(signal?: AbortSignal, persist = false): Promise<void> {
     const dec = this.decoder;
     if (!dec || this.waiters.size === 0) return;
 
@@ -178,17 +182,19 @@ export class AfeVideoDecoder {
       await waitDequeue();
     }
 
-    const stallMs = 40;
-    let lastSize = this.waiters.size;
-    let lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
-    while (this.waiters.size > 0) {
-      throwIfAborted(signal);
-      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-      if (now - lastChange >= stallMs) break;
-      await new Promise<void>((r) => setTimeout(r, 0));
-      if (this.waiters.size < lastSize) {
-        lastSize = this.waiters.size;
-        lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (persist && this.waiters.size > 0) {
+      const stallMs = 40;
+      let lastSize = this.waiters.size;
+      let lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+      while (this.waiters.size > 0) {
+        throwIfAborted(signal);
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (now - lastChange >= stallMs) break;
+        await new Promise<void>((r) => setTimeout(r, 0));
+        if (this.waiters.size < lastSize) {
+          lastSize = this.waiters.size;
+          lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+        }
       }
     }
 
