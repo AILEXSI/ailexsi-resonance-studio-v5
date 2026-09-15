@@ -134,21 +134,7 @@ export class AfeVideoDecoder {
       }
     }
 
-    if (this.waiters.size > 0) {
-      await new Promise<void>((r) => {
-        queueMicrotask(r);
-      });
-    }
-    if (this.waiters.size > 0) {
-      try {
-        await this.decoder.flush();
-        if (!afePerfProbeInstalled()) afePerfCount("decoderFlushes");
-        this.needsKeyframe = true;
-      } catch (e) {
-        if (signal?.aborted) throw abortedError(signal);
-        throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
-      }
-    }
+    await this.settleOutputs(signal);
 
     const out = new Map<number, VideoFrame>();
     for (const item of pending) {
@@ -165,6 +151,56 @@ export class AfeVideoDecoder {
     }
     throwIfAborted(signal);
     return out;
+  }
+
+  /**
+   * Wait for VideoDecoder outputs without flush() when possible.
+   * flush() forces the next chunk to be a keyframe and makes the scheduler
+   * restart the GOP — measured AFE-02 baseline: 102 chunks for 60 frames.
+   */
+  private async settleOutputs(signal?: AbortSignal): Promise<void> {
+    const dec = this.decoder;
+    if (!dec || this.waiters.size === 0) return;
+
+    const waitDequeue = () =>
+      new Promise<void>((resolve) => {
+        const done = () => {
+          dec.removeEventListener("dequeue", done);
+          clearTimeout(timer);
+          resolve();
+        };
+        const timer = setTimeout(done, 16);
+        dec.addEventListener("dequeue", done);
+      });
+
+    while (dec.decodeQueueSize > 0) {
+      throwIfAborted(signal);
+      await waitDequeue();
+    }
+
+    const stallMs = 40;
+    let lastSize = this.waiters.size;
+    let lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+    while (this.waiters.size > 0) {
+      throwIfAborted(signal);
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      if (now - lastChange >= stallMs) break;
+      await new Promise<void>((r) => setTimeout(r, 0));
+      if (this.waiters.size < lastSize) {
+        lastSize = this.waiters.size;
+        lastChange = typeof performance !== "undefined" ? performance.now() : Date.now();
+      }
+    }
+
+    if (this.waiters.size === 0) return;
+    try {
+      await dec.flush();
+      if (!afePerfProbeInstalled()) afePerfCount("decoderFlushes");
+      this.needsKeyframe = true;
+    } catch (e) {
+      if (signal?.aborted) throw abortedError(signal);
+      throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
+    }
   }
 
   close(): void {
