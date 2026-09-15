@@ -18,6 +18,8 @@ export class AfeVideoDecoder {
 
   /** Sequential stream: timestamp(us) → sample index for in-flight encoded chunks. */
   private streamTs = new Map<number, number>();
+  /** Submit order for no-B-frame streams (output order == decode order). */
+  private streamOrder: number[] = [];
   private streamReady = new Map<number, VideoFrame>();
   private streamWaiter: (FrameWaiter & { index: number }) | null = null;
   private streamNeeded: Uint8Array | null = null;
@@ -95,6 +97,7 @@ export class AfeVideoDecoder {
   beginStream(needed: Uint8Array, decodeStart: number): void {
     this.closeStreamFrames();
     this.streamTs.clear();
+    this.streamOrder.length = 0;
     this.streamMode = true;
     this.streamNeeded = needed;
     this.streamDecodeStart = decodeStart;
@@ -105,6 +108,7 @@ export class AfeVideoDecoder {
     this.streamNeeded = null;
     this.closeStreamFrames();
     this.streamTs.clear();
+    this.streamOrder.length = 0;
     if (this.streamWaiter) {
       const w = this.streamWaiter;
       this.streamWaiter = null;
@@ -121,10 +125,7 @@ export class AfeVideoDecoder {
 
   knowsSample(index: number): boolean {
     if (this.streamReady.has(index) || this.streamWaiter?.index === index) return true;
-    for (const i of this.streamTs.values()) {
-      if (i === index) return true;
-    }
-    return false;
+    return this.streamOrder.includes(index);
   }
 
   takeReady(index: number): VideoFrame | null {
@@ -170,11 +171,13 @@ export class AfeVideoDecoder {
     if (this.lastError) throw this.lastError;
     const { timestamp, chunk } = this.makeChunk(sample);
     this.streamTs.set(timestamp, sample.index);
+    this.streamOrder.push(sample.index);
     try {
       this.decoder.decode(chunk);
       if (sample.isKeyframe) this.needsKeyframe = false;
     } catch (e) {
       this.streamTs.delete(timestamp);
+      if (this.streamOrder[this.streamOrder.length - 1] === sample.index) this.streamOrder.pop();
       throw new AfeError("AFE_DECODE_FAILED", e instanceof Error ? e.message : String(e));
     }
     afePerfMax("inFlightPeak", this.pendingOutputCount);
@@ -370,6 +373,8 @@ export class AfeVideoDecoder {
     const exact = this.streamTs.get(timestamp);
     if (exact != null) {
       this.streamTs.delete(timestamp);
+      const pos = this.streamOrder.indexOf(exact);
+      if (pos >= 0) this.streamOrder.splice(pos, 1);
       return exact;
     }
     let best: number | undefined;
@@ -385,7 +390,19 @@ export class AfeVideoDecoder {
     }
     if (best != null && bestTs != null && bestDelta < 2) {
       this.streamTs.delete(bestTs);
+      const pos = this.streamOrder.indexOf(best);
+      if (pos >= 0) this.streamOrder.splice(pos, 1);
       return best;
+    }
+    const fifo = this.streamOrder.shift();
+    if (fifo != null) {
+      for (const [ts, idx] of this.streamTs) {
+        if (idx === fifo) {
+          this.streamTs.delete(ts);
+          break;
+        }
+      }
+      return fifo;
     }
     return undefined;
   }
@@ -448,6 +465,7 @@ export class AfeVideoDecoder {
     }
     this.closeStreamFrames();
     this.streamTs.clear();
+    this.streamOrder.length = 0;
   }
 
   private closeStreamFrames(): void {
@@ -466,6 +484,7 @@ export class AfeVideoDecoder {
     this.needsKeyframe = true;
     this.closeStreamFrames();
     this.streamTs.clear();
+    this.streamOrder.length = 0;
     this.streamMode = false;
     this.streamNeeded = null;
     if (this.decoder) {

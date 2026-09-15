@@ -32,6 +32,21 @@ function waitForResult() {
         res.end();
         return;
       }
+      if (req.method === "POST" && req.url === "/afe-progress") {
+        const chunks = [];
+        req.on("data", (c) => chunks.push(c));
+        req.on("end", () => {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end('{"ok":true}');
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            if (body?.text) console.log("progress", String(body.text).slice(0, 160));
+          } catch {
+            /* */
+          }
+        });
+        return;
+      }
       if (req.method === "POST" && req.url === "/afe-results") {
         const chunks = [];
         req.on("data", (c) => chunks.push(c));

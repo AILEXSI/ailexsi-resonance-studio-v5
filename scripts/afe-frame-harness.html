@@ -48,6 +48,7 @@
         out.textContent = text;
         document.title = text.split("\n")[0].slice(0, 80);
         window.__AFE_TEXT = text;
+        void report("/afe-progress", { text, t: performance.now() });
       }
 
       async function report(path, body) {
