@@ -2,6 +2,10 @@
  * Frame-accurate source frames for export.
  * HTMLVideoElement.currentTime snaps to GOP keyframes, so the exporter
  * decodes with Mediabunny VideoSampleSink.samplesAtTimestamps when possible.
+ *
+ * MBR spike: `setFrameSourceBackend("htmlvideo")` forces getDecoder() to
+ * return null so exportWithWebCodecs uses the existing HTMLVideo fallback.
+ * Default remains "mediabunny". Not a production setting.
  */
 import {
   ALL_FORMATS,
@@ -18,6 +22,23 @@ export type OpenedDecoder = {
   input: Input;
   sink: VideoSampleSink;
 };
+
+/** Isolated MBR study switch. Production default is Mediabunny. */
+export type FrameSourceBackendId = "mediabunny" | "htmlvideo";
+
+let frameSourceBackend: FrameSourceBackendId = "mediabunny";
+
+export function getFrameSourceBackend(): FrameSourceBackendId {
+  return frameSourceBackend;
+}
+
+export function setFrameSourceBackend(next: FrameSourceBackendId): void {
+  frameSourceBackend = next === "htmlvideo" ? "htmlvideo" : "mediabunny";
+}
+
+export function resetFrameSourceBackend(): void {
+  frameSourceBackend = "mediabunny";
+}
 
 const decoderCache = new Map<string, Promise<OpenedDecoder | null>>();
 
@@ -42,6 +63,7 @@ async function sourceForUrl(src: string) {
 }
 
 export function getDecoder(src: string): Promise<OpenedDecoder | null> {
+  if (frameSourceBackend === "htmlvideo") return Promise.resolve(null);
   if (!isPlayableSource(src)) return Promise.resolve(null);
   const hit = decoderCache.get(src);
   if (hit) return hit;
