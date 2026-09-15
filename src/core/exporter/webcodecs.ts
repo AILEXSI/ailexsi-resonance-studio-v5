@@ -378,7 +378,7 @@ export async function exportWithWebCodecs(
       if (decoded) {
         let k = 0;
         try {
-          for await (const sample of decoded.sink.samplesAtTimestamps(timestamps)) {
+          for await (const sample of decoded.samplesAtTimestamps(timestamps, hooks.signal)) {
             if (hooks.signal?.aborted) throw new Error("Export aborted");
             if (encoderError) throw encoderError;
             const i = run.startIndex + k;
