@@ -1,5 +1,11 @@
 import { encodeAac, mixJobAudio, probeAac, withTimeout, type AacProbe } from "./audio";
-import { clearFrameSources, drawContain, getDecoder, sourceTimeSec } from "./frame-source";
+import {
+  clearFrameSources,
+  drawContain,
+  getDecoder,
+  getFrameSourceBackend,
+  sourceTimeSec,
+} from "./frame-source";
 import { validateMp4Ftyp } from "./ftyp";
 import { videoClipAt } from "./job";
 import { clearMediaCache, isPlayableSource, loadVideo, seekVideo } from "./media";
@@ -374,7 +380,10 @@ export async function exportWithWebCodecs(
         if (painted === 0) throw new Error(`missing:${clip.label}`);
         continue;
       }
-      const decoded = await withTimeout(getDecoder(clip.sourceUrl), 20000, null);
+      const decoded =
+        getFrameSourceBackend() === "htmlvideo"
+          ? null
+          : await withTimeout(getDecoder(clip.sourceUrl), 20000, null);
       if (decoded) {
         let k = 0;
         try {

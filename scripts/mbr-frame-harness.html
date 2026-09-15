@@ -1,0 +1,394 @@
+<!doctype html>
+<html>
+  <!-- MBR study harness. Dev-only. Not under public/; Vite does not copy this into dist / Tauri. -->
+  <head>
+    <meta charset="utf-8" />
+    <title>MBR frame harness pending</title>
+    <style>
+      body { font-family: ui-monospace, monospace; background: #111; color: #ddd; margin: 16px; }
+      pre { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Mediabunny vs HTMLVideo frame harness</h1>
+    <pre id="out">starting</pre>
+    <script type="module">
+      import {
+        clearFrameSources,
+        getDecoder,
+        resetFrameSourceBackend,
+        setFrameSourceBackend,
+        sourceTimeSec,
+      } from "/src/core/exporter/frame-source.ts";
+      import { clearMediaCache, loadVideo, seekVideo } from "/src/core/exporter/media.ts";
+      import {
+        classifyFrameHit,
+        expectedFrameAtSec,
+        MBR_HEIGHT,
+        MBR_WIDTH,
+        readBarcodeFromImageData,
+      } from "/scripts/mbr-shared.mjs";
+
+      const out = document.getElementById("out");
+      const RECEIVE = "http://127.0.0.1:18766";
+
+      function show(text) {
+        out.textContent = text;
+        document.title = text.split("\n")[0].slice(0, 80);
+        window.__MBR_TEXT = text;
+      }
+
+      async function report(path, body) {
+        try {
+          await fetch(RECEIVE + path, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: typeof body === "string" ? body : JSON.stringify(body),
+          });
+        } catch (e) {
+          console.warn("report failed", e);
+        }
+      }
+
+      function readCanvasFrame(canvas) {
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const dark = img.data[0] < 8 && img.data[1] < 8 && img.data[2] < 8;
+        const index = readBarcodeFromImageData(img.data, canvas.width);
+        return { index, empty: dark && index === 0 && canvas.width > 0 };
+      }
+
+      function makeCanvas() {
+        const canvas = document.createElement("canvas");
+        canvas.width = MBR_WIDTH;
+        canvas.height = MBR_HEIGHT;
+        return canvas;
+      }
+
+      async function paintMediabunny(url, timeSec) {
+        const started = performance.now();
+        resetFrameSourceBackend();
+        const decoded = await getDecoder(url);
+        if (!decoded) {
+          return {
+            backend: "mediabunny",
+            requestedSec: timeSec,
+            ms: performance.now() - started,
+            class: "FAILED SEEK",
+            error: "no decoder",
+          };
+        }
+        const canvas = makeCanvas();
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        let sample = null;
+        try {
+          for await (const s of decoded.sink.samplesAtTimestamps([timeSec])) {
+            sample = s;
+          }
+        } catch (e) {
+          return {
+            backend: "mediabunny",
+            requestedSec: timeSec,
+            ms: performance.now() - started,
+            class: "FAILED SEEK",
+            error: e instanceof Error ? e.message : String(e),
+          };
+        }
+        if (!sample) {
+          return {
+            backend: "mediabunny",
+            requestedSec: timeSec,
+            ms: performance.now() - started,
+            class: "UNKNOWN",
+            error: "null sample",
+          };
+        }
+        sample.draw(ctx, 0, 0, MBR_WIDTH, MBR_HEIGHT);
+        const presentedSec = sample.timestamp;
+        sample.close();
+        const read = readCanvasFrame(canvas);
+        return {
+          backend: "mediabunny",
+          requestedSec: timeSec,
+          presentedSec,
+          actualFrame: read.index,
+          ms: performance.now() - started,
+          empty: read.empty,
+        };
+      }
+
+      async function paintHtml(url, timeSec) {
+        const started = performance.now();
+        setFrameSourceBackend("htmlvideo");
+        const canvas = makeCanvas();
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        try {
+          const video = await loadVideo(url);
+          const seekStarted = performance.now();
+          await seekVideo(video, timeSec);
+          const seekMs = performance.now() - seekStarted;
+          if (video.videoWidth < 2) {
+            return {
+              backend: "htmlvideo",
+              requestedSec: timeSec,
+              ms: performance.now() - started,
+              class: "FAILED SEEK",
+              error: "no video pixels",
+            };
+          }
+          ctx.drawImage(video, 0, 0, MBR_WIDTH, MBR_HEIGHT);
+          const read = readCanvasFrame(canvas);
+          return {
+            backend: "htmlvideo",
+            requestedSec: timeSec,
+            presentedSec: video.currentTime,
+            actualFrame: read.index,
+            ms: performance.now() - started,
+            seekMs,
+            empty: read.empty,
+          };
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          return {
+            backend: "htmlvideo",
+            requestedSec: timeSec,
+            ms: performance.now() - started,
+            class: /timeout/i.test(msg) ? "TIMEOUT" : "FAILED SEEK",
+            error: msg,
+          };
+        }
+      }
+
+      function finalizeHit(hit, fps, frames) {
+        if (hit.class) return hit;
+        const expected = expectedFrameAtSec(hit.requestedSec, fps);
+        let actual = hit.actualFrame;
+        if (actual != null && (actual < 0 || actual >= frames + 4)) {
+          return { ...hit, expectedFrame: expected, class: "WRONG FRAME", frameDelta: null };
+        }
+        if (hit.empty && expected !== 0) {
+          return { ...hit, expectedFrame: expected, class: "UNKNOWN", frameDelta: null };
+        }
+        const klass = classifyFrameHit(expected, actual);
+        const frameDelta = actual == null ? null : actual - expected;
+        const timeDelta =
+          hit.presentedSec == null ? null : hit.presentedSec - hit.requestedSec;
+        return { ...hit, expectedFrame: expected, class: klass, frameDelta, timeDelta };
+      }
+
+      function uniqueTimes(values) {
+        const out = [];
+        for (const v of values) {
+          if (!Number.isFinite(v)) continue;
+          if (out.some((x) => Math.abs(x - v) < 1e-6)) continue;
+          out.push(v);
+        }
+        return out;
+      }
+
+      function probeTimes(file) {
+        const fps = file.fps;
+        const dur = file.seconds;
+        const kfs = file.keyframeSec ?? [0];
+        const times = [0, 1 / fps];
+        for (const kf of kfs) {
+          if (kf <= 0) continue;
+          times.push(kf - 1 / fps, kf, kf + 1 / fps);
+        }
+        for (let i = 0; i + 1 < kfs.length; i++) {
+          times.push((kfs[i] + kfs[i + 1]) / 2);
+        }
+        if (kfs.length === 1) times.push(dur / 2);
+        times.push(Math.max(0, dur - 2 / fps), Math.max(0, dur - 1 / fps));
+        if (file.id.includes("g250")) {
+          times.push(10, 2, 25, 5, 18, 1);
+        }
+        return uniqueTimes(times.filter((t) => t >= 0 && t < dur - 1e-6));
+      }
+
+      function sequentialTimes(file) {
+        if (file.seconds > 8) {
+          const out = [];
+          for (let i = 0; i < 15; i++) out.push((i + 0.5) / file.fps);
+          const last = file.frames - 1;
+          for (let i = last - 10; i <= last; i++) {
+            if (i >= 0) out.push((i + 0.5) / file.fps);
+          }
+          return uniqueTimes(out);
+        }
+        const out = [];
+        for (let i = 0; i < file.frames; i++) out.push((i + 0.5) / file.fps);
+        return out;
+      }
+
+      function summarize(rows) {
+        const counts = {
+          EXACT: 0,
+          "WITHIN 1 FRAME": 0,
+          ">1 FRAME ERROR": 0,
+          "FAILED SEEK": 0,
+          TIMEOUT: 0,
+          "WRONG FRAME": 0,
+          UNKNOWN: 0,
+        };
+        let totalMs = 0;
+        let worstMs = 0;
+        for (const row of rows) {
+          counts[row.class] = (counts[row.class] ?? 0) + 1;
+          totalMs += row.ms ?? 0;
+          worstMs = Math.max(worstMs, row.ms ?? 0);
+        }
+        return {
+          n: rows.length,
+          counts,
+          totalMs,
+          avgMs: rows.length ? totalMs / rows.length : 0,
+          worstMs,
+        };
+      }
+
+      function semanticsTimestamps(fps) {
+        const clip = {
+          id: "c",
+          trackId: "V1",
+          kind: "video",
+          startMs: 0,
+          endMs: 2000,
+          sourceUrl: "",
+          sourceInMs: 2000,
+          sourceOutMs: 4000,
+          gain: 1,
+          fadeInMs: 0,
+          fadeOutMs: 0,
+          rate: 2,
+          missing: false,
+          label: "sem",
+        };
+        return [0, 250, 500, 1000].map((timelineMs) => ({
+          timelineMs,
+          sourceSec: sourceTimeSec(clip, timelineMs, fps),
+        }));
+      }
+
+      try {
+        show("loading manifest");
+        const manifest = await (await fetch("/tests/fixtures/mbr/manifest.json")).json();
+        const files = [];
+        const comparisons = [];
+        const randomSeek = [];
+        const sequential = [];
+        const semantics = [];
+
+        for (const file of manifest.files) {
+          const url = "/" + file.path;
+          resetFrameSourceBackend();
+          clearFrameSources();
+          clearMediaCache();
+
+          const probes = probeTimes(file);
+          const seq = sequentialTimes(file);
+          const allTimes = uniqueTimes([...probes, ...seq]);
+          show("file " + file.id + " times " + allTimes.length);
+
+          for (const t of allTimes) {
+            const a = finalizeHit(await paintMediabunny(url, t), file.fps, file.frames);
+            const b = finalizeHit(await paintHtml(url, t), file.fps, file.frames);
+            const row = {
+              file: file.id,
+              fps: file.fps,
+              gop: file.gop,
+              requestedSec: t,
+              expectedFrame: expectedFrameAtSec(t, file.fps),
+              a,
+              b,
+              match: a.actualFrame === b.actualFrame && a.class !== "FAILED SEEK",
+            };
+            comparisons.push(row);
+            if (seq.includes(t) || Math.abs((t % (1 / file.fps)) - 0.5 / file.fps) < 1e-6) {
+              sequential.push(row);
+            }
+            if (file.id.includes("g250") && [10, 2, 25, 5, 18, 1].some((x) => Math.abs(x - t) < 1e-6)) {
+              randomSeek.push(row);
+            }
+          }
+
+          if (file.fps === 30 && file.seconds >= 8) {
+            for (const item of semanticsTimestamps(30)) {
+              const a = finalizeHit(await paintMediabunny(url, item.sourceSec), file.fps, file.frames);
+              const b = finalizeHit(await paintHtml(url, item.sourceSec), file.fps, file.frames);
+              semantics.push({
+                file: file.id,
+                timelineMs: item.timelineMs,
+                sourceSec: item.sourceSec,
+                a,
+                b,
+              });
+            }
+          }
+
+          files.push({
+            id: file.id,
+            fps: file.fps,
+            gop: file.gop,
+            frames: file.frames,
+            keyframeSec: file.keyframeSec,
+            probes: probes.length,
+          });
+        }
+
+        const aRows = comparisons.map((c) => c.a);
+        const bRows = comparisons.map((c) => c.b);
+        const result = {
+          environment: {
+            userAgent: navigator.userAgent,
+            webCodecs: typeof VideoDecoder !== "undefined",
+            rvfc: typeof HTMLVideoElement !== "undefined" &&
+              typeof HTMLVideoElement.prototype.requestVideoFrameCallback === "function",
+            platform: navigator.platform,
+          },
+          files,
+          comparisons,
+          sequential,
+          randomSeek,
+          semantics,
+          performance: {
+            mediabunny: summarize(aRows),
+            htmlvideo: summarize(bRows),
+          },
+          totals: {
+            mediabunny: summarize(aRows).counts,
+            htmlvideo: summarize(bRows).counts,
+            compared: comparisons.length,
+            agree: comparisons.filter((c) => c.match).length,
+          },
+        };
+        window.__MBR_RESULT = result;
+        const text = JSON.stringify(result, null, 2);
+        show(
+          "MBR_DONE compared=" +
+            result.totals.compared +
+            " agree=" +
+            result.totals.agree +
+            "\nA " +
+            JSON.stringify(result.totals.mediabunny) +
+            "\nB " +
+            JSON.stringify(result.totals.htmlvideo),
+        );
+        out.textContent += "\n\n" + text.slice(0, 4000);
+        await report("/mbr-results", result);
+      } catch (e) {
+        const msg = e instanceof Error ? e.stack || e.message : String(e);
+        show("MBR_FAIL " + msg);
+        await report("/mbr-results", { error: msg });
+      } finally {
+        resetFrameSourceBackend();
+        clearFrameSources();
+        clearMediaCache();
+      }
+    </script>
+  </body>
+</html>
